@@ -225,11 +225,16 @@ st.markdown(
     --button: #5f4f79;
     --button-hover: #725f90;
     --accent-purple: #8e79af;
+    --atom-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cg fill='none' stroke='%238FB6D9' stroke-width='1.8'%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8'/%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8' transform='rotate(60 14 14)'/%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8' transform='rotate(-60 14 14)'/%3E%3C/g%3E%3Ccircle cx='14' cy='14' r='2.4' fill='%23D9C979'/%3E%3C/svg%3E") 14 14, auto;
 }
 
 html, body, [class*="css"] {
     font-family: 'IBM Plex Sans', sans-serif;
     color: var(--text-main);
+}
+
+html, body, .stApp, .stApp * {
+    cursor: var(--atom-cursor) !important;
 }
 
 h1, h2, h3, .page-title {
@@ -475,6 +480,7 @@ div[data-baseweb="calendar"] button[aria-selected="true"] {
 }
 
 .calendar-cell {
+    position: relative;
     height: 74px;
     vertical-align: top;
     border: 1px solid var(--border);
@@ -507,11 +513,69 @@ div[data-baseweb="calendar"] button[aria-selected="true"] {
 }
 
 .cal-badge {
+    list-style: none;
+    appearance: none;
     font-size: 10px;
     border-radius: 999px;
     padding: 1px 6px;
     border: 1px solid transparent;
-    cursor: help;
+    cursor: pointer;
+}
+
+.cal-badge::-webkit-details-marker,
+.cal-popover > summary::-webkit-details-marker {
+    display: none;
+}
+
+.cal-popover {
+    position: relative;
+}
+
+.cal-popover > summary {
+    list-style: none;
+}
+
+.cal-popover-panel {
+    display: none;
+    position: absolute;
+    left: 0;
+    top: calc(100% + 6px);
+    min-width: 220px;
+    max-width: 280px;
+    background: #201a2b;
+    border: 1px solid #5b4f70;
+    border-radius: 10px;
+    padding: 8px 10px;
+    box-shadow: 0 12px 22px rgba(0,0,0,0.42);
+    z-index: 100;
+}
+
+.cal-popover[open] .cal-popover-panel {
+    display: block;
+}
+
+.cal-popover-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #e7def4;
+    margin-bottom: 4px;
+}
+
+.cal-popover-panel ul {
+    margin: 0;
+    padding-left: 16px;
+}
+
+.cal-popover-panel li {
+    font-size: 11px;
+    color: #d7cde8;
+    line-height: 1.35;
+    margin-bottom: 2px;
+}
+
+.calendar-table td:last-child .cal-popover-panel {
+    left: auto;
+    right: 0;
 }
 
 .cal-google {
@@ -1787,6 +1851,23 @@ def get_week_range(reference_date):
     return week_start, week_end
 
 
+def build_badge_popover(label, count, css_kind, details_text):
+    lines = [line.strip() for line in str(details_text or "").split("\n") if line.strip()]
+    if not lines:
+        lines = [f"{label} {count}"]
+    heading = "Google events" if css_kind == "google" else "Tasks"
+    items_html = "".join([f"<li>{html.escape(line)}</li>" for line in lines])
+    return (
+        f"<details class='cal-popover cal-popover-{css_kind}'>"
+        f"<summary class='cal-badge cal-{css_kind}'>{label} {count}</summary>"
+        f"<div class='cal-popover-panel'>"
+        f"<div class='cal-popover-title'>{heading}</div>"
+        f"<ul>{items_html}</ul>"
+        "</div>"
+        "</details>"
+    )
+
+
 def build_week_calendar_html(
     week_start,
     selected_date,
@@ -1812,14 +1893,12 @@ def build_week_calendar_html(
         classes = "calendar-cell selected" if day == selected_date else "calendar-cell"
         badges = []
         if google_count:
-            tooltip = html.escape(google_details.get(day, "Google events"), quote=True)
             badges.append(
-                f"<span class='cal-badge cal-google' title='{tooltip}'>G {google_count}</span>"
+                build_badge_popover("G", google_count, "google", google_details.get(day, ""))
             )
         if task_count:
-            tooltip = html.escape(task_details.get(day, "Scheduled tasks"), quote=True)
             badges.append(
-                f"<span class='cal-badge cal-task' title='{tooltip}'>T {task_count}</span>"
+                build_badge_popover("T", task_count, "task", task_details.get(day, ""))
             )
         if not badges:
             badges.append("<span class='cal-badge cal-none'>-</span>")
