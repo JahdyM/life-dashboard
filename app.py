@@ -404,6 +404,85 @@ div[data-baseweb="calendar"] button[aria-selected="true"] {
     color: #fdf9ff !important;
 }
 
+.calendar-month {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 10px;
+    margin: 8px 0 12px 0;
+}
+
+.calendar-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 6px;
+}
+
+.calendar-table th {
+    text-align: center;
+    color: var(--text-soft);
+    font-size: 12px;
+    font-weight: 600;
+    padding-bottom: 2px;
+}
+
+.calendar-cell {
+    height: 74px;
+    vertical-align: top;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg-panel);
+    padding: 6px;
+}
+
+.calendar-cell.empty {
+    background: rgba(255, 255, 255, 0.02);
+    border-style: dashed;
+}
+
+.calendar-cell.selected {
+    border-color: #8FB6D9;
+    box-shadow: inset 0 0 0 1px rgba(143, 182, 217, 0.45);
+}
+
+.calendar-day {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 6px;
+}
+
+.calendar-badges {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.cal-badge {
+    font-size: 10px;
+    border-radius: 999px;
+    padding: 1px 6px;
+    border: 1px solid transparent;
+}
+
+.cal-google {
+    color: #8FB6D9;
+    background: rgba(143, 182, 217, 0.18);
+    border-color: rgba(143, 182, 217, 0.35);
+}
+
+.cal-task {
+    color: #D9C979;
+    background: rgba(217, 201, 121, 0.2);
+    border-color: rgba(217, 201, 121, 0.36);
+}
+
+.cal-none {
+    color: #9f95ad;
+    background: rgba(159, 149, 173, 0.16);
+    border-color: rgba(159, 149, 173, 0.25);
+}
+
 div[data-testid="stHeader"], div[data-testid="stToolbar"] {
     visibility: hidden;
     height: 0px;
@@ -1325,11 +1404,13 @@ def _normalize_event_component(component):
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def fetch_ics_events_for_date(ics_url, target_date):
+def fetch_ics_events_for_range(ics_url, start_date, end_date):
     if not ics_url:
         return [], None
     if Calendar is None:
         return [], "iCalendar parser unavailable. Add 'icalendar' to requirements."
+    if end_date < start_date:
+        return [], "Invalid calendar range."
     try:
         response = requests.get(ics_url, timeout=20)
         response.raise_for_status()
@@ -1340,26 +1421,120 @@ def fetch_ics_events_for_date(ics_url, target_date):
     components = []
     if recurring_ical_events is not None:
         try:
-            day_start = target_date
-            day_end = target_date + timedelta(days=1)
-            components = list(recurring_ical_events.of(calendar_obj).between(day_start, day_end))
+            components = list(
+                recurring_ical_events.of(calendar_obj).between(
+                    start_date,
+                    end_date + timedelta(days=1),
+                )
+            )
         except Exception:
             components = []
 
     if not components:
         components = [component for component in calendar_obj.walk() if component.name == "VEVENT"]
 
-    target_iso = target_date.isoformat()
+    start_iso = start_date.isoformat()
+    end_iso = end_date.isoformat()
     events = []
+    seen_keys = set()
     for component in components:
         event_payload = _normalize_event_component(component)
         if not event_payload:
             continue
-        if event_payload["start_date"] <= target_iso <= event_payload["end_date"]:
-            events.append(event_payload)
+        if event_payload["end_date"] < start_iso or event_payload["start_date"] > end_iso:
+            continue
+        if event_payload["event_key"] in seen_keys:
+            continue
+        seen_keys.add(event_payload["event_key"])
+        events.append(event_payload)
 
     events.sort(key=lambda item: (item["start_time"] is None, item["start_time"] or "23:59", item["title"]))
     return events, None
+
+
+def fetch_ics_events_for_date(ics_url, target_date):
+    return fetch_ics_events_for_range(ics_url, target_date, target_date)
+
+
+def filter_events_for_date(events, target_date):
+    target_iso = target_date.isoformat()
+    day_events = [
+        event
+        for event in events
+        if event["start_date"] <= target_iso <= event["end_date"]
+    ]
+    day_events.sort(key=lambda item: (item["start_time"] is None, item["start_time"] or "23:59", item["title"]))
+    return day_events
+
+
+def build_event_count_map(events, start_date, end_date):
+    counts = {}
+    for event in events:
+        try:
+            event_start = date.fromisoformat(event["start_date"])
+            event_end = date.fromisoformat(event["end_date"])
+        except Exception:
+            continue
+        current = max(event_start, start_date)
+        last = min(event_end, end_date)
+        while current <= last:
+            counts[current] = counts.get(current, 0) + 1
+            current += timedelta(days=1)
+    return counts
+
+
+def build_task_count_map(tasks, start_date, end_date):
+    counts = {}
+    for task in tasks:
+        raw_date = task.get("scheduled_date")
+        if not raw_date:
+            continue
+        try:
+            task_date = date.fromisoformat(raw_date)
+        except Exception:
+            continue
+        if start_date <= task_date <= end_date:
+            counts[task_date] = counts.get(task_date, 0) + 1
+    return counts
+
+
+def build_month_calendar_html(year, month, selected_date, google_counts, task_counts):
+    weeks = calendar.Calendar(firstweekday=0).monthdayscalendar(year, month)
+    header_cells = "".join([f"<th>{label}</th>" for label in DAY_LABELS])
+    rows = []
+    for week in weeks:
+        cells = []
+        for day in week:
+            if day == 0:
+                cells.append("<td class='calendar-cell empty'></td>")
+                continue
+            current = date(year, month, day)
+            google_count = google_counts.get(current, 0)
+            task_count = task_counts.get(current, 0)
+            classes = "calendar-cell selected" if current == selected_date else "calendar-cell"
+            badges = []
+            if google_count:
+                badges.append(f"<span class='cal-badge cal-google'>G {google_count}</span>")
+            if task_count:
+                badges.append(f"<span class='cal-badge cal-task'>T {task_count}</span>")
+            if not badges:
+                badges.append("<span class='cal-badge cal-none'>-</span>")
+            cell_html = (
+                f"<td class='{classes}'>"
+                f"<div class='calendar-day'>{day}</div>"
+                f"<div class='calendar-badges'>{''.join(badges)}</div>"
+                "</td>"
+            )
+            cells.append(cell_html)
+        rows.append(f"<tr>{''.join(cells)}</tr>")
+    return (
+        "<div class='calendar-month'>"
+        "<table class='calendar-table'>"
+        f"<thead><tr>{header_cells}</tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody>"
+        "</table>"
+        "</div>"
+    )
 
 
 def get_calendar_event_done_map(target_date, event_keys):
@@ -1986,19 +2161,56 @@ with left_col:
 with right_col:
     st.markdown("<div class='section-title'>Calendar</div>", unsafe_allow_html=True)
 
+    month_reference = st.date_input(
+        "Calendar month view",
+        value=selected_date.replace(day=1),
+        key="calendar_month_ref",
+    )
+    month_start = month_reference.replace(day=1)
+    month_end = date(
+        month_start.year,
+        month_start.month,
+        calendar.monthrange(month_start.year, month_start.month)[1],
+    )
+
     ics_url, calendar_secret_key = get_user_calendar_ics_url(current_user_email)
+    tasks = list_todo_tasks()
+    month_task_counts = build_task_count_map(tasks, month_start, month_end)
+
+    month_calendar_events = []
     day_calendar_events = []
     calendar_error = None
     if ics_url:
-        day_calendar_events, calendar_error = fetch_ics_events_for_date(ics_url, selected_date)
+        month_calendar_events, calendar_error = fetch_ics_events_for_range(ics_url, month_start, month_end)
+        if not calendar_error:
+            day_calendar_events = filter_events_for_date(month_calendar_events, selected_date)
+            if selected_date < month_start or selected_date > month_end:
+                day_calendar_events, calendar_error = fetch_ics_events_for_date(ics_url, selected_date)
     else:
         calendar_error = f"Missing private calendar URL in backend secret: {calendar_secret_key}"
+
+    month_google_counts = (
+        build_event_count_map(month_calendar_events, month_start, month_end)
+        if not calendar_error
+        else {}
+    )
+    st.markdown(
+        build_month_calendar_html(
+            month_start.year,
+            month_start.month,
+            selected_date,
+            month_google_counts,
+            month_task_counts,
+        ),
+        unsafe_allow_html=True,
+    )
+    st.caption("Legend: `G` = Google events, `T` = your scheduled tasks.")
+
     if calendar_error:
         st.warning(calendar_error)
     else:
         st.caption(f"{len(day_calendar_events)} Google event(s) on {selected_date.strftime('%d/%m/%Y')}")
 
-    tasks = list_todo_tasks()
     selected_iso = selected_date.isoformat()
     unscheduled_remembered = [
         task for task in tasks
