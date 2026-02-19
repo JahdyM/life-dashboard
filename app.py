@@ -1353,27 +1353,27 @@ def compute_habits_metrics(row, meeting_days):
 def apply_common_plot_style(fig, title, show_xgrid=True, show_ygrid=True):
     fig.update_layout(
         title=title,
-        title_font=dict(color="#2b201c", size=16, family="Crimson Text"),
+        title_font=dict(color="#f3edf9", size=16, family="Crimson Text"),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#3d2f2b", family="IBM Plex Sans"),
+        font=dict(color="#ddd1ea", family="IBM Plex Sans"),
         margin=dict(l=40, r=20, t=40, b=30),
         xaxis=dict(
             showgrid=show_xgrid,
-            gridcolor="#dfd3c3",
-            tickfont=dict(color="#5e4e46"),
+            gridcolor="#3d3550",
+            tickfont=dict(color="#c8bbd8"),
             zeroline=False,
             showline=True,
-            linecolor="#d8cbb8",
+            linecolor="#5b4f70",
             mirror=True,
         ),
         yaxis=dict(
             showgrid=show_ygrid,
-            gridcolor="#dfd3c3",
+            gridcolor="#3d3550",
             zeroline=False,
-            tickfont=dict(color="#5e4e46"),
+            tickfont=dict(color="#c8bbd8"),
             showline=True,
-            linecolor="#d8cbb8",
+            linecolor="#5b4f70",
             mirror=True,
         ),
     )
@@ -1442,21 +1442,21 @@ def mood_heatmap(z, hover_text, x_labels, y_labels, title=""):
 
     fig.update_layout(
         title=title,
-        title_font=dict(color="#2b201c", size=16, family="Crimson Text"),
+        title_font=dict(color="#f3edf9", size=16, family="Crimson Text"),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#3d2f2b", family="IBM Plex Sans"),
+        font=dict(color="#ddd1ea", family="IBM Plex Sans"),
         margin=dict(l=20, r=20, t=40, b=20),
         xaxis=dict(
             showgrid=False,
             zeroline=False,
-            tickfont=dict(color="#5e4e46", size=11),
+            tickfont=dict(color="#c8bbd8", size=11),
             tickmode="array",
             tickvals=list(range(len(x_labels))),
             ticktext=x_labels,
             side="top",
             showline=True,
-            linecolor="#d8cbb8",
+            linecolor="#5b4f70",
             mirror=True,
         ),
         yaxis=dict(
@@ -1466,9 +1466,9 @@ def mood_heatmap(z, hover_text, x_labels, y_labels, title=""):
             tickvals=list(range(len(y_labels))),
             ticktext=y_labels,
             autorange="reversed",
-            tickfont=dict(color="#5e4e46", size=10),
+            tickfont=dict(color="#c8bbd8", size=10),
             showline=True,
-            linecolor="#d8cbb8",
+            linecolor="#5b4f70",
             mirror=True,
         ),
     )
@@ -1483,13 +1483,13 @@ def dot_chart(values, dates, title, color, height=260):
             y=dates,
             mode="lines+markers",
             line=dict(color=color, width=2),
-            marker=dict(size=8, color=color, line=dict(width=1, color="#3d2f2b")),
+            marker=dict(size=8, color=color, line=dict(width=1, color="#ddd1ea")),
         )
     )
     apply_common_plot_style(fig, title, show_xgrid=True, show_ygrid=True)
     fig.update_layout(height=height)
     fig.update_yaxes(categoryorder="array", categoryarray=list(dates), automargin=True)
-    fig.update_xaxes(tickfont=dict(size=10, color="#5e4e46"))
+    fig.update_xaxes(tickfont=dict(size=10, color="#c8bbd8"))
     return fig
 
 
