@@ -140,8 +140,27 @@ def file_path_to_data_uri(file_path):
 
 
 def resolve_background_image_css_url():
-    configured_path = (os.getenv("DASHBOARD_BG_IMAGE_PATH") or "").strip()
-    configured_url = (os.getenv("DASHBOARD_BG_IMAGE_URL") or "").strip()
+    def read_secret_value(path):
+        current = st.secrets
+        for key in path:
+            try:
+                if key not in current:
+                    return ""
+                current = current[key]
+            except Exception:
+                return ""
+        return str(current).strip() if current is not None else ""
+
+    configured_path = (
+        (os.getenv("DASHBOARD_BG_IMAGE_PATH") or "").strip()
+        or read_secret_value(("DASHBOARD_BG_IMAGE_PATH",))
+        or read_secret_value(("app", "DASHBOARD_BG_IMAGE_PATH"))
+    )
+    configured_url = (
+        (os.getenv("DASHBOARD_BG_IMAGE_URL") or "").strip()
+        or read_secret_value(("DASHBOARD_BG_IMAGE_URL",))
+        or read_secret_value(("app", "DASHBOARD_BG_IMAGE_URL"))
+    )
     if configured_path and os.path.exists(configured_path):
         return file_path_to_data_uri(configured_path)
     if configured_url:
