@@ -1,3 +1,4 @@
+import threading
 import time
 from datetime import date, datetime, timedelta
 
@@ -5,6 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from dashboard.data import repositories
+from dashboard.data import api_client
 from dashboard.services import google_calendar
 from dashboard.state import session_slices
 
@@ -96,20 +98,23 @@ def _day_draft(selected_day):
 
 def _build_week_hour_board(range_tasks, start_day):
     columns = [(start_day + timedelta(days=i)) for i in range(7)]
+    index = {}
+    for item in range_tasks:
+        day_key = item.get("scheduled_date")
+        item_time = item.get("scheduled_time")
+        if not day_key or not item_time:
+            continue
+        hour_key = str(item_time)[:2]
+        index.setdefault((day_key, hour_key), []).append(f"{item_time} • {item.get('title')}")
+
     hour_rows = []
     for hour in range(6, 23):
-        row = {"Hour": f"{hour:02d}:00"}
+        hour_label = f"{hour:02d}"
+        row = {"Hour": f"{hour_label}:00"}
         for day in columns:
+            day_iso = day.isoformat()
             day_key = day.strftime("%a %d/%m")
-            values = []
-            for item in range_tasks:
-                if item.get("scheduled_date") != day.isoformat():
-                    continue
-                item_time = item.get("scheduled_time")
-                if not item_time:
-                    continue
-                if str(item_time).startswith(f"{hour:02d}:"):
-                    values.append(f"{item_time} • {item.get('title')}")
+            values = index.get((day_iso, hour_label), [])
             row[day_key] = " | ".join(values)
         hour_rows.append(row)
     return hour_rows
@@ -125,6 +130,16 @@ def _sync_google_if_connected(user_email, connected, start_day, end_day, calenda
     if last_sync_key == sync_key and (now - last_sync_ts) < 20:
         return []
     try:
+        if api_client.is_enabled():
+            def _fire_sync():
+                try:
+                    api_client.request("POST", "/v1/calendar/sync/run")
+                except Exception:
+                    pass
+            threading.Thread(target=_fire_sync, daemon=True).start()
+            st.session_state["calendar.last_sync_key"] = sync_key
+            st.session_state["calendar.last_sync_ts"] = now
+            return []
         events = repositories.sync_google_events_for_range(user_email, start_day, end_day, calendar_ids)
         st.session_state["calendar.last_sync_key"] = sync_key
         st.session_state["calendar.last_sync_ts"] = now
@@ -136,6 +151,14 @@ def _sync_google_if_connected(user_email, connected, start_day, end_day, calenda
 
 def _sync_created_or_updated_activity_to_google(user_email, activity_id, connected, primary_calendar_id):
     if not connected:
+        return
+    if api_client.is_enabled():
+        def _fire_outbox():
+            try:
+                api_client.request("POST", "/v1/sync/run")
+            except Exception:
+                pass
+        threading.Thread(target=_fire_outbox, daemon=True).start()
         return
     activity = repositories.get_activity_by_id(activity_id, user_email=user_email)
     if not activity:
@@ -180,9 +203,22 @@ def render_calendar_tab(ctx):
     start_day, end_day = _range_from_view(selected_day, view_mode, week_ref, month_ref, month_last_day)
 
     _sync_google_if_connected(user_email, connected, start_day, end_day, calendar_ids)
-    day_tasks = repositories.list_activities_for_day(user_email, selected_day)
-    range_tasks = repositories.list_activities_for_range(user_email, start_day, end_day)
-    subtasks = repositories.list_todo_subtasks([item["id"] for item in day_tasks], user_email=user_email)
+    if api_client.is_enabled():
+        try:
+            payload = api_client.request(
+                "GET",
+                "/v1/tasks",
+                params={"start": start_day.isoformat(), "end": end_day.isoformat()},
+            )
+            range_tasks = payload.get("items", [])
+            subtasks = payload.get("subtasks", {})
+        except Exception:
+            range_tasks = repositories.list_activities_for_range(user_email, start_day, end_day)
+            subtasks = repositories.list_todo_subtasks([item["id"] for item in range_tasks], user_email=user_email)
+    else:
+        range_tasks = repositories.list_activities_for_range(user_email, start_day, end_day)
+        subtasks = repositories.list_todo_subtasks([item["id"] for item in range_tasks], user_email=user_email)
+    day_tasks = [item for item in range_tasks if item.get("scheduled_date") == selected_day.isoformat()]
 
     st.markdown("<div class='small-label'>Open calendar view</div>", unsafe_allow_html=True)
     if view_mode == "Week":
@@ -300,7 +336,13 @@ def render_calendar_tab(ctx):
             st.session_state["calendar.remembered.title"] = ""
             st.rerun()
 
-    unscheduled = repositories.list_unscheduled_remembered(user_email)
+    if api_client.is_enabled():
+        try:
+            unscheduled = api_client.request("GET", "/v1/tasks/unscheduled").get("items", [])
+        except Exception:
+            unscheduled = repositories.list_unscheduled_remembered(user_email)
+    else:
+        unscheduled = repositories.list_unscheduled_remembered(user_email)
     if not unscheduled:
         st.caption("No remembered tasks pending scheduling.")
     else:
