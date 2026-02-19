@@ -242,24 +242,117 @@ def bootstrap_local_secrets_from_env():
 load_local_env()
 bootstrap_local_secrets_from_env()
 
+THEME_PRESETS = {
+    "dark": {
+        "bg_main": "#121017",
+        "bg_glow": "#1f1a2a",
+        "bg_accent": "#1a1622",
+        "bg_card": "#1e1a27",
+        "bg_panel": "#2a2335",
+        "border": "#5b4f70",
+        "text_main": "#f3edf9",
+        "text_soft": "#c8bbd8",
+        "button": "#5f4f79",
+        "button_hover": "#725f90",
+        "accent_purple": "#8e79af",
+        "plot_grid": "#3d3550",
+        "plot_marker_line": "#ddd1ea",
+        "overlay_start": "rgba(10, 8, 14, 0.78)",
+        "overlay_end": "rgba(10, 8, 14, 0.84)",
+        "popover_bg": "#201a2b",
+        "popover_border": "#5b4f70",
+        "popover_title": "#e7def4",
+        "popover_text": "#d7cde8",
+        "calendar_score_text": "#f1e9d9",
+        "calendar_score_bg": "rgba(87, 73, 113, 0.55)",
+        "calendar_score_border": "rgba(143, 182, 217, 0.35)",
+        "calendar_score_empty_text": "#a89cb8",
+        "calendar_score_empty_border": "rgba(159, 149, 173, 0.3)",
+        "calendar_score_empty_bg": "rgba(36, 30, 48, 0.4)",
+        "today_border": "#d9c979",
+        "today_bg": "rgba(217, 201, 121, 0.12)",
+    },
+    "light": {
+        "bg_main": "#f7f3ed",
+        "bg_glow": "#eee2d3",
+        "bg_accent": "#f4eee5",
+        "bg_card": "#fff9f1",
+        "bg_panel": "#f6efe3",
+        "border": "#c4b59f",
+        "text_main": "#2f2922",
+        "text_soft": "#6c6053",
+        "button": "#b29a7d",
+        "button_hover": "#9f876b",
+        "accent_purple": "#8f7aa9",
+        "plot_grid": "#d9ccbb",
+        "plot_marker_line": "#ffffff",
+        "overlay_start": "rgba(255, 249, 239, 0.74)",
+        "overlay_end": "rgba(244, 235, 221, 0.74)",
+        "popover_bg": "#fff8ef",
+        "popover_border": "#c4b59f",
+        "popover_title": "#3f352c",
+        "popover_text": "#5c5044",
+        "calendar_score_text": "#3f352c",
+        "calendar_score_bg": "rgba(226, 214, 197, 0.78)",
+        "calendar_score_border": "rgba(160, 140, 115, 0.45)",
+        "calendar_score_empty_text": "#7e7265",
+        "calendar_score_empty_border": "rgba(160, 140, 115, 0.3)",
+        "calendar_score_empty_bg": "rgba(233, 223, 210, 0.65)",
+        "today_border": "#9b845f",
+        "today_bg": "rgba(203, 184, 154, 0.32)",
+    },
+}
+
+if "ui_theme" not in st.session_state:
+    st.session_state["ui_theme"] = "dark"
+if st.session_state["ui_theme"] not in THEME_PRESETS:
+    st.session_state["ui_theme"] = "dark"
+
+ACTIVE_THEME_NAME = st.session_state["ui_theme"]
+ACTIVE_THEME = THEME_PRESETS[ACTIVE_THEME_NAME]
+THEME_TOGGLE_ICON = "☀️" if ACTIVE_THEME_NAME == "dark" else "🌙"
+THEME_TOGGLE_HELP = "Switch to light mode" if ACTIVE_THEME_NAME == "dark" else "Switch to dark mode"
+
+theme_vars_css = f"""
+:root {{
+    --bg-main: {ACTIVE_THEME['bg_main']};
+    --bg-glow: {ACTIVE_THEME['bg_glow']};
+    --bg-accent: {ACTIVE_THEME['bg_accent']};
+    --bg-card: {ACTIVE_THEME['bg_card']};
+    --bg-panel: {ACTIVE_THEME['bg_panel']};
+    --border: {ACTIVE_THEME['border']};
+    --text-main: {ACTIVE_THEME['text_main']};
+    --text-soft: {ACTIVE_THEME['text_soft']};
+    --button: {ACTIVE_THEME['button']};
+    --button-hover: {ACTIVE_THEME['button_hover']};
+    --accent-purple: {ACTIVE_THEME['accent_purple']};
+    --plot-grid: {ACTIVE_THEME['plot_grid']};
+    --plot-marker-line: {ACTIVE_THEME['plot_marker_line']};
+    --overlay-start: {ACTIVE_THEME['overlay_start']};
+    --overlay-end: {ACTIVE_THEME['overlay_end']};
+    --popover-bg: {ACTIVE_THEME['popover_bg']};
+    --popover-border: {ACTIVE_THEME['popover_border']};
+    --popover-title: {ACTIVE_THEME['popover_title']};
+    --popover-text: {ACTIVE_THEME['popover_text']};
+    --calendar-score-text: {ACTIVE_THEME['calendar_score_text']};
+    --calendar-score-bg: {ACTIVE_THEME['calendar_score_bg']};
+    --calendar-score-border: {ACTIVE_THEME['calendar_score_border']};
+    --calendar-score-empty-text: {ACTIVE_THEME['calendar_score_empty_text']};
+    --calendar-score-empty-border: {ACTIVE_THEME['calendar_score_empty_border']};
+    --calendar-score-empty-bg: {ACTIVE_THEME['calendar_score_empty_bg']};
+    --today-border: {ACTIVE_THEME['today_border']};
+    --today-bg: {ACTIVE_THEME['today_bg']};
+    --atom-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='1.8'%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8'/%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8' transform='rotate(60 14 14)'/%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8' transform='rotate(-60 14 14)'/%3E%3C/g%3E%3Ccircle cx='14' cy='14' r='2.6' fill='%23000000' stroke='%23ffffff' stroke-width='1.1'/%3E%3C/svg%3E") 14 14, auto;
+}}
+"""
+
 st.markdown(
     """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
-
-:root {
-    --bg-main: #121017;
-    --bg-accent: #1a1622;
-    --bg-card: #1e1a27;
-    --bg-panel: #2a2335;
-    --border: #5b4f70;
-    --text-main: #f3edf9;
-    --text-soft: #c8bbd8;
-    --button: #5f4f79;
-    --button-hover: #725f90;
-    --accent-purple: #8e79af;
-    --atom-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='1.8'%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8'/%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8' transform='rotate(60 14 14)'/%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8' transform='rotate(-60 14 14)'/%3E%3C/g%3E%3Ccircle cx='14' cy='14' r='2.6' fill='%23000000' stroke='%23ffffff' stroke-width='1.1'/%3E%3C/svg%3E") 14 14, auto;
-}
+"""
+    + theme_vars_css
+    + """
 
 html, body, [class*="css"] {
     font-family: 'IBM Plex Sans', sans-serif;
@@ -276,7 +369,7 @@ h1, h2, h3, .page-title {
 }
 
 .stApp {
-    background: radial-gradient(1400px 900px at 20% 0%, #1f1a2a 0%, var(--bg-main) 58%);
+    background: radial-gradient(1400px 900px at 20% 0%, var(--bg-glow) 0%, var(--bg-main) 58%);
     color: var(--text-main);
 }
 
@@ -325,6 +418,32 @@ h1, h2, h3, .page-title {
 .stButton>button:hover {
     background: var(--button-hover);
     border-color: #9583b1;
+}
+
+button[kind="tertiary"] {
+    background: transparent !important;
+    border: 1px solid rgba(157, 145, 177, 0.28) !important;
+    color: #f2edf8 !important;
+    border-radius: 8px !important;
+    min-height: 22px !important;
+    height: 22px !important;
+    width: 22px !important;
+    padding: 0 !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    opacity: 0;
+    transition: opacity 0.16s ease, border-color 0.16s ease, background-color 0.16s ease;
+}
+
+div[data-testid="stHorizontalBlock"]:hover button[kind="tertiary"],
+button[kind="tertiary"]:focus-visible,
+button[kind="tertiary"]:hover {
+    opacity: 1;
+}
+
+button[kind="tertiary"]:hover {
+    background: rgba(114, 95, 144, 0.32) !important;
+    border-color: #a892c4 !important;
 }
 
 button[kind="primary"] {
