@@ -126,6 +126,32 @@ BACKGROUND_IMAGE_CANDIDATES = [
 st.set_page_config(page_title="Personal Life Dashboard", layout="wide")
 
 
+def file_path_to_data_uri(file_path):
+    try:
+        with open(file_path, "rb") as file_handle:
+            payload = file_handle.read()
+    except Exception:
+        return ""
+    mime_type, _ = mimetypes.guess_type(file_path)
+    if not mime_type:
+        mime_type = "image/jpeg"
+    encoded = base64.b64encode(payload).decode("ascii")
+    return f"data:{mime_type};base64,{encoded}"
+
+
+def resolve_background_image_css_url():
+    configured_path = (os.getenv("DASHBOARD_BG_IMAGE_PATH") or "").strip()
+    configured_url = (os.getenv("DASHBOARD_BG_IMAGE_URL") or "").strip()
+    if configured_path and os.path.exists(configured_path):
+        return file_path_to_data_uri(configured_path)
+    if configured_url:
+        return configured_url
+    for candidate in BACKGROUND_IMAGE_CANDIDATES:
+        if os.path.exists(candidate):
+            return file_path_to_data_uri(candidate)
+    return ""
+
+
 def load_local_env():
     if not os.path.exists(ENV_PATH):
         return
@@ -587,6 +613,26 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 """,
     unsafe_allow_html=True,
 )
+
+background_image_css_url = resolve_background_image_css_url()
+if background_image_css_url:
+    safe_background_url = background_image_css_url.replace("'", "%27")
+    st.markdown(
+        f"""
+<style>
+.stApp {{
+    background-image:
+        linear-gradient(rgba(10, 8, 14, 0.78), rgba(10, 8, 14, 0.84)),
+        url('{safe_background_url}') !important;
+    background-size: cover !important;
+    background-position: center center !important;
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
+}}
+</style>
+""",
+        unsafe_allow_html=True,
+    )
 
 
 st.markdown("<div class='page-title' style='font-size:30px;'>Personal Life Dashboard</div>", unsafe_allow_html=True)
