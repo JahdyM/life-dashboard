@@ -2291,46 +2291,41 @@ with left_col:
 with right_col:
     st.markdown("<div class='section-title'>Calendar</div>", unsafe_allow_html=True)
 
-    month_reference = st.date_input(
-        "Calendar month view",
-        value=selected_date.replace(day=1),
-        key="calendar_month_ref",
+    week_reference = st.date_input(
+        "Calendar week view",
+        value=selected_date,
+        key="calendar_week_ref",
     )
-    month_start = month_reference.replace(day=1)
-    month_end = date(
-        month_start.year,
-        month_start.month,
-        calendar.monthrange(month_start.year, month_start.month)[1],
-    )
+    week_start, week_end = get_week_range(week_reference)
+    st.caption(f"Week: {week_start.strftime('%d/%m/%Y')} - {week_end.strftime('%d/%m/%Y')}")
 
     ics_url, calendar_secret_key = get_user_calendar_ics_url(current_user_email)
     tasks = list_todo_tasks()
-    month_task_counts = build_task_count_map(tasks, month_start, month_end)
+    week_task_counts = build_task_count_map(tasks, week_start, week_end)
 
-    month_calendar_events = []
+    week_calendar_events = []
     day_calendar_events = []
     calendar_error = None
     if ics_url:
-        month_calendar_events, calendar_error = fetch_ics_events_for_range(ics_url, month_start, month_end)
+        week_calendar_events, calendar_error = fetch_ics_events_for_range(ics_url, week_start, week_end)
         if not calendar_error:
-            day_calendar_events = filter_events_for_date(month_calendar_events, selected_date)
-            if selected_date < month_start or selected_date > month_end:
+            day_calendar_events = filter_events_for_date(week_calendar_events, selected_date)
+            if selected_date < week_start or selected_date > week_end:
                 day_calendar_events, calendar_error = fetch_ics_events_for_date(ics_url, selected_date)
     else:
         calendar_error = f"Missing private calendar URL in backend secret: {calendar_secret_key}"
 
-    month_google_counts = (
-        build_event_count_map(month_calendar_events, month_start, month_end)
+    week_google_counts = (
+        build_event_count_map(week_calendar_events, week_start, week_end)
         if not calendar_error
         else {}
     )
     st.markdown(
-        build_month_calendar_html(
-            month_start.year,
-            month_start.month,
+        build_week_calendar_html(
+            week_start,
             selected_date,
-            month_google_counts,
-            month_task_counts,
+            week_google_counts,
+            week_task_counts,
         ),
         unsafe_allow_html=True,
     )
@@ -2808,6 +2803,9 @@ with right_col:
                     )
                     st.rerun()
         st.divider()
+
+if aesthetic_image_urls:
+    st.markdown(build_aesthetic_mosaic_html(list(reversed(aesthetic_image_urls))), unsafe_allow_html=True)
 
 # --- TODAY'S SUMMARY ---
 
