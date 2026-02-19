@@ -2567,17 +2567,50 @@ with right_col:
         task["id"]: get_todo_task_subtasks(task["id"])
         for task in day_internal_tasks
     }
+    override_tasks_by_event = {}
+    for task in day_internal_tasks:
+        if task.get("source") == "calendar_override" and task.get("external_event_key"):
+            override_tasks_by_event[task["external_event_key"]] = task
 
-    event_done_map = get_calendar_event_done_map(
+    event_status_map = get_calendar_event_status_map(
         selected_date,
         [event["event_key"] for event in day_calendar_events],
     )
+    event_done_map = {k: v.get("is_done", False) for k, v in event_status_map.items()}
+    event_hidden_map = {k: v.get("is_hidden", False) for k, v in event_status_map.items()}
 
     st.caption(f"Daily view for {selected_date.strftime('%d/%m/%Y')}")
 
     calendar_items = []
+    linked_task_ids = set()
     for event in day_calendar_events:
-        event_done = bool(event_done_map.get(event["event_key"], False))
+        event_key = event["event_key"]
+        override_task = override_tasks_by_event.get(event_key)
+        if override_task:
+            linked_task_ids.add(override_task["id"])
+            subtasks = task_subtasks_cache.get(override_task["id"], [])
+            progress = get_task_progress(override_task, subtasks)
+            calendar_items.append(
+                {
+                    "id": override_task["id"],
+                    "source": "calendar_override",
+                    "title": override_task.get("title") or event.get("title") or "",
+                    "time_label": format_time_interval(
+                        override_task.get("scheduled_time") or event.get("start_time"),
+                        override_task.get("estimated_minutes"),
+                    ),
+                    "time_sort": normalize_time_value(override_task.get("scheduled_time") or event.get("start_time")) or "23:59",
+                    "done": progress >= 100,
+                    "has_subtasks": len(subtasks) > 0,
+                    "priority_tag": normalize_priority_tag(override_task.get("priority_tag")),
+                }
+            )
+            continue
+
+        if event_hidden_map.get(event_key, False):
+            continue
+
+        event_done = bool(event_done_map.get(event_key, False))
         if event["is_all_day"]:
             time_label = "All day"
             time_sort = "00:00"
@@ -2589,17 +2622,20 @@ with right_col:
             time_sort = event.get("start_time") or "23:59"
         calendar_items.append(
             {
-                "id": event["event_key"],
+                "id": event_key,
                 "source": "calendar",
                 "title": event["title"],
                 "time_label": time_label,
                 "time_sort": time_sort,
                 "done": event_done,
                 "has_subtasks": False,
+                "event_row": event,
             }
         )
 
     for task in day_internal_tasks:
+        if task["id"] in linked_task_ids:
+            continue
         subtasks = task_subtasks_cache.get(task["id"], [])
         progress = get_task_progress(task, subtasks)
         task_priority, _, _ = priority_meta(task.get("priority_tag"))
@@ -2660,13 +2696,25 @@ with right_col:
                         "<span style='color:#c8bbd8;font-size:12px;'>Google</span>",
                         unsafe_allow_html=True,
                     )
+                elif item["source"] == "calendar_override":
+                    st.markdown(
+                        "<span style='color:#c8bbd8;font-size:12px;'>Custom</span>",
+                        unsafe_allow_html=True,
+                    )
                 else:
                     st.markdown(
                         f"<span style='color:#c8bbd8;font-size:12px;'>{item.get('priority_tag', 'Medium')}</span>",
                         unsafe_allow_html=True,
                     )
             with row_cols[4]:
-                if item["source"] != "calendar" and st.button("Delete", key=f"delete_calendar_task_{item_key}"):
+                if item["source"] == "calendar":
+                    if st.button("Custom", key=f"customize_calendar_task_{item_key}"):
+                        create_calendar_override_task(item["event_row"], selected_date)
+                        st.rerun()
+                    if st.button("Delete", key=f"hide_calendar_task_{item_key}"):
+                        set_calendar_event_hidden(item["id"], selected_date, True)
+                        st.rerun()
+                elif st.button("Delete", key=f"delete_calendar_task_{item_key}"):
                     delete_todo_task(item["id"])
                     st.rerun()
             st.divider()
