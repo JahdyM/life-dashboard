@@ -421,121 +421,171 @@ def render_calendar_tab(ctx):
     for task in day_tasks:
         task_id = task["id"]
         task_key = task_id.replace("-", "_")
-        row_cols = st.columns([0.7, 3.2, 1.2, 1.1, 1.1, 0.9, 0.9])
+        time_current = task.get("scheduled_time")
+        default_time = (
+            datetime.strptime(time_current, "%H:%M").time()
+            if time_current
+            else datetime.now().replace(second=0, microsecond=0).time()
+        )
 
-        with row_cols[0]:
-            checked = st.checkbox("", value=bool(task.get("is_done", 0)), key=f"calendar.task.done.{task_key}", label_visibility="collapsed")
-            if checked != bool(task.get("is_done", 0)):
-                repositories.save_activity({"id": task_id, "is_done": int(checked)})
-                try:
-                    _sync_created_or_updated_activity_to_google(user_email, task_id, connected, primary_calendar_id)
-                except Exception:
-                    pass
-                st.rerun()
-
-        with row_cols[1]:
-            title_key = f"calendar.task.title.{task_key}"
-            if title_key not in st.session_state:
-                st.session_state[title_key] = task.get("title") or ""
-            new_title = st.text_input("Title", key=title_key, label_visibility="collapsed")
-            if new_title != (task.get("title") or ""):
-                repositories.save_activity({"id": task_id, "title": new_title})
-                try:
-                    _sync_created_or_updated_activity_to_google(user_email, task_id, connected, primary_calendar_id)
-                except Exception:
-                    pass
-                st.rerun()
-
-        with row_cols[2]:
-            pr_key = f"calendar.task.priority.{task_key}"
-            current_pr = task.get("priority_tag") or "Medium"
-            pr = st.selectbox("Priority", PRIORITY_TAGS, index=PRIORITY_TAGS.index(current_pr) if current_pr in PRIORITY_TAGS else 1, key=pr_key)
-            if pr != current_pr:
-                repositories.save_activity({"id": task_id, "priority_tag": pr})
-                st.rerun()
-
-        with row_cols[3]:
-            est_key = f"calendar.task.est.{task_key}"
-            est_current = int(task.get("estimated_minutes") or 0)
-            est_new = st.number_input("Est", min_value=0, max_value=600, step=5, value=est_current, key=est_key)
-            if int(est_new) != est_current:
-                repositories.save_activity({"id": task_id, "estimated_minutes": int(est_new)})
-                try:
-                    _sync_created_or_updated_activity_to_google(user_email, task_id, connected, primary_calendar_id)
-                except Exception:
-                    pass
-                st.rerun()
-
-        with row_cols[4]:
-            actual_key = f"calendar.task.actual.{task_key}"
-            actual_current = int(task.get("actual_minutes") or 0)
-            actual_new = st.number_input("Actual", min_value=0, max_value=600, step=5, value=actual_current, key=actual_key)
-            if int(actual_new) != actual_current:
-                repositories.save_activity({"id": task_id, "actual_minutes": int(actual_new)})
-                st.rerun()
-
-        with row_cols[5]:
-            has_time = bool(task.get("scheduled_time"))
-            has_time_new = st.checkbox("Time", value=has_time, key=f"calendar.task.timeflag.{task_key}")
-            if has_time_new != has_time:
+        with st.form(key=f"calendar.task.form.{task_key}", clear_on_submit=False):
+            row_cols = st.columns([0.7, 3.0, 1.2, 1.1, 1.1, 0.9, 1.2, 0.8])
+            with row_cols[0]:
+                checked = st.checkbox(
+                    "",
+                    value=bool(task.get("is_done", 0)),
+                    key=f"calendar.task.done.{task_key}",
+                    label_visibility="collapsed",
+                )
+            with row_cols[1]:
+                new_title = st.text_input(
+                    "Title",
+                    value=task.get("title") or "",
+                    key=f"calendar.task.title.{task_key}",
+                    label_visibility="collapsed",
+                )
+            with row_cols[2]:
+                current_pr = task.get("priority_tag") or "Medium"
+                pr = st.selectbox(
+                    "Priority",
+                    PRIORITY_TAGS,
+                    index=PRIORITY_TAGS.index(current_pr) if current_pr in PRIORITY_TAGS else 1,
+                    key=f"calendar.task.priority.{task_key}",
+                )
+            with row_cols[3]:
+                est_current = int(task.get("estimated_minutes") or 0)
+                est_new = st.number_input(
+                    "Est",
+                    min_value=0,
+                    max_value=600,
+                    step=5,
+                    value=est_current,
+                    key=f"calendar.task.est.{task_key}",
+                )
+            with row_cols[4]:
+                actual_current = int(task.get("actual_minutes") or 0)
+                actual_new = st.number_input(
+                    "Actual",
+                    min_value=0,
+                    max_value=600,
+                    step=5,
+                    value=actual_current,
+                    key=f"calendar.task.actual.{task_key}",
+                )
+            with row_cols[5]:
+                has_time_new = st.checkbox(
+                    "Time",
+                    value=bool(task.get("scheduled_time")),
+                    key=f"calendar.task.timeflag.{task_key}",
+                )
+            with row_cols[6]:
                 if has_time_new:
-                    default_time = datetime.now().replace(second=0, microsecond=0).time()
-                    repositories.save_activity({"id": task_id, "scheduled_time": default_time.strftime("%H:%M")})
+                    time_new = st.time_input("Start", value=default_time, key=f"calendar.task.time.{task_key}")
                 else:
-                    repositories.save_activity({"id": task_id, "scheduled_time": None})
+                    time_new = None
+            with row_cols[7]:
+                save_task = st.form_submit_button("Save", use_container_width=True)
+
+            delete_cols = st.columns([1.4, 6])
+            with delete_cols[0]:
+                delete_task = st.form_submit_button("✕", use_container_width=True)
+
+        if save_task:
+            final_title = (new_title or "").strip() or (task.get("title") or "Untitled task")
+            final_time = time_new.strftime("%H:%M") if (has_time_new and time_new) else None
+            patch = {
+                "id": task_id,
+                "is_done": int(bool(checked)),
+                "title": final_title,
+                "priority_tag": pr,
+                "estimated_minutes": int(est_new),
+                "actual_minutes": int(actual_new),
+                "scheduled_time": final_time,
+            }
+            changed = (
+                int(task.get("is_done", 0) or 0) != int(bool(checked))
+                or (task.get("title") or "") != final_title
+                or (task.get("priority_tag") or "Medium") != pr
+                or int(task.get("estimated_minutes") or 0) != int(est_new)
+                or int(task.get("actual_minutes") or 0) != int(actual_new)
+                or (task.get("scheduled_time") or None) != final_time
+            )
+            if changed:
+                repositories.save_activity(patch)
                 try:
                     _sync_created_or_updated_activity_to_google(user_email, task_id, connected, primary_calendar_id)
-                except Exception:
-                    pass
-                st.rerun()
+                except Exception as exc:
+                    st.warning(f"Saved locally, but Google sync failed: {exc}")
+            st.rerun()
 
-        with row_cols[6]:
-            if st.button("✕", key=f"calendar.task.delete.{task_key}", type="tertiary"):
-                repositories.delete_activity(task_id, delete_remote_google=True)
-                st.rerun()
-
-        if bool(st.session_state.get(f"calendar.task.timeflag.{task_key}", bool(task.get("scheduled_time")))):
-            time_current = task.get("scheduled_time")
-            time_default = datetime.strptime(time_current, "%H:%M").time() if time_current else datetime.now().replace(second=0, microsecond=0).time()
-            time_new = st.time_input("Start time", value=time_default, key=f"calendar.task.time.{task_key}")
-            if time_new.strftime("%H:%M") != (time_current or ""):
-                repositories.save_activity({"id": task_id, "scheduled_time": time_new.strftime("%H:%M")})
-                try:
-                    _sync_created_or_updated_activity_to_google(user_email, task_id, connected, primary_calendar_id)
-                except Exception:
-                    pass
-                st.rerun()
+        if delete_task:
+            repositories.delete_activity(task_id, delete_remote_google=True)
+            st.rerun()
 
         sub_items = subtasks.get(task_id, [])
         for sub in sub_items:
             sub_key = sub["id"].replace("-", "_")
-            s_cols = st.columns([0.7, 3.8, 1.2, 0.8])
-            with s_cols[0]:
-                s_done = st.checkbox("", value=bool(sub.get("is_done", 0)), key=f"calendar.sub.done.{sub_key}", label_visibility="collapsed")
-                if s_done != bool(sub.get("is_done", 0)):
-                    repositories.update_subtask(sub["id"], {"is_done": s_done})
-                    st.rerun()
-            with s_cols[1]:
-                st.caption(f"Subtask: {sub.get('title')}")
-            with s_cols[2]:
-                s_actual = int(sub.get("actual_minutes") or 0)
-                s_actual_new = st.number_input("Actual", min_value=0, max_value=600, step=5, value=s_actual, key=f"calendar.sub.actual.{sub_key}")
-                if s_actual_new != s_actual:
-                    repositories.update_subtask(sub["id"], {"actual_minutes": int(s_actual_new)})
-                    st.rerun()
-            with s_cols[3]:
-                if st.button("✕", key=f"calendar.sub.delete.{sub_key}", type="tertiary"):
-                    repositories.delete_subtask(sub["id"])
-                    st.rerun()
+            with st.form(key=f"calendar.sub.form.{sub_key}", clear_on_submit=False):
+                s_cols = st.columns([0.7, 3.8, 1.2, 1.0, 0.8])
+                with s_cols[0]:
+                    s_done = st.checkbox(
+                        "",
+                        value=bool(sub.get("is_done", 0)),
+                        key=f"calendar.sub.done.{sub_key}",
+                        label_visibility="collapsed",
+                    )
+                with s_cols[1]:
+                    st.caption(f"Subtask: {sub.get('title')}")
+                with s_cols[2]:
+                    s_actual = int(sub.get("actual_minutes") or 0)
+                    s_actual_new = st.number_input(
+                        "Actual",
+                        min_value=0,
+                        max_value=600,
+                        step=5,
+                        value=s_actual,
+                        key=f"calendar.sub.actual.{sub_key}",
+                    )
+                with s_cols[3]:
+                    save_sub = st.form_submit_button("Save", use_container_width=True)
+                with s_cols[4]:
+                    delete_sub = st.form_submit_button("✕", use_container_width=True)
 
-        add_sub_cols = st.columns([3.8, 1.2, 0.8])
-        with add_sub_cols[0]:
-            sub_title = st.text_input("New subtask", key=f"calendar.sub.new.{task_key}", label_visibility="collapsed", placeholder="Add subtask")
-        with add_sub_cols[1]:
-            sub_est = st.number_input("Est", min_value=5, max_value=600, step=5, value=15, key=f"calendar.sub.est.{task_key}")
-        with add_sub_cols[2]:
-            if st.button("+", key=f"calendar.sub.add.{task_key}", type="tertiary"):
-                repositories.add_subtask(task_id, sub_title, estimated_minutes=sub_est)
+            if save_sub:
+                if (bool(sub.get("is_done", 0)) != bool(s_done)) or (int(sub.get("actual_minutes") or 0) != int(s_actual_new)):
+                    repositories.update_subtask(sub["id"], {"is_done": s_done, "actual_minutes": int(s_actual_new)})
                 st.rerun()
+            if delete_sub:
+                repositories.delete_subtask(sub["id"])
+                st.rerun()
+
+        add_sub_key = f"calendar.sub.new.{task_key}"
+        with st.form(key=f"calendar.sub.add.form.{task_key}", clear_on_submit=False):
+            add_sub_cols = st.columns([3.8, 1.2, 1.4])
+            with add_sub_cols[0]:
+                sub_title = st.text_input(
+                    "New subtask",
+                    key=add_sub_key,
+                    label_visibility="collapsed",
+                    placeholder="Add subtask",
+                )
+            with add_sub_cols[1]:
+                sub_est = st.number_input(
+                    "Est",
+                    min_value=5,
+                    max_value=600,
+                    step=5,
+                    value=15,
+                    key=f"calendar.sub.est.{task_key}",
+                )
+            with add_sub_cols[2]:
+                add_sub = st.form_submit_button("Confirm subtask", use_container_width=True)
+
+        if add_sub:
+            clean_sub_title = (sub_title or "").strip()
+            if clean_sub_title:
+                repositories.add_subtask(task_id, clean_sub_title, estimated_minutes=sub_est)
+                st.session_state[add_sub_key] = ""
+            st.rerun()
 
         st.divider()
