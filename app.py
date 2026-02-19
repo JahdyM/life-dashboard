@@ -1,7 +1,7 @@
 import os
 from datetime import date, datetime, timedelta
 import calendar
-from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+from urllib.parse import urlparse
 from uuid import uuid4
 
 import numpy as np
@@ -9,7 +9,6 @@ import pandas as pd
 import plotly.graph_objects as go
 import requests
 import streamlit as st
-import streamlit.components.v1 as components
 from sqlalchemy import create_engine, inspect, text as sql_text
 
 try:
@@ -41,23 +40,18 @@ GUILHERME_EMAIL = "guilherme.m.rods@gmail.com"
 USER_PROFILES = {
     JAHDY_EMAIL: {
         "name": "Jahdy",
-        "calendar_embed_url": (
-            "https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=America%2FSao_Paulo&showPrint=0"
-            "&src=amFoZHkubW9yZW5vQGdtYWlsLmNvbQ"
-            "&src=ZmFtaWx5MTAyMjU2MjExMTg3OTkzNjk5OTdAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ"
-            "&src=ZmFtaWx5MDQzMTQ0Njc0MjQyNzE2NDk4NjdAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ"
-            "&src=cHQuYnJhemlsaWFuI2hvbGlkYXlAZ3JvdXAudi5jYWxlbmRhci5nb29nbGUuY29t"
-            "&color=%23f4be40&color=%23a79b8e&color=%237cb342&color=%230b8043"
+        "calendar_ics_url": (
+            "https://calendar.google.com/calendar/ical/"
+            "jahdy.moreno%40gmail.com/private-110b8ad9714a64bf4be6c343b0051282/basic.ics"
+        ),
+        "calendar_public_ics_url": (
+            "https://calendar.google.com/calendar/ical/jahdy.moreno%40gmail.com/public/basic.ics"
         ),
     },
     GUILHERME_EMAIL: {
         "name": "Guilherme",
-        "calendar_embed_url": (
-            "https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=Europe%2FLondon&showPrint=0"
-            "&src=Z3VpbGhlcm1lLm0ucm9kc0BnbWFpbC5jb20"
-            "&src=ZmFtaWx5MTAyMjU2MjExMTg3OTkzNjk5OTdAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ"
-            "&src=ZW4uYnJhemlsaWFuI2hvbGlkYXlAZ3JvdXAudi5jYWxlbmRhci5nb29nbGUuY29t"
-            "&color=%23039be5&color=%23a79b8e&color=%230b8043"
+        "calendar_ics_url": (
+            "https://calendar.google.com/calendar/ical/guilherme.m.rods%40gmail.com/public/basic.ics"
         ),
     },
 }
@@ -557,23 +551,6 @@ def get_partner_email(user_email):
     if user_email == GUILHERME_EMAIL:
         return JAHDY_EMAIL
     return None
-
-
-def build_google_calendar_day_view_url(base_url, target_date):
-    if not base_url:
-        return ""
-    parsed = urlparse(base_url)
-    filtered_pairs = [
-        (key, value)
-        for key, value in parse_qsl(parsed.query, keep_blank_values=True)
-        if key not in {"mode", "date", "dates"}
-    ]
-    filtered_pairs.append(("mode", "DAY"))
-    filtered_pairs.append(("date", target_date.strftime("%Y%m%d")))
-    query = urlencode(filtered_pairs, doseq=True)
-    return urlunparse(
-        (parsed.scheme, parsed.netloc, parsed.path, parsed.params, query, parsed.fragment)
-    )
 
 
 def scoped_setting_key(key):
