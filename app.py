@@ -328,13 +328,20 @@ def auth_configured():
 
 def enforce_google_login():
     if not auth_configured():
-        return
-
-    if not st.user.is_logged_in:
-        st.markdown("<div class='section-title'>Login Required</div>", unsafe_allow_html=True)
-        st.markdown("Use Google to access your private dashboard.")
-        if st.button("Login with Google", key="google_login"):
-            st.login("google")
+        st.markdown("<div class='section-title'>Google Login Setup Required</div>", unsafe_allow_html=True)
+        st.markdown("Configure Google OAuth in Streamlit Cloud secrets before using the app.")
+        st.code(
+            "[auth]\n"
+            "redirect_uri = \"https://YOUR-APP.streamlit.app/oauth2callback\"\n"
+            "cookie_secret = \"LONG_RANDOM_SECRET\"\n\n"
+            "[auth.google]\n"
+            "client_id = \"YOUR_CLIENT_ID\"\n"
+            "client_secret = \"YOUR_CLIENT_SECRET\"\n"
+            "server_metadata_url = \"https://accounts.google.com/.well-known/openid-configuration\"\n\n"
+            "[app]\n"
+            "allowed_email = \"your-email@gmail.com\"",
+            language="toml",
+        )
         st.stop()
 
     allowed_email = (
@@ -342,6 +349,17 @@ def enforce_google_login():
         or os.getenv("ALLOWED_EMAIL")
         or ""
     ).strip().lower()
+    if not allowed_email:
+        st.error("Security setup incomplete: set app.allowed_email in secrets.")
+        st.stop()
+
+    if not st.user.is_logged_in:
+        st.markdown("<div class='section-title'>Login Required</div>", unsafe_allow_html=True)
+        st.markdown("Use your Google account to access your private dashboard.")
+        if st.button("Login with Google", key="google_login"):
+            st.login("google")
+        st.stop()
+
     user_email = str(getattr(st.user, "email", "")).strip().lower()
     if allowed_email and user_email != allowed_email:
         st.error("Access denied for this account.")
