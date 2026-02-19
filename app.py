@@ -10,6 +10,18 @@ from sqlalchemy import create_engine, inspect, text as sql_text
 
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "life_dashboard.db")
+ENV_PATH = os.path.join(os.path.dirname(__file__), ".env")
+LOCAL_SECRETS_PATH = os.path.join(os.path.dirname(__file__), ".streamlit", "secrets.toml")
+
+ENV_FALLBACK_KEYS = {
+    ("auth", "redirect_uri"): "AUTH_REDIRECT_URI",
+    ("auth", "cookie_secret"): "AUTH_COOKIE_SECRET",
+    ("auth", "google", "client_id"): "GOOGLE_CLIENT_ID",
+    ("auth", "google", "client_secret"): "GOOGLE_CLIENT_SECRET",
+    ("auth", "google", "server_metadata_url"): "GOOGLE_SERVER_METADATA_URL",
+    ("app", "allowed_email"): "ALLOWED_EMAIL",
+    ("database", "url"): "DATABASE_URL",
+}
 
 DAY_LABELS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"]
 DAY_TO_INDEX = {label: idx for idx, label in enumerate(DAY_LABELS)}
@@ -40,6 +52,58 @@ MOOD_TO_INT = {m: i for i, m in enumerate(MOODS)}
 
 
 st.set_page_config(page_title="Personal Life Dashboard", layout="wide")
+
+
+def load_local_env():
+    if not os.path.exists(ENV_PATH):
+        return
+    with open(ENV_PATH, "r", encoding="utf-8") as env_file:
+        for raw_line in env_file:
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+            if key and key not in os.environ:
+                os.environ[key] = value
+
+
+def bootstrap_local_secrets_from_env():
+    if os.path.exists(LOCAL_SECRETS_PATH):
+        return
+    required = [
+        "AUTH_REDIRECT_URI",
+        "AUTH_COOKIE_SECRET",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "ALLOWED_EMAIL",
+    ]
+    if not all(os.getenv(key) for key in required):
+        return
+    os.makedirs(os.path.dirname(LOCAL_SECRETS_PATH), exist_ok=True)
+    metadata_url = os.getenv(
+        "GOOGLE_SERVER_METADATA_URL",
+        "https://accounts.google.com/.well-known/openid-configuration",
+    )
+    database_url = os.getenv("DATABASE_URL", "")
+    with open(LOCAL_SECRETS_PATH, "w", encoding="utf-8") as secrets_file:
+        secrets_file.write("[auth]\n")
+        secrets_file.write(f"redirect_uri = \"{os.getenv('AUTH_REDIRECT_URI')}\"\n")
+        secrets_file.write(f"cookie_secret = \"{os.getenv('AUTH_COOKIE_SECRET')}\"\n\n")
+        secrets_file.write("[auth.google]\n")
+        secrets_file.write(f"client_id = \"{os.getenv('GOOGLE_CLIENT_ID')}\"\n")
+        secrets_file.write(f"client_secret = \"{os.getenv('GOOGLE_CLIENT_SECRET')}\"\n")
+        secrets_file.write(f"server_metadata_url = \"{metadata_url}\"\n\n")
+        secrets_file.write("[app]\n")
+        secrets_file.write(f"allowed_email = \"{os.getenv('ALLOWED_EMAIL')}\"\n\n")
+        if database_url:
+            secrets_file.write("[database]\n")
+            secrets_file.write(f"url = \"{database_url}\"\n")
+
+
+load_local_env()
+bootstrap_local_secrets_from_env()
 
 st.markdown(
     """
@@ -298,6 +362,11 @@ st.markdown("<div class='page-title' style='font-size:30px;'>Personal Life Dashb
 
 
 def get_secret(path, default=None):
+    env_key = ENV_FALLBACK_KEYS.get(tuple(path))
+    if env_key:
+        env_value = os.getenv(env_key)
+        if env_value:
+            return env_value
     current = st.secrets
     for key in path:
         try:
