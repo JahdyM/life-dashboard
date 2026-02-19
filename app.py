@@ -2073,6 +2073,9 @@ st.markdown(
     f"<div class='small-label' style='margin-bottom:10px;'>Welcome, <strong>{current_user_name}</strong>.</div>",
     unsafe_allow_html=True,
 )
+aesthetic_image_urls = get_aesthetic_image_urls(tuple(PINTEREST_MOOD_LINKS))
+if aesthetic_image_urls:
+    st.markdown(build_aesthetic_mosaic_html(aesthetic_image_urls), unsafe_allow_html=True)
 
 meeting_days = get_meeting_days()
 if "meeting_days" not in st.session_state:
