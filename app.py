@@ -1,4 +1,5 @@
 import os
+import re
 from datetime import date, datetime, timedelta
 import calendar
 from urllib.parse import urlparse
@@ -1554,41 +1555,111 @@ def build_task_count_map(tasks, start_date, end_date):
     return counts
 
 
-def build_month_calendar_html(year, month, selected_date, google_counts, task_counts):
-    weeks = calendar.Calendar(firstweekday=0).monthdayscalendar(year, month)
-    header_cells = "".join([f"<th>{label}</th>" for label in DAY_LABELS])
-    rows = []
-    for week in weeks:
-        cells = []
-        for day in week:
-            if day == 0:
-                cells.append("<td class='calendar-cell empty'></td>")
-                continue
-            current = date(year, month, day)
-            google_count = google_counts.get(current, 0)
-            task_count = task_counts.get(current, 0)
-            classes = "calendar-cell selected" if current == selected_date else "calendar-cell"
-            badges = []
-            if google_count:
-                badges.append(f"<span class='cal-badge cal-google'>G {google_count}</span>")
-            if task_count:
-                badges.append(f"<span class='cal-badge cal-task'>T {task_count}</span>")
-            if not badges:
-                badges.append("<span class='cal-badge cal-none'>-</span>")
-            cell_html = (
+def get_week_range(reference_date):
+    week_start = reference_date - timedelta(days=reference_date.weekday())
+    week_end = week_start + timedelta(days=6)
+    return week_start, week_end
+
+
+def build_week_calendar_html(week_start, selected_date, google_counts, task_counts):
+    days = [week_start + timedelta(days=offset) for offset in range(7)]
+    header_cells = "".join(
+        [
+            (
+                f"<th>{DAY_LABELS[idx]}<br>"
+                f"<span style='font-size:10px;color:#9f95ad;'>{day.strftime('%d/%m')}</span></th>"
+            )
+            for idx, day in enumerate(days)
+        ]
+    )
+    cells = []
+    for day in days:
+        google_count = google_counts.get(day, 0)
+        task_count = task_counts.get(day, 0)
+        classes = "calendar-cell selected" if day == selected_date else "calendar-cell"
+        badges = []
+        if google_count:
+            badges.append(f"<span class='cal-badge cal-google'>G {google_count}</span>")
+        if task_count:
+            badges.append(f"<span class='cal-badge cal-task'>T {task_count}</span>")
+        if not badges:
+            badges.append("<span class='cal-badge cal-none'>-</span>")
+        cells.append(
+            (
                 f"<td class='{classes}'>"
-                f"<div class='calendar-day'>{day}</div>"
+                f"<div class='calendar-day'>{day.day}</div>"
                 f"<div class='calendar-badges'>{''.join(badges)}</div>"
                 "</td>"
             )
-            cells.append(cell_html)
-        rows.append(f"<tr>{''.join(cells)}</tr>")
+        )
     return (
         "<div class='calendar-month'>"
         "<table class='calendar-table'>"
         f"<thead><tr>{header_cells}</tr></thead>"
-        f"<tbody>{''.join(rows)}</tbody>"
+        f"<tbody><tr>{''.join(cells)}</tr></tbody>"
         "</table>"
+        "</div>"
+    )
+
+
+def _extract_meta_image(page_html):
+    patterns = [
+        r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']',
+        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']',
+        r'<meta[^>]+name=["\']twitter:image["\'][^>]+content=["\']([^"\']+)["\']',
+        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+name=["\']twitter:image["\']',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, page_html, flags=re.IGNORECASE)
+        if match:
+            return match.group(1)
+    return ""
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def resolve_pinterest_image_url(pin_url):
+    try:
+        response = requests.get(
+            pin_url,
+            timeout=25,
+            allow_redirects=True,
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        response.raise_for_status()
+    except Exception:
+        return ""
+    return _extract_meta_image(response.text)
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def get_aesthetic_image_urls(pin_urls):
+    image_urls = []
+    for pin_url in pin_urls:
+        image_url = resolve_pinterest_image_url(pin_url)
+        if image_url:
+            image_urls.append(image_url)
+    return image_urls
+
+
+def build_aesthetic_mosaic_html(image_urls):
+    if not image_urls:
+        return ""
+    tiles = [image_urls[idx % len(image_urls)] for idx in range(7)]
+    blocks = []
+    for idx, image_url in enumerate(tiles, start=1):
+        safe_url = image_url.replace('"', "%22")
+        blocks.append(
+            (
+                f"<div class='aesthetic-tile aesthetic-{idx}'>"
+                f"<img src='{safe_url}' loading='lazy' alt='Aesthetic mood' />"
+                "</div>"
+            )
+        )
+    return (
+        "<div class='aesthetic-wrap'>"
+        "<div class='aesthetic-mosaic'>"
+        f"{''.join(blocks)}"
+        "</div>"
         "</div>"
     )
 
