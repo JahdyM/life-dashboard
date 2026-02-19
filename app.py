@@ -3359,6 +3359,7 @@ repositories.configure(
     get_database_url,
     get_current_user_email,
     invalidate_callback=invalidate_runtime_caches,
+    secret_getter=get_secret,
 )
 google_calendar.configure(get_secret)
 repositories.set_google_delete_callback(google_calendar.delete_event)

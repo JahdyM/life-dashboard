@@ -4,6 +4,8 @@ from uuid import uuid4
 
 from sqlalchemy import bindparam, text as sql_text
 
+from dashboard.data import api_client
+
 ENTRIES_TABLE = "daily_entries_user"
 TASKS_TABLE = "todo_tasks"
 SUBTASKS_TABLE = "todo_subtasks"
@@ -19,14 +21,17 @@ _DATABASE_URL_GETTER = None
 _CURRENT_USER_GETTER = None
 _GOOGLE_DELETE_CALLBACK = None
 _INVALIDATE_CALLBACK = None
+_SECRET_GETTER = None
 
 
-def configure(engine_getter, database_url_getter, current_user_getter, invalidate_callback=None):
-    global _ENGINE_GETTER, _DATABASE_URL_GETTER, _CURRENT_USER_GETTER, _INVALIDATE_CALLBACK
+def configure(engine_getter, database_url_getter, current_user_getter, invalidate_callback=None, secret_getter=None):
+    global _ENGINE_GETTER, _DATABASE_URL_GETTER, _CURRENT_USER_GETTER, _INVALIDATE_CALLBACK, _SECRET_GETTER
     _ENGINE_GETTER = engine_getter
     _DATABASE_URL_GETTER = database_url_getter
     _CURRENT_USER_GETTER = current_user_getter
     _INVALIDATE_CALLBACK = invalidate_callback
+    _SECRET_GETTER = secret_getter
+    api_client.configure(secret_getter, current_user_getter)
 
 
 def set_google_delete_callback(callback):
@@ -136,6 +141,18 @@ def _entry_patch_for_date(user_email, day, patch):
 
 
 def save_habit_toggle(user_email, day, habit_key, value):
+    if api_client.is_enabled():
+        day_iso = day if isinstance(day, str) else day.isoformat()
+        try:
+            api_client.request(
+                "PATCH",
+                f"/v1/day/{day_iso}",
+                json={habit_key: bool(value)},
+            )
+            _invalidate()
+            return
+        except Exception:
+            pass
     _entry_patch_for_date(user_email, day, {habit_key: int(bool(value))})
 
 
@@ -156,6 +173,14 @@ def save_entry_fields(user_email, day, fields):
     ]:
         if key in clean:
             clean[key] = int(bool(clean[key]))
+    if api_client.is_enabled():
+        day_iso = day if isinstance(day, str) else day.isoformat()
+        try:
+            api_client.request("PATCH", f"/v1/day/{day_iso}", json=clean)
+            _invalidate()
+            return
+        except Exception:
+            pass
     _entry_patch_for_date(user_email, day, clean)
 
 
@@ -189,6 +214,15 @@ def _sanitize_habit_name(raw_value):
 
 
 def get_custom_habits(user_email, active_only=True):
+    if api_client.is_enabled():
+        try:
+            payload = api_client.request("GET", "/v1/habits/custom") or {}
+            items = payload.get("items", [])
+            if active_only:
+                return [item for item in items if item.get("active", True)]
+            return items
+        except Exception:
+            pass
     raw = get_setting(user_email, CUSTOM_HABITS_SETTING_KEY)
     if not raw:
         return []
@@ -233,6 +267,11 @@ def add_habit(user_email, label):
     clean_label = _sanitize_habit_name(label)
     if not clean_label:
         raise ValueError("Habit name cannot be empty")
+    if api_client.is_enabled():
+        try:
+            return api_client.request("POST", "/v1/habits/custom", json={"name": clean_label})
+        except Exception:
+            pass
     catalog = get_custom_habits(user_email, active_only=False)
     for item in catalog:
         if item.get("active", True) and item["name"].lower() == clean_label.lower():
@@ -247,6 +286,13 @@ def save_habit_label_edit(user_email, habit_id, label):
     clean_label = _sanitize_habit_name(label)
     if not clean_label:
         raise ValueError("Habit name cannot be empty")
+    if api_client.is_enabled():
+        try:
+            api_client.request("PATCH", f"/v1/habits/custom/{habit_id}", json={"name": clean_label})
+            _invalidate()
+            return
+        except Exception:
+            pass
     catalog = get_custom_habits(user_email, active_only=False)
     for item in catalog:
         if item["id"] == habit_id:
@@ -257,6 +303,13 @@ def save_habit_label_edit(user_email, habit_id, label):
 
 
 def delete_habit(user_email, habit_id):
+    if api_client.is_enabled():
+        try:
+            api_client.request("DELETE", f"/v1/habits/custom/{habit_id}")
+            _invalidate()
+            return
+        except Exception:
+            pass
     catalog = get_custom_habits(user_email, active_only=False)
     changed = False
     for item in catalog:
@@ -293,6 +346,20 @@ def save_activity(activity_patch):
     user_email = activity_patch.get("user_email") or _current_user()
     task_id = activity_patch.get("id")
     engine = _engine()
+
+    if api_client.is_enabled():
+        try:
+            payload = dict(activity_patch)
+            payload.pop("user_email", None)
+            if task_id:
+                response = api_client.request("PATCH", f"/v1/tasks/{task_id}", json=payload)
+                _invalidate()
+                return response
+            response = api_client.request("POST", "/v1/tasks", json=payload)
+            _invalidate()
+            return response
+        except Exception:
+            pass
 
     if task_id:
         updates = []
@@ -474,6 +541,17 @@ def list_unscheduled_remembered(user_email):
 
 
 def schedule_remembered_task(task_id, day, time_or_none):
+    if api_client.is_enabled():
+        try:
+            payload = {
+                "scheduled_date": day.isoformat() if isinstance(day, date) else str(day),
+                "scheduled_time": _normalize_time_value(time_or_none),
+            }
+            response = api_client.request("PATCH", f"/v1/tasks/{task_id}/schedule", json=payload)
+            _invalidate()
+            return response
+        except Exception:
+            pass
     payload = {
         "id": task_id,
         "scheduled_date": day.isoformat() if isinstance(day, date) else str(day),
@@ -597,6 +675,13 @@ def sync_google_events_for_range(user_email, start_date, end_date, calendar_ids)
 
 
 def delete_activity(activity_id, delete_remote_google=True):
+    if api_client.is_enabled():
+        try:
+            api_client.request("DELETE", f"/v1/tasks/{activity_id}")
+            _invalidate()
+            return
+        except Exception:
+            pass
     task_row = get_activity_by_id(activity_id)
     if not task_row:
         return

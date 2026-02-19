@@ -58,6 +58,8 @@ Este repositorio agora suporta **duas camadas**:
   - `app.allowed_emails`
   - `app.JAHDY_GOOGLE_CALENDAR_ICS` / `app.GUILHERME_GOOGLE_CALENDAR_ICS`
   - `app.GOOGLE_TOKEN_ENCRYPTION_KEY`
+  - `app.API_BASE_URL` (URL do backend no Render)
+  - `app.BACKEND_SESSION_SECRET` (mesmo do backend)
   - `calendar_auth.redirect_uri`
   - `database.url` (Postgres)
 
