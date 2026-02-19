@@ -768,28 +768,8 @@ def using_local_sqlite(database_url):
 
 
 def render_data_persistence_notice(storage_message=None):
-    database_url = get_database_url()
-    if using_local_sqlite(database_url):
-        st.warning(
-            "Storage mode: local SQLite. If this app runs on Streamlit Cloud, a reboot/redeploy "
-            "can reset the file and erase entries. To persist user data, configure [database].url "
-            "with a free Postgres connection string."
-        )
-        with st.expander("How to fix in 4 steps"):
-            st.markdown(
-                "1. Create a free Postgres database (Neon or Supabase).\n"
-                "2. Copy the connection URL and keep `postgresql+psycopg2://...` format.\n"
-                "3. In Streamlit Cloud, open Settings > Secrets and set `[database] url = \"...\"`.\n"
-                "4. Reboot the app once. New entries will persist after restarts."
-            )
-    else:
-        st.caption("Storage mode: persistent external database configured.")
-        st.caption(
-            "When Postgres is enabled, the app automatically migrates records from local SQLite "
-            "on first run."
-        )
     if storage_message:
-        st.info(storage_message)
+        st.caption(storage_message)
 
 
 def auth_configured():
