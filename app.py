@@ -2829,8 +2829,38 @@ with right_col:
         st.caption("No pending items in to-decide list.")
 
     combined_items = []
+    linked_combined_task_ids = set()
     for event in day_calendar_events:
-        event_done = bool(event_done_map.get(event["event_key"], False))
+        event_key = event["event_key"]
+        override_task = override_tasks_by_event.get(event_key)
+        if override_task:
+            linked_combined_task_ids.add(override_task["id"])
+            subtasks = task_subtasks_cache.get(override_task["id"], [])
+            progress = get_task_progress(override_task, subtasks)
+            done = progress >= 100
+            priority_label, priority_weight, priority_color = priority_meta(override_task.get("priority_tag"))
+            combined_items.append(
+                {
+                    "id": override_task["id"],
+                    "title": override_task.get("title") or event["title"],
+                    "source": "calendar_override",
+                    "time": override_task.get("scheduled_time") or event["start_time"],
+                    "done": done,
+                    "progress": progress,
+                    "priority_label": priority_label,
+                    "priority_weight": priority_weight,
+                    "priority_color": priority_color,
+                    "subtasks": subtasks,
+                    "task_row": override_task,
+                    "event_row": event,
+                }
+            )
+            continue
+
+        if event_hidden_map.get(event_key, False):
+            continue
+
+        event_done = bool(event_done_map.get(event_key, False))
         progress = 100.0 if event_done else 0.0
         priority_label, priority_weight, priority_color = compute_auto_priority(
             selected_date,
@@ -2840,7 +2870,7 @@ with right_col:
         )
         combined_items.append(
             {
-                "id": event["event_key"],
+                "id": event_key,
                 "title": event["title"],
                 "source": "calendar",
                 "time": event["start_time"],
@@ -2850,10 +2880,13 @@ with right_col:
                 "priority_weight": priority_weight,
                 "priority_color": priority_color,
                 "subtasks": [],
+                "event_row": event,
             }
         )
 
     for task in day_internal_tasks:
+        if task["id"] in linked_combined_task_ids:
+            continue
         subtasks = task_subtasks_cache.get(task["id"], [])
         progress = get_task_progress(task, subtasks)
         done = progress >= 100
@@ -2930,7 +2963,14 @@ with right_col:
         with header_cols[3]:
             st.markdown(f"{item['progress']}%")
         with header_cols[4]:
-            if item["source"] != "calendar" and st.button("Delete", key=f"delete_task_{task_key}"):
+            if item["source"] == "calendar":
+                if st.button("Custom", key=f"customize_task_{task_key}"):
+                    create_calendar_override_task(item["event_row"], selected_date)
+                    st.rerun()
+                if st.button("Delete", key=f"hide_task_{task_key}"):
+                    set_calendar_event_hidden(item["id"], selected_date, True)
+                    st.rerun()
+            elif st.button("Delete", key=f"delete_task_{task_key}"):
                 delete_todo_task(item["id"])
                 st.rerun()
 
