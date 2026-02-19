@@ -2102,7 +2102,7 @@ else:
 
 st.markdown("<div class='section-title'>Mood Pixel Board</div>", unsafe_allow_html=True)
 
-if data.empty:
+if data.empty and (not partner_email or partner_data.empty):
     st.markdown("Add mood entries to see the pixel board.")
 else:
     mood_map = {row["date"]: row["mood_category"] for _, row in data.iterrows() if row.get("mood_category")}
@@ -2121,6 +2121,65 @@ else:
         z, hover_text, x_labels, y_labels = build_year_tracker_grid(year_choice, mood_map)
         fig_year = mood_heatmap(z, hover_text, x_labels=x_labels, y_labels=y_labels, title="Yearly Mood Grid")
         st.plotly_chart(fig_year, use_container_width=True)
+
+    if partner_email:
+        st.markdown("<div class='small-label' style='margin-top:8px;'>Shared mood board (both users)</div>", unsafe_allow_html=True)
+        shared_month = st.date_input(
+            "Shared month",
+            value=now.replace(day=1),
+            key="shared_mood_month",
+        )
+        shared_year = st.selectbox(
+            "Shared year",
+            list(range(now.year - 3, now.year + 1)),
+            index=3,
+            key="shared_mood_year",
+        )
+
+        couple_entries = [
+            (current_user_name, mood_map),
+            (
+                partner_name,
+                {
+                    row["date"]: row["mood_category"]
+                    for _, row in partner_data.iterrows()
+                    if row.get("mood_category")
+                },
+            ),
+        ]
+
+        month_pair_cols = st.columns(2)
+        for idx, (name, user_mood_map) in enumerate(couple_entries):
+            with month_pair_cols[idx]:
+                z, hover_text, x_labels, y_labels = build_month_tracker_grid(
+                    shared_month.year,
+                    shared_month.month,
+                    user_mood_map,
+                )
+                fig_shared_month = mood_heatmap(
+                    z,
+                    hover_text,
+                    x_labels=x_labels,
+                    y_labels=y_labels,
+                    title=f"{name} • Monthly",
+                )
+                st.plotly_chart(fig_shared_month, use_container_width=True)
+
+        year_pair_cols = st.columns(2)
+        for idx, (name, user_mood_map) in enumerate(couple_entries):
+            with year_pair_cols[idx]:
+                z, hover_text, x_labels, y_labels = build_year_tracker_grid(
+                    shared_year,
+                    user_mood_map,
+                )
+                fig_shared_year = mood_heatmap(
+                    z,
+                    hover_text,
+                    x_labels=x_labels,
+                    y_labels=y_labels,
+                    title=f"{name} • Yearly",
+                )
+                st.plotly_chart(fig_shared_year, use_container_width=True)
 
     legend = " • ".join([f"{m} ({MOOD_COLORS[m]})" for m in MOODS])
     st.caption("Mood colors: " + legend)
