@@ -652,9 +652,9 @@ div[data-baseweb="calendar"] button[aria-selected="true"] {
 }
 
 .calendar-cell.today {
-    border-color: #d9c979;
-    box-shadow: inset 0 0 0 1px rgba(217, 201, 121, 0.52);
-    background: rgba(217, 201, 121, 0.12);
+    border-color: var(--today-border);
+    box-shadow: inset 0 0 0 1px var(--today-border);
+    background: var(--today-bg);
 }
 
 .calendar-day {
@@ -668,17 +668,17 @@ div[data-baseweb="calendar"] button[aria-selected="true"] {
     margin-top: 5px;
     display: inline-block;
     font-size: 10px;
-    color: #f1e9d9;
-    background: rgba(87, 73, 113, 0.55);
-    border: 1px solid rgba(143, 182, 217, 0.35);
+    color: var(--calendar-score-text);
+    background: var(--calendar-score-bg);
+    border: 1px solid var(--calendar-score-border);
     border-radius: 999px;
     padding: 1px 6px;
 }
 
 .calendar-score.empty {
-    color: #a89cb8;
-    border-color: rgba(159, 149, 173, 0.3);
-    background: rgba(36, 30, 48, 0.4);
+    color: var(--calendar-score-empty-text);
+    border-color: var(--calendar-score-empty-border);
+    background: var(--calendar-score-empty-bg);
 }
 
 .calendar-badges {
@@ -707,8 +707,8 @@ div[data-baseweb="calendar"] button[aria-selected="true"] {
     top: calc(100% + 6px);
     min-width: 220px;
     max-width: 280px;
-    background: #201a2b;
-    border: 1px solid #5b4f70;
+    background: var(--popover-bg);
+    border: 1px solid var(--popover-border);
     border-radius: 10px;
     padding: 8px 10px;
     box-shadow: 0 12px 22px rgba(0,0,0,0.42);
@@ -723,7 +723,7 @@ div[data-baseweb="calendar"] button[aria-selected="true"] {
 .cal-popover-title {
     font-size: 11px;
     font-weight: 700;
-    color: #e7def4;
+    color: var(--popover-title);
     margin-bottom: 4px;
 }
 
@@ -734,7 +734,7 @@ div[data-baseweb="calendar"] button[aria-selected="true"] {
 
 .cal-popover-panel li {
     font-size: 11px;
-    color: #d7cde8;
+    color: var(--popover-text);
     line-height: 1.35;
     margin-bottom: 2px;
 }
@@ -852,7 +852,7 @@ if background_image_css_url:
 <style>
 .stApp {{
     background-image:
-        linear-gradient(rgba(10, 8, 14, 0.78), rgba(10, 8, 14, 0.84)),
+        linear-gradient(var(--overlay-start), var(--overlay-end)),
         url('{safe_background_url}') !important;
     background-size: cover !important;
     background-position: center center !important;
@@ -865,7 +865,13 @@ if background_image_css_url:
     )
 
 
-st.markdown("<div class='page-title' style='font-size:30px;'>Personal Life Dashboard</div>", unsafe_allow_html=True)
+title_cols = st.columns([16, 1])
+with title_cols[0]:
+    st.markdown("<div class='page-title' style='font-size:30px;'>Personal Life Dashboard</div>", unsafe_allow_html=True)
+with title_cols[1]:
+    if st.button(THEME_TOGGLE_ICON, key="toggle_theme_mode", help=THEME_TOGGLE_HELP):
+        st.session_state["ui_theme"] = "light" if ACTIVE_THEME_NAME == "dark" else "dark"
+        st.rerun()
 
 
 def get_secret(path, default=None):
