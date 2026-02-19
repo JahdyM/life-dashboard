@@ -1157,6 +1157,65 @@ def list_todo_tasks():
     return [dict(row) for row in rows]
 
 
+def get_calendar_override_task(event_key, event_date):
+    engine = get_engine(get_database_url())
+    with engine.connect() as conn:
+        row = conn.execute(
+            sql_text(
+                f"""
+                SELECT
+                    id, user_email, title, source, external_event_key, scheduled_date, scheduled_time,
+                    priority_tag, estimated_minutes, actual_minutes, is_done, created_at
+                FROM {TASKS_TABLE}
+                WHERE user_email = :user_email
+                  AND source = 'calendar_override'
+                  AND external_event_key = :event_key
+                  AND scheduled_date = :scheduled_date
+                ORDER BY created_at DESC
+                LIMIT 1
+                """
+            ),
+            {
+                "user_email": get_current_user_email(),
+                "event_key": event_key,
+                "scheduled_date": event_date.isoformat(),
+            },
+        ).mappings().fetchone()
+    return dict(row) if row else None
+
+
+def _estimate_event_minutes(event):
+    start_time = event.get("start_time")
+    end_time = event.get("end_time")
+    if not start_time or not end_time:
+        return 30
+    try:
+        start_dt = datetime.strptime(start_time, "%H:%M")
+        end_dt = datetime.strptime(end_time, "%H:%M")
+    except Exception:
+        return 30
+    duration = int((end_dt - start_dt).total_seconds() // 60)
+    if duration <= 0:
+        return 30
+    return duration
+
+
+def create_calendar_override_task(event, event_date):
+    existing = get_calendar_override_task(event["event_key"], event_date)
+    if existing:
+        return existing["id"]
+    estimated = _estimate_event_minutes(event)
+    return add_todo_task(
+        event.get("title") or "Calendar task",
+        source="calendar_override",
+        scheduled_date=event_date,
+        scheduled_time=event.get("start_time"),
+        priority_tag="Medium",
+        estimated_minutes=estimated,
+        external_event_key=event["event_key"],
+    )
+
+
 def get_todo_task_subtasks(task_id):
     engine = get_engine(get_database_url())
     with engine.connect() as conn:
