@@ -1,7 +1,7 @@
 import os
 from datetime import date, datetime, timedelta
 import calendar
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from uuid import uuid4
 
 import numpy as np
@@ -557,6 +557,23 @@ def get_partner_email(user_email):
     if user_email == GUILHERME_EMAIL:
         return JAHDY_EMAIL
     return None
+
+
+def build_google_calendar_day_view_url(base_url, target_date):
+    if not base_url:
+        return ""
+    parsed = urlparse(base_url)
+    filtered_pairs = [
+        (key, value)
+        for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+        if key not in {"mode", "date", "dates"}
+    ]
+    filtered_pairs.append(("mode", "DAY"))
+    filtered_pairs.append(("date", target_date.strftime("%Y%m%d")))
+    query = urlencode(filtered_pairs, doseq=True)
+    return urlunparse(
+        (parsed.scheme, parsed.netloc, parsed.path, parsed.params, query, parsed.fragment)
+    )
 
 
 def scoped_setting_key(key):
@@ -1730,14 +1747,16 @@ with right_col:
 
     calendar_embed_url = current_user_profile.get("calendar_embed_url")
     if calendar_embed_url:
+        day_view_url = build_google_calendar_day_view_url(calendar_embed_url, selected_date)
         st.markdown("<div class='small-label'>Your fixed Google Calendar</div>", unsafe_allow_html=True)
+        st.caption(f"Daily view • {selected_date.strftime('%d/%m/%Y')}")
         components.html(
             (
-                f"<iframe src=\"{calendar_embed_url}\" "
+                f"<iframe src=\"{day_view_url}\" "
                 "style=\"border:solid 1px #cbb9a5;border-radius:10px;background:#fff;\" "
-                "width=\"100%\" height=\"520\" frameborder=\"0\" scrolling=\"no\"></iframe>"
+                "width=\"100%\" height=\"620\" frameborder=\"0\" scrolling=\"no\"></iframe>"
             ),
-            height=535,
+            height=635,
         )
 
     current_provider, current_ics_url = get_calendar_preferences()
