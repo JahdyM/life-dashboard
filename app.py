@@ -2493,21 +2493,19 @@ with left_col:
                 st.success(f"Deleted {deleted} entr{'y' if deleted == 1 else 'ies'}.")
                 st.rerun()
 
+    if aesthetic_image_urls:
+        st.markdown(build_aesthetic_side_html(aesthetic_image_urls, offset=0), unsafe_allow_html=True)
+
 with right_col:
     st.markdown("<div class='section-title'>Calendar</div>", unsafe_allow_html=True)
 
-    calendar_head_cols = st.columns([3.2, 1.4], gap="small")
-    with calendar_head_cols[0]:
-        week_reference = st.date_input(
-            "Calendar week view",
-            value=selected_date,
-            key="calendar_week_ref",
-        )
-        week_start, week_end = get_week_range(week_reference)
-        st.caption(f"Week: {week_start.strftime('%d/%m/%Y')} - {week_end.strftime('%d/%m/%Y')}")
-    with calendar_head_cols[1]:
-        if aesthetic_image_urls:
-            st.markdown(build_aesthetic_side_html(aesthetic_image_urls, offset=0), unsafe_allow_html=True)
+    week_reference = st.date_input(
+        "Calendar week view",
+        value=selected_date,
+        key="calendar_week_ref",
+    )
+    week_start, week_end = get_week_range(week_reference)
+    st.caption(f"Week: {week_start.strftime('%d/%m/%Y')} - {week_end.strftime('%d/%m/%Y')}")
 
     ics_url, calendar_secret_key = get_user_calendar_ics_url(current_user_email)
     tasks = list_todo_tasks()
