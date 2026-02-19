@@ -81,6 +81,8 @@ DEFAULT_HABIT_LABELS = {key: label for key, label in HABITS}
 CUSTOMIZABLE_HABIT_KEYS = [
     key for key, _ in HABITS if key not in FIXED_COUPLE_HABIT_KEYS
 ]
+CUSTOM_HABITS_SETTING_KEY = "custom_habits"
+CUSTOM_HABIT_DONE_PREFIX = "custom_habit_done::"
 
 ENTRY_DATA_COLUMNS = [h[0] for h in HABITS] + [
     "sleep_hours",
@@ -530,11 +532,34 @@ div[data-baseweb="calendar"] button[aria-selected="true"] {
     box-shadow: inset 0 0 0 1px rgba(143, 182, 217, 0.45);
 }
 
+.calendar-cell.today {
+    border-color: #d9c979;
+    box-shadow: inset 0 0 0 1px rgba(217, 201, 121, 0.52);
+    background: rgba(217, 201, 121, 0.12);
+}
+
 .calendar-day {
     font-size: 13px;
     font-weight: 700;
     color: var(--text-main);
     margin-bottom: 6px;
+}
+
+.calendar-score {
+    margin-top: 5px;
+    display: inline-block;
+    font-size: 10px;
+    color: #f1e9d9;
+    background: rgba(87, 73, 113, 0.55);
+    border: 1px solid rgba(143, 182, 217, 0.35);
+    border-radius: 999px;
+    padding: 1px 6px;
+}
+
+.calendar-score.empty {
+    color: #a89cb8;
+    border-color: rgba(159, 149, 173, 0.3);
+    background: rgba(36, 30, 48, 0.4);
 }
 
 .calendar-badges {
@@ -544,26 +569,16 @@ div[data-baseweb="calendar"] button[aria-selected="true"] {
 }
 
 .cal-badge {
-    list-style: none;
-    appearance: none;
     font-size: 10px;
     border-radius: 999px;
     padding: 1px 6px;
     border: 1px solid transparent;
-    cursor: pointer;
-}
-
-.cal-badge::-webkit-details-marker,
-.cal-popover > summary::-webkit-details-marker {
-    display: none;
+    cursor: help;
 }
 
 .cal-popover {
     position: relative;
-}
-
-.cal-popover > summary {
-    list-style: none;
+    display: inline-block;
 }
 
 .cal-popover-panel {
@@ -581,7 +596,8 @@ div[data-baseweb="calendar"] button[aria-selected="true"] {
     z-index: 100;
 }
 
-.cal-popover[open] .cal-popover-panel {
+.cal-popover:hover .cal-popover-panel,
+.cal-popover:focus-within .cal-popover-panel {
     display: block;
 }
 
@@ -1378,46 +1394,172 @@ def save_meeting_days():
     set_setting("meeting_days", ",".join(map(str, days)))
 
 
-def get_habit_labels():
-    labels = DEFAULT_HABIT_LABELS.copy()
-    raw = get_setting("custom_habit_labels")
+def sanitize_habit_name(raw_value):
+    return " ".join(str(raw_value or "").split()).strip()[:60]
+
+
+def default_custom_habits():
+    return [
+        {"id": f"legacy_{key}", "name": DEFAULT_HABIT_LABELS[key], "active": True}
+        for key in CUSTOMIZABLE_HABIT_KEYS
+    ]
+
+
+def get_custom_habits(active_only=True):
+    raw = get_setting(CUSTOM_HABITS_SETTING_KEY)
     if not raw:
-        return labels
+        defaults = default_custom_habits()
+        set_setting(CUSTOM_HABITS_SETTING_KEY, json.dumps(defaults, ensure_ascii=False))
+        return defaults
     try:
-        configured = json.loads(raw)
+        items = json.loads(raw)
     except Exception:
-        return labels
-    if not isinstance(configured, dict):
-        return labels
-    for key in CUSTOMIZABLE_HABIT_KEYS:
-        value = configured.get(key)
-        if value is None:
+        items = []
+    if not isinstance(items, list):
+        items = []
+    normalized = []
+    seen_ids = set()
+    for item in items:
+        if not isinstance(item, dict):
             continue
-        clean_value = " ".join(str(value).split()).strip()
-        if clean_value:
-            labels[key] = clean_value[:60]
-    return labels
+        habit_id = sanitize_habit_name(item.get("id"))
+        habit_name = sanitize_habit_name(item.get("name"))
+        if not habit_id or not habit_name or habit_id in seen_ids:
+            continue
+        seen_ids.add(habit_id)
+        normalized.append(
+            {
+                "id": habit_id,
+                "name": habit_name,
+                "active": bool(item.get("active", True)),
+            }
+        )
+    if not normalized:
+        normalized = default_custom_habits()
+    if active_only:
+        return [item for item in normalized if item.get("active", True)]
+    return normalized
 
 
-def save_custom_habit_labels():
-    payload = {}
-    for key in CUSTOMIZABLE_HABIT_KEYS:
-        widget_key = f"habit_label_{key}"
-        raw_value = st.session_state.get(widget_key, "")
-        clean_value = " ".join(str(raw_value).split()).strip()[:60]
-        if clean_value:
-            payload[key] = clean_value
-            st.session_state[widget_key] = clean_value
-        else:
-            st.session_state[widget_key] = DEFAULT_HABIT_LABELS[key]
-    set_setting("custom_habit_labels", json.dumps(payload, ensure_ascii=False))
+def save_custom_habits(catalog):
+    set_setting(CUSTOM_HABITS_SETTING_KEY, json.dumps(catalog, ensure_ascii=False))
 
 
-def init_habit_label_state(habit_labels):
-    for key in CUSTOMIZABLE_HABIT_KEYS:
-        widget_key = f"habit_label_{key}"
-        if widget_key not in st.session_state:
-            st.session_state[widget_key] = habit_labels.get(key, DEFAULT_HABIT_LABELS[key])
+def add_custom_habit(name):
+    clean_name = sanitize_habit_name(name)
+    if not clean_name:
+        return False, "Habit name cannot be empty."
+    catalog = get_custom_habits(active_only=False)
+    if any(item["name"].lower() == clean_name.lower() and item.get("active", True) for item in catalog):
+        return False, "This habit already exists."
+    catalog.append({"id": uuid4().hex, "name": clean_name, "active": True})
+    save_custom_habits(catalog)
+    return True, ""
+
+
+def rename_custom_habit(habit_id, new_name):
+    clean_name = sanitize_habit_name(new_name)
+    if not clean_name:
+        return False, "Habit name cannot be empty."
+    catalog = get_custom_habits(active_only=False)
+    for item in catalog:
+        if item["id"] == habit_id:
+            item["name"] = clean_name
+            save_custom_habits(catalog)
+            return True, ""
+    return False, "Habit not found."
+
+
+def remove_custom_habit(habit_id):
+    catalog = get_custom_habits(active_only=False)
+    updated = False
+    for item in catalog:
+        if item["id"] == habit_id:
+            item["active"] = False
+            updated = True
+            break
+    if updated:
+        save_custom_habits(catalog)
+    return updated
+
+
+def get_custom_habit_done_for_date(entry_date):
+    raw = get_setting(f"{CUSTOM_HABIT_DONE_PREFIX}{entry_date.isoformat()}")
+    if not raw:
+        return {}
+    try:
+        payload = json.loads(raw)
+    except Exception:
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    return {
+        str(habit_id): int(bool(value))
+        for habit_id, value in payload.items()
+        if sanitize_habit_name(habit_id)
+    }
+
+
+def set_custom_habit_done_for_date(entry_date, habit_done_map):
+    clean_map = {}
+    for habit_id, value in (habit_done_map or {}).items():
+        clean_id = sanitize_habit_name(habit_id)
+        if not clean_id:
+            continue
+        clean_map[clean_id] = int(bool(value))
+    set_setting(
+        f"{CUSTOM_HABIT_DONE_PREFIX}{entry_date.isoformat()}",
+        json.dumps(clean_map, ensure_ascii=False),
+    )
+
+
+def load_custom_habit_done_by_date():
+    engine = get_engine(get_database_url())
+    key_prefix = scoped_setting_key(CUSTOM_HABIT_DONE_PREFIX)
+    like_expr = f"{key_prefix}%"
+    with engine.connect() as conn:
+        rows = conn.execute(
+            sql_text("SELECT key, value FROM settings WHERE key LIKE :key_like"),
+            {"key_like": like_expr},
+        ).fetchall()
+    done_by_date = {}
+    for row in rows:
+        full_key, raw_value = row[0], row[1]
+        if not full_key:
+            continue
+        date_part = str(full_key).split(CUSTOM_HABIT_DONE_PREFIX, 1)[-1]
+        try:
+            day = date.fromisoformat(date_part)
+        except Exception:
+            continue
+        try:
+            parsed = json.loads(raw_value or "{}")
+        except Exception:
+            parsed = {}
+        if not isinstance(parsed, dict):
+            parsed = {}
+        done_by_date[day] = {
+            str(habit_id): int(bool(value))
+            for habit_id, value in parsed.items()
+            if sanitize_habit_name(habit_id)
+        }
+    return done_by_date
+
+
+def load_custom_habits_into_state(entry_date, custom_habits, custom_done_by_date):
+    custom_ids = [habit["id"] for habit in custom_habits]
+    loaded_key = (
+        get_current_user_email(),
+        entry_date.isoformat(),
+        "|".join(sorted(custom_ids)),
+    )
+    if st.session_state.get("loaded_custom_entry_key") == loaded_key:
+        return
+    done_map = custom_done_by_date.get(entry_date, {})
+    for habit in custom_habits:
+        widget_key = f"input_custom_{safe_widget_key(habit['id'])}"
+        st.session_state[widget_key] = bool(done_map.get(habit["id"], 0))
+    st.session_state["loaded_custom_entry_key"] = loaded_key
 
 
 def normalize_entries_df(df):
@@ -2107,13 +2249,13 @@ def build_badge_popover(label, count, css_kind, details_text):
     heading = "Google events" if css_kind == "google" else "Tasks"
     items_html = "".join([f"<li>{html.escape(line)}</li>" for line in lines])
     return (
-        f"<details class='cal-popover cal-popover-{css_kind}'>"
-        f"<summary class='cal-badge cal-{css_kind}'>{label} {count}</summary>"
+        f"<span class='cal-popover cal-popover-{css_kind}'>"
+        f"<span class='cal-badge cal-{css_kind}'>{label} {count}</span>"
         f"<div class='cal-popover-panel'>"
         f"<div class='cal-popover-title'>{heading}</div>"
         f"<ul>{items_html}</ul>"
         "</div>"
-        "</details>"
+        "</span>"
     )
 
 
@@ -2124,8 +2266,10 @@ def build_week_calendar_html(
     task_counts,
     google_details,
     task_details,
+    score_map,
 ):
     days = [week_start + timedelta(days=offset) for offset in range(7)]
+    today_date = date.today()
     header_cells = "".join(
         [
             (
@@ -2139,7 +2283,11 @@ def build_week_calendar_html(
     for day in days:
         google_count = google_counts.get(day, 0)
         task_count = task_counts.get(day, 0)
-        classes = "calendar-cell selected" if day == selected_date else "calendar-cell"
+        classes = ["calendar-cell"]
+        if day == selected_date:
+            classes.append("selected")
+        if day == today_date:
+            classes.append("today")
         badges = []
         if google_count:
             badges.append(
@@ -2151,11 +2299,17 @@ def build_week_calendar_html(
             )
         if not badges:
             badges.append("<span class='cal-badge cal-none'>-</span>")
+        day_score = score_map.get(day)
+        if day_score is None:
+            score_html = "<div class='calendar-score empty'>Score -</div>"
+        else:
+            score_html = f"<div class='calendar-score'>Score {int(round(day_score))}</div>"
         cells.append(
             (
-                f"<td class='{classes}'>"
+                f"<td class='{' '.join(classes)}'>"
                 f"<div class='calendar-day'>{day.day}</div>"
                 f"<div class='calendar-badges'>{''.join(badges)}</div>"
+                f"{score_html}"
                 "</td>"
             )
         )
@@ -2459,6 +2613,12 @@ def auto_save():
         payload["meeting_attended"] = 0
         payload["prepare_meeting"] = 0
     upsert_entry(payload)
+    custom_habits = get_custom_habits(active_only=True)
+    custom_done_map = {}
+    for habit in custom_habits:
+        widget_key = f"input_custom_{safe_widget_key(habit['id'])}"
+        custom_done_map[habit["id"]] = int(bool(st.session_state.get(widget_key, False)))
+    set_custom_habit_done_for_date(selected_date, custom_done_map)
     st.session_state["last_saved_at"] = datetime.now().strftime("%H:%M:%S")
 
 
@@ -2525,15 +2685,23 @@ def zero_boredom_streak(data, today):
     return count
 
 
-def compute_habits_metrics(row, meeting_days):
-    total = len(HABITS)
+def compute_habits_metrics(row, meeting_days, custom_done_by_date, custom_habit_ids):
+    total = 0
     completed = 0
     weekday = row["date"].weekday()
     for key, _ in HABITS:
-        if key in ("meeting_attended", "prepare_meeting") and weekday not in meeting_days:
-            total -= 1
+        if key not in FIXED_COUPLE_HABIT_KEYS:
             continue
+        if key in MEETING_HABIT_KEYS and weekday not in meeting_days:
+            continue
+        total += 1
         completed += int(row.get(key, 0) or 0)
+
+    done_map = custom_done_by_date.get(row["date"], {})
+    for habit_id in custom_habit_ids:
+        total += 1
+        completed += int(bool(done_map.get(habit_id, 0)))
+
     priority_label = (row.get("priority_label") or "").strip()
     if priority_label:
         total += 1
@@ -2707,11 +2875,19 @@ meeting_days = get_meeting_days()
 if "meeting_days" not in st.session_state:
     st.session_state["meeting_days"] = meeting_days
 meeting_days = st.session_state["meeting_days"]
+custom_habits = get_custom_habits(active_only=True)
+custom_habit_ids = [habit["id"] for habit in custom_habits]
+custom_done_by_date = load_custom_habit_done_by_date()
 
 data = load_data()
 if not data.empty:
     metrics = data.apply(
-        lambda row: compute_habits_metrics(row, meeting_days),
+        lambda row: compute_habits_metrics(
+            row,
+            meeting_days,
+            custom_done_by_date,
+            custom_habit_ids,
+        ),
         axis=1,
         result_type="expand",
     )
@@ -2805,8 +2981,7 @@ selected_date = st.date_input("Date", key="selected_date")
 entry = get_entry_for_date(selected_date, data)
 load_entry_into_state(selected_date, entry)
 is_meeting_day = selected_date.weekday() in meeting_days
-habit_labels = get_habit_labels()
-init_habit_label_state(habit_labels)
+load_custom_habits_into_state(selected_date, custom_habits, custom_done_by_date)
 if not is_meeting_day:
     st.session_state["input_meeting_attended"] = False
     st.session_state["input_prepare_meeting"] = False
@@ -2835,18 +3010,6 @@ with left_col:
     if not is_meeting_day:
         st.caption("Meeting habits are hidden on non-meeting days.")
 
-    with st.expander("Customize personal habits"):
-        st.caption(
-            "Personal labels are user-specific. Shared couple streak habits stay fixed "
-            "(Bible reading, workout, meeting habits, shower)."
-        )
-        for habit_key in CUSTOMIZABLE_HABIT_KEYS:
-            st.text_input(
-                f"{DEFAULT_HABIT_LABELS[habit_key]} label",
-                key=f"habit_label_{habit_key}",
-                on_change=save_custom_habit_labels,
-            )
-
     st.markdown("<div class='small-label' style='margin-top:6px;'>Daily priority habit</div>", unsafe_allow_html=True)
     priority_cols = st.columns([3, 1])
     with priority_cols[0]:
@@ -2859,12 +3022,83 @@ with left_col:
     habit_cols = st.columns(2)
     habit_index = 0
     for key, _ in HABITS:
+        if key not in FIXED_COUPLE_HABIT_KEYS:
+            continue
         if key in MEETING_HABIT_KEYS and not is_meeting_day:
             continue
-        label = habit_labels.get(key, DEFAULT_HABIT_LABELS[key])
+        label = DEFAULT_HABIT_LABELS[key]
         with habit_cols[habit_index % 2]:
             st.checkbox(label, key=f"input_{key}", on_change=auto_save)
         habit_index += 1
+
+    st.markdown("<div class='small-label' style='margin-top:8px;'>Personal habits (inline)</div>", unsafe_allow_html=True)
+    if not custom_habits:
+        st.caption("No personal habits yet. Add one in the empty row below.")
+
+    for habit in custom_habits:
+        habit_id = habit["id"]
+        row_key = safe_widget_key(habit_id)
+        edit_mode_key = f"editing_custom_habit_{row_key}"
+        edit_name_key = f"edit_custom_habit_name_{row_key}"
+        row_cols = st.columns([0.8, 5.0, 0.8, 0.8], gap="small")
+        with row_cols[0]:
+            st.checkbox(
+                "",
+                key=f"input_custom_{row_key}",
+                on_change=auto_save,
+                label_visibility="collapsed",
+            )
+        with row_cols[1]:
+            if st.session_state.get(edit_mode_key, False):
+                st.text_input(
+                    "Edit habit",
+                    key=edit_name_key,
+                    label_visibility="collapsed",
+                    placeholder="Habit name",
+                )
+            else:
+                st.markdown(f"<div style='padding-top:6px;'>{html.escape(habit['name'])}</div>", unsafe_allow_html=True)
+        with row_cols[2]:
+            if st.session_state.get(edit_mode_key, False):
+                if st.button("✅", key=f"save_custom_habit_{row_key}", help="Save name"):
+                    ok, message = rename_custom_habit(habit_id, st.session_state.get(edit_name_key, ""))
+                    if ok:
+                        st.session_state[edit_mode_key] = False
+                        st.rerun()
+                    st.warning(message)
+            else:
+                if st.button("✏️", key=f"edit_custom_habit_{row_key}", help="Edit habit"):
+                    st.session_state[edit_mode_key] = True
+                    st.session_state[edit_name_key] = habit["name"]
+                    st.rerun()
+        with row_cols[3]:
+            if st.button("🗑️", key=f"delete_custom_habit_{row_key}", help="Delete habit"):
+                remove_custom_habit(habit_id)
+                st.rerun()
+
+    add_cols = st.columns([0.8, 5.0, 0.8, 0.8], gap="small")
+    with add_cols[0]:
+        st.checkbox(
+            "",
+            value=False,
+            key="empty_custom_habit_checkpoint",
+            disabled=True,
+            label_visibility="collapsed",
+        )
+    with add_cols[1]:
+        st.text_input(
+            "Add personal habit",
+            key="new_custom_habit_name_inline",
+            label_visibility="collapsed",
+            placeholder="Add a new habit...",
+        )
+    with add_cols[2]:
+        if st.button("➕", key="add_custom_habit_inline", help="Add habit"):
+            ok, message = add_custom_habit(st.session_state.get("new_custom_habit_name_inline", ""))
+            if ok:
+                st.session_state["new_custom_habit_name_inline"] = ""
+                st.rerun()
+            st.warning(message or "Unable to add habit.")
 
     st.markdown("<div class='small-label' style='margin-top:8px;'>Daily Metrics</div>", unsafe_allow_html=True)
     metric_cols = st.columns(2)
@@ -2978,6 +3212,12 @@ with right_col:
         if not calendar_error
         else {}
     )
+    week_score_map = {}
+    if not data.empty and "life_balance_score" in data.columns:
+        for _, row in data.iterrows():
+            row_date = row.get("date")
+            if isinstance(row_date, date) and week_start <= row_date <= week_end:
+                week_score_map[row_date] = row.get("life_balance_score")
     st.markdown(
         build_week_calendar_html(
             week_start,
@@ -2986,10 +3226,11 @@ with right_col:
             week_task_counts,
             week_google_details,
             week_task_details,
+            week_score_map,
         ),
         unsafe_allow_html=True,
     )
-    st.caption("Legend: `G` = Google events, `T` = your scheduled tasks.")
+    st.caption("Legend: `G` = Google events, `T` = your scheduled tasks, `Score` = life balance score.")
 
     if calendar_error:
         st.warning(calendar_error)
