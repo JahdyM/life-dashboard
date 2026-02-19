@@ -9,6 +9,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import requests
 import streamlit as st
+import streamlit.components.v1 as components
 from sqlalchemy import create_engine, inspect, text as sql_text
 
 try:
@@ -34,6 +35,33 @@ ENV_FALLBACK_KEYS = {
 
 DAY_LABELS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"]
 DAY_TO_INDEX = {label: idx for idx, label in enumerate(DAY_LABELS)}
+
+JAHDY_EMAIL = "jahdy.moreno@gmail.com"
+GUILHERME_EMAIL = "guilherme.m.rods@gmail.com"
+USER_PROFILES = {
+    JAHDY_EMAIL: {
+        "name": "Jahdy",
+        "calendar_embed_url": (
+            "https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=America%2FSao_Paulo&showPrint=0"
+            "&src=amFoZHkubW9yZW5vQGdtYWlsLmNvbQ"
+            "&src=ZmFtaWx5MTAyMjU2MjExMTg3OTkzNjk5OTdAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ"
+            "&src=ZmFtaWx5MDQzMTQ0Njc0MjQyNzE2NDk4NjdAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ"
+            "&src=cHQuYnJhemlsaWFuI2hvbGlkYXlAZ3JvdXAudi5jYWxlbmRhci5nb29nbGUuY29t"
+            "&color=%23f4be40&color=%23a79b8e&color=%237cb342&color=%230b8043"
+        ),
+    },
+    GUILHERME_EMAIL: {
+        "name": "Guilherme",
+        "calendar_embed_url": (
+            "https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=Europe%2FLondon&showPrint=0"
+            "&src=Z3VpbGhlcm1lLm0ucm9kc0BnbWFpbC5jb20"
+            "&src=ZmFtaWx5MTAyMjU2MjExMTg3OTkzNjk5OTdAZ3JvdXAuY2FsZW5kYXIuZ29vZ2xlLmNvbQ"
+            "&src=ZW4uYnJhemlsaWFuI2hvbGlkYXlAZ3JvdXAudi5jYWxlbmRhci5nb29nbGUuY29t"
+            "&color=%23039be5&color=%23a79b8e&color=%230b8043"
+        ),
+    },
+}
+SHARED_USER_EMAILS = set(USER_PROFILES.keys())
 
 HABITS = [
     ("bible_reading", "Bible reading"),
@@ -440,7 +468,7 @@ def enforce_google_login():
             "client_secret = \"YOUR_CLIENT_SECRET\"\n"
             "server_metadata_url = \"https://accounts.google.com/.well-known/openid-configuration\"\n\n"
             "[app]\n"
-            "allowed_email = \"your-email@gmail.com\"",
+            "allowed_emails = \"jahdy.moreno@gmail.com,guilherme.m.rods@gmail.com\"",
             language="toml",
         )
         st.stop()
@@ -457,6 +485,10 @@ def enforce_google_login():
         for email in str(allowed_raw).split(",")
         if email.strip()
     }
+    if allowed_set:
+        allowed_set = allowed_set | SHARED_USER_EMAILS
+    else:
+        allowed_set = set(SHARED_USER_EMAILS)
 
     redirect_uri = (get_secret(("auth", "redirect_uri")) or "").strip()
     parsed_uri = urlparse(redirect_uri) if redirect_uri else None
@@ -506,6 +538,25 @@ def get_current_user_email():
         or "local@offline"
     ).strip().lower()
     return fallback_email or "local@offline"
+
+
+def get_display_name(user_email):
+    profile_name = USER_PROFILES.get(user_email, {}).get("name")
+    if profile_name:
+        return profile_name
+    user_name = str(getattr(st.user, "name", "")).strip()
+    if user_name:
+        return user_name.split()[0]
+    local = (user_email or "").split("@")[0].replace(".", " ").strip()
+    return local.title() if local else "User"
+
+
+def get_partner_email(user_email):
+    if user_email == JAHDY_EMAIL:
+        return GUILHERME_EMAIL
+    if user_email == GUILHERME_EMAIL:
+        return JAHDY_EMAIL
+    return None
 
 
 def scoped_setting_key(key):
@@ -755,18 +806,7 @@ def save_meeting_days():
     set_setting("meeting_days", ",".join(map(str, days)))
 
 
-def load_data():
-    engine = get_engine(get_database_url())
-    user_email = get_current_user_email()
-    with engine.connect() as conn:
-        df = pd.read_sql(
-            sql_text(
-                f"SELECT * FROM {ENTRIES_TABLE} "
-                "WHERE user_email = :user_email ORDER BY date"
-            ),
-            conn,
-            params={"user_email": user_email},
-        )
+def normalize_entries_df(df):
     if df.empty:
         return df
     if "priority_label" not in df.columns:
@@ -789,6 +829,24 @@ def load_data():
     df["mood_category"] = df["mood_category"].replace(mood_map_legacy)
     df = df.sort_values("date")
     return df
+
+
+def load_data_for_email(user_email):
+    engine = get_engine(get_database_url())
+    with engine.connect() as conn:
+        df = pd.read_sql(
+            sql_text(
+                f"SELECT * FROM {ENTRIES_TABLE} "
+                "WHERE user_email = :user_email ORDER BY date"
+            ),
+            conn,
+            params={"user_email": user_email},
+        )
+    return normalize_entries_df(df)
+
+
+def load_data():
+    return load_data_for_email(get_current_user_email())
 
 
 def new_id():
@@ -1444,6 +1502,18 @@ def dot_chart(values, dates, title, color, height=260):
 enforce_google_login()
 init_db()
 
+current_user_email = get_current_user_email()
+current_user_name = get_display_name(current_user_email)
+current_user_profile = USER_PROFILES.get(current_user_email, {})
+partner_email = get_partner_email(current_user_email)
+partner_name = get_display_name(partner_email) if partner_email else "Partner"
+partner_data = load_data_for_email(partner_email) if partner_email else pd.DataFrame()
+
+st.markdown(
+    f"<div class='small-label' style='margin-bottom:10px;'>Welcome, <strong>{current_user_name}</strong>.</div>",
+    unsafe_allow_html=True,
+)
+
 meeting_days = get_meeting_days()
 if "meeting_days" not in st.session_state:
     st.session_state["meeting_days"] = meeting_days
@@ -1505,6 +1575,27 @@ else:
         streak_cols[1].markdown(f"📖 {streak_count(data, 'bible_reading', today)} day reading streak")
         streak_cols[2].markdown(f"🏃 {streak_count(data, 'workout', today)} day workout streak")
         streak_cols[3].markdown(f"🚿 {streak_count(data, 'shower', today)} day shower streak")
+
+        if partner_email:
+            st.markdown(
+                "<div class='small-label' style='margin-top:8px;'>Shared streak comparison</div>",
+                unsafe_allow_html=True,
+            )
+            my_study = streak_count(data, "dissertation_work", today)
+            my_read = streak_count(data, "bible_reading", today)
+            my_workout = streak_count(data, "workout", today)
+            my_shower = streak_count(data, "shower", today)
+
+            partner_study = streak_count(partner_data, "dissertation_work", today)
+            partner_read = streak_count(partner_data, "bible_reading", today)
+            partner_workout = streak_count(partner_data, "workout", today)
+            partner_shower = streak_count(partner_data, "shower", today)
+
+            compare_cols = st.columns(4)
+            compare_cols[0].metric("Study", f"{my_study}d", delta=f"{partner_name}: {partner_study}d")
+            compare_cols[1].metric("Reading", f"{my_read}d", delta=f"{partner_name}: {partner_read}d")
+            compare_cols[2].metric("Workout", f"{my_workout}d", delta=f"{partner_name}: {partner_workout}d")
+            compare_cols[3].metric("Shower", f"{my_shower}d", delta=f"{partner_name}: {partner_shower}d")
 
 # --- DAILY INPUT PANEL ---
 
@@ -1637,6 +1728,18 @@ with left_col:
 with right_col:
     st.markdown("<div class='section-title'>Calendar + To-do</div>", unsafe_allow_html=True)
 
+    calendar_embed_url = current_user_profile.get("calendar_embed_url")
+    if calendar_embed_url:
+        st.markdown("<div class='small-label'>Your fixed Google Calendar</div>", unsafe_allow_html=True)
+        components.html(
+            (
+                f"<iframe src=\"{calendar_embed_url}\" "
+                "style=\"border:solid 1px #cbb9a5;border-radius:10px;background:#fff;\" "
+                "width=\"100%\" height=\"520\" frameborder=\"0\" scrolling=\"no\"></iframe>"
+            ),
+            height=535,
+        )
+
     current_provider, current_ics_url = get_calendar_preferences()
     if "calendar_provider" not in st.session_state:
         st.session_state["calendar_provider"] = current_provider
@@ -1644,30 +1747,31 @@ with right_col:
         st.session_state["calendar_ics_url"] = current_ics_url
 
     provider_options = {
-        "none": "No external calendar",
+        "none": "No iCal sync",
         "notion_ical": "Notion Calendar (iCal URL)",
         "google_ical": "Google Calendar (iCal URL)",
         "other_ical": "Other iCal URL",
     }
-    selected_provider = st.selectbox(
-        "Calendar source",
-        options=list(provider_options.keys()),
-        format_func=lambda key: provider_options[key],
-        key="calendar_provider",
-    )
-    ics_disabled = selected_provider == "none"
-    st.text_input(
-        "Calendar iCal URL",
-        key="calendar_ics_url",
-        disabled=ics_disabled,
-        placeholder="https://...ics",
-    )
-    if st.button("Save calendar integration", key="save_calendar_integration"):
-        save_calendar_preferences(
-            st.session_state.get("calendar_provider", "none"),
-            st.session_state.get("calendar_ics_url", ""),
+    with st.expander("Optional: sync hourly events from iCal feed"):
+        selected_provider = st.selectbox(
+            "Calendar source",
+            options=list(provider_options.keys()),
+            format_func=lambda key: provider_options[key],
+            key="calendar_provider",
         )
-        st.success("Calendar settings saved.")
+        ics_disabled = selected_provider == "none"
+        st.text_input(
+            "Calendar iCal URL",
+            key="calendar_ics_url",
+            disabled=ics_disabled,
+            placeholder="https://...ics",
+        )
+        if st.button("Save calendar integration", key="save_calendar_integration"):
+            save_calendar_preferences(
+                st.session_state.get("calendar_provider", "none"),
+                st.session_state.get("calendar_ics_url", ""),
+            )
+            st.success("Calendar settings saved.")
 
     provider = st.session_state.get("calendar_provider", "none")
     ics_url = st.session_state.get("calendar_ics_url", "").strip() if provider != "none" else ""
