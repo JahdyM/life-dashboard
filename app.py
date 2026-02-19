@@ -7,7 +7,7 @@ import mimetypes
 from functools import lru_cache
 from datetime import date, datetime, timedelta
 import calendar
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from uuid import uuid4
 
 import numpy as np
@@ -929,10 +929,31 @@ def get_database_url():
         or os.getenv("DATABASE_URL")
         or ""
     )
-    database_url = str(raw_value).strip()
+    database_url = normalize_database_url(str(raw_value).strip())
     if database_url and database_url.lower() not in {"none", "null"}:
         return database_url
     return f"sqlite:///{DB_PATH}"
+
+
+def normalize_database_url(database_url):
+    url = str(database_url or "").strip()
+    if not url:
+        return url
+    if url.startswith("postgres://"):
+        url = "postgresql+psycopg2://" + url[len("postgres://") :]
+    elif url.startswith("postgresql://"):
+        url = "postgresql+psycopg2://" + url[len("postgresql://") :]
+
+    # Avoid incompatibility in some hosted runtimes/libpq versions.
+    try:
+        parsed = urlparse(url)
+        if "channel_binding=" in (parsed.query or ""):
+            query_items = [(k, v) for k, v in parse_qsl(parsed.query, keep_blank_values=True) if k != "channel_binding"]
+            parsed = parsed._replace(query=urlencode(query_items))
+            url = urlunparse(parsed)
+    except Exception:
+        return url
+    return url
 
 
 def using_local_sqlite(database_url):
