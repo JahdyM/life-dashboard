@@ -1023,7 +1023,58 @@ def schedule_todo_task(task_id, scheduled_date, scheduled_time):
         )
 
 
-def add_todo_subtask(task_id, title):
+def update_todo_task_fields(
+    task_id,
+    priority_tag=None,
+    estimated_minutes=None,
+    actual_minutes=None,
+):
+    updates = []
+    params = {"user_email": get_current_user_email(), "task_id": task_id}
+    if priority_tag is not None:
+        updates.append("priority_tag = :priority_tag")
+        params["priority_tag"] = normalize_priority_tag(priority_tag)
+    if estimated_minutes is not None:
+        updates.append("estimated_minutes = :estimated_minutes")
+        params["estimated_minutes"] = parse_minutes(estimated_minutes)
+    if actual_minutes is not None:
+        updates.append("actual_minutes = :actual_minutes")
+        params["actual_minutes"] = parse_minutes(actual_minutes)
+    if not updates:
+        return
+    engine = get_engine(get_database_url())
+    with engine.begin() as conn:
+        conn.execute(
+            sql_text(
+                f"""
+                UPDATE {TASKS_TABLE}
+                SET {', '.join(updates)}
+                WHERE user_email = :user_email AND id = :task_id
+                """
+            ),
+            params,
+        )
+
+
+def delete_todo_task(task_id):
+    engine = get_engine(get_database_url())
+    with engine.begin() as conn:
+        conn.execute(
+            sql_text(
+                f"DELETE FROM {SUBTASKS_TABLE} WHERE user_email = :user_email AND task_id = :task_id"
+            ),
+            {"user_email": get_current_user_email(), "task_id": task_id},
+        )
+        cursor = conn.execute(
+            sql_text(
+                f"DELETE FROM {TASKS_TABLE} WHERE user_email = :user_email AND id = :task_id"
+            ),
+            {"user_email": get_current_user_email(), "task_id": task_id},
+        )
+    return cursor.rowcount if cursor.rowcount is not None else 0
+
+
+def add_todo_subtask(task_id, title, priority_tag="Medium", estimated_minutes=None):
     clean_title = (title or "").strip()
     if not clean_title:
         return None
@@ -1033,6 +1084,9 @@ def add_todo_subtask(task_id, title):
         "task_id": task_id,
         "user_email": get_current_user_email(),
         "title": clean_title,
+        "priority_tag": normalize_priority_tag(priority_tag),
+        "estimated_minutes": parse_minutes(estimated_minutes),
+        "actual_minutes": None,
         "is_done": 0,
         "created_at": datetime.utcnow().isoformat(),
     }
@@ -1041,8 +1095,14 @@ def add_todo_subtask(task_id, title):
             sql_text(
                 f"""
                 INSERT INTO {SUBTASKS_TABLE}
-                (id, task_id, user_email, title, is_done, created_at)
-                VALUES (:id, :task_id, :user_email, :title, :is_done, :created_at)
+                (
+                    id, task_id, user_email, title, priority_tag,
+                    estimated_minutes, actual_minutes, is_done, created_at
+                )
+                VALUES (
+                    :id, :task_id, :user_email, :title, :priority_tag,
+                    :estimated_minutes, :actual_minutes, :is_done, :created_at
+                )
                 """
             ),
             payload,
@@ -1080,6 +1140,65 @@ def set_todo_subtask_done(subtask_id, is_done):
         )
     if row:
         sync_todo_task_done_from_subtasks(row[0])
+
+
+def update_todo_subtask_fields(
+    subtask_id,
+    priority_tag=None,
+    estimated_minutes=None,
+    actual_minutes=None,
+):
+    updates = []
+    params = {"user_email": get_current_user_email(), "subtask_id": subtask_id}
+    if priority_tag is not None:
+        updates.append("priority_tag = :priority_tag")
+        params["priority_tag"] = normalize_priority_tag(priority_tag)
+    if estimated_minutes is not None:
+        updates.append("estimated_minutes = :estimated_minutes")
+        params["estimated_minutes"] = parse_minutes(estimated_minutes)
+    if actual_minutes is not None:
+        updates.append("actual_minutes = :actual_minutes")
+        params["actual_minutes"] = parse_minutes(actual_minutes)
+    if not updates:
+        return
+    engine = get_engine(get_database_url())
+    with engine.begin() as conn:
+        conn.execute(
+            sql_text(
+                f"""
+                UPDATE {SUBTASKS_TABLE}
+                SET {', '.join(updates)}
+                WHERE user_email = :user_email AND id = :subtask_id
+                """
+            ),
+            params,
+        )
+
+
+def delete_todo_subtask(subtask_id):
+    engine = get_engine(get_database_url())
+    with engine.begin() as conn:
+        row = conn.execute(
+            sql_text(
+                f"""
+                SELECT task_id FROM {SUBTASKS_TABLE}
+                WHERE user_email = :user_email AND id = :subtask_id
+                """
+            ),
+            {"user_email": get_current_user_email(), "subtask_id": subtask_id},
+        ).fetchone()
+        cursor = conn.execute(
+            sql_text(
+                f"""
+                DELETE FROM {SUBTASKS_TABLE}
+                WHERE user_email = :user_email AND id = :subtask_id
+                """
+            ),
+            {"user_email": get_current_user_email(), "subtask_id": subtask_id},
+        )
+    if row:
+        sync_todo_task_done_from_subtasks(row[0])
+    return cursor.rowcount if cursor.rowcount is not None else 0
 
 
 def sync_todo_task_done_from_subtasks(task_id):
