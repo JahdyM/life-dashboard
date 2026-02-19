@@ -1,5 +1,5 @@
 import calendar
-from datetime import date
+from datetime import date, timedelta
 
 import streamlit as st
 
@@ -72,5 +72,48 @@ def render_couple_tab(ctx):
     y_labels = ["Jahdy", "Guilherme"]
     st.plotly_chart(
         mood_heatmap(z, hover_text, x_labels=x_labels, y_labels=y_labels, title="Couple Mood Pixel Board"),
+        use_container_width=True,
+    )
+
+    st.markdown("<div class='small-label' style='margin-top:8px;'>Shared mood board (yearly)</div>", unsafe_allow_html=True)
+    years = list(range(today.year - 3, today.year + 1))
+    year_choice = st.selectbox("Year", years, index=len(years) - 1, key="couple.mood.year")
+    year_start = date(year_choice, 1, 1)
+    year_end = date(year_choice, 12, 31)
+    feed_year = repositories.get_couple_mood_feed(user_a, user_b, year_start, year_end)
+
+    by_key_year = {}
+    for row in feed_year:
+        row_email = row.get("user_email")
+        row_date = row.get("date")
+        mood = row.get("mood_category")
+        if not row_email or not row_date or not mood:
+            continue
+        by_key_year[(str(row_email), str(row_date))] = mood
+
+    total_days = (year_end - year_start).days + 1
+    z_year = [[float("nan") for _ in range(total_days)] for _ in range(2)]
+    hover_year = [["" for _ in range(total_days)] for _ in range(2)]
+    x_year = []
+
+    for day_offset in range(total_days):
+        current = year_start + timedelta(days=day_offset)
+        x_year.append(current.strftime("%b") if current.day == 1 else "")
+        for row_idx, email, label in row_meta:
+            mood = by_key_year.get((email, current.isoformat()))
+            if mood and mood in mood_to_int:
+                z_year[row_idx][day_offset] = mood_to_int[mood]
+                hover_year[row_idx][day_offset] = f"{current.isoformat()} • {label}: {mood}"
+            else:
+                hover_year[row_idx][day_offset] = f"{current.isoformat()} • {label}: no entry"
+
+    st.plotly_chart(
+        mood_heatmap(
+            z_year,
+            hover_year,
+            x_labels=x_year,
+            y_labels=["Jahdy", "Guilherme"],
+            title="Couple Mood Pixel Board (Year)",
+        ),
         use_container_width=True,
     )

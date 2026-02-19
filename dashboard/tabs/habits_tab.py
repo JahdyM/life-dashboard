@@ -29,6 +29,7 @@ def _save_metrics(user_email, selected_day):
             "anxiety_level": int(st.session_state.get("habits.anxiety_level", 1) or 1),
             "work_hours": float(st.session_state.get("habits.work_hours", 0) or 0),
             "boredom_minutes": int(st.session_state.get("habits.boredom_minutes", 0) or 0),
+            "mood_category": st.session_state.get("habits.mood_category", "Neutro"),
             "priority_label": (st.session_state.get("habits.priority_label") or "").strip(),
             "priority_done": int(bool(st.session_state.get("habits.priority_done", False))),
         },
@@ -57,6 +58,7 @@ def render_habits_tab(ctx):
     fixed_habit_keys = ctx["constants"]["FIXED_COUPLE_HABIT_KEYS"]
     meeting_habit_keys = ctx["constants"]["MEETING_HABIT_KEYS"]
     default_habit_labels = ctx["constants"]["DEFAULT_HABIT_LABELS"]
+    moods = ctx["constants"]["MOODS"]
 
     data = ctx["data"]
 
@@ -169,6 +171,7 @@ def render_habits_tab(ctx):
         st.session_state["habits.anxiety_level"] = int(row_payload.get("anxiety_level", 1) or 1)
         st.session_state["habits.work_hours"] = float(row_payload.get("work_hours", 0) or 0)
         st.session_state["habits.boredom_minutes"] = int(row_payload.get("boredom_minutes", 0) or 0)
+        st.session_state["habits.mood_category"] = (row_payload.get("mood_category") or "Neutro")
         st.session_state["habits.priority_label"] = row_payload.get("priority_label") or ""
         st.session_state["habits.priority_done"] = bool(row_payload.get("priority_done", 0))
         st.session_state["habits.loaded_key"] = loaded_key
@@ -209,6 +212,13 @@ def render_habits_tab(ctx):
             max_value=60,
             step=5,
             key="habits.boredom_minutes",
+            on_change=_save_metrics,
+            args=(user_email, selected_day),
+        )
+        st.selectbox(
+            "Mood",
+            moods,
+            key="habits.mood_category",
             on_change=_save_metrics,
             args=(user_email, selected_day),
         )
