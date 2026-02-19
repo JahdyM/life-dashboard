@@ -165,16 +165,16 @@ st.markdown(
 @import url('https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
 
 :root {
-    --bg-main: #f7f2ec;
-    --bg-accent: #efe6d9;
-    --bg-card: #fbf6ef;
-    --bg-panel: #f1e6d9;
-    --border: #cbb9a5;
-    --text-main: #2b201c;
-    --text-soft: #51433b;
-    --button: #cdb7a2;
-    --button-hover: #dccbb9;
-    --accent-purple: #c9b3e5;
+    --bg-main: #121017;
+    --bg-accent: #1a1622;
+    --bg-card: #1e1a27;
+    --bg-panel: #2a2335;
+    --border: #5b4f70;
+    --text-main: #f3edf9;
+    --text-soft: #c8bbd8;
+    --button: #5f4f79;
+    --button-hover: #725f90;
+    --accent-purple: #8e79af;
 }
 
 html, body, [class*="css"] {
@@ -188,7 +188,7 @@ h1, h2, h3, .page-title {
 }
 
 .stApp {
-    background: radial-gradient(1200px 800px at 25% 0%, #fbf8f3 0%, var(--bg-main) 60%);
+    background: radial-gradient(1400px 900px at 20% 0%, #1f1a2a 0%, var(--bg-main) 58%);
     color: var(--text-main);
 }
 
@@ -204,7 +204,7 @@ h1, h2, h3, .page-title {
     border-radius: 14px;
     padding: 16px 18px;
     margin-bottom: 14px;
-    box-shadow: 0 10px 24px rgba(0,0,0,0.25);
+    box-shadow: 0 12px 26px rgba(0,0,0,0.35);
 }
 
 .small-label {
@@ -227,8 +227,8 @@ h1, h2, h3, .page-title {
 
 .stButton>button {
     background: var(--button);
-    color: #2b211d;
-    border: 1px solid #d8cbb8;
+    color: #f6f0ff;
+    border: 1px solid #7d6a98;
     border-radius: 10px;
     padding: 8px 14px;
     font-weight: 600;
@@ -236,18 +236,18 @@ h1, h2, h3, .page-title {
 
 .stButton>button:hover {
     background: var(--button-hover);
-    border-color: #e3d7c7;
+    border-color: #9583b1;
 }
 
 button[kind="primary"] {
-    background: #e5d5c4 !important;
-    color: #2b211d !important;
-    border: 1px solid #cbb9a5 !important;
+    background: #8e79af !important;
+    color: #fdf9ff !important;
+    border: 1px solid #a793ca !important;
 }
 
 button[kind="primary"]:hover {
-    background: #efe1d2 !important;
-    border-color: #d6c7b5 !important;
+    background: #9f89c2 !important;
+    border-color: #baaad5 !important;
 }
 
 div[data-testid="stForm"] {
@@ -261,7 +261,7 @@ div[data-testid="stForm"] label {
     color: var(--text-soft);
 }
 
-/* Improve contrast on light background */
+/* Improve contrast on dark background */
 .stMarkdown, .stText, .stCaption, .stCaption span,
 .stMarkdown p, .stMarkdown li, .stMarkdown span {
     color: var(--text-main);
@@ -308,17 +308,17 @@ label[data-testid="stWidgetLabel"] {
 div[data-baseweb="input"] input:hover,
 div[data-baseweb="textarea"] textarea:hover,
 div[data-baseweb="select"] > div:hover {
-    background: #f7efe4;
-    border-color: #b9a792;
+    background: #312944;
+    border-color: #7c6a99;
 }
 
 div[data-baseweb="input"] input:focus,
 div[data-baseweb="textarea"] textarea:focus,
 div[data-baseweb="select"] > div:focus,
 div[data-baseweb="select"] > div:focus-within {
-    background: #f9f2e8;
-    border-color: #ad9a85;
-    box-shadow: 0 0 0 2px rgba(201, 179, 229, 0.25);
+    background: #352d4a;
+    border-color: #8b79a8;
+    box-shadow: 0 0 0 2px rgba(142, 121, 175, 0.35);
 }
 
 /* Dropdown menu */
@@ -336,7 +336,7 @@ ul[role="listbox"] li {
 
 div[data-baseweb="menu"] li:hover,
 ul[role="listbox"] li:hover {
-    background: #efe1d2 !important;
+    background: #302840 !important;
 }
 
 /* Select dropdown list text */
@@ -353,7 +353,7 @@ div[role="listbox"] span {
 
 div[role="listbox"] div:hover,
 div[role="listbox"] div:active {
-    background: #efe1d2 !important;
+    background: #302840 !important;
 }
 
 /* Selectbox (mood) high-contrast override */
@@ -372,13 +372,13 @@ div[data-baseweb="popover"] [role="option"] {
 }
 
 div[data-baseweb="popover"] [role="option"]:hover {
-    background: #efe1d2 !important;
+    background: #302840 !important;
     color: var(--text-main) !important;
 }
 
 div[data-baseweb="popover"] [role="option"][aria-selected="true"] {
     background: var(--accent-purple) !important;
-    color: #2b201c !important;
+    color: #fdf9ff !important;
 }
 
 /* Datepicker calendar popover */
@@ -393,13 +393,13 @@ div[data-baseweb="calendar"] button {
 }
 
 div[data-baseweb="calendar"] button:hover {
-    background: #efe1d2 !important;
+    background: #302840 !important;
     color: var(--text-main) !important;
 }
 
 div[data-baseweb="calendar"] button[aria-selected="true"] {
     background: var(--accent-purple) !important;
-    color: #2b201c !important;
+    color: #fdf9ff !important;
 }
 
 div[data-testid="stHeader"], div[data-testid="stToolbar"] {
