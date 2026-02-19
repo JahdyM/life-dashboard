@@ -1836,7 +1836,7 @@ def build_aesthetic_side_html(image_urls, offset=0):
     return f"<div class='aesthetic-side'>{''.join(blocks)}</div>"
 
 
-def get_calendar_event_done_map(target_date, event_keys):
+def get_calendar_event_status_map(target_date, event_keys):
     if not event_keys:
         return {}
     placeholders = ", ".join([f":k{i}" for i in range(len(event_keys))])
@@ -1851,7 +1851,7 @@ def get_calendar_event_done_map(target_date, event_keys):
         rows = conn.execute(
             sql_text(
                 f"""
-                SELECT event_key, is_done
+                SELECT event_key, is_done, COALESCE(is_hidden, 0) AS is_hidden
                 FROM {CALENDAR_STATUS_TABLE}
                 WHERE user_email = :user_email
                   AND event_date = :event_date
@@ -1860,7 +1860,20 @@ def get_calendar_event_done_map(target_date, event_keys):
             ),
             params,
         ).fetchall()
-    return {row[0]: bool(row[1]) for row in rows}
+    return {
+        row[0]: {"is_done": bool(row[1]), "is_hidden": bool(row[2])}
+        for row in rows
+    }
+
+
+def get_calendar_event_done_map(target_date, event_keys):
+    status_map = get_calendar_event_status_map(target_date, event_keys)
+    return {event_key: status.get("is_done", False) for event_key, status in status_map.items()}
+
+
+def get_calendar_event_hidden_map(target_date, event_keys):
+    status_map = get_calendar_event_status_map(target_date, event_keys)
+    return {event_key: status.get("is_hidden", False) for event_key, status in status_map.items()}
 
 
 def set_calendar_event_done(event_key, event_date, is_done):
@@ -1880,6 +1893,28 @@ def set_calendar_event_done(event_key, event_date, is_done):
                 "event_key": event_key,
                 "event_date": event_date.isoformat(),
                 "is_done": int(bool(is_done)),
+            },
+        )
+
+
+def set_calendar_event_hidden(event_key, event_date, is_hidden):
+    engine = get_engine(get_database_url())
+    with engine.begin() as conn:
+        conn.execute(
+            sql_text(
+                f"""
+                INSERT INTO {CALENDAR_STATUS_TABLE}
+                (user_email, event_key, event_date, is_hidden)
+                VALUES (:user_email, :event_key, :event_date, :is_hidden)
+                ON CONFLICT(user_email, event_key, event_date)
+                DO UPDATE SET is_hidden = EXCLUDED.is_hidden
+                """
+            ),
+            {
+                "user_email": get_current_user_email(),
+                "event_key": event_key,
+                "event_date": event_date.isoformat(),
+                "is_hidden": int(bool(is_hidden)),
             },
         )
 
