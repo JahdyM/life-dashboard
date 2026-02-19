@@ -2465,13 +2465,20 @@ def compute_balance_score(row):
     return round(score, 1)
 
 
-def streak_count(data, habit_key, today):
+def streak_count(data, habit_key, today, valid_weekdays=None):
     if data.empty:
         return 0
     habit_map = {row["date"]: int(row.get(habit_key, 0)) for _, row in data.iterrows()}
+    if not habit_map:
+        return 0
+    min_date = min(habit_map.keys())
+    allowed_days = set(valid_weekdays) if valid_weekdays is not None else None
     count = 0
     current = today
-    while True:
+    while current >= min_date:
+        if allowed_days is not None and current.weekday() not in allowed_days:
+            current -= timedelta(days=1)
+            continue
         if current not in habit_map:
             break
         if habit_map[current] != 1:
@@ -2659,6 +2666,7 @@ def dot_chart(values, dates, title, color, height=260):
 
 enforce_google_login()
 init_db()
+storage_migration_message = migrate_local_sqlite_to_configured_db()
 
 current_user_email = get_current_user_email()
 current_user_name = get_display_name(current_user_email)
@@ -2671,7 +2679,7 @@ st.markdown(
     f"<div class='small-label' style='margin-bottom:10px;'>Welcome, <strong>{current_user_name}</strong>.</div>",
     unsafe_allow_html=True,
 )
-render_data_persistence_notice()
+render_data_persistence_notice(storage_migration_message)
 aesthetic_image_urls = get_aesthetic_image_urls(tuple(PINTEREST_MOOD_LINKS))
 
 meeting_days = get_meeting_days()
@@ -2730,10 +2738,13 @@ else:
         if boredom_zero >= 5:
             st.warning("You may need mental quiet time.")
 
+        meeting_days_set = set(meeting_days)
         streak_cols = st.columns(4)
-        streak_cols[0].markdown(f"🔥 {streak_count(data, 'dissertation_work', today)} day study streak")
-        streak_cols[1].markdown(f"📖 {streak_count(data, 'bible_reading', today)} day reading streak")
-        streak_cols[2].markdown(f"🏃 {streak_count(data, 'workout', today)} day workout streak")
+        streak_cols[0].markdown(f"📖 {streak_count(data, 'bible_reading', today)} day Bible reading streak")
+        streak_cols[1].markdown(f"🏃 {streak_count(data, 'workout', today)} day workout streak")
+        streak_cols[2].markdown(
+            f"🤝 {streak_count(data, 'meeting_attended', today, valid_weekdays=meeting_days_set)} meeting-day streak"
+        )
         streak_cols[3].markdown(f"🚿 {streak_count(data, 'shower', today)} day shower streak")
 
         if partner_email:
@@ -2741,20 +2752,25 @@ else:
                 "<div class='small-label' style='margin-top:8px;'>Shared streak comparison</div>",
                 unsafe_allow_html=True,
             )
-            my_study = streak_count(data, "dissertation_work", today)
             my_read = streak_count(data, "bible_reading", today)
             my_workout = streak_count(data, "workout", today)
+            my_meeting = streak_count(data, "meeting_attended", today, valid_weekdays=meeting_days_set)
             my_shower = streak_count(data, "shower", today)
 
-            partner_study = streak_count(partner_data, "dissertation_work", today)
             partner_read = streak_count(partner_data, "bible_reading", today)
             partner_workout = streak_count(partner_data, "workout", today)
+            partner_meeting = streak_count(
+                partner_data,
+                "meeting_attended",
+                today,
+                valid_weekdays=meeting_days_set,
+            )
             partner_shower = streak_count(partner_data, "shower", today)
 
             compare_cols = st.columns(4)
-            compare_cols[0].metric("Study", f"{my_study}d", delta=f"{partner_name}: {partner_study}d")
-            compare_cols[1].metric("Reading", f"{my_read}d", delta=f"{partner_name}: {partner_read}d")
-            compare_cols[2].metric("Workout", f"{my_workout}d", delta=f"{partner_name}: {partner_workout}d")
+            compare_cols[0].metric("Bible Reading", f"{my_read}d", delta=f"{partner_name}: {partner_read}d")
+            compare_cols[1].metric("Workout", f"{my_workout}d", delta=f"{partner_name}: {partner_workout}d")
+            compare_cols[2].metric("Meeting Day", f"{my_meeting}d", delta=f"{partner_name}: {partner_meeting}d")
             compare_cols[3].metric("Shower", f"{my_shower}d", delta=f"{partner_name}: {partner_shower}d")
 
 # --- DAILY INPUT PANEL ---
