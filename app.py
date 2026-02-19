@@ -1607,6 +1607,30 @@ def build_event_count_map(events, start_date, end_date):
     return counts
 
 
+def build_event_detail_map(events, start_date, end_date, max_items=4):
+    detail_map = {}
+    for event in events:
+        try:
+            event_start = date.fromisoformat(event["start_date"])
+            event_end = date.fromisoformat(event["end_date"])
+        except Exception:
+            continue
+        time_label = event.get("start_time") or "All day"
+        line = f"{time_label} • {event.get('title', 'Event')}"
+        current = max(event_start, start_date)
+        last = min(event_end, end_date)
+        while current <= last:
+            detail_map.setdefault(current, []).append(line)
+            current += timedelta(days=1)
+    compact = {}
+    for day, lines in detail_map.items():
+        shown = lines[:max_items]
+        if len(lines) > max_items:
+            shown.append(f"... +{len(lines) - max_items} more")
+        compact[day] = "\n".join(shown)
+    return compact
+
+
 def build_task_count_map(tasks, start_date, end_date):
     counts = {}
     for task in tasks:
@@ -1622,13 +1646,44 @@ def build_task_count_map(tasks, start_date, end_date):
     return counts
 
 
+def build_task_detail_map(tasks, start_date, end_date, max_items=4):
+    detail_map = {}
+    for task in tasks:
+        raw_date = task.get("scheduled_date")
+        if not raw_date:
+            continue
+        try:
+            task_date = date.fromisoformat(raw_date)
+        except Exception:
+            continue
+        if not (start_date <= task_date <= end_date):
+            continue
+        time_label = task.get("scheduled_time") or "No time"
+        line = f"{time_label} • {task.get('title', 'Task')}"
+        detail_map.setdefault(task_date, []).append(line)
+    compact = {}
+    for day, lines in detail_map.items():
+        shown = lines[:max_items]
+        if len(lines) > max_items:
+            shown.append(f"... +{len(lines) - max_items} more")
+        compact[day] = "\n".join(shown)
+    return compact
+
+
 def get_week_range(reference_date):
     week_start = reference_date - timedelta(days=reference_date.weekday())
     week_end = week_start + timedelta(days=6)
     return week_start, week_end
 
 
-def build_week_calendar_html(week_start, selected_date, google_counts, task_counts):
+def build_week_calendar_html(
+    week_start,
+    selected_date,
+    google_counts,
+    task_counts,
+    google_details,
+    task_details,
+):
     days = [week_start + timedelta(days=offset) for offset in range(7)]
     header_cells = "".join(
         [
@@ -1646,9 +1701,15 @@ def build_week_calendar_html(week_start, selected_date, google_counts, task_coun
         classes = "calendar-cell selected" if day == selected_date else "calendar-cell"
         badges = []
         if google_count:
-            badges.append(f"<span class='cal-badge cal-google'>G {google_count}</span>")
+            tooltip = html.escape(google_details.get(day, "Google events"), quote=True)
+            badges.append(
+                f"<span class='cal-badge cal-google' title='{tooltip}'>G {google_count}</span>"
+            )
         if task_count:
-            badges.append(f"<span class='cal-badge cal-task'>T {task_count}</span>")
+            tooltip = html.escape(task_details.get(day, "Scheduled tasks"), quote=True)
+            badges.append(
+                f"<span class='cal-badge cal-task' title='{tooltip}'>T {task_count}</span>"
+            )
         if not badges:
             badges.append("<span class='cal-badge cal-none'>-</span>")
         cells.append(
@@ -2369,6 +2430,7 @@ with right_col:
     ics_url, calendar_secret_key = get_user_calendar_ics_url(current_user_email)
     tasks = list_todo_tasks()
     week_task_counts = build_task_count_map(tasks, week_start, week_end)
+    week_task_details = build_task_detail_map(tasks, week_start, week_end)
 
     week_calendar_events = []
     day_calendar_events = []
@@ -2387,12 +2449,19 @@ with right_col:
         if not calendar_error
         else {}
     )
+    week_google_details = (
+        build_event_detail_map(week_calendar_events, week_start, week_end)
+        if not calendar_error
+        else {}
+    )
     st.markdown(
         build_week_calendar_html(
             week_start,
             selected_date,
             week_google_counts,
             week_task_counts,
+            week_google_details,
+            week_task_details,
         ),
         unsafe_allow_html=True,
     )
