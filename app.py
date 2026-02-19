@@ -615,6 +615,9 @@ def init_db():
                     source TEXT NOT NULL,
                     scheduled_date TEXT,
                     scheduled_time TEXT,
+                    priority_tag TEXT DEFAULT 'Medium',
+                    estimated_minutes INTEGER,
+                    actual_minutes INTEGER,
                     is_done INTEGER DEFAULT 0,
                     created_at TEXT NOT NULL
                 )
@@ -629,6 +632,9 @@ def init_db():
                     task_id TEXT NOT NULL,
                     user_email TEXT NOT NULL,
                     title TEXT NOT NULL,
+                    priority_tag TEXT DEFAULT 'Medium',
+                    estimated_minutes INTEGER,
+                    actual_minutes INTEGER,
                     is_done INTEGER DEFAULT 0,
                     created_at TEXT NOT NULL
                 )
@@ -648,6 +654,22 @@ def init_db():
                 """
             )
         )
+
+    def ensure_column(table_name, column_name, column_ddl):
+        try:
+            with engine.begin() as conn:
+                conn.execute(
+                    sql_text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_ddl}")
+                )
+        except Exception:
+            pass
+
+    ensure_column(TASKS_TABLE, "priority_tag", "TEXT DEFAULT 'Medium'")
+    ensure_column(TASKS_TABLE, "estimated_minutes", "INTEGER")
+    ensure_column(TASKS_TABLE, "actual_minutes", "INTEGER")
+    ensure_column(SUBTASKS_TABLE, "priority_tag", "TEXT DEFAULT 'Medium'")
+    ensure_column(SUBTASKS_TABLE, "estimated_minutes", "INTEGER")
+    ensure_column(SUBTASKS_TABLE, "actual_minutes", "INTEGER")
 
     # Migrate legacy data (date-based table) to user-scoped table once.
     inspector = inspect(engine)
@@ -1398,6 +1420,28 @@ def build_todo_score(items):
     if total_weight == 0:
         return 0.0
     return round((weighted / total_weight) * 100, 1)
+
+
+def build_time_estimation_insight(day_tasks, task_subtasks_map):
+    diffs = []
+    for task in day_tasks:
+        est = parse_minutes(task.get("estimated_minutes"))
+        actual = parse_minutes(task.get("actual_minutes"))
+        if est is not None and actual is not None:
+            diffs.append(actual - est)
+        for subtask in task_subtasks_map.get(task["id"], []):
+            sub_est = parse_minutes(subtask.get("estimated_minutes"))
+            sub_actual = parse_minutes(subtask.get("actual_minutes"))
+            if sub_est is not None and sub_actual is not None:
+                diffs.append(sub_actual - sub_est)
+    if not diffs:
+        return "Add estimated and actual times to see your calibration trend."
+    avg_diff = int(round(sum(diffs) / len(diffs)))
+    if avg_diff > 0:
+        return f"You tend to underestimate your time by {avg_diff} minutes."
+    if avg_diff < 0:
+        return f"You tend to overestimate your time by {abs(avg_diff)} minutes."
+    return "Your time estimates are very accurate."
 
 
 def build_hourly_schedule_rows(items):
