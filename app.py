@@ -2934,7 +2934,7 @@ with right_col:
         elif item.get("time"):
             time_suffix = f" ({item['time']})"
 
-        header_cols = st.columns([0.5, 4.4, 1.3, 1.2, 0.9])
+        header_cols = st.columns([0.7, 4.1, 1.3, 1.1, 2.2])
         with header_cols[0]:
             if item["source"] == "calendar":
                 checked = st.checkbox(
@@ -2970,13 +2970,16 @@ with right_col:
             st.markdown(f"{item['progress']}%")
         with header_cols[4]:
             if item["source"] == "calendar":
-                if st.button("Custom", key=f"customize_task_{task_key}"):
-                    create_calendar_override_task(item["event_row"], selected_date)
-                    st.rerun()
-                if st.button("Delete", key=f"hide_task_{task_key}"):
-                    set_calendar_event_hidden(item["id"], selected_date, True)
-                    st.rerun()
-            elif st.button("Delete", key=f"delete_task_{task_key}"):
+                action_cols = st.columns(2, gap="small")
+                with action_cols[0]:
+                    if st.button("Custom", key=f"customize_task_{task_key}", use_container_width=True):
+                        create_calendar_override_task(item["event_row"], selected_date)
+                        st.rerun()
+                with action_cols[1]:
+                    if st.button("Delete", key=f"hide_task_{task_key}", use_container_width=True):
+                        set_calendar_event_hidden(item["id"], selected_date, True)
+                        st.rerun()
+            elif st.button("Delete", key=f"delete_task_{task_key}", use_container_width=True):
                 delete_todo_task(item["id"])
                 st.rerun()
 
