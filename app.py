@@ -4,6 +4,7 @@ import html
 import json
 import base64
 import mimetypes
+from functools import lru_cache
 from datetime import date, datetime, timedelta
 import calendar
 from urllib.parse import urlparse
@@ -14,7 +15,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import requests
 import streamlit as st
-from sqlalchemy import create_engine, inspect, text as sql_text
+from sqlalchemy import bindparam, create_engine, inspect, text as sql_text
 from sqlalchemy.exc import SQLAlchemyError
 
 try:
@@ -143,6 +144,7 @@ BACKGROUND_IMAGE_CANDIDATES = [
 st.set_page_config(page_title="Personal Life Dashboard", layout="wide")
 
 
+@lru_cache(maxsize=16)
 def file_path_to_data_uri(file_path):
     try:
         with open(file_path, "rb") as file_handle:
@@ -1238,6 +1240,30 @@ def init_db():
                 """
             )
         )
+        conn.execute(
+            sql_text(
+                f"CREATE INDEX IF NOT EXISTS idx_{TASKS_TABLE}_user_scheduled "
+                f"ON {TASKS_TABLE} (user_email, scheduled_date)"
+            )
+        )
+        conn.execute(
+            sql_text(
+                f"CREATE INDEX IF NOT EXISTS idx_{TASKS_TABLE}_user_source_scheduled "
+                f"ON {TASKS_TABLE} (user_email, source, scheduled_date)"
+            )
+        )
+        conn.execute(
+            sql_text(
+                f"CREATE INDEX IF NOT EXISTS idx_{TASKS_TABLE}_user_external_date "
+                f"ON {TASKS_TABLE} (user_email, external_event_key, scheduled_date)"
+            )
+        )
+        conn.execute(
+            sql_text(
+                f"CREATE INDEX IF NOT EXISTS idx_{SUBTASKS_TABLE}_user_task "
+                f"ON {SUBTASKS_TABLE} (user_email, task_id)"
+            )
+        )
 
     def ensure_column(table_name, column_name, column_ddl):
         try:
@@ -1525,6 +1551,7 @@ def upsert_entry(payload):
             ),
             values,
         )
+    invalidate_runtime_caches()
 
 
 def delete_entries(start_date, end_date=None):
@@ -1551,6 +1578,7 @@ def delete_entries(start_date, end_date=None):
                     "end": end_date.isoformat(),
                 },
             )
+    invalidate_runtime_caches()
     return cursor.rowcount if cursor.rowcount is not None else 0
 
 
@@ -1576,6 +1604,7 @@ def set_setting(key, value, scoped=True):
             ),
             {"key": setting_key, "value": value},
         )
+    invalidate_runtime_caches()
 
 
 def get_meeting_days():
@@ -1721,9 +1750,10 @@ def set_custom_habit_done_for_date(entry_date, habit_done_map):
     )
 
 
-def load_custom_habit_done_by_date():
-    engine = get_engine(get_database_url())
-    key_prefix = scoped_setting_key(CUSTOM_HABIT_DONE_PREFIX)
+@st.cache_data(ttl=45, show_spinner=False)
+def load_custom_habit_done_by_date_cached(user_email, database_url):
+    engine = get_engine(database_url)
+    key_prefix = f"{user_email}::{CUSTOM_HABIT_DONE_PREFIX}"
     like_expr = f"{key_prefix}%"
     with engine.connect() as conn:
         rows = conn.execute(
@@ -1752,6 +1782,13 @@ def load_custom_habit_done_by_date():
             if sanitize_habit_name(habit_id)
         }
     return done_by_date
+
+
+def load_custom_habit_done_by_date():
+    return load_custom_habit_done_by_date_cached(
+        get_current_user_email(),
+        get_database_url(),
+    )
 
 
 def load_custom_habits_into_state(entry_date, custom_habits, custom_done_by_date):
@@ -1795,8 +1832,9 @@ def normalize_entries_df(df):
     return df
 
 
-def load_data_for_email(user_email):
-    engine = get_engine(get_database_url())
+@st.cache_data(ttl=45, show_spinner=False)
+def load_data_for_email_cached(user_email, database_url):
+    engine = get_engine(database_url)
     with engine.connect() as conn:
         df = pd.read_sql(
             sql_text(
@@ -1809,8 +1847,18 @@ def load_data_for_email(user_email):
     return normalize_entries_df(df)
 
 
+def load_data_for_email(user_email):
+    return load_data_for_email_cached(user_email, get_database_url())
+
+
 def load_data():
     return load_data_for_email(get_current_user_email())
+
+
+def invalidate_runtime_caches():
+    load_data_for_email_cached.clear()
+    load_custom_habit_done_by_date_cached.clear()
+    list_todo_tasks_for_window_cached.clear()
 
 
 def new_id():
@@ -1911,11 +1959,13 @@ def add_todo_task(
             ),
             payload,
         )
+    invalidate_runtime_caches()
     return payload["id"]
 
 
-def list_todo_tasks():
-    engine = get_engine(get_database_url())
+@st.cache_data(ttl=30, show_spinner=False)
+def list_todo_tasks_for_window_cached(user_email, database_url, week_start_iso, week_end_iso, selected_iso):
+    engine = get_engine(database_url)
     with engine.connect() as conn:
         rows = conn.execute(
             sql_text(
@@ -1925,12 +1975,32 @@ def list_todo_tasks():
                     priority_tag, estimated_minutes, actual_minutes, is_done, created_at
                 FROM {TASKS_TABLE}
                 WHERE user_email = :user_email
+                  AND (
+                    (scheduled_date BETWEEN :week_start AND :week_end)
+                    OR scheduled_date = :selected_date
+                    OR (source = 'remembered' AND (scheduled_date IS NULL OR scheduled_date = ''))
+                  )
                 ORDER BY created_at DESC
                 """
             ),
-            {"user_email": get_current_user_email()},
+            {
+                "user_email": user_email,
+                "week_start": week_start_iso,
+                "week_end": week_end_iso,
+                "selected_date": selected_iso,
+            },
         ).mappings().all()
     return [dict(row) for row in rows]
+
+
+def list_todo_tasks(week_start, week_end, selected_date):
+    return list_todo_tasks_for_window_cached(
+        get_current_user_email(),
+        get_database_url(),
+        week_start.isoformat(),
+        week_end.isoformat(),
+        selected_date.isoformat(),
+    )
 
 
 def get_calendar_override_task(event_key, event_date):
@@ -1992,23 +2062,37 @@ def create_calendar_override_task(event, event_date):
     )
 
 
-def get_todo_task_subtasks(task_id):
+def get_todo_subtasks_map(task_ids):
+    if not task_ids:
+        return {}
     engine = get_engine(get_database_url())
+    stmt = sql_text(
+        f"""
+        SELECT
+            id, task_id, user_email, title, priority_tag, estimated_minutes, actual_minutes,
+            is_done, created_at
+        FROM {SUBTASKS_TABLE}
+        WHERE user_email = :user_email AND task_id IN :task_ids
+        ORDER BY created_at ASC
+        """
+    ).bindparams(bindparam("task_ids", expanding=True))
     with engine.connect() as conn:
         rows = conn.execute(
-            sql_text(
-                f"""
-                SELECT
-                    id, task_id, user_email, title, priority_tag, estimated_minutes, actual_minutes,
-                    is_done, created_at
-                FROM {SUBTASKS_TABLE}
-                WHERE user_email = :user_email AND task_id = :task_id
-                ORDER BY created_at ASC
-                """
-            ),
-            {"user_email": get_current_user_email(), "task_id": task_id},
+            stmt,
+            {
+                "user_email": get_current_user_email(),
+                "task_ids": list(task_ids),
+            },
         ).mappings().all()
-    return [dict(row) for row in rows]
+    subtasks_map = {task_id: [] for task_id in task_ids}
+    for row in rows:
+        payload = dict(row)
+        subtasks_map.setdefault(payload["task_id"], []).append(payload)
+    return subtasks_map
+
+
+def get_todo_task_subtasks(task_id):
+    return get_todo_subtasks_map([task_id]).get(task_id, [])
 
 
 def set_todo_task_done(task_id, is_done):
@@ -2028,6 +2112,7 @@ def set_todo_task_done(task_id, is_done):
                 "task_id": task_id,
             },
         )
+    invalidate_runtime_caches()
 
 
 def schedule_todo_task(task_id, scheduled_date, scheduled_time):
@@ -2048,6 +2133,7 @@ def schedule_todo_task(task_id, scheduled_date, scheduled_time):
                 "task_id": task_id,
             },
         )
+    invalidate_runtime_caches()
 
 
 def update_todo_task_fields(
@@ -2081,6 +2167,7 @@ def update_todo_task_fields(
             ),
             params,
         )
+    invalidate_runtime_caches()
 
 
 def delete_todo_task(task_id):
@@ -2098,6 +2185,7 @@ def delete_todo_task(task_id):
             ),
             {"user_email": get_current_user_email(), "task_id": task_id},
         )
+    invalidate_runtime_caches()
     return cursor.rowcount if cursor.rowcount is not None else 0
 
 
@@ -2134,6 +2222,7 @@ def add_todo_subtask(task_id, title, priority_tag="Medium", estimated_minutes=No
             ),
             payload,
         )
+    invalidate_runtime_caches()
     sync_todo_task_done_from_subtasks(task_id)
     return payload["id"]
 
@@ -2165,6 +2254,7 @@ def set_todo_subtask_done(subtask_id, is_done):
                 "subtask_id": subtask_id,
             },
         )
+    invalidate_runtime_caches()
     if row:
         sync_todo_task_done_from_subtasks(row[0])
 
@@ -2200,6 +2290,7 @@ def update_todo_subtask_fields(
             ),
             params,
         )
+    invalidate_runtime_caches()
 
 
 def delete_todo_subtask(subtask_id):
@@ -2223,6 +2314,7 @@ def delete_todo_subtask(subtask_id):
             ),
             {"user_email": get_current_user_email(), "subtask_id": subtask_id},
         )
+    invalidate_runtime_caches()
     if row:
         sync_todo_task_done_from_subtasks(row[0])
     return cursor.rowcount if cursor.rowcount is not None else 0
@@ -2301,7 +2393,7 @@ def _normalize_event_component(component):
     }
 
 
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=900, show_spinner=False)
 def fetch_ics_events_for_range(ics_url, start_date, end_date):
     if not ics_url:
         return [], None
@@ -2310,7 +2402,7 @@ def fetch_ics_events_for_range(ics_url, start_date, end_date):
     if end_date < start_date:
         return [], "Invalid calendar range."
     try:
-        response = requests.get(ics_url, timeout=20)
+        response = requests.get(ics_url, timeout=10)
         response.raise_for_status()
         calendar_obj = Calendar.from_ical(response.content)
     except Exception as exc:
@@ -2669,6 +2761,7 @@ def set_calendar_event_done(event_key, event_date, is_done):
                 "is_done": int(bool(is_done)),
             },
         )
+    invalidate_runtime_caches()
 
 
 def set_calendar_event_hidden(event_key, event_date, is_hidden):
@@ -2691,6 +2784,7 @@ def set_calendar_event_hidden(event_key, event_date, is_hidden):
                 "is_hidden": int(bool(is_hidden)),
             },
         )
+    invalidate_runtime_caches()
 
 
 def compute_auto_priority(selected_day, scheduled_time, source, progress):
@@ -3400,7 +3494,7 @@ with right_col:
     st.caption(f"Week: {week_start.strftime('%d/%m/%Y')} - {week_end.strftime('%d/%m/%Y')}")
 
     ics_url, calendar_secret_key = get_user_calendar_ics_url(current_user_email)
-    tasks = list_todo_tasks()
+    tasks = list_todo_tasks(week_start, week_end, selected_date)
     week_task_counts = build_task_count_map(tasks, week_start, week_end)
     week_task_details = build_task_detail_map(tasks, week_start, week_end)
 
@@ -3461,10 +3555,7 @@ with right_col:
         task for task in tasks
         if task.get("scheduled_date") == selected_iso
     ]
-    task_subtasks_cache = {
-        task["id"]: get_todo_task_subtasks(task["id"])
-        for task in day_internal_tasks
-    }
+    task_subtasks_cache = get_todo_subtasks_map([task["id"] for task in day_internal_tasks])
     override_tasks_by_event = {}
     for task in day_internal_tasks:
         if task.get("source") == "calendar_override" and task.get("external_event_key"):
@@ -3779,7 +3870,6 @@ with right_col:
                         estimated_minutes=edited_est,
                         actual_minutes=edited_actual,
                     )
-                    st.rerun()
 
                 for subtask in item["subtasks"]:
                     sub_key = safe_widget_key(subtask["id"])
@@ -3841,7 +3931,6 @@ with right_col:
                             estimated_minutes=sub_est_edit,
                             actual_minutes=sub_actual_edit,
                         )
-                        st.rerun()
 
                 new_sub_cols = st.columns([2.8, 1.4, 1.4, 0.9])
                 with new_sub_cols[0]:
