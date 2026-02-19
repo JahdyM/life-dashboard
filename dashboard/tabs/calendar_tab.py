@@ -95,21 +95,17 @@ def _day_draft(selected_day):
 
 
 def _to_rows(items):
-    all_day = []
     hour_map = {hour: [] for hour in range(6, 23)}
     for item in items:
         label = item["title"]
         item_time = item.get("time")
         if not item_time:
-            all_day.append(label)
             continue
         try:
             hour = int(str(item_time)[:2])
         except Exception:
-            all_day.append(label)
             continue
         if hour not in hour_map:
-            all_day.append(f"{item_time} • {label}")
             continue
         hour_map[hour].append(f"{item_time} • {label}")
 
@@ -117,7 +113,7 @@ def _to_rows(items):
     for hour in range(6, 23):
         hour_key = f"{hour:02d}:00"
         rows.append({"Hour": hour_key, "Scheduled": " | ".join(hour_map[hour])})
-    return all_day, rows
+    return rows
 
 
 def _build_week_hour_board(range_tasks, start_day):
@@ -138,19 +134,7 @@ def _build_week_hour_board(range_tasks, start_day):
                     values.append(f"{item_time} • {item.get('title')}")
             row[day_key] = " | ".join(values)
         hour_rows.append(row)
-
-    all_day = []
-    for day in columns:
-        day_key = day.strftime("%a %d/%m")
-        values = []
-        for item in range_tasks:
-            if item.get("scheduled_date") != day.isoformat():
-                continue
-            if item.get("scheduled_time"):
-                continue
-            values.append(item.get("title") or "Task")
-        all_day.append({"Day": day_key, "All-day / no-time": " | ".join(values)})
-    return hour_rows, all_day
+    return hour_rows
 
 
 def _sync_google_if_connected(user_email, connected, start_day, end_day, calendar_ids):
@@ -251,9 +235,7 @@ def render_calendar_tab(ctx):
 
     st.markdown("<div class='small-label'>Open calendar view</div>", unsafe_allow_html=True)
     if view_mode == "Week":
-        week_hour_rows, week_all_day = _build_week_hour_board(range_tasks, start_day)
-        st.caption("All-day / no-time lane")
-        st.dataframe(pd.DataFrame(week_all_day), use_container_width=True, hide_index=True)
+        week_hour_rows = _build_week_hour_board(range_tasks, start_day)
         st.caption("Hourly schedule")
         st.dataframe(pd.DataFrame(week_hour_rows), use_container_width=True, hide_index=True)
     else:
@@ -282,76 +264,102 @@ def render_calendar_tab(ctx):
     ]
     schedule_items.extend(fallback_events)
 
-    all_day, hour_rows = _to_rows(schedule_items)
-    st.markdown("<div class='small-label'>Selected day schedule</div>", unsafe_allow_html=True)
-    if all_day:
-        st.caption("All-day / no-time")
-        for line in all_day:
-            st.markdown(f"- {line}")
+    hour_rows = _to_rows(schedule_items)
+    st.markdown("<div class='small-label'>Hourly schedule (selected day)</div>", unsafe_allow_html=True)
     st.dataframe(pd.DataFrame(hour_rows), use_container_width=True, hide_index=True)
 
     st.markdown("<div class='small-label'>Add activity</div>", unsafe_allow_html=True)
     draft = _day_draft(selected_day)
-    add_cols = st.columns([3.2, 1.3, 1.1, 1.0, 1.1, 0.8])
-    with add_cols[0]:
-        draft["title"] = st.text_input("Title", value=draft["title"], key=f"calendar.add.title.{selected_day.isoformat()}")
-    with add_cols[1]:
-        draft["priority"] = st.selectbox("Priority", PRIORITY_TAGS, index=PRIORITY_TAGS.index(draft["priority"]), key=f"calendar.add.priority.{selected_day.isoformat()}")
-    with add_cols[2]:
-        draft["estimated"] = st.number_input("Est", min_value=5, max_value=600, step=5, value=int(draft["estimated"]), key=f"calendar.add.est.{selected_day.isoformat()}")
-    with add_cols[3]:
-        draft["has_time"] = st.checkbox("Time", value=bool(draft["has_time"]), key=f"calendar.add.has_time.{selected_day.isoformat()}")
-    with add_cols[4]:
-        if draft["has_time"]:
-            draft["time"] = st.time_input("Start", value=draft["time"], key=f"calendar.add.time.{selected_day.isoformat()}" )
-    with add_cols[5]:
-        if st.button("+", key=f"calendar.add.btn.{selected_day.isoformat()}", type="tertiary"):
-            if not (draft["title"] or "").strip():
-                st.warning("Task title is required.")
-            else:
-                created = repositories.save_activity(
-                    {
-                        "user_email": user_email,
-                        "title": draft["title"],
-                        "source": "manual",
-                        "scheduled_date": selected_day,
-                        "scheduled_time": draft["time"] if draft["has_time"] else None,
-                        "priority_tag": draft["priority"],
-                        "estimated_minutes": draft["estimated"],
-                    }
-                )
-                try:
-                    _sync_created_or_updated_activity_to_google(user_email, created["id"], connected, primary_calendar_id)
-                except Exception as exc:
-                    st.warning(f"Saved locally, but Google sync failed: {exc}")
-                draft["title"] = ""
-                st.rerun()
+    add_prefix = selected_day.isoformat()
+    add_title_key = f"calendar.add.title.{add_prefix}"
+    add_priority_key = f"calendar.add.priority.{add_prefix}"
+    add_est_key = f"calendar.add.est.{add_prefix}"
+    add_has_time_key = f"calendar.add.has_time.{add_prefix}"
+    add_time_key = f"calendar.add.time.{add_prefix}"
+    if add_title_key not in st.session_state:
+        st.session_state[add_title_key] = draft["title"]
+    if add_priority_key not in st.session_state:
+        st.session_state[add_priority_key] = draft["priority"]
+    if add_est_key not in st.session_state:
+        st.session_state[add_est_key] = int(draft["estimated"])
+    if add_has_time_key not in st.session_state:
+        st.session_state[add_has_time_key] = bool(draft["has_time"])
+    if add_time_key not in st.session_state:
+        st.session_state[add_time_key] = draft["time"]
+
+    with st.form(key=f"calendar.add.form.{add_prefix}", clear_on_submit=False):
+        add_cols = st.columns([3.2, 1.3, 1.1, 1.0, 1.1, 1.3])
+        with add_cols[0]:
+            st.text_input("Title", key=add_title_key)
+        with add_cols[1]:
+            st.selectbox("Priority", PRIORITY_TAGS, key=add_priority_key)
+        with add_cols[2]:
+            st.number_input("Est", min_value=5, max_value=600, step=5, key=add_est_key)
+        with add_cols[3]:
+            st.checkbox("Time", key=add_has_time_key)
+        with add_cols[4]:
+            if bool(st.session_state.get(add_has_time_key)):
+                st.time_input("Start", key=add_time_key)
+        with add_cols[5]:
+            confirm_add = st.form_submit_button("Confirm task", use_container_width=True)
+
+    if confirm_add:
+        draft["title"] = st.session_state.get(add_title_key, "")
+        draft["priority"] = st.session_state.get(add_priority_key, "Medium")
+        draft["estimated"] = int(st.session_state.get(add_est_key, 30) or 30)
+        draft["has_time"] = bool(st.session_state.get(add_has_time_key, False))
+        draft["time"] = st.session_state.get(add_time_key, datetime.now().replace(second=0, microsecond=0).time())
+
+        if not (draft["title"] or "").strip():
+            st.warning("Task title is required.")
+        else:
+            created = repositories.save_activity(
+                {
+                    "user_email": user_email,
+                    "title": draft["title"],
+                    "source": "manual",
+                    "scheduled_date": selected_day,
+                    "scheduled_time": draft["time"] if draft["has_time"] else None,
+                    "priority_tag": draft["priority"],
+                    "estimated_minutes": draft["estimated"],
+                }
+            )
+            try:
+                _sync_created_or_updated_activity_to_google(user_email, created["id"], connected, primary_calendar_id)
+            except Exception as exc:
+                st.warning(f"Saved locally, but Google sync failed: {exc}")
+            draft["title"] = ""
+            st.session_state[add_title_key] = ""
+            st.rerun()
 
     st.markdown("<div class='small-label' style='margin-top:8px;'>Remembered tasks (to decide)</div>", unsafe_allow_html=True)
-    rem_cols = st.columns([3.2, 1.3, 1.1, 0.8])
-    with rem_cols[0]:
-        st.text_input("Remembered task", key="calendar.remembered.title", placeholder="Something to do later")
-    with rem_cols[1]:
-        st.selectbox("Priority", PRIORITY_TAGS, key="calendar.remembered.priority")
-    with rem_cols[2]:
-        st.number_input("Est", min_value=5, max_value=600, step=5, value=20, key="calendar.remembered.est")
-    with rem_cols[3]:
-        if st.button("+", key="calendar.remembered.add", type="tertiary"):
-            title = (st.session_state.get("calendar.remembered.title") or "").strip()
-            if not title:
-                st.warning("Remembered task title is required.")
-            else:
-                repositories.save_activity(
-                    {
-                        "user_email": user_email,
-                        "title": title,
-                        "source": "remembered",
-                        "priority_tag": st.session_state.get("calendar.remembered.priority", "Medium"),
-                        "estimated_minutes": int(st.session_state.get("calendar.remembered.est", 20) or 20),
-                    }
-                )
-                st.session_state["calendar.remembered.title"] = ""
-                st.rerun()
+    with st.form(key="calendar.remembered.form", clear_on_submit=False):
+        rem_cols = st.columns([3.2, 1.3, 1.1, 1.3])
+        with rem_cols[0]:
+            st.text_input("Remembered task", key="calendar.remembered.title", placeholder="Something to do later")
+        with rem_cols[1]:
+            st.selectbox("Priority", PRIORITY_TAGS, key="calendar.remembered.priority")
+        with rem_cols[2]:
+            st.number_input("Est", min_value=5, max_value=600, step=5, value=20, key="calendar.remembered.est")
+        with rem_cols[3]:
+            confirm_remembered = st.form_submit_button("Confirm remembered", use_container_width=True)
+
+    if confirm_remembered:
+        title = (st.session_state.get("calendar.remembered.title") or "").strip()
+        if not title:
+            st.warning("Remembered task title is required.")
+        else:
+            repositories.save_activity(
+                {
+                    "user_email": user_email,
+                    "title": title,
+                    "source": "remembered",
+                    "priority_tag": st.session_state.get("calendar.remembered.priority", "Medium"),
+                    "estimated_minutes": int(st.session_state.get("calendar.remembered.est", 20) or 20),
+                }
+            )
+            st.session_state["calendar.remembered.title"] = ""
+            st.rerun()
 
     unscheduled = repositories.list_unscheduled_remembered(user_email)
     if not unscheduled:
