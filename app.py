@@ -28,6 +28,7 @@ ENV_FALLBACK_KEYS = {
     ("auth", "google", "client_secret"): "GOOGLE_CLIENT_SECRET",
     ("auth", "google", "server_metadata_url"): "GOOGLE_SERVER_METADATA_URL",
     ("app", "allowed_email"): "ALLOWED_EMAIL",
+    ("app", "allowed_emails"): "ALLOWED_EMAILS",
     ("database", "url"): "DATABASE_URL",
 }
 
@@ -102,7 +103,6 @@ def bootstrap_local_secrets_from_env():
         "AUTH_COOKIE_SECRET",
         "GOOGLE_CLIENT_ID",
         "GOOGLE_CLIENT_SECRET",
-        "ALLOWED_EMAIL",
     ]
     if not all(os.getenv(key) for key in required):
         return
@@ -112,6 +112,8 @@ def bootstrap_local_secrets_from_env():
         "https://accounts.google.com/.well-known/openid-configuration",
     )
     database_url = os.getenv("DATABASE_URL", "")
+    allowed_email = (os.getenv("ALLOWED_EMAIL") or "").strip()
+    allowed_emails = (os.getenv("ALLOWED_EMAILS") or "").strip()
     with open(LOCAL_SECRETS_PATH, "w", encoding="utf-8") as secrets_file:
         secrets_file.write("[auth]\n")
         secrets_file.write(f"redirect_uri = \"{os.getenv('AUTH_REDIRECT_URI')}\"\n")
@@ -120,8 +122,13 @@ def bootstrap_local_secrets_from_env():
         secrets_file.write(f"client_id = \"{os.getenv('GOOGLE_CLIENT_ID')}\"\n")
         secrets_file.write(f"client_secret = \"{os.getenv('GOOGLE_CLIENT_SECRET')}\"\n")
         secrets_file.write(f"server_metadata_url = \"{metadata_url}\"\n\n")
-        secrets_file.write("[app]\n")
-        secrets_file.write(f"allowed_email = \"{os.getenv('ALLOWED_EMAIL')}\"\n\n")
+        if allowed_email or allowed_emails:
+            secrets_file.write("[app]\n")
+            if allowed_emails:
+                secrets_file.write(f"allowed_emails = \"{allowed_emails}\"\n")
+            elif allowed_email:
+                secrets_file.write(f"allowed_email = \"{allowed_email}\"\n")
+            secrets_file.write("\n")
         if database_url:
             secrets_file.write("[database]\n")
             secrets_file.write(f"url = \"{database_url}\"\n")
@@ -438,14 +445,18 @@ def enforce_google_login():
         )
         st.stop()
 
-    allowed_email = (
-        get_secret(("app", "allowed_email"))
+    allowed_raw = (
+        get_secret(("app", "allowed_emails"))
+        or get_secret(("app", "allowed_email"))
+        or os.getenv("ALLOWED_EMAILS")
         or os.getenv("ALLOWED_EMAIL")
         or ""
-    ).strip().lower()
-    if not allowed_email:
-        st.error("Security setup incomplete: set app.allowed_email in secrets.")
-        st.stop()
+    )
+    allowed_set = {
+        email.strip().lower()
+        for email in str(allowed_raw).split(",")
+        if email.strip()
+    }
 
     redirect_uri = (get_secret(("auth", "redirect_uri")) or "").strip()
     parsed_uri = urlparse(redirect_uri) if redirect_uri else None
@@ -464,7 +475,7 @@ def enforce_google_login():
         st.stop()
 
     user_email = str(getattr(st.user, "email", "")).strip().lower()
-    if allowed_email and user_email != allowed_email:
+    if allowed_set and user_email not in allowed_set:
         st.error("Access denied for this account.")
         if st.button("Logout", key="logout_denied"):
             st.logout()
@@ -480,8 +491,17 @@ def get_current_user_email():
     user_email = str(getattr(st.user, "email", "")).strip().lower()
     if user_email:
         return user_email
+    allowed_many = (
+        get_secret(("app", "allowed_emails"))
+        or os.getenv("ALLOWED_EMAILS")
+        or ""
+    ).strip()
+    fallback_from_many = ""
+    if allowed_many:
+        fallback_from_many = allowed_many.split(",")[0].strip().lower()
     fallback_email = (
-        get_secret(("app", "allowed_email"))
+        fallback_from_many
+        or get_secret(("app", "allowed_email"))
         or os.getenv("ALLOWED_EMAIL")
         or "local@offline"
     ).strip().lower()
@@ -771,6 +791,389 @@ def load_data():
     return df
 
 
+def new_id():
+    return uuid4().hex
+
+
+def safe_widget_key(raw_value):
+    return "".join(ch if ch.isalnum() else "_" for ch in str(raw_value))[:120]
+
+
+def normalize_time_value(value):
+    if value is None:
+        return None
+    if hasattr(value, "strftime"):
+        return value.strftime("%H:%M")
+    value_str = str(value).strip()
+    return value_str[:5] if value_str else None
+
+
+def get_calendar_preferences():
+    provider = get_setting("calendar_provider") or "none"
+    ics_url = (get_setting("calendar_ics_url") or "").strip()
+    return provider, ics_url
+
+
+def save_calendar_preferences(provider, ics_url):
+    set_setting("calendar_provider", provider)
+    set_setting("calendar_ics_url", (ics_url or "").strip())
+
+
+def add_todo_task(title, source="manual", scheduled_date=None, scheduled_time=None):
+    clean_title = (title or "").strip()
+    if not clean_title:
+        return None
+    engine = get_engine(get_database_url())
+    payload = {
+        "id": new_id(),
+        "user_email": get_current_user_email(),
+        "title": clean_title,
+        "source": source,
+        "scheduled_date": scheduled_date.isoformat() if scheduled_date else None,
+        "scheduled_time": normalize_time_value(scheduled_time),
+        "is_done": 0,
+        "created_at": datetime.utcnow().isoformat(),
+    }
+    with engine.begin() as conn:
+        conn.execute(
+            sql_text(
+                f"""
+                INSERT INTO {TASKS_TABLE}
+                (id, user_email, title, source, scheduled_date, scheduled_time, is_done, created_at)
+                VALUES (:id, :user_email, :title, :source, :scheduled_date, :scheduled_time, :is_done, :created_at)
+                """
+            ),
+            payload,
+        )
+    return payload["id"]
+
+
+def list_todo_tasks():
+    engine = get_engine(get_database_url())
+    with engine.connect() as conn:
+        rows = conn.execute(
+            sql_text(
+                f"""
+                SELECT id, user_email, title, source, scheduled_date, scheduled_time, is_done, created_at
+                FROM {TASKS_TABLE}
+                WHERE user_email = :user_email
+                ORDER BY created_at DESC
+                """
+            ),
+            {"user_email": get_current_user_email()},
+        ).mappings().all()
+    return [dict(row) for row in rows]
+
+
+def get_todo_task_subtasks(task_id):
+    engine = get_engine(get_database_url())
+    with engine.connect() as conn:
+        rows = conn.execute(
+            sql_text(
+                f"""
+                SELECT id, task_id, user_email, title, is_done, created_at
+                FROM {SUBTASKS_TABLE}
+                WHERE user_email = :user_email AND task_id = :task_id
+                ORDER BY created_at ASC
+                """
+            ),
+            {"user_email": get_current_user_email(), "task_id": task_id},
+        ).mappings().all()
+    return [dict(row) for row in rows]
+
+
+def set_todo_task_done(task_id, is_done):
+    engine = get_engine(get_database_url())
+    with engine.begin() as conn:
+        conn.execute(
+            sql_text(
+                f"""
+                UPDATE {TASKS_TABLE}
+                SET is_done = :is_done
+                WHERE user_email = :user_email AND id = :task_id
+                """
+            ),
+            {
+                "is_done": int(bool(is_done)),
+                "user_email": get_current_user_email(),
+                "task_id": task_id,
+            },
+        )
+
+
+def schedule_todo_task(task_id, scheduled_date, scheduled_time):
+    engine = get_engine(get_database_url())
+    with engine.begin() as conn:
+        conn.execute(
+            sql_text(
+                f"""
+                UPDATE {TASKS_TABLE}
+                SET scheduled_date = :scheduled_date, scheduled_time = :scheduled_time
+                WHERE user_email = :user_email AND id = :task_id
+                """
+            ),
+            {
+                "scheduled_date": scheduled_date.isoformat() if scheduled_date else None,
+                "scheduled_time": normalize_time_value(scheduled_time),
+                "user_email": get_current_user_email(),
+                "task_id": task_id,
+            },
+        )
+
+
+def add_todo_subtask(task_id, title):
+    clean_title = (title or "").strip()
+    if not clean_title:
+        return None
+    engine = get_engine(get_database_url())
+    payload = {
+        "id": new_id(),
+        "task_id": task_id,
+        "user_email": get_current_user_email(),
+        "title": clean_title,
+        "is_done": 0,
+        "created_at": datetime.utcnow().isoformat(),
+    }
+    with engine.begin() as conn:
+        conn.execute(
+            sql_text(
+                f"""
+                INSERT INTO {SUBTASKS_TABLE}
+                (id, task_id, user_email, title, is_done, created_at)
+                VALUES (:id, :task_id, :user_email, :title, :is_done, :created_at)
+                """
+            ),
+            payload,
+        )
+    sync_todo_task_done_from_subtasks(task_id)
+    return payload["id"]
+
+
+def set_todo_subtask_done(subtask_id, is_done):
+    engine = get_engine(get_database_url())
+    with engine.begin() as conn:
+        row = conn.execute(
+            sql_text(
+                f"""
+                SELECT task_id
+                FROM {SUBTASKS_TABLE}
+                WHERE user_email = :user_email AND id = :subtask_id
+                """
+            ),
+            {"user_email": get_current_user_email(), "subtask_id": subtask_id},
+        ).fetchone()
+        conn.execute(
+            sql_text(
+                f"""
+                UPDATE {SUBTASKS_TABLE}
+                SET is_done = :is_done
+                WHERE user_email = :user_email AND id = :subtask_id
+                """
+            ),
+            {
+                "is_done": int(bool(is_done)),
+                "user_email": get_current_user_email(),
+                "subtask_id": subtask_id,
+            },
+        )
+    if row:
+        sync_todo_task_done_from_subtasks(row[0])
+
+
+def sync_todo_task_done_from_subtasks(task_id):
+    subtasks = get_todo_task_subtasks(task_id)
+    if not subtasks:
+        return
+    done_count = sum(int(bool(sub.get("is_done", 0))) for sub in subtasks)
+    set_todo_task_done(task_id, done_count == len(subtasks))
+
+
+def get_task_progress(task, subtasks):
+    if subtasks:
+        done_count = sum(int(bool(sub.get("is_done", 0))) for sub in subtasks)
+        return round((done_count / len(subtasks)) * 100, 1)
+    return 100.0 if int(task.get("is_done", 0) or 0) == 1 else 0.0
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def fetch_ics_events(ics_url):
+    if not ics_url:
+        return [], None
+    if Calendar is None:
+        return [], "iCalendar parser unavailable. Add 'icalendar' to requirements."
+    try:
+        response = requests.get(ics_url, timeout=20)
+        response.raise_for_status()
+        calendar_obj = Calendar.from_ical(response.content)
+    except Exception as exc:
+        return [], f"Unable to load calendar feed: {exc}"
+
+    events = []
+    for component in calendar_obj.walk():
+        if component.name != "VEVENT":
+            continue
+        start_raw = component.get("dtstart")
+        if not start_raw:
+            continue
+        end_raw = component.get("dtend")
+        title = str(component.get("summary") or "Untitled event")
+        uid = str(component.get("uid") or "")
+
+        start_value = start_raw.dt
+        end_value = end_raw.dt if end_raw else None
+        is_all_day = isinstance(start_value, date) and not isinstance(start_value, datetime)
+        if is_all_day:
+            start_dt = datetime.combine(start_value, datetime.min.time())
+            if end_value is None:
+                end_dt = start_dt + timedelta(days=1)
+            elif isinstance(end_value, datetime):
+                end_dt = end_value
+            else:
+                end_dt = datetime.combine(end_value, datetime.min.time())
+            end_date = end_dt.date()
+            if end_date > start_dt.date():
+                end_date = end_date - timedelta(days=1)
+        else:
+            start_dt = start_value if isinstance(start_value, datetime) else datetime.combine(start_value, datetime.min.time())
+            if end_value is None:
+                end_dt = start_dt + timedelta(hours=1)
+            elif isinstance(end_value, datetime):
+                end_dt = end_value
+            else:
+                end_dt = datetime.combine(end_value, datetime.min.time())
+            end_date = end_dt.date()
+
+        event_key = f"{uid or title}|{start_dt.isoformat()}"
+        events.append(
+            {
+                "event_key": event_key,
+                "title": title,
+                "start_date": start_dt.date().isoformat(),
+                "end_date": end_date.isoformat(),
+                "start_time": None if is_all_day else start_dt.strftime("%H:%M"),
+                "end_time": None if is_all_day else end_dt.strftime("%H:%M"),
+                "is_all_day": is_all_day,
+            }
+        )
+    return events, None
+
+
+def get_events_for_date(events, target_date):
+    target_iso = target_date.isoformat()
+    day_events = []
+    for event in events:
+        if event["start_date"] <= target_iso <= event["end_date"]:
+            day_events.append(event)
+    day_events.sort(key=lambda item: (item["start_time"] is None, item["start_time"] or "23:59", item["title"]))
+    return day_events
+
+
+def get_calendar_event_done_map(target_date, event_keys):
+    if not event_keys:
+        return {}
+    placeholders = ", ".join([f":k{i}" for i in range(len(event_keys))])
+    params = {
+        "user_email": get_current_user_email(),
+        "event_date": target_date.isoformat(),
+    }
+    for idx, event_key in enumerate(event_keys):
+        params[f"k{idx}"] = event_key
+    engine = get_engine(get_database_url())
+    with engine.connect() as conn:
+        rows = conn.execute(
+            sql_text(
+                f"""
+                SELECT event_key, is_done
+                FROM {CALENDAR_STATUS_TABLE}
+                WHERE user_email = :user_email
+                  AND event_date = :event_date
+                  AND event_key IN ({placeholders})
+                """
+            ),
+            params,
+        ).fetchall()
+    return {row[0]: bool(row[1]) for row in rows}
+
+
+def set_calendar_event_done(event_key, event_date, is_done):
+    engine = get_engine(get_database_url())
+    with engine.begin() as conn:
+        conn.execute(
+            sql_text(
+                f"""
+                INSERT INTO {CALENDAR_STATUS_TABLE}
+                (user_email, event_key, event_date, is_done)
+                VALUES (:user_email, :event_key, :event_date, :is_done)
+                ON CONFLICT(user_email, event_key, event_date) DO UPDATE SET is_done = EXCLUDED.is_done
+                """
+            ),
+            {
+                "user_email": get_current_user_email(),
+                "event_key": event_key,
+                "event_date": event_date.isoformat(),
+                "is_done": int(bool(is_done)),
+            },
+        )
+
+
+def compute_auto_priority(selected_day, scheduled_time, source, progress):
+    now = datetime.now()
+    if selected_day < date.today() and progress < 100:
+        return "High", 3, "#D95252"
+    if scheduled_time:
+        try:
+            scheduled_dt = datetime.combine(
+                selected_day,
+                datetime.strptime(scheduled_time, "%H:%M").time(),
+            )
+            delta_minutes = (scheduled_dt - now).total_seconds() / 60
+            if selected_day == date.today():
+                if delta_minutes <= 0:
+                    return "High", 3, "#D95252"
+                if delta_minutes <= 120:
+                    return "High", 3, "#D95252"
+                if delta_minutes <= 360:
+                    return "Medium", 2, "#D9C979"
+        except Exception:
+            pass
+    if source == "calendar":
+        return "Medium", 2, "#D9C979"
+    if progress < 50:
+        return "Medium", 2, "#D9C979"
+    return "Low", 1, "#8FB6D9"
+
+
+def build_todo_score(items):
+    if not items:
+        return 0.0
+    weighted = 0.0
+    total_weight = 0.0
+    for item in items:
+        total_weight += item["priority_weight"]
+        weighted += item["priority_weight"] * (item["progress"] / 100.0)
+    if total_weight == 0:
+        return 0.0
+    return round((weighted / total_weight) * 100, 1)
+
+
+def build_hourly_schedule_rows(items):
+    all_day = [item["title"] for item in items if item.get("time") is None]
+    rows = []
+    if all_day:
+        rows.append({"Hour": "All day", "Scheduled": " | ".join(all_day)})
+    for hour in range(6, 23):
+        hour_key = f"{hour:02d}:00"
+        bucket = []
+        for item in items:
+            item_time = item.get("time")
+            if not item_time:
+                continue
+            if item_time[:2] == f"{hour:02d}":
+                bucket.append(item["title"])
+        rows.append({"Hour": hour_key, "Scheduled": " | ".join(bucket) if bucket else ""})
+    return rows
+
+
 def get_entry_for_date(entry_date, data):
     if data.empty:
         return {}
@@ -1038,8 +1441,8 @@ def dot_chart(values, dates, title, color, height=260):
     return fig
 
 
-init_db()
 enforce_google_login()
+init_db()
 
 meeting_days = get_meeting_days()
 if "meeting_days" not in st.session_state:
@@ -1105,7 +1508,7 @@ else:
 
 # --- DAILY INPUT PANEL ---
 
-st.markdown("<div class='section-title'>Daily Input Panel</div>", unsafe_allow_html=True)
+st.markdown("<div class='section-title'>Daily Workspace</div>", unsafe_allow_html=True)
 
 if "selected_date" not in st.session_state:
     st.session_state["selected_date"] = date.today()
@@ -1118,114 +1521,377 @@ if not is_meeting_day:
     st.session_state["input_meeting_attended"] = False
     st.session_state["input_prepare_meeting"] = False
 
-last_saved = st.session_state.get("last_saved_at")
-if last_saved:
-    st.caption(f"Auto-save enabled. Last saved at {last_saved}.")
-else:
-    st.caption("Auto-save enabled. Changes save instantly.")
+left_col, right_col = st.columns([1, 1.3], gap="large")
 
-st.markdown("<div class='small-label' style='margin-top:4px;'>Meeting schedule</div>", unsafe_allow_html=True)
-if "meeting_days_labels" not in st.session_state:
-    st.session_state["meeting_days_labels"] = [DAY_LABELS[i] for i in meeting_days]
-st.multiselect(
-    "Weekly meeting days",
-    options=DAY_LABELS,
-    key="meeting_days_labels",
-    on_change=save_meeting_days,
-)
+with left_col:
+    st.markdown("<div class='section-title'>Habits</div>", unsafe_allow_html=True)
 
-if not is_meeting_day:
-    st.caption("Meeting habits are hidden on non-meeting days.")
-
-st.markdown("<div class='small-label' style='margin-top:6px;'>Daily priority habit</div>", unsafe_allow_html=True)
-priority_cols = st.columns([3, 1])
-with priority_cols[0]:
-    st.text_input("Priority focus for today", key="input_priority_label", on_change=auto_save)
-with priority_cols[1]:
-    disabled_priority = not bool(st.session_state.get("input_priority_label", "").strip())
-    st.checkbox("Done", key="input_priority_done", on_change=auto_save, disabled=disabled_priority)
-
-st.markdown("<div class='small-label'>Habits</div>", unsafe_allow_html=True)
-habit_cols = st.columns(2)
-for i, (key, label) in enumerate(HABITS):
-    if key in MEETING_HABIT_KEYS and not is_meeting_day:
-        continue
-    with habit_cols[i % 2]:
-        st.checkbox(label, key=f"input_{key}", on_change=auto_save)
-
-st.markdown("<div class='small-label' style='margin-top:8px;'>Daily Metrics</div>", unsafe_allow_html=True)
-metric_cols = st.columns(5)
-with metric_cols[0]:
-    st.number_input(
-        "Sleep hours",
-        min_value=0.0,
-        max_value=12.0,
-        step=0.5,
-        key="input_sleep_hours",
-        on_change=auto_save,
-    )
-with metric_cols[1]:
-    st.number_input(
-        "Anxiety level",
-        min_value=1,
-        max_value=10,
-        step=1,
-        key="input_anxiety_level",
-        on_change=auto_save,
-    )
-with metric_cols[2]:
-    st.number_input(
-        "Work/study hours",
-        min_value=0.0,
-        max_value=16.0,
-        step=0.5,
-        key="input_work_hours",
-        on_change=auto_save,
-    )
-with metric_cols[3]:
-    st.number_input(
-        "Boredom minutes",
-        min_value=0,
-        max_value=60,
-        step=5,
-        key="input_boredom_minutes",
-        on_change=auto_save,
-    )
-with metric_cols[4]:
-    st.selectbox(
-        "Mood category",
-        MOODS,
-        key="input_mood_category",
-        on_change=auto_save,
-    )
-
-with st.expander("Delete Records"):
-    delete_mode = st.selectbox("Delete mode", ["Single day", "Date range"])
-    if delete_mode == "Single day":
-        delete_date = st.date_input("Date to delete", value=date.today(), key="delete_single")
-        delete_confirm = st.checkbox("I understand this cannot be undone.", key="delete_confirm_single")
-        if st.button("Delete entry", disabled=not delete_confirm):
-            deleted = delete_entries(delete_date)
-            st.success(f"Deleted {deleted} entr{'y' if deleted == 1 else 'ies'}.")
-            st.rerun()
+    last_saved = st.session_state.get("last_saved_at")
+    if last_saved:
+        st.caption(f"Auto-save enabled. Last saved at {last_saved}.")
     else:
-        start_date = st.date_input(
-            "Start date",
-            value=date.today() - timedelta(days=7),
-            key="delete_start",
+        st.caption("Auto-save enabled. Changes save instantly.")
+
+    st.markdown("<div class='small-label' style='margin-top:4px;'>Meeting schedule</div>", unsafe_allow_html=True)
+    if "meeting_days_labels" not in st.session_state:
+        st.session_state["meeting_days_labels"] = [DAY_LABELS[i] for i in meeting_days]
+    st.multiselect(
+        "Weekly meeting days",
+        options=DAY_LABELS,
+        key="meeting_days_labels",
+        on_change=save_meeting_days,
+    )
+
+    if not is_meeting_day:
+        st.caption("Meeting habits are hidden on non-meeting days.")
+
+    st.markdown("<div class='small-label' style='margin-top:6px;'>Daily priority habit</div>", unsafe_allow_html=True)
+    priority_cols = st.columns([3, 1])
+    with priority_cols[0]:
+        st.text_input("Priority focus for today", key="input_priority_label", on_change=auto_save)
+    with priority_cols[1]:
+        disabled_priority = not bool(st.session_state.get("input_priority_label", "").strip())
+        st.checkbox("Done", key="input_priority_done", on_change=auto_save, disabled=disabled_priority)
+
+    st.markdown("<div class='small-label'>Habits</div>", unsafe_allow_html=True)
+    habit_cols = st.columns(2)
+    habit_index = 0
+    for key, label in HABITS:
+        if key in MEETING_HABIT_KEYS and not is_meeting_day:
+            continue
+        with habit_cols[habit_index % 2]:
+            st.checkbox(label, key=f"input_{key}", on_change=auto_save)
+        habit_index += 1
+
+    st.markdown("<div class='small-label' style='margin-top:8px;'>Daily Metrics</div>", unsafe_allow_html=True)
+    metric_cols = st.columns(2)
+    with metric_cols[0]:
+        st.number_input(
+            "Sleep hours",
+            min_value=0.0,
+            max_value=12.0,
+            step=0.5,
+            key="input_sleep_hours",
+            on_change=auto_save,
         )
-        end_date = st.date_input(
-            "End date",
-            value=date.today(),
-            key="delete_end",
+        st.number_input(
+            "Anxiety level",
+            min_value=1,
+            max_value=10,
+            step=1,
+            key="input_anxiety_level",
+            on_change=auto_save,
         )
-        if start_date > end_date:
-            st.warning("Start date must be before end date.")
-        delete_confirm = st.checkbox("I understand this cannot be undone.", key="delete_confirm_range")
-        if st.button("Delete range", disabled=not delete_confirm or start_date > end_date):
-            deleted = delete_entries(start_date, end_date)
-            st.success(f"Deleted {deleted} entr{'y' if deleted == 1 else 'ies'}.")
-            st.rerun()
+        st.number_input(
+            "Work/study hours",
+            min_value=0.0,
+            max_value=16.0,
+            step=0.5,
+            key="input_work_hours",
+            on_change=auto_save,
+        )
+    with metric_cols[1]:
+        st.number_input(
+            "Boredom minutes",
+            min_value=0,
+            max_value=60,
+            step=5,
+            key="input_boredom_minutes",
+            on_change=auto_save,
+        )
+        st.selectbox(
+            "Mood category",
+            MOODS,
+            key="input_mood_category",
+            on_change=auto_save,
+        )
+
+    with st.expander("Delete Records"):
+        delete_mode = st.selectbox("Delete mode", ["Single day", "Date range"])
+        if delete_mode == "Single day":
+            delete_date = st.date_input("Date to delete", value=date.today(), key="delete_single")
+            delete_confirm = st.checkbox("I understand this cannot be undone.", key="delete_confirm_single")
+            if st.button("Delete entry", disabled=not delete_confirm):
+                deleted = delete_entries(delete_date)
+                st.success(f"Deleted {deleted} entr{'y' if deleted == 1 else 'ies'}.")
+                st.rerun()
+        else:
+            start_date = st.date_input(
+                "Start date",
+                value=date.today() - timedelta(days=7),
+                key="delete_start",
+            )
+            end_date = st.date_input(
+                "End date",
+                value=date.today(),
+                key="delete_end",
+            )
+            if start_date > end_date:
+                st.warning("Start date must be before end date.")
+            delete_confirm = st.checkbox("I understand this cannot be undone.", key="delete_confirm_range")
+            if st.button("Delete range", disabled=not delete_confirm or start_date > end_date):
+                deleted = delete_entries(start_date, end_date)
+                st.success(f"Deleted {deleted} entr{'y' if deleted == 1 else 'ies'}.")
+                st.rerun()
+
+with right_col:
+    st.markdown("<div class='section-title'>Calendar + To-do</div>", unsafe_allow_html=True)
+
+    current_provider, current_ics_url = get_calendar_preferences()
+    if "calendar_provider" not in st.session_state:
+        st.session_state["calendar_provider"] = current_provider
+    if "calendar_ics_url" not in st.session_state:
+        st.session_state["calendar_ics_url"] = current_ics_url
+
+    provider_options = {
+        "none": "No external calendar",
+        "notion_ical": "Notion Calendar (iCal URL)",
+        "google_ical": "Google Calendar (iCal URL)",
+        "other_ical": "Other iCal URL",
+    }
+    selected_provider = st.selectbox(
+        "Calendar source",
+        options=list(provider_options.keys()),
+        format_func=lambda key: provider_options[key],
+        key="calendar_provider",
+    )
+    ics_disabled = selected_provider == "none"
+    st.text_input(
+        "Calendar iCal URL",
+        key="calendar_ics_url",
+        disabled=ics_disabled,
+        placeholder="https://...ics",
+    )
+    if st.button("Save calendar integration", key="save_calendar_integration"):
+        save_calendar_preferences(
+            st.session_state.get("calendar_provider", "none"),
+            st.session_state.get("calendar_ics_url", ""),
+        )
+        st.success("Calendar settings saved.")
+
+    provider = st.session_state.get("calendar_provider", "none")
+    ics_url = st.session_state.get("calendar_ics_url", "").strip() if provider != "none" else ""
+    external_events = []
+    calendar_error = None
+    if provider != "none" and ics_url:
+        external_events, calendar_error = fetch_ics_events(ics_url)
+    elif provider != "none":
+        calendar_error = "Set the iCal URL to load scheduled events."
+    if calendar_error:
+        st.warning(calendar_error)
+    day_calendar_events = get_events_for_date(external_events, selected_date)
+
+    tasks = list_todo_tasks()
+    selected_iso = selected_date.isoformat()
+    unscheduled_remembered = [
+        task for task in tasks
+        if task.get("source") == "remembered" and not task.get("scheduled_date")
+    ]
+    day_internal_tasks = [
+        task for task in tasks
+        if task.get("scheduled_date") == selected_iso
+    ]
+
+    event_done_map = get_calendar_event_done_map(
+        selected_date,
+        [event["event_key"] for event in day_calendar_events],
+    )
+
+    timeline_items = []
+    for event in day_calendar_events:
+        timeline_items.append(
+            {
+                "title": event["title"],
+                "time": event["start_time"],
+            }
+        )
+    for task in day_internal_tasks:
+        timeline_items.append(
+            {
+                "title": task.get("title") or "",
+                "time": task.get("scheduled_time"),
+            }
+        )
+
+    st.markdown("<div class='small-label'>Calendar timeline (hourly)</div>", unsafe_allow_html=True)
+    schedule_rows = build_hourly_schedule_rows(timeline_items)
+    st.dataframe(pd.DataFrame(schedule_rows), hide_index=True, use_container_width=True)
+
+    with st.form("add_manual_task_form"):
+        st.markdown("<div class='small-label'>Add task for this day</div>", unsafe_allow_html=True)
+        manual_title = st.text_input("Task title", key="manual_task_title")
+        manual_has_time = st.checkbox("Set a specific hour", key="manual_task_has_time")
+        manual_time_value = st.time_input(
+            "Time",
+            value=datetime.now().replace(second=0, microsecond=0).time(),
+            key="manual_task_time",
+            disabled=not manual_has_time,
+        )
+        add_manual = st.form_submit_button("Add to to-do")
+        if add_manual:
+            if not (manual_title or "").strip():
+                st.warning("Task title is required.")
+            else:
+                add_todo_task(
+                    manual_title,
+                    source="manual",
+                    scheduled_date=selected_date,
+                    scheduled_time=manual_time_value if manual_has_time else None,
+                )
+                st.rerun()
+
+    with st.form("remember_item_form"):
+        st.markdown("<div class='small-label'>Remembered things (to decide)</div>", unsafe_allow_html=True)
+        remembered_title = st.text_input("What did you remember?", key="remembered_task_title")
+        add_remembered = st.form_submit_button("Add to to-decide list")
+        if add_remembered:
+            if not (remembered_title or "").strip():
+                st.warning("Item title is required.")
+            else:
+                add_todo_task(remembered_title, source="remembered")
+                st.rerun()
+
+    if unscheduled_remembered:
+        st.markdown("<div class='small-label'>To-decide list</div>", unsafe_allow_html=True)
+        for task in unscheduled_remembered:
+            task_id = task["id"]
+            task_key = safe_widget_key(task_id)
+            st.markdown(f"- {task['title']}")
+            plan_cols = st.columns([2, 2, 1])
+            with plan_cols[0]:
+                plan_date = st.date_input("Date", value=selected_date, key=f"plan_date_{task_key}")
+            with plan_cols[1]:
+                plan_time = st.time_input(
+                    "Time",
+                    value=datetime.now().replace(second=0, microsecond=0).time(),
+                    key=f"plan_time_{task_key}",
+                )
+            with plan_cols[2]:
+                if st.button("Schedule", key=f"schedule_task_{task_key}"):
+                    schedule_todo_task(task_id, plan_date, plan_time)
+                    st.rerun()
+    else:
+        st.caption("No pending items in to-decide list.")
+
+    combined_items = []
+    for event in day_calendar_events:
+        event_done = bool(event_done_map.get(event["event_key"], False))
+        progress = 100.0 if event_done else 0.0
+        priority_label, priority_weight, priority_color = compute_auto_priority(
+            selected_date,
+            event["start_time"],
+            "calendar",
+            progress,
+        )
+        combined_items.append(
+            {
+                "id": event["event_key"],
+                "title": event["title"],
+                "source": "calendar",
+                "time": event["start_time"],
+                "done": event_done,
+                "progress": progress,
+                "priority_label": priority_label,
+                "priority_weight": priority_weight,
+                "priority_color": priority_color,
+                "subtasks": [],
+            }
+        )
+
+    for task in day_internal_tasks:
+        subtasks = get_todo_task_subtasks(task["id"])
+        progress = get_task_progress(task, subtasks)
+        done = progress >= 100
+        priority_label, priority_weight, priority_color = compute_auto_priority(
+            selected_date,
+            task.get("scheduled_time"),
+            task.get("source", "manual"),
+            progress,
+        )
+        combined_items.append(
+            {
+                "id": task["id"],
+                "title": task.get("title") or "",
+                "source": task.get("source", "manual"),
+                "time": task.get("scheduled_time"),
+                "done": done,
+                "progress": progress,
+                "priority_label": priority_label,
+                "priority_weight": priority_weight,
+                "priority_color": priority_color,
+                "subtasks": subtasks,
+                "task_row": task,
+            }
+        )
+
+    combined_items.sort(key=lambda item: (-item["priority_weight"], item["time"] or "23:59", item["title"]))
+    todo_score = build_todo_score(combined_items)
+    st.metric("Total task score (calendar + to-do)", todo_score)
+
+    st.markdown("<div class='small-label'>To-do list for selected day</div>", unsafe_allow_html=True)
+    if not combined_items:
+        st.caption("No tasks for this day yet.")
+    for item in combined_items:
+        task_key = safe_widget_key(item["id"])
+        title_suffix = f" ({item['time']})" if item.get("time") else ""
+        header_cols = st.columns([0.5, 5, 1.5, 1.5])
+        with header_cols[0]:
+            if item["source"] == "calendar":
+                checked = st.checkbox(
+                    "done",
+                    value=item["done"],
+                    key=f"calendar_done_{task_key}",
+                    label_visibility="collapsed",
+                )
+                if checked != item["done"]:
+                    set_calendar_event_done(item["id"], selected_date, checked)
+                    st.rerun()
+            else:
+                has_subtasks = len(item["subtasks"]) > 0
+                checked = st.checkbox(
+                    "done",
+                    value=item["done"],
+                    key=f"task_done_{task_key}",
+                    disabled=has_subtasks,
+                    label_visibility="collapsed",
+                )
+                if not has_subtasks and checked != item["done"]:
+                    set_todo_task_done(item["id"], checked)
+                    st.rerun()
+        with header_cols[1]:
+            st.markdown(f"**{item['title']}**{title_suffix}")
+        with header_cols[2]:
+            st.markdown(
+                f"<span style='color:{item['priority_color']};font-weight:600;'>{item['priority_label']}</span>",
+                unsafe_allow_html=True,
+            )
+        with header_cols[3]:
+            st.markdown(f"{item['progress']}%")
+
+        if item["source"] != "calendar":
+            for subtask in item["subtasks"]:
+                sub_key = safe_widget_key(subtask["id"])
+                sub_checked = st.checkbox(
+                    f"Subtask: {subtask['title']}",
+                    value=bool(subtask.get("is_done", 0)),
+                    key=f"subtask_done_{sub_key}",
+                )
+                if sub_checked != bool(subtask.get("is_done", 0)):
+                    set_todo_subtask_done(subtask["id"], sub_checked)
+                    st.rerun()
+            sub_cols = st.columns([4, 1])
+            with sub_cols[0]:
+                subtask_text = st.text_input(
+                    "New subtask",
+                    key=f"new_subtask_text_{task_key}",
+                    label_visibility="collapsed",
+                    placeholder="Add subtask",
+                )
+            with sub_cols[1]:
+                if st.button("Add", key=f"add_subtask_btn_{task_key}"):
+                    add_todo_subtask(item["id"], subtask_text)
+                    st.rerun()
+        st.divider()
 
 # --- TODAY'S SUMMARY ---
 
