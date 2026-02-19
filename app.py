@@ -944,11 +944,18 @@ def describe_database_target(database_url):
 
 def show_database_connection_error(exc):
     db_url = get_database_url()
+    placeholder_tokens = ["USER", "PASSWORD", "HOST", "DBNAME", "host:5432/DBNAME"]
+    has_placeholder = any(token in str(db_url) for token in placeholder_tokens)
     st.error("Database connection failed.")
     st.markdown(
         "I could not connect to your configured database target:\n"
         f"`{describe_database_target(db_url)}`"
     )
+    if has_placeholder:
+        st.warning(
+            "Your database URL still contains template placeholders. Replace USER, PASSWORD, HOST, and DBNAME "
+            "with real values from Neon/Supabase."
+        )
     st.markdown(
         "Check `Settings -> Secrets` and make sure `[database].url` is valid and active.\n"
         "Use this format:"
