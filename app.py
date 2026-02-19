@@ -1,6 +1,7 @@
 import os
 import re
 import html
+import json
 import base64
 import mimetypes
 from datetime import date, datetime, timedelta
@@ -69,6 +70,17 @@ HABITS = [
     ("scientific_writing", "Scientific Writing"),
 ]
 MEETING_HABIT_KEYS = {"meeting_attended", "prepare_meeting"}
+FIXED_COUPLE_HABIT_KEYS = {
+    "bible_reading",
+    "meeting_attended",
+    "prepare_meeting",
+    "workout",
+    "shower",
+}
+DEFAULT_HABIT_LABELS = {key: label for key, label in HABITS}
+CUSTOMIZABLE_HABIT_KEYS = [
+    key for key, _ in HABITS if key not in FIXED_COUPLE_HABIT_KEYS
+]
 
 ENTRY_DATA_COLUMNS = [h[0] for h in HABITS] + [
     "sleep_hours",
@@ -244,7 +256,7 @@ st.markdown(
     --button: #5f4f79;
     --button-hover: #725f90;
     --accent-purple: #8e79af;
-    --atom-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cg fill='none' stroke='%238FB6D9' stroke-width='1.8'%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8'/%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8' transform='rotate(60 14 14)'/%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8' transform='rotate(-60 14 14)'/%3E%3C/g%3E%3Ccircle cx='14' cy='14' r='2.4' fill='%23D9C979'/%3E%3C/svg%3E") 14 14, auto;
+    --atom-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='1.8'%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8'/%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8' transform='rotate(60 14 14)'/%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8' transform='rotate(-60 14 14)'/%3E%3C/g%3E%3Ccircle cx='14' cy='14' r='2.6' fill='%23000000' stroke='%23ffffff' stroke-width='1.1'/%3E%3C/svg%3E") 14 14, auto;
 }
 
 html, body, [class*="css"] {
@@ -755,7 +767,7 @@ def using_local_sqlite(database_url):
     return str(database_url).strip().lower().startswith("sqlite")
 
 
-def render_data_persistence_notice():
+def render_data_persistence_notice(storage_message=None):
     database_url = get_database_url()
     if using_local_sqlite(database_url):
         st.warning(
@@ -768,10 +780,16 @@ def render_data_persistence_notice():
                 "1. Create a free Postgres database (Neon or Supabase).\n"
                 "2. Copy the connection URL and keep `postgresql+psycopg2://...` format.\n"
                 "3. In Streamlit Cloud, open Settings > Secrets and set `[database] url = \"...\"`.\n"
-                "4. Reboot the app once. Data will stay after restarts."
+                "4. Reboot the app once. New entries will persist after restarts."
             )
     else:
         st.caption("Storage mode: persistent external database configured.")
+        st.caption(
+            "When Postgres is enabled, the app automatically migrates records from local SQLite "
+            "on first run."
+        )
+    if storage_message:
+        st.info(storage_message)
 
 
 def auth_configured():
@@ -1093,6 +1111,155 @@ def init_db():
             )
 
 
+def migrate_local_sqlite_to_configured_db():
+    target_url = get_database_url()
+    if using_local_sqlite(target_url):
+        return None
+    if not os.path.exists(DB_PATH):
+        return None
+    already_migrated = get_setting("local_sqlite_migrated_at", scoped=False)
+    if already_migrated:
+        return None
+
+    source_engine = create_engine(
+        f"sqlite:///{DB_PATH}",
+        connect_args={"check_same_thread": False},
+        future=True,
+    )
+    source_inspector = inspect(source_engine)
+    target_engine = get_engine(target_url)
+
+    def table_rows(connection, table_name):
+        return connection.execute(sql_text(f"SELECT * FROM {table_name}")).mappings().all()
+
+    migrated = {"entries": 0, "tasks": 0, "subtasks": 0, "calendar": 0, "settings": 0}
+    try:
+        with source_engine.connect() as source_conn, target_engine.begin() as target_conn:
+            if source_inspector.has_table(ENTRIES_TABLE):
+                for row in table_rows(source_conn, ENTRIES_TABLE):
+                    payload = dict(row)
+                    target_conn.execute(
+                        sql_text(
+                            f"""
+                            INSERT INTO {ENTRIES_TABLE}
+                            (user_email, date, {', '.join(ENTRY_DATA_COLUMNS)})
+                            VALUES
+                            (:user_email, :date, {', '.join([f":{col}" for col in ENTRY_DATA_COLUMNS])})
+                            ON CONFLICT(user_email, date) DO UPDATE SET
+                            {', '.join([f"{col}=EXCLUDED.{col}" for col in ENTRY_DATA_COLUMNS])}
+                            """
+                        ),
+                        payload,
+                    )
+                    migrated["entries"] += 1
+
+            if source_inspector.has_table(TASKS_TABLE):
+                for row in table_rows(source_conn, TASKS_TABLE):
+                    payload = dict(row)
+                    target_conn.execute(
+                        sql_text(
+                            f"""
+                            INSERT INTO {TASKS_TABLE}
+                            (
+                                id, user_email, title, source, external_event_key, scheduled_date,
+                                scheduled_time, priority_tag, estimated_minutes, actual_minutes,
+                                is_done, created_at
+                            )
+                            VALUES
+                            (
+                                :id, :user_email, :title, :source, :external_event_key, :scheduled_date,
+                                :scheduled_time, :priority_tag, :estimated_minutes, :actual_minutes,
+                                :is_done, :created_at
+                            )
+                            ON CONFLICT(id) DO UPDATE SET
+                                user_email=EXCLUDED.user_email,
+                                title=EXCLUDED.title,
+                                source=EXCLUDED.source,
+                                external_event_key=EXCLUDED.external_event_key,
+                                scheduled_date=EXCLUDED.scheduled_date,
+                                scheduled_time=EXCLUDED.scheduled_time,
+                                priority_tag=EXCLUDED.priority_tag,
+                                estimated_minutes=EXCLUDED.estimated_minutes,
+                                actual_minutes=EXCLUDED.actual_minutes,
+                                is_done=EXCLUDED.is_done
+                            """
+                        ),
+                        payload,
+                    )
+                    migrated["tasks"] += 1
+
+            if source_inspector.has_table(SUBTASKS_TABLE):
+                for row in table_rows(source_conn, SUBTASKS_TABLE):
+                    payload = dict(row)
+                    target_conn.execute(
+                        sql_text(
+                            f"""
+                            INSERT INTO {SUBTASKS_TABLE}
+                            (
+                                id, task_id, user_email, title, priority_tag, estimated_minutes,
+                                actual_minutes, is_done, created_at
+                            )
+                            VALUES
+                            (
+                                :id, :task_id, :user_email, :title, :priority_tag, :estimated_minutes,
+                                :actual_minutes, :is_done, :created_at
+                            )
+                            ON CONFLICT(id) DO UPDATE SET
+                                task_id=EXCLUDED.task_id,
+                                user_email=EXCLUDED.user_email,
+                                title=EXCLUDED.title,
+                                priority_tag=EXCLUDED.priority_tag,
+                                estimated_minutes=EXCLUDED.estimated_minutes,
+                                actual_minutes=EXCLUDED.actual_minutes,
+                                is_done=EXCLUDED.is_done
+                            """
+                        ),
+                        payload,
+                    )
+                    migrated["subtasks"] += 1
+
+            if source_inspector.has_table(CALENDAR_STATUS_TABLE):
+                for row in table_rows(source_conn, CALENDAR_STATUS_TABLE):
+                    payload = dict(row)
+                    target_conn.execute(
+                        sql_text(
+                            f"""
+                            INSERT INTO {CALENDAR_STATUS_TABLE}
+                            (user_email, event_key, event_date, is_done, is_hidden)
+                            VALUES (:user_email, :event_key, :event_date, :is_done, :is_hidden)
+                            ON CONFLICT(user_email, event_key, event_date) DO UPDATE SET
+                                is_done=EXCLUDED.is_done,
+                                is_hidden=EXCLUDED.is_hidden
+                            """
+                        ),
+                        payload,
+                    )
+                    migrated["calendar"] += 1
+
+            if source_inspector.has_table("settings"):
+                for row in table_rows(source_conn, "settings"):
+                    payload = dict(row)
+                    target_conn.execute(
+                        sql_text(
+                            """
+                            INSERT INTO settings (key, value)
+                            VALUES (:key, :value)
+                            ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value
+                            """
+                        ),
+                        payload,
+                    )
+                    migrated["settings"] += 1
+    except Exception:
+        return "Persistent DB configured, but local migration failed. Existing cloud data is still safe."
+
+    set_setting("local_sqlite_migrated_at", datetime.utcnow().isoformat(), scoped=False)
+    copied_total = sum(migrated.values())
+    if copied_total == 0:
+        return "Persistent DB configured."
+    return f"Persistent DB configured. Migrated {copied_total} local record(s) to cloud database."
+
+
 def upsert_entry(payload):
     engine = get_engine(get_database_url())
     columns = ["user_email"] + ENTRY_COLUMNS
@@ -1188,6 +1355,48 @@ def save_meeting_days():
     days = [DAY_TO_INDEX[label] for label in labels]
     st.session_state["meeting_days"] = days
     set_setting("meeting_days", ",".join(map(str, days)))
+
+
+def get_habit_labels():
+    labels = DEFAULT_HABIT_LABELS.copy()
+    raw = get_setting("custom_habit_labels")
+    if not raw:
+        return labels
+    try:
+        configured = json.loads(raw)
+    except Exception:
+        return labels
+    if not isinstance(configured, dict):
+        return labels
+    for key in CUSTOMIZABLE_HABIT_KEYS:
+        value = configured.get(key)
+        if value is None:
+            continue
+        clean_value = " ".join(str(value).split()).strip()
+        if clean_value:
+            labels[key] = clean_value[:60]
+    return labels
+
+
+def save_custom_habit_labels():
+    payload = {}
+    for key in CUSTOMIZABLE_HABIT_KEYS:
+        widget_key = f"habit_label_{key}"
+        raw_value = st.session_state.get(widget_key, "")
+        clean_value = " ".join(str(raw_value).split()).strip()[:60]
+        if clean_value:
+            payload[key] = clean_value
+            st.session_state[widget_key] = clean_value
+        else:
+            st.session_state[widget_key] = DEFAULT_HABIT_LABELS[key]
+    set_setting("custom_habit_labels", json.dumps(payload, ensure_ascii=False))
+
+
+def init_habit_label_state(habit_labels):
+    for key in CUSTOMIZABLE_HABIT_KEYS:
+        widget_key = f"habit_label_{key}"
+        if widget_key not in st.session_state:
+            st.session_state[widget_key] = habit_labels.get(key, DEFAULT_HABIT_LABELS[key])
 
 
 def normalize_entries_df(df):
