@@ -857,15 +857,7 @@ if background_image_css_url:
     st.markdown(
         f"""
 <style>
-div[data-testid="stAppViewContainer"] {{
-    position: relative;
-    background: transparent !important;
-}}
-
-div[data-testid="stAppViewContainer"]::before {{
-    content: "";
-    position: fixed;
-    inset: 0;
+html, body {{
     background-image:
         linear-gradient(var(--overlay-start), var(--overlay-end)),
         url('{safe_background_url}') !important;
@@ -873,11 +865,13 @@ div[data-testid="stAppViewContainer"]::before {{
     background-position: center center !important;
     background-repeat: no-repeat !important;
     background-attachment: fixed !important;
-    z-index: -1;
-    pointer-events: none;
 }}
 
 .stApp {{
+    background: transparent !important;
+}}
+
+div[data-testid="stAppViewContainer"] {{
     background: transparent !important;
 }}
 
