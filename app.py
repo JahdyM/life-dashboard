@@ -45,17 +45,11 @@ GUILHERME_EMAIL = "guilherme.m.rods@gmail.com"
 USER_PROFILES = {
     JAHDY_EMAIL: {
         "name": "Jahdy",
-        "calendar_ics_url": os.getenv(
-            "JAHDY_GOOGLE_CALENDAR_ICS",
-            "https://calendar.google.com/calendar/ical/jahdy.moreno%40gmail.com/public/basic.ics",
-        ),
+        "calendar_ics_url": os.getenv("JAHDY_GOOGLE_CALENDAR_ICS", ""),
     },
     GUILHERME_EMAIL: {
         "name": "Guilherme",
-        "calendar_ics_url": os.getenv(
-            "GUILHERME_GOOGLE_CALENDAR_ICS",
-            "https://calendar.google.com/calendar/ical/guilherme.m.rods%40gmail.com/public/basic.ics",
-        ),
+        "calendar_ics_url": os.getenv("GUILHERME_GOOGLE_CALENDAR_ICS", ""),
     },
 }
 SHARED_USER_EMAILS = set(USER_PROFILES.keys())
@@ -100,6 +94,13 @@ MOOD_COLORS = {
     "Neutro": "#B8B8B8",
 }
 MOOD_TO_INT = {m: i for i, m in enumerate(MOODS)}
+
+PRIORITY_TAGS = ["High", "Medium", "Low"]
+PRIORITY_META = {
+    "High": {"weight": 3, "color": "#D95252"},
+    "Medium": {"weight": 2, "color": "#D9C979"},
+    "Low": {"weight": 1, "color": "#8FB6D9"},
+}
 
 
 st.set_page_config(page_title="Personal Life Dashboard", layout="wide")
