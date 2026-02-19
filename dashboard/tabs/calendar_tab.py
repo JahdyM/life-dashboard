@@ -108,7 +108,7 @@ def _build_week_hour_board(range_tasks, start_day):
         index.setdefault((day_key, hour_key), []).append(f"{item_time} • {item.get('title')}")
 
     hour_rows = []
-    for hour in range(6, 23):
+    for hour in range(0, 24):
         hour_label = f"{hour:02d}"
         row = {"Hour": f"{hour_label}:00"}
         for day in columns:

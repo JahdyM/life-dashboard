@@ -18,7 +18,7 @@ async def calendar_week(start: date = Query(...), user_email: str = Depends(requ
     end = start + timedelta(days=6)
     items = await repositories.list_tasks(user_email, start.isoformat(), end.isoformat())
     hour_rows = []
-    for hour in range(6, 23):
+    for hour in range(0, 24):
         row = {"hour": f"{hour:02d}:00"}
         for idx in range(7):
             day = start + timedelta(days=idx)
