@@ -54,6 +54,14 @@ def get_effective_redirect_uri():
     return _redirect_uri()
 
 
+def get_event_timezone():
+    tz = _get_secret(("app", "calendar_timezone")) or _get_secret(("CALENDAR_TIMEZONE",))
+    tz_text = str(tz or "").strip()
+    if tz_text:
+        return tz_text
+    return "America/Sao_Paulo"
+
+
 def _fernet():
     encryption_secret = _get_secret(("app", "GOOGLE_TOKEN_ENCRYPTION_KEY")) or _get_secret(("GOOGLE_TOKEN_ENCRYPTION_KEY",))
     if not encryption_secret:
@@ -290,7 +298,17 @@ def create_event(user_email, calendar_id, payload):
     headers = _google_headers(user_email)
     headers["Content-Type"] = "application/json"
     response = requests.post(endpoint, headers=headers, json=payload, timeout=20)
-    response.raise_for_status()
+    if response.status_code >= 400:
+        try:
+            err_payload = response.json()
+            message = (
+                err_payload.get("error", {}).get("message")
+                or err_payload.get("message")
+                or response.text
+            )
+        except Exception:
+            message = response.text
+        raise RuntimeError(f"Google create_event failed ({response.status_code}): {message}")
     clear_event_cache()
     return response.json()
 
@@ -300,7 +318,17 @@ def update_event(user_email, calendar_id, event_id, patch):
     headers = _google_headers(user_email)
     headers["Content-Type"] = "application/json"
     response = requests.patch(endpoint, headers=headers, json=patch, timeout=20)
-    response.raise_for_status()
+    if response.status_code >= 400:
+        try:
+            err_payload = response.json()
+            message = (
+                err_payload.get("error", {}).get("message")
+                or err_payload.get("message")
+                or response.text
+            )
+        except Exception:
+            message = response.text
+        raise RuntimeError(f"Google update_event failed ({response.status_code}): {message}")
     clear_event_cache()
     return response.json()
 

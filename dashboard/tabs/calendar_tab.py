@@ -94,28 +94,6 @@ def _day_draft(selected_day):
     return drafts[day_key]
 
 
-def _to_rows(items):
-    hour_map = {hour: [] for hour in range(6, 23)}
-    for item in items:
-        label = item["title"]
-        item_time = item.get("time")
-        if not item_time:
-            continue
-        try:
-            hour = int(str(item_time)[:2])
-        except Exception:
-            continue
-        if hour not in hour_map:
-            continue
-        hour_map[hour].append(f"{item_time} • {label}")
-
-    rows = []
-    for hour in range(6, 23):
-        hour_key = f"{hour:02d}:00"
-        rows.append({"Hour": hour_key, "Scheduled": " | ".join(hour_map[hour])})
-    return rows
-
-
 def _build_week_hour_board(range_tasks, start_day):
     columns = [(start_day + timedelta(days=i)) for i in range(7)]
     hour_rows = []
@@ -154,28 +132,6 @@ def _sync_google_if_connected(user_email, connected, start_day, end_day, calenda
     except Exception as exc:
         st.warning(f"Google sync failed: {exc}")
         return []
-
-
-def _load_fallback_ics_events(ctx, user_email, selected_day, start_day, end_day, connected):
-    if connected:
-        return []
-    ics_url, secret_key = ctx["helpers"]["get_user_calendar_ics_url"](user_email)
-    if not ics_url:
-        st.warning(f"Missing private calendar URL in backend secret: {secret_key}")
-        return []
-    events, error = ctx["helpers"]["fetch_ics_events_for_range"](ics_url, start_day, end_day)
-    if error:
-        st.warning(error)
-        return []
-    day_events = ctx["helpers"]["filter_events_for_date"](events, selected_day)
-    return [
-        {
-            "title": ev.get("title") or "Google event",
-            "time": ev.get("start_time"),
-            "kind": "google_readonly",
-        }
-        for ev in day_events
-    ]
 
 
 def _sync_created_or_updated_activity_to_google(user_email, activity_id, connected, primary_calendar_id):
@@ -221,14 +177,9 @@ def render_calendar_tab(ctx):
         else:
             st.caption("Calendar OAuth is not configured in backend secrets.")
 
-    _render_diagnostics(connected)
-
     start_day, end_day = _range_from_view(selected_day, view_mode, week_ref, month_ref, month_last_day)
-    st.caption(f"Range: {start_day.strftime('%d/%m/%Y')} - {end_day.strftime('%d/%m/%Y')}")
 
     _sync_google_if_connected(user_email, connected, start_day, end_day, calendar_ids)
-    fallback_events = _load_fallback_ics_events(ctx, user_email, selected_day, start_day, end_day, connected)
-
     day_tasks = repositories.list_activities_for_day(user_email, selected_day)
     range_tasks = repositories.list_activities_for_range(user_email, start_day, end_day)
     subtasks = repositories.list_todo_subtasks([item["id"] for item in day_tasks], user_email=user_email)
@@ -258,16 +209,6 @@ def render_calendar_tab(ctx):
             day += timedelta(days=1)
         st.dataframe(pd.DataFrame(month_rows), use_container_width=True, hide_index=True)
 
-    schedule_items = [
-        {"title": task.get("title") or "Task", "time": task.get("scheduled_time")}
-        for task in day_tasks
-    ]
-    schedule_items.extend(fallback_events)
-
-    hour_rows = _to_rows(schedule_items)
-    st.markdown("<div class='small-label'>Hourly schedule (selected day)</div>", unsafe_allow_html=True)
-    st.dataframe(pd.DataFrame(hour_rows), use_container_width=True, hide_index=True)
-
     st.markdown("<div class='small-label'>Add activity</div>", unsafe_allow_html=True)
     draft = _day_draft(selected_day)
     add_prefix = selected_day.isoformat()
@@ -287,7 +228,7 @@ def render_calendar_tab(ctx):
     if add_time_key not in st.session_state:
         st.session_state[add_time_key] = draft["time"]
 
-    with st.form(key=f"calendar.add.form.{add_prefix}", clear_on_submit=False):
+    with st.form(key=f"calendar.add.form.{add_prefix}", clear_on_submit=True):
         add_cols = st.columns([3.2, 1.3, 1.1, 1.0, 1.1, 1.3])
         with add_cols[0]:
             st.text_input("Title", key=add_title_key)
@@ -298,8 +239,7 @@ def render_calendar_tab(ctx):
         with add_cols[3]:
             st.checkbox("Time", key=add_has_time_key)
         with add_cols[4]:
-            if bool(st.session_state.get(add_has_time_key)):
-                st.time_input("Start", key=add_time_key)
+            st.time_input("Start", key=add_time_key, disabled=not bool(st.session_state.get(add_has_time_key)))
         with add_cols[5]:
             confirm_add = st.form_submit_button("Confirm task", use_container_width=True)
 
@@ -329,7 +269,6 @@ def render_calendar_tab(ctx):
             except Exception as exc:
                 st.warning(f"Saved locally, but Google sync failed: {exc}")
             draft["title"] = ""
-            st.session_state[add_title_key] = ""
             st.rerun()
 
     st.markdown("<div class='small-label' style='margin-top:8px;'>Remembered tasks (to decide)</div>", unsafe_allow_html=True)
@@ -376,14 +315,12 @@ def render_calendar_tab(ctx):
                 with sch_cols[1]:
                     has_time = st.checkbox("Time", value=False, key=f"calendar.rem.plan.timeflag.{task_key}")
                 with sch_cols[2]:
-                    if has_time:
-                        plan_time = st.time_input(
-                            "Start",
-                            value=datetime.now().replace(second=0, microsecond=0).time(),
-                            key=f"calendar.rem.plan.time.{task_key}",
-                        )
-                    else:
-                        plan_time = None
+                    plan_time = st.time_input(
+                        "Start",
+                        value=datetime.now().replace(second=0, microsecond=0).time(),
+                        key=f"calendar.rem.plan.time.{task_key}",
+                        disabled=not has_time,
+                    )
                 with sch_cols[3]:
                     plan_priority = st.selectbox(
                         "Priority",
@@ -403,7 +340,7 @@ def render_calendar_tab(ctx):
                         "priority_tag": plan_priority,
                     }
                 )
-                repositories.schedule_remembered_task(task_id, plan_date, plan_time)
+                repositories.schedule_remembered_task(task_id, plan_date, plan_time if has_time else None)
                 try:
                     _sync_created_or_updated_activity_to_google(user_email, task_id, connected, primary_calendar_id)
                 except Exception as exc:
@@ -589,3 +526,7 @@ def render_calendar_tab(ctx):
             st.rerun()
 
         st.divider()
+
+    st.divider()
+    st.caption(f"Range: {start_day.strftime('%d/%m/%Y')} - {end_day.strftime('%d/%m/%Y')}")
+    _render_diagnostics(connected)

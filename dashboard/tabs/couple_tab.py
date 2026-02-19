@@ -1,4 +1,5 @@
-from datetime import date, timedelta
+import calendar
+from datetime import date
 
 import streamlit as st
 
@@ -17,10 +18,9 @@ SHARED_HABITS = [
 def render_couple_tab(ctx):
     user_a = ctx["constants"]["JAHDY_EMAIL"]
     user_b = ctx["constants"]["GUILHERME_EMAIL"]
-    name_by_email = {
-        user_a: "Jahdy",
-        user_b: "Guilherme",
-    }
+    mood_heatmap = ctx["helpers"]["mood_heatmap"]
+    moods = ctx["constants"]["MOODS"]
+    mood_to_int = {mood: idx for idx, mood in enumerate(moods)}
 
     st.markdown("<div class='section-title'>Couple</div>", unsafe_allow_html=True)
 
@@ -38,28 +38,39 @@ def render_couple_tab(ctx):
 
     st.caption(streak_snapshot.get("summary") or "")
 
-    st.markdown("<div class='small-label' style='margin-top:8px;'>Shared mood board</div>", unsafe_allow_html=True)
-    start_date = st.date_input("From", value=today - timedelta(days=30), key="couple.mood.start")
-    end_date = st.date_input("To", value=today, key="couple.mood.end")
+    st.markdown("<div class='small-label' style='margin-top:8px;'>Shared mood board (daily comparison)</div>", unsafe_allow_html=True)
+    month_choice = st.date_input("Month", value=today.replace(day=1), key="couple.mood.month")
+    month_start = month_choice.replace(day=1)
+    month_last = calendar.monthrange(month_start.year, month_start.month)[1]
+    month_end = month_start.replace(day=month_last)
 
-    if start_date > end_date:
-        st.warning("Start date must be before end date.")
-        return
-
-    feed = repositories.get_couple_mood_feed(user_a, user_b, start_date, end_date)
-    if not feed:
-        st.caption("No shared mood entries in this period.")
-        return
-
+    feed = repositories.get_couple_mood_feed(user_a, user_b, month_start, month_end)
+    by_key = {}
     for row in feed:
-        author = name_by_email.get(row.get("user_email"), row.get("user_email"))
-        mood = row.get("mood_category") or "-"
-        day = row.get("date")
-        note = row.get("mood_note") or ""
-        media = row.get("mood_media_url") or ""
-        st.markdown(f"**{day}** • **{author}** • {mood}")
-        if note:
-            st.caption(note)
-        if media:
-            st.markdown(f"[Media link]({media})")
-        st.divider()
+        row_email = row.get("user_email")
+        row_date = row.get("date")
+        mood = row.get("mood_category")
+        if not row_email or not row_date or not mood:
+            continue
+        by_key[(str(row_email), str(row_date))] = mood
+
+    z = [[float("nan") for _ in range(month_last)] for _ in range(2)]
+    hover_text = [["" for _ in range(month_last)] for _ in range(2)]
+    row_meta = [(0, user_a, "Jahdy"), (1, user_b, "Guilherme")]
+    for row_idx, email, label in row_meta:
+        for day in range(1, month_last + 1):
+            current = month_start.replace(day=day)
+            key = (email, current.isoformat())
+            mood = by_key.get(key)
+            if mood and mood in mood_to_int:
+                z[row_idx][day - 1] = mood_to_int[mood]
+                hover_text[row_idx][day - 1] = f"{current.isoformat()} • {label}: {mood}"
+            else:
+                hover_text[row_idx][day - 1] = f"{current.isoformat()} • {label}: no entry"
+
+    x_labels = [str(day) for day in range(1, month_last + 1)]
+    y_labels = ["Jahdy", "Guilherme"]
+    st.plotly_chart(
+        mood_heatmap(z, hover_text, x_labels=x_labels, y_labels=y_labels, title="Couple Mood Pixel Board"),
+        use_container_width=True,
+    )

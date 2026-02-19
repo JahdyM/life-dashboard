@@ -7,9 +7,6 @@ def render_stats_tab(ctx):
     data = ctx["data"]
 
     dot_chart = ctx["helpers"]["dot_chart"]
-    mood_heatmap = ctx["helpers"]["mood_heatmap"]
-    build_month_tracker_grid = ctx["helpers"]["build_month_tracker_grid"]
-    build_year_tracker_grid = ctx["helpers"]["build_year_tracker_grid"]
 
     st.markdown("<div class='section-title'>Statistics & Charts</div>", unsafe_allow_html=True)
 
@@ -58,22 +55,3 @@ def render_stats_tab(ctx):
         cols[0].plotly_chart(dot_chart(filtered["work_hours"], filtered["date_str"], "Work/study hours", "#b7d1c9"), use_container_width=True)
         cols[1].plotly_chart(dot_chart(filtered["boredom_minutes"], filtered["date_str"], "Boredom minutes", "#f2d4a2"), use_container_width=True)
         cols[0].plotly_chart(dot_chart(filtered["habits_percent"], filtered["date_str"], "Habits completed (%)", "#c9b3e5"), use_container_width=True)
-
-    st.markdown("<div class='small-label' style='margin-top:8px;'>Mood board</div>", unsafe_allow_html=True)
-    mood_map = {row["date"]: row["mood_category"] for _, row in data.iterrows() if row.get("mood_category")}
-
-    month_col, year_col = st.columns(2)
-    with month_col:
-        month_choice = st.date_input("Month", value=today.replace(day=1), key="stats.mood.month")
-        z, hover_text, x_labels, y_labels = build_month_tracker_grid(month_choice.year, month_choice.month, mood_map)
-        st.plotly_chart(
-            mood_heatmap(z, hover_text, x_labels=x_labels, y_labels=y_labels, title="Monthly Mood Grid"),
-            use_container_width=True,
-        )
-    with year_col:
-        year_choice = st.selectbox("Year", list(range(today.year - 3, today.year + 1)), index=3, key="stats.mood.year")
-        z, hover_text, x_labels, y_labels = build_year_tracker_grid(year_choice, mood_map)
-        st.plotly_chart(
-            mood_heatmap(z, hover_text, x_labels=x_labels, y_labels=y_labels, title="Yearly Mood Grid"),
-            use_container_width=True,
-        )

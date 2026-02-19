@@ -644,10 +644,11 @@ def create_google_event_for_activity(user_email, activity_id, calendar_id):
     scheduled_time = activity.get("scheduled_time")
     estimated = _parse_minutes(activity.get("estimated_minutes")) or 30
     if scheduled_time:
+        timezone_name = google_calendar.get_event_timezone()
         start_dt = datetime.fromisoformat(f"{scheduled_date}T{scheduled_time}:00")
         end_dt = start_dt + timedelta(minutes=estimated)
-        payload["start"] = {"dateTime": start_dt.isoformat()}
-        payload["end"] = {"dateTime": end_dt.isoformat()}
+        payload["start"] = {"dateTime": start_dt.isoformat(), "timeZone": timezone_name}
+        payload["end"] = {"dateTime": end_dt.isoformat(), "timeZone": timezone_name}
     else:
         payload["start"] = {"date": scheduled_date}
         payload["end"] = {"date": (date.fromisoformat(scheduled_date) + timedelta(days=1)).isoformat()}
@@ -679,10 +680,11 @@ def update_google_event_for_activity(user_email, activity_id, patch=None):
         estimated = _parse_minutes(activity.get("estimated_minutes")) or 30
         patch = {"summary": activity.get("title") or "Task"}
         if scheduled_time:
+            timezone_name = google_calendar.get_event_timezone()
             start_dt = datetime.fromisoformat(f"{scheduled_date}T{scheduled_time}:00")
             end_dt = start_dt + timedelta(minutes=estimated)
-            patch["start"] = {"dateTime": start_dt.isoformat()}
-            patch["end"] = {"dateTime": end_dt.isoformat()}
+            patch["start"] = {"dateTime": start_dt.isoformat(), "timeZone": timezone_name}
+            patch["end"] = {"dateTime": end_dt.isoformat(), "timeZone": timezone_name}
         else:
             patch["start"] = {"date": scheduled_date}
             patch["end"] = {"date": (date.fromisoformat(scheduled_date) + timedelta(days=1)).isoformat()}
