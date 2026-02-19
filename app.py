@@ -1,6 +1,7 @@
 import os
 from datetime import date, datetime, timedelta
 import calendar
+from urllib.parse import urlparse
 
 import numpy as np
 import pandas as pd
@@ -420,6 +421,15 @@ def enforce_google_login():
     ).strip().lower()
     if not allowed_email:
         st.error("Security setup incomplete: set app.allowed_email in secrets.")
+        st.stop()
+
+    redirect_uri = (get_secret(("auth", "redirect_uri")) or "").strip()
+    parsed_uri = urlparse(redirect_uri) if redirect_uri else None
+    if not redirect_uri or parsed_uri.path != "/oauth2callback":
+        st.error(
+            "Invalid auth.redirect_uri. For Streamlit st.login it must end with "
+            "/oauth2callback (example: https://your-app.streamlit.app/oauth2callback)."
+        )
         st.stop()
 
     if not st.user.is_logged_in:
