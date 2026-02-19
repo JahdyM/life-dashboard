@@ -129,6 +129,7 @@ PINTEREST_MOOD_LINKS = [
 ]
 
 BACKGROUND_IMAGE_CANDIDATES = [
+    os.path.join(os.path.dirname(__file__), "assets", "background_academia_optimized.jpg"),
     os.path.join(os.path.dirname(__file__), "assets", "background_academia.jpg"),
     os.path.join(os.path.dirname(__file__), "assets", "background_academia.jpeg"),
     os.path.join(os.path.dirname(__file__), "assets", "background_academia.png"),
@@ -175,8 +176,13 @@ def resolve_background_image_css_url():
         or read_secret_value(("DASHBOARD_BG_IMAGE_URL",))
         or read_secret_value(("app", "DASHBOARD_BG_IMAGE_URL"))
     )
-    if configured_path and os.path.exists(configured_path):
-        return file_path_to_data_uri(configured_path)
+    if configured_path:
+        configured_candidates = [configured_path]
+        if not os.path.isabs(configured_path):
+            configured_candidates.append(os.path.join(os.path.dirname(__file__), configured_path))
+        for path_candidate in configured_candidates:
+            if os.path.exists(path_candidate):
+                return file_path_to_data_uri(path_candidate)
     if configured_url:
         return configured_url
     for candidate in BACKGROUND_IMAGE_CANDIDATES:
@@ -3390,398 +3396,403 @@ with right_col:
 
     st.caption(f"Unified list for {selected_date.strftime('%d/%m/%Y')} (calendar + manual tasks).")
 
-    st.markdown("<div class='small-label' style='margin-top:8px;'>Add activity</div>", unsafe_allow_html=True)
+    daily_list_container = st.container()
+    activity_forms_container = st.container()
 
-    with st.form("add_manual_task_form"):
-        manual_title = st.text_input("Task title", key="manual_task_title")
-        manual_priority = st.selectbox("Priority tag", PRIORITY_TAGS, key="manual_task_priority")
-        manual_estimated = st.number_input(
-            "Estimated minutes",
-            min_value=5,
-            max_value=600,
-            step=5,
-            value=30,
-            key="manual_task_estimated",
-        )
-        manual_has_time = st.checkbox("Set a specific hour", key="manual_task_has_time")
-        manual_time_value = st.time_input(
-            "Start time",
-            value=datetime.now().replace(second=0, microsecond=0).time(),
-            key="manual_task_time",
-            disabled=not manual_has_time,
-        )
-        add_manual = st.form_submit_button("Add task")
-        if add_manual:
-            if not (manual_title or "").strip():
-                st.warning("Task title is required.")
-            else:
-                add_todo_task(
-                    manual_title,
-                    source="manual",
-                    scheduled_date=selected_date,
-                    scheduled_time=manual_time_value if manual_has_time else None,
-                    priority_tag=manual_priority,
-                    estimated_minutes=manual_estimated,
-                )
-                st.rerun()
+    with activity_forms_container:
+        st.markdown("<div class='small-label' style='margin-top:8px;'>Add activity</div>", unsafe_allow_html=True)
 
-    with st.form("remember_item_form"):
-        remembered_title = st.text_input("Remembered item", key="remembered_task_title")
-        remembered_priority = st.selectbox("Priority", PRIORITY_TAGS, key="remembered_task_priority")
-        remembered_estimated = st.number_input(
-            "Estimated minutes",
-            min_value=5,
-            max_value=600,
-            step=5,
-            value=20,
-            key="remembered_task_estimated",
-        )
-        add_remembered = st.form_submit_button("Add to to-decide list")
-        if add_remembered:
-            if not (remembered_title or "").strip():
-                st.warning("Item title is required.")
-            else:
-                add_todo_task(
-                    remembered_title,
-                    source="remembered",
-                    priority_tag=remembered_priority,
-                    estimated_minutes=remembered_estimated,
-                )
-                st.rerun()
-
-    if unscheduled_remembered:
-        st.markdown("<div class='small-label'>To-decide list</div>", unsafe_allow_html=True)
-        for task in unscheduled_remembered:
-            task_id = task["id"]
-            task_key = safe_widget_key(task_id)
-            task_priority = normalize_priority_tag(task.get("priority_tag"))
-            task_est = int(task.get("estimated_minutes") or 0)
-            st.markdown(f"**{task['title']}**")
-            plan_cols = st.columns([1.7, 1.7, 1.5, 1.2, 1.0, 1.0])
-            with plan_cols[0]:
-                plan_date = st.date_input("Date", value=selected_date, key=f"plan_date_{task_key}")
-            with plan_cols[1]:
-                plan_time = st.time_input(
-                    "Time",
-                    value=datetime.now().replace(second=0, microsecond=0).time(),
-                    key=f"plan_time_{task_key}",
-                )
-            with plan_cols[2]:
-                edit_priority = st.selectbox(
-                    "Priority",
-                    PRIORITY_TAGS,
-                    index=PRIORITY_TAGS.index(task_priority),
-                    key=f"plan_priority_{task_key}",
-                )
-            with plan_cols[3]:
-                edit_est = st.number_input(
-                    "Est min",
-                    min_value=5,
-                    max_value=600,
-                    step=5,
-                    value=max(task_est, 5),
-                    key=f"plan_est_{task_key}",
-                )
-            with plan_cols[4]:
-                if st.button("Schedule", key=f"schedule_task_{task_key}"):
-                    update_todo_task_fields(
-                        task_id,
-                        priority_tag=edit_priority,
-                        estimated_minutes=edit_est,
+        with st.form("add_manual_task_form"):
+            manual_title = st.text_input("Task title", key="manual_task_title")
+            manual_priority = st.selectbox("Priority tag", PRIORITY_TAGS, key="manual_task_priority")
+            manual_estimated = st.number_input(
+                "Estimated minutes",
+                min_value=5,
+                max_value=600,
+                step=5,
+                value=30,
+                key="manual_task_estimated",
+            )
+            manual_has_time = st.checkbox("Set a specific hour", key="manual_task_has_time")
+            manual_time_value = st.time_input(
+                "Start time",
+                value=datetime.now().replace(second=0, microsecond=0).time(),
+                key="manual_task_time",
+                disabled=not manual_has_time,
+            )
+            add_manual = st.form_submit_button("Add task")
+            if add_manual:
+                if not (manual_title or "").strip():
+                    st.warning("Task title is required.")
+                else:
+                    add_todo_task(
+                        manual_title,
+                        source="manual",
+                        scheduled_date=selected_date,
+                        scheduled_time=manual_time_value if manual_has_time else None,
+                        priority_tag=manual_priority,
+                        estimated_minutes=manual_estimated,
                     )
-                    schedule_todo_task(task_id, plan_date, plan_time)
                     st.rerun()
-            with plan_cols[5]:
-                if st.button("Delete", key=f"delete_unscheduled_{task_key}"):
-                    delete_todo_task(task_id)
-                    st.rerun()
-            st.divider()
-    else:
-        st.caption("No pending items in to-decide list.")
 
-    combined_items = []
-    linked_combined_task_ids = set()
-    for event in day_calendar_events:
-        event_key = event["event_key"]
-        override_task = override_tasks_by_event.get(event_key)
-        if override_task:
-            linked_combined_task_ids.add(override_task["id"])
-            subtasks = task_subtasks_cache.get(override_task["id"], [])
-            progress = get_task_progress(override_task, subtasks)
-            done = progress >= 100
-            priority_label, priority_weight, priority_color = priority_meta(override_task.get("priority_tag"))
+        with st.form("remember_item_form"):
+            remembered_title = st.text_input("Remembered item", key="remembered_task_title")
+            remembered_priority = st.selectbox("Priority", PRIORITY_TAGS, key="remembered_task_priority")
+            remembered_estimated = st.number_input(
+                "Estimated minutes",
+                min_value=5,
+                max_value=600,
+                step=5,
+                value=20,
+                key="remembered_task_estimated",
+            )
+            add_remembered = st.form_submit_button("Add to to-decide list")
+            if add_remembered:
+                if not (remembered_title or "").strip():
+                    st.warning("Item title is required.")
+                else:
+                    add_todo_task(
+                        remembered_title,
+                        source="remembered",
+                        priority_tag=remembered_priority,
+                        estimated_minutes=remembered_estimated,
+                    )
+                    st.rerun()
+
+        if unscheduled_remembered:
+            st.markdown("<div class='small-label'>To-decide list</div>", unsafe_allow_html=True)
+            for task in unscheduled_remembered:
+                task_id = task["id"]
+                task_key = safe_widget_key(task_id)
+                task_priority = normalize_priority_tag(task.get("priority_tag"))
+                task_est = int(task.get("estimated_minutes") or 0)
+                st.markdown(f"**{task['title']}**")
+                plan_cols = st.columns([1.7, 1.7, 1.5, 1.2, 1.0, 1.0])
+                with plan_cols[0]:
+                    plan_date = st.date_input("Date", value=selected_date, key=f"plan_date_{task_key}")
+                with plan_cols[1]:
+                    plan_time = st.time_input(
+                        "Time",
+                        value=datetime.now().replace(second=0, microsecond=0).time(),
+                        key=f"plan_time_{task_key}",
+                    )
+                with plan_cols[2]:
+                    edit_priority = st.selectbox(
+                        "Priority",
+                        PRIORITY_TAGS,
+                        index=PRIORITY_TAGS.index(task_priority),
+                        key=f"plan_priority_{task_key}",
+                    )
+                with plan_cols[3]:
+                    edit_est = st.number_input(
+                        "Est min",
+                        min_value=5,
+                        max_value=600,
+                        step=5,
+                        value=max(task_est, 5),
+                        key=f"plan_est_{task_key}",
+                    )
+                with plan_cols[4]:
+                    if st.button("Schedule", key=f"schedule_task_{task_key}"):
+                        update_todo_task_fields(
+                            task_id,
+                            priority_tag=edit_priority,
+                            estimated_minutes=edit_est,
+                        )
+                        schedule_todo_task(task_id, plan_date, plan_time)
+                        st.rerun()
+                with plan_cols[5]:
+                    if st.button("Delete", key=f"delete_unscheduled_{task_key}"):
+                        delete_todo_task(task_id)
+                        st.rerun()
+                st.divider()
+        else:
+            st.caption("No pending items in to-decide list.")
+
+    with daily_list_container:
+        combined_items = []
+        linked_combined_task_ids = set()
+        for event in day_calendar_events:
+            event_key = event["event_key"]
+            override_task = override_tasks_by_event.get(event_key)
+            if override_task:
+                linked_combined_task_ids.add(override_task["id"])
+                subtasks = task_subtasks_cache.get(override_task["id"], [])
+                progress = get_task_progress(override_task, subtasks)
+                done = progress >= 100
+                priority_label, priority_weight, priority_color = priority_meta(override_task.get("priority_tag"))
+                combined_items.append(
+                    {
+                        "id": override_task["id"],
+                        "title": override_task.get("title") or event["title"],
+                        "source": "calendar_override",
+                        "time": override_task.get("scheduled_time") or event["start_time"],
+                        "done": done,
+                        "progress": progress,
+                        "priority_label": priority_label,
+                        "priority_weight": priority_weight,
+                        "priority_color": priority_color,
+                        "subtasks": subtasks,
+                        "task_row": override_task,
+                        "event_row": event,
+                    }
+                )
+                continue
+
+            if event_hidden_map.get(event_key, False):
+                continue
+
+            event_done = bool(event_done_map.get(event_key, False))
+            progress = 100.0 if event_done else 0.0
+            priority_label, priority_weight, priority_color = compute_auto_priority(
+                selected_date,
+                event["start_time"],
+                "calendar",
+                progress,
+            )
             combined_items.append(
                 {
-                    "id": override_task["id"],
-                    "title": override_task.get("title") or event["title"],
-                    "source": "calendar_override",
-                    "time": override_task.get("scheduled_time") or event["start_time"],
+                    "id": event_key,
+                    "title": event["title"],
+                    "source": "calendar",
+                    "time": event["start_time"],
+                    "done": event_done,
+                    "progress": progress,
+                    "priority_label": priority_label,
+                    "priority_weight": priority_weight,
+                    "priority_color": priority_color,
+                    "subtasks": [],
+                    "event_row": event,
+                }
+            )
+
+        for task in day_internal_tasks:
+            if task["id"] in linked_combined_task_ids:
+                continue
+            subtasks = task_subtasks_cache.get(task["id"], [])
+            progress = get_task_progress(task, subtasks)
+            done = progress >= 100
+            priority_label, priority_weight, priority_color = priority_meta(task.get("priority_tag"))
+            combined_items.append(
+                {
+                    "id": task["id"],
+                    "title": task.get("title") or "",
+                    "source": task.get("source", "manual"),
+                    "time": task.get("scheduled_time"),
                     "done": done,
                     "progress": progress,
                     "priority_label": priority_label,
                     "priority_weight": priority_weight,
                     "priority_color": priority_color,
                     "subtasks": subtasks,
-                    "task_row": override_task,
-                    "event_row": event,
+                    "task_row": task,
                 }
             )
-            continue
 
-        if event_hidden_map.get(event_key, False):
-            continue
+        combined_items.sort(key=lambda item: (-item["priority_weight"], item["time"] or "23:59", item["title"]))
+        todo_score = build_todo_score(combined_items)
+        st.metric("Total task score", todo_score)
+        st.caption(build_time_estimation_insight(day_internal_tasks, task_subtasks_cache))
+        st.caption("To complete manual tasks/subtasks, set `Actual min` greater than zero.")
+        st.markdown("<div class='small-label'>Daily tasks list</div>", unsafe_allow_html=True)
+        if not combined_items:
+            st.caption("No tasks for this day yet.")
+        for item in combined_items:
+            task_key = safe_widget_key(item["id"])
+            time_suffix = ""
+            if item["source"] != "calendar":
+                time_suffix = f" ({format_time_interval(item.get('time'), item['task_row'].get('estimated_minutes'))})"
+            elif item.get("time"):
+                time_suffix = f" ({item['time']})"
 
-        event_done = bool(event_done_map.get(event_key, False))
-        progress = 100.0 if event_done else 0.0
-        priority_label, priority_weight, priority_color = compute_auto_priority(
-            selected_date,
-            event["start_time"],
-            "calendar",
-            progress,
-        )
-        combined_items.append(
-            {
-                "id": event_key,
-                "title": event["title"],
-                "source": "calendar",
-                "time": event["start_time"],
-                "done": event_done,
-                "progress": progress,
-                "priority_label": priority_label,
-                "priority_weight": priority_weight,
-                "priority_color": priority_color,
-                "subtasks": [],
-                "event_row": event,
-            }
-        )
-
-    for task in day_internal_tasks:
-        if task["id"] in linked_combined_task_ids:
-            continue
-        subtasks = task_subtasks_cache.get(task["id"], [])
-        progress = get_task_progress(task, subtasks)
-        done = progress >= 100
-        priority_label, priority_weight, priority_color = priority_meta(task.get("priority_tag"))
-        combined_items.append(
-            {
-                "id": task["id"],
-                "title": task.get("title") or "",
-                "source": task.get("source", "manual"),
-                "time": task.get("scheduled_time"),
-                "done": done,
-                "progress": progress,
-                "priority_label": priority_label,
-                "priority_weight": priority_weight,
-                "priority_color": priority_color,
-                "subtasks": subtasks,
-                "task_row": task,
-            }
-        )
-
-    combined_items.sort(key=lambda item: (-item["priority_weight"], item["time"] or "23:59", item["title"]))
-    todo_score = build_todo_score(combined_items)
-    st.metric("Total task score", todo_score)
-    st.caption(build_time_estimation_insight(day_internal_tasks, task_subtasks_cache))
-    st.caption("To complete manual tasks/subtasks, set `Actual min` greater than zero.")
-    st.markdown("<div class='small-label'>Daily tasks list</div>", unsafe_allow_html=True)
-    if not combined_items:
-        st.caption("No tasks for this day yet.")
-    for item in combined_items:
-        task_key = safe_widget_key(item["id"])
-        time_suffix = ""
-        if item["source"] != "calendar":
-            time_suffix = f" ({format_time_interval(item.get('time'), item['task_row'].get('estimated_minutes'))})"
-        elif item.get("time"):
-            time_suffix = f" ({item['time']})"
-
-        header_cols = st.columns([0.7, 4.1, 1.3, 1.1, 2.2])
-        with header_cols[0]:
-            if item["source"] == "calendar":
-                checked = st.checkbox(
-                    "done",
-                    value=item["done"],
-                    key=f"calendar_done_{task_key}",
-                    label_visibility="collapsed",
-                )
-                if checked != item["done"]:
-                    set_calendar_event_done(item["id"], selected_date, checked)
-                    st.rerun()
-            else:
-                has_subtasks = len(item["subtasks"]) > 0
-                task_actual = parse_minutes(item["task_row"].get("actual_minutes"))
-                checked = st.checkbox(
-                    "done",
-                    value=item["done"],
-                    key=f"task_done_{task_key}",
-                    disabled=has_subtasks or task_actual is None,
-                    label_visibility="collapsed",
-                )
-                if not has_subtasks and checked != item["done"]:
-                    set_todo_task_done(item["id"], checked)
-                    st.rerun()
-        with header_cols[1]:
-            st.markdown(f"**{item['title']}**{time_suffix}")
-        with header_cols[2]:
-            st.markdown(
-                f"<span style='color:{item['priority_color']};font-weight:600;'>{item['priority_label']}</span>",
-                unsafe_allow_html=True,
-            )
-        with header_cols[3]:
-            st.markdown(f"{item['progress']}%")
-        with header_cols[4]:
-            if item["source"] == "calendar":
-                action_cols = st.columns(2, gap="small")
-                with action_cols[0]:
-                    if st.button("✎", key=f"customize_task_{task_key}", help="Customize", type="tertiary"):
-                        create_calendar_override_task(item["event_row"], selected_date)
-                        st.rerun()
-                with action_cols[1]:
-                    if st.button("✕", key=f"hide_task_{task_key}", help="Delete", type="tertiary"):
-                        set_calendar_event_hidden(item["id"], selected_date, True)
-                        st.rerun()
-            elif st.button("✕", key=f"delete_task_{task_key}", help="Delete", type="tertiary"):
-                delete_todo_task(item["id"])
-                st.rerun()
-
-        if item["source"] != "calendar":
-            task_row = item["task_row"]
-            current_task_priority = normalize_priority_tag(task_row.get("priority_tag"))
-            current_task_est = int(task_row.get("estimated_minutes") or 0)
-            current_task_actual = int(task_row.get("actual_minutes") or 0)
-            task_details_cols = st.columns([2.2, 1.4, 1.4])
-            with task_details_cols[0]:
-                edited_priority = st.selectbox(
-                    "Priority tag",
-                    PRIORITY_TAGS,
-                    index=PRIORITY_TAGS.index(current_task_priority),
-                    key=f"task_priority_{task_key}",
-                )
-            with task_details_cols[1]:
-                edited_est = st.number_input(
-                    "Estimated min",
-                    min_value=0,
-                    max_value=600,
-                    step=5,
-                    value=current_task_est,
-                    key=f"task_est_{task_key}",
-                )
-            with task_details_cols[2]:
-                edited_actual = st.number_input(
-                    "Actual min",
-                    min_value=0,
-                    max_value=600,
-                    step=5,
-                    value=current_task_actual,
-                    key=f"task_actual_{task_key}",
-                )
-            if (
-                edited_priority != current_task_priority
-                or int(edited_est) != current_task_est
-                or int(edited_actual) != current_task_actual
-            ):
-                update_todo_task_fields(
-                    item["id"],
-                    priority_tag=edited_priority,
-                    estimated_minutes=edited_est,
-                    actual_minutes=edited_actual,
-                )
-                st.rerun()
-
-            for subtask in item["subtasks"]:
-                sub_key = safe_widget_key(subtask["id"])
-                sub_priority_current = normalize_priority_tag(subtask.get("priority_tag"))
-                sub_est_current = int(subtask.get("estimated_minutes") or 0)
-                sub_actual_current = int(subtask.get("actual_minutes") or 0)
-
-                sub_cols = st.columns([0.6, 2.8, 1.4, 1.2, 1.2, 0.9])
-                with sub_cols[0]:
-                    sub_checked = st.checkbox(
+            header_cols = st.columns([0.7, 4.1, 1.3, 1.1, 2.2])
+            with header_cols[0]:
+                if item["source"] == "calendar":
+                    checked = st.checkbox(
                         "done",
-                        value=bool(subtask.get("is_done", 0)),
-                        key=f"subtask_done_{sub_key}",
+                        value=item["done"],
+                        key=f"calendar_done_{task_key}",
                         label_visibility="collapsed",
-                        disabled=parse_minutes(subtask.get("actual_minutes")) is None,
                     )
-                    if sub_checked != bool(subtask.get("is_done", 0)):
-                        set_todo_subtask_done(subtask["id"], sub_checked)
+                    if checked != item["done"]:
+                        set_calendar_event_done(item["id"], selected_date, checked)
                         st.rerun()
-                with sub_cols[1]:
-                    st.markdown(f"Subtask: {subtask['title']}")
-                with sub_cols[2]:
-                    sub_priority_edit = st.selectbox(
+                else:
+                    has_subtasks = len(item["subtasks"]) > 0
+                    task_actual = parse_minutes(item["task_row"].get("actual_minutes"))
+                    checked = st.checkbox(
+                        "done",
+                        value=item["done"],
+                        key=f"task_done_{task_key}",
+                        disabled=has_subtasks or task_actual is None,
+                        label_visibility="collapsed",
+                    )
+                    if not has_subtasks and checked != item["done"]:
+                        set_todo_task_done(item["id"], checked)
+                        st.rerun()
+            with header_cols[1]:
+                st.markdown(f"**{item['title']}**{time_suffix}")
+            with header_cols[2]:
+                st.markdown(
+                    f"<span style='color:{item['priority_color']};font-weight:600;'>{item['priority_label']}</span>",
+                    unsafe_allow_html=True,
+                )
+            with header_cols[3]:
+                st.markdown(f"{item['progress']}%")
+            with header_cols[4]:
+                if item["source"] == "calendar":
+                    action_cols = st.columns(2, gap="small")
+                    with action_cols[0]:
+                        if st.button("✎", key=f"customize_task_{task_key}", help="Customize", type="tertiary"):
+                            create_calendar_override_task(item["event_row"], selected_date)
+                            st.rerun()
+                    with action_cols[1]:
+                        if st.button("✕", key=f"hide_task_{task_key}", help="Delete", type="tertiary"):
+                            set_calendar_event_hidden(item["id"], selected_date, True)
+                            st.rerun()
+                elif st.button("✕", key=f"delete_task_{task_key}", help="Delete", type="tertiary"):
+                    delete_todo_task(item["id"])
+                    st.rerun()
+
+            if item["source"] != "calendar":
+                task_row = item["task_row"]
+                current_task_priority = normalize_priority_tag(task_row.get("priority_tag"))
+                current_task_est = int(task_row.get("estimated_minutes") or 0)
+                current_task_actual = int(task_row.get("actual_minutes") or 0)
+                task_details_cols = st.columns([2.2, 1.4, 1.4])
+                with task_details_cols[0]:
+                    edited_priority = st.selectbox(
+                        "Priority tag",
+                        PRIORITY_TAGS,
+                        index=PRIORITY_TAGS.index(current_task_priority),
+                        key=f"task_priority_{task_key}",
+                    )
+                with task_details_cols[1]:
+                    edited_est = st.number_input(
+                        "Estimated min",
+                        min_value=0,
+                        max_value=600,
+                        step=5,
+                        value=current_task_est,
+                        key=f"task_est_{task_key}",
+                    )
+                with task_details_cols[2]:
+                    edited_actual = st.number_input(
+                        "Actual min",
+                        min_value=0,
+                        max_value=600,
+                        step=5,
+                        value=current_task_actual,
+                        key=f"task_actual_{task_key}",
+                    )
+                if (
+                    edited_priority != current_task_priority
+                    or int(edited_est) != current_task_est
+                    or int(edited_actual) != current_task_actual
+                ):
+                    update_todo_task_fields(
+                        item["id"],
+                        priority_tag=edited_priority,
+                        estimated_minutes=edited_est,
+                        actual_minutes=edited_actual,
+                    )
+                    st.rerun()
+
+                for subtask in item["subtasks"]:
+                    sub_key = safe_widget_key(subtask["id"])
+                    sub_priority_current = normalize_priority_tag(subtask.get("priority_tag"))
+                    sub_est_current = int(subtask.get("estimated_minutes") or 0)
+                    sub_actual_current = int(subtask.get("actual_minutes") or 0)
+
+                    sub_cols = st.columns([0.6, 2.8, 1.4, 1.2, 1.2, 0.9])
+                    with sub_cols[0]:
+                        sub_checked = st.checkbox(
+                            "done",
+                            value=bool(subtask.get("is_done", 0)),
+                            key=f"subtask_done_{sub_key}",
+                            label_visibility="collapsed",
+                            disabled=parse_minutes(subtask.get("actual_minutes")) is None,
+                        )
+                        if sub_checked != bool(subtask.get("is_done", 0)):
+                            set_todo_subtask_done(subtask["id"], sub_checked)
+                            st.rerun()
+                    with sub_cols[1]:
+                        st.markdown(f"Subtask: {subtask['title']}")
+                    with sub_cols[2]:
+                        sub_priority_edit = st.selectbox(
+                            "Priority",
+                            PRIORITY_TAGS,
+                            index=PRIORITY_TAGS.index(sub_priority_current),
+                            key=f"sub_priority_{sub_key}",
+                        )
+                    with sub_cols[3]:
+                        sub_est_edit = st.number_input(
+                            "Est",
+                            min_value=0,
+                            max_value=600,
+                            step=5,
+                            value=sub_est_current,
+                            key=f"sub_est_{sub_key}",
+                        )
+                    with sub_cols[4]:
+                        sub_actual_edit = st.number_input(
+                            "Actual",
+                            min_value=0,
+                            max_value=600,
+                            step=5,
+                            value=sub_actual_current,
+                            key=f"sub_actual_{sub_key}",
+                        )
+                    with sub_cols[5]:
+                        if st.button("Delete", key=f"delete_subtask_{sub_key}"):
+                            delete_todo_subtask(subtask["id"])
+                            st.rerun()
+                    if (
+                        sub_priority_edit != sub_priority_current
+                        or int(sub_est_edit) != sub_est_current
+                        or int(sub_actual_edit) != sub_actual_current
+                    ):
+                        update_todo_subtask_fields(
+                            subtask["id"],
+                            priority_tag=sub_priority_edit,
+                            estimated_minutes=sub_est_edit,
+                            actual_minutes=sub_actual_edit,
+                        )
+                        st.rerun()
+
+                new_sub_cols = st.columns([2.8, 1.4, 1.4, 0.9])
+                with new_sub_cols[0]:
+                    subtask_text = st.text_input(
+                        "New subtask",
+                        key=f"new_subtask_text_{task_key}",
+                        label_visibility="collapsed",
+                        placeholder="Add subtask",
+                    )
+                with new_sub_cols[1]:
+                    new_sub_priority = st.selectbox(
                         "Priority",
                         PRIORITY_TAGS,
-                        index=PRIORITY_TAGS.index(sub_priority_current),
-                        key=f"sub_priority_{sub_key}",
+                        key=f"new_subtask_priority_{task_key}",
                     )
-                with sub_cols[3]:
-                    sub_est_edit = st.number_input(
-                        "Est",
-                        min_value=0,
+                with new_sub_cols[2]:
+                    new_sub_est = st.number_input(
+                        "Estimated",
+                        min_value=5,
                         max_value=600,
                         step=5,
-                        value=sub_est_current,
-                        key=f"sub_est_{sub_key}",
+                        value=15,
+                        key=f"new_subtask_est_{task_key}",
                     )
-                with sub_cols[4]:
-                    sub_actual_edit = st.number_input(
-                        "Actual",
-                        min_value=0,
-                        max_value=600,
-                        step=5,
-                        value=sub_actual_current,
-                        key=f"sub_actual_{sub_key}",
-                    )
-                with sub_cols[5]:
-                    if st.button("Delete", key=f"delete_subtask_{sub_key}"):
-                        delete_todo_subtask(subtask["id"])
+                with new_sub_cols[3]:
+                    if st.button("Add", key=f"add_subtask_btn_{task_key}"):
+                        add_todo_subtask(
+                            item["id"],
+                            subtask_text,
+                            priority_tag=new_sub_priority,
+                            estimated_minutes=new_sub_est,
+                        )
                         st.rerun()
-                if (
-                    sub_priority_edit != sub_priority_current
-                    or int(sub_est_edit) != sub_est_current
-                    or int(sub_actual_edit) != sub_actual_current
-                ):
-                    update_todo_subtask_fields(
-                        subtask["id"],
-                        priority_tag=sub_priority_edit,
-                        estimated_minutes=sub_est_edit,
-                        actual_minutes=sub_actual_edit,
-                    )
-                    st.rerun()
-
-            new_sub_cols = st.columns([2.8, 1.4, 1.4, 0.9])
-            with new_sub_cols[0]:
-                subtask_text = st.text_input(
-                    "New subtask",
-                    key=f"new_subtask_text_{task_key}",
-                    label_visibility="collapsed",
-                    placeholder="Add subtask",
-                )
-            with new_sub_cols[1]:
-                new_sub_priority = st.selectbox(
-                    "Priority",
-                    PRIORITY_TAGS,
-                    key=f"new_subtask_priority_{task_key}",
-                )
-            with new_sub_cols[2]:
-                new_sub_est = st.number_input(
-                    "Estimated",
-                    min_value=5,
-                    max_value=600,
-                    step=5,
-                    value=15,
-                    key=f"new_subtask_est_{task_key}",
-                )
-            with new_sub_cols[3]:
-                if st.button("Add", key=f"add_subtask_btn_{task_key}"):
-                    add_todo_subtask(
-                        item["id"],
-                        subtask_text,
-                        priority_tag=new_sub_priority,
-                        estimated_minutes=new_sub_est,
-                    )
-                    st.rerun()
-        st.divider()
+            st.divider()
 
 # --- TODAY'S SUMMARY ---
 
