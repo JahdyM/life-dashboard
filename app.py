@@ -129,6 +129,7 @@ PINTEREST_MOOD_LINKS = [
 ]
 
 BACKGROUND_IMAGE_CANDIDATES = [
+    os.path.join(os.path.dirname(__file__), "assets", "background_academia_ultra.jpg"),
     os.path.join(os.path.dirname(__file__), "assets", "background_academia_optimized.jpg"),
     os.path.join(os.path.dirname(__file__), "assets", "background_academia.jpg"),
     os.path.join(os.path.dirname(__file__), "assets", "background_academia.jpeg"),
@@ -856,7 +857,15 @@ if background_image_css_url:
     st.markdown(
         f"""
 <style>
-.stApp {{
+div[data-testid="stAppViewContainer"] {{
+    position: relative;
+    background: transparent !important;
+}}
+
+div[data-testid="stAppViewContainer"]::before {{
+    content: "";
+    position: fixed;
+    inset: 0;
     background-image:
         linear-gradient(var(--overlay-start), var(--overlay-end)),
         url('{safe_background_url}') !important;
@@ -864,6 +873,17 @@ if background_image_css_url:
     background-position: center center !important;
     background-repeat: no-repeat !important;
     background-attachment: fixed !important;
+    z-index: -1;
+    pointer-events: none;
+}}
+
+.stApp {{
+    background: transparent !important;
+}}
+
+div[data-testid="stAppViewContainer"] > .main,
+div[data-testid="stAppViewContainer"] [data-testid="stAppViewBlockContainer"] {{
+    background: transparent !important;
 }}
 </style>
 """,
