@@ -15,6 +15,7 @@ import plotly.graph_objects as go
 import requests
 import streamlit as st
 from sqlalchemy import create_engine, inspect, text as sql_text
+from sqlalchemy.exc import SQLAlchemyError
 
 try:
     from icalendar import Calendar
@@ -926,6 +927,39 @@ def get_database_url():
 
 def using_local_sqlite(database_url):
     return str(database_url).strip().lower().startswith("sqlite")
+
+
+def describe_database_target(database_url):
+    url = str(database_url or "").strip()
+    if using_local_sqlite(url):
+        return "sqlite:///life_dashboard.db (local file)"
+    if not url:
+        return "(empty)"
+    parsed = urlparse(url)
+    host = parsed.hostname or "unknown-host"
+    port = f":{parsed.port}" if parsed.port else ""
+    db_name = parsed.path.lstrip("/") or "database"
+    return f"{parsed.scheme}://{host}{port}/{db_name}"
+
+
+def show_database_connection_error(exc):
+    db_url = get_database_url()
+    st.error("Database connection failed.")
+    st.markdown(
+        "I could not connect to your configured database target:\n"
+        f"`{describe_database_target(db_url)}`"
+    )
+    st.markdown(
+        "Check `Settings -> Secrets` and make sure `[database].url` is valid and active.\n"
+        "Use this format:"
+    )
+    st.code(
+        "[database]\n"
+        "url = \"postgresql+psycopg2://USER:PASSWORD@HOST:5432/DBNAME?sslmode=require\"",
+        language="toml",
+    )
+    st.caption(f"Technical detail: {type(exc).__name__}")
+    st.stop()
 
 
 def running_on_streamlit_cloud():
@@ -3022,8 +3056,13 @@ def dot_chart(values, dates, title, color, height=260):
 
 enforce_google_login()
 enforce_persistent_storage_on_cloud()
-init_db()
-storage_migration_message = migrate_local_sqlite_to_configured_db()
+try:
+    init_db()
+    storage_migration_message = migrate_local_sqlite_to_configured_db()
+except SQLAlchemyError as exc:
+    show_database_connection_error(exc)
+except Exception as exc:
+    show_database_connection_error(exc)
 
 current_user_email = get_current_user_email()
 current_user_name = get_display_name(current_user_email)
