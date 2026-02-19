@@ -8,6 +8,7 @@ from backend.auth import require_user_email
 from backend import repositories
 from backend.settings import get_settings
 from backend.services import google_calendar_service
+from backend.workers.sync_worker import process_outbox_once
 
 router = APIRouter()
 
@@ -58,4 +59,6 @@ async def trigger_sync(user_email: str = Depends(require_user_email)):
         next_token = response.get("nextSyncToken")
         await repositories.update_sync_cursor(user_email, calendar_id, next_token, None)
 
-    return {"ok": True}
+    # If no background worker is running, drain a small batch of pending outbox items here.
+    drained = await process_outbox_once(limit=10)
+    return {"ok": True, "outbox_drained": drained}

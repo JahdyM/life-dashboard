@@ -37,9 +37,9 @@ Este repositorio agora suporta **duas camadas**:
 - Adicione `jahdy.moreno@gmail.com` e `guilherme.m.rods@gmail.com` como test users (se o app estiver em modo Teste).
 
 ## 5) Render (API + Worker)
-- Crie dois serviços a partir do repo:
-  - **Web service**: FastAPI
-  - **Worker**: sync de Google Calendar
+- **Se o worker gratuito nao estiver disponivel**, use apenas o **Web service** (FastAPI).
+- Nesse modo, o sync do Google roda quando você abre a aba de calendario.
+- Se quiser sync em background, crie o **Worker** quando estiver disponivel no seu plano.
 - Use o `render.yaml` incluido.
 - Configure ENV:
   - `DATABASE_URL`
