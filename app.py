@@ -45,11 +45,9 @@ GUILHERME_EMAIL = "guilherme.m.rods@gmail.com"
 USER_PROFILES = {
     JAHDY_EMAIL: {
         "name": "Jahdy",
-        "calendar_ics_url": os.getenv("JAHDY_GOOGLE_CALENDAR_ICS", ""),
     },
     GUILHERME_EMAIL: {
         "name": "Guilherme",
-        "calendar_ics_url": os.getenv("GUILHERME_GOOGLE_CALENDAR_ICS", ""),
     },
 }
 SHARED_USER_EMAILS = set(USER_PROFILES.keys())
@@ -555,6 +553,36 @@ def get_partner_email(user_email):
     if user_email == GUILHERME_EMAIL:
         return JAHDY_EMAIL
     return None
+
+
+def get_user_calendar_secret_keys(user_email):
+    if user_email == JAHDY_EMAIL:
+        return "JAHDY_GOOGLE_CALENDAR_ICS", "jahdy_google_calendar_ics"
+    if user_email == GUILHERME_EMAIL:
+        return "GUILHERME_GOOGLE_CALENDAR_ICS", "guilherme_google_calendar_ics"
+    local_name = (user_email or "").split("@")[0].replace(".", "_").upper()
+    env_key = f"{local_name}_GOOGLE_CALENDAR_ICS"
+    return env_key, env_key.lower()
+
+
+def get_user_calendar_ics_url(user_email):
+    env_key, normalized_key = get_user_calendar_secret_keys(user_email)
+    candidates = [
+        os.getenv(env_key),
+        get_secret((env_key,)),
+        get_secret((env_key.lower(),)),
+        get_secret(("calendar", env_key)),
+        get_secret(("calendar", env_key.lower())),
+        get_secret(("calendar", normalized_key)),
+        get_secret(("app", env_key)),
+        get_secret(("app", env_key.lower())),
+        get_secret(("app", normalized_key)),
+        get_setting("calendar_ics_url"),
+    ]
+    for value in candidates:
+        if value and str(value).strip():
+            return str(value).strip(), env_key
+    return "", env_key
 
 
 def scoped_setting_key(key):
@@ -1958,13 +1986,13 @@ with left_col:
 with right_col:
     st.markdown("<div class='section-title'>Calendar</div>", unsafe_allow_html=True)
 
-    ics_url = (current_user_profile.get("calendar_ics_url") or "").strip()
+    ics_url, calendar_secret_key = get_user_calendar_ics_url(current_user_email)
     day_calendar_events = []
     calendar_error = None
     if ics_url:
         day_calendar_events, calendar_error = fetch_ics_events_for_date(ics_url, selected_date)
     else:
-        calendar_error = "Calendar is configured in backend. Missing private iCal URL."
+        calendar_error = f"Missing private calendar URL in backend secret: {calendar_secret_key}"
     if calendar_error:
         st.warning(calendar_error)
     else:
@@ -2247,6 +2275,7 @@ with right_col:
     todo_score = build_todo_score(combined_items)
     st.metric("Total task score", todo_score)
     st.caption(build_time_estimation_insight(day_internal_tasks, task_subtasks_cache))
+    st.caption("To complete manual tasks/subtasks, set `Actual min` greater than zero.")
 
     st.markdown("<div class='small-label'>Daily tasks list</div>", unsafe_allow_html=True)
     if not combined_items:
