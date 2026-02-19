@@ -1,6 +1,8 @@
 import os
 import re
 import html
+import base64
+import mimetypes
 from datetime import date, datetime, timedelta
 import calendar
 from urllib.parse import urlparse
@@ -110,6 +112,14 @@ PINTEREST_MOOD_LINKS = [
     "https://pin.it/DPWzlzuoR",
     "https://pin.it/1719yUkPi",
     "https://pin.it/3F61d82Z0",
+]
+
+BACKGROUND_IMAGE_CANDIDATES = [
+    os.path.join(os.path.dirname(__file__), "assets", "background_academia.jpg"),
+    os.path.join(os.path.dirname(__file__), "assets", "background_academia.jpeg"),
+    os.path.join(os.path.dirname(__file__), "assets", "background_academia.png"),
+    os.path.join(os.path.dirname(__file__), "assets", "background.jpg"),
+    os.path.join(os.path.dirname(__file__), "assets", "background.png"),
 ]
 
 
@@ -2659,7 +2669,7 @@ with right_col:
     else:
         for item in calendar_items:
             item_key = safe_widget_key(item["id"])
-            row_cols = st.columns([0.6, 4.8, 1.8, 1.2, 1.0])
+            row_cols = st.columns([0.7, 4.4, 1.7, 1.2, 2.1])
             with row_cols[0]:
                 if item["source"] == "calendar":
                     done = st.checkbox(
@@ -2706,13 +2716,16 @@ with right_col:
                     )
             with row_cols[4]:
                 if item["source"] == "calendar":
-                    if st.button("Custom", key=f"customize_calendar_task_{item_key}"):
-                        create_calendar_override_task(item["event_row"], selected_date)
-                        st.rerun()
-                    if st.button("Delete", key=f"hide_calendar_task_{item_key}"):
-                        set_calendar_event_hidden(item["id"], selected_date, True)
-                        st.rerun()
-                elif st.button("Delete", key=f"delete_calendar_task_{item_key}"):
+                    action_cols = st.columns(2, gap="small")
+                    with action_cols[0]:
+                        if st.button("Custom", key=f"customize_calendar_task_{item_key}", use_container_width=True):
+                            create_calendar_override_task(item["event_row"], selected_date)
+                            st.rerun()
+                    with action_cols[1]:
+                        if st.button("Delete", key=f"hide_calendar_task_{item_key}", use_container_width=True):
+                            set_calendar_event_hidden(item["id"], selected_date, True)
+                            st.rerun()
+                elif st.button("Delete", key=f"delete_calendar_task_{item_key}", use_container_width=True):
                     delete_todo_task(item["id"])
                     st.rerun()
             st.divider()
