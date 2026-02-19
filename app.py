@@ -777,6 +777,7 @@ def init_db():
                     user_email TEXT NOT NULL,
                     title TEXT NOT NULL,
                     source TEXT NOT NULL,
+                    external_event_key TEXT,
                     scheduled_date TEXT,
                     scheduled_time TEXT,
                     priority_tag TEXT DEFAULT 'Medium',
@@ -813,6 +814,7 @@ def init_db():
                     event_key TEXT NOT NULL,
                     event_date TEXT NOT NULL,
                     is_done INTEGER DEFAULT 0,
+                    is_hidden INTEGER DEFAULT 0,
                     PRIMARY KEY (user_email, event_key, event_date)
                 )
                 """
@@ -831,9 +833,11 @@ def init_db():
     ensure_column(TASKS_TABLE, "priority_tag", "TEXT DEFAULT 'Medium'")
     ensure_column(TASKS_TABLE, "estimated_minutes", "INTEGER")
     ensure_column(TASKS_TABLE, "actual_minutes", "INTEGER")
+    ensure_column(TASKS_TABLE, "external_event_key", "TEXT")
     ensure_column(SUBTASKS_TABLE, "priority_tag", "TEXT DEFAULT 'Medium'")
     ensure_column(SUBTASKS_TABLE, "estimated_minutes", "INTEGER")
     ensure_column(SUBTASKS_TABLE, "actual_minutes", "INTEGER")
+    ensure_column(CALENDAR_STATUS_TABLE, "is_hidden", "INTEGER DEFAULT 0")
 
     # Migrate legacy data (date-based table) to user-scoped table once.
     inspector = inspect(engine)
@@ -1094,6 +1098,7 @@ def add_todo_task(
     scheduled_time=None,
     priority_tag="Medium",
     estimated_minutes=None,
+    external_event_key=None,
 ):
     clean_title = (title or "").strip()
     if not clean_title:
@@ -1104,6 +1109,7 @@ def add_todo_task(
         "user_email": get_current_user_email(),
         "title": clean_title,
         "source": source,
+        "external_event_key": (external_event_key or "").strip() or None,
         "scheduled_date": scheduled_date.isoformat() if scheduled_date else None,
         "scheduled_time": normalize_time_value(scheduled_time),
         "priority_tag": normalize_priority_tag(priority_tag),
@@ -1118,11 +1124,11 @@ def add_todo_task(
                 f"""
                 INSERT INTO {TASKS_TABLE}
                 (
-                    id, user_email, title, source, scheduled_date, scheduled_time,
+                    id, user_email, title, source, external_event_key, scheduled_date, scheduled_time,
                     priority_tag, estimated_minutes, actual_minutes, is_done, created_at
                 )
                 VALUES (
-                    :id, :user_email, :title, :source, :scheduled_date, :scheduled_time,
+                    :id, :user_email, :title, :source, :external_event_key, :scheduled_date, :scheduled_time,
                     :priority_tag, :estimated_minutes, :actual_minutes, :is_done, :created_at
                 )
                 """
@@ -1139,7 +1145,7 @@ def list_todo_tasks():
             sql_text(
                 f"""
                 SELECT
-                    id, user_email, title, source, scheduled_date, scheduled_time,
+                    id, user_email, title, source, external_event_key, scheduled_date, scheduled_time,
                     priority_tag, estimated_minutes, actual_minutes, is_done, created_at
                 FROM {TASKS_TABLE}
                 WHERE user_email = :user_email
