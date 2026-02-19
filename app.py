@@ -1137,7 +1137,13 @@ def migrate_local_sqlite_to_configured_db():
         with source_engine.connect() as source_conn, target_engine.begin() as target_conn:
             if source_inspector.has_table(ENTRIES_TABLE):
                 for row in table_rows(source_conn, ENTRIES_TABLE):
-                    payload = dict(row)
+                    payload = {
+                        "user_email": row.get("user_email"),
+                        "date": row.get("date"),
+                        **{column: row.get(column) for column in ENTRY_DATA_COLUMNS},
+                    }
+                    if not payload["user_email"] or not payload["date"]:
+                        continue
                     target_conn.execute(
                         sql_text(
                             f"""
@@ -1155,7 +1161,22 @@ def migrate_local_sqlite_to_configured_db():
 
             if source_inspector.has_table(TASKS_TABLE):
                 for row in table_rows(source_conn, TASKS_TABLE):
-                    payload = dict(row)
+                    payload = {
+                        "id": row.get("id"),
+                        "user_email": row.get("user_email"),
+                        "title": row.get("title"),
+                        "source": row.get("source") or "manual",
+                        "external_event_key": row.get("external_event_key"),
+                        "scheduled_date": row.get("scheduled_date"),
+                        "scheduled_time": row.get("scheduled_time"),
+                        "priority_tag": row.get("priority_tag") or "Medium",
+                        "estimated_minutes": row.get("estimated_minutes"),
+                        "actual_minutes": row.get("actual_minutes"),
+                        "is_done": row.get("is_done") or 0,
+                        "created_at": row.get("created_at") or datetime.utcnow().isoformat(),
+                    }
+                    if not payload["id"] or not payload["user_email"] or not payload["title"]:
+                        continue
                     target_conn.execute(
                         sql_text(
                             f"""
@@ -1190,7 +1211,19 @@ def migrate_local_sqlite_to_configured_db():
 
             if source_inspector.has_table(SUBTASKS_TABLE):
                 for row in table_rows(source_conn, SUBTASKS_TABLE):
-                    payload = dict(row)
+                    payload = {
+                        "id": row.get("id"),
+                        "task_id": row.get("task_id"),
+                        "user_email": row.get("user_email"),
+                        "title": row.get("title"),
+                        "priority_tag": row.get("priority_tag") or "Medium",
+                        "estimated_minutes": row.get("estimated_minutes"),
+                        "actual_minutes": row.get("actual_minutes"),
+                        "is_done": row.get("is_done") or 0,
+                        "created_at": row.get("created_at") or datetime.utcnow().isoformat(),
+                    }
+                    if not payload["id"] or not payload["task_id"] or not payload["user_email"] or not payload["title"]:
+                        continue
                     target_conn.execute(
                         sql_text(
                             f"""
@@ -1220,7 +1253,15 @@ def migrate_local_sqlite_to_configured_db():
 
             if source_inspector.has_table(CALENDAR_STATUS_TABLE):
                 for row in table_rows(source_conn, CALENDAR_STATUS_TABLE):
-                    payload = dict(row)
+                    payload = {
+                        "user_email": row.get("user_email"),
+                        "event_key": row.get("event_key"),
+                        "event_date": row.get("event_date"),
+                        "is_done": row.get("is_done") or 0,
+                        "is_hidden": row.get("is_hidden") or 0,
+                    }
+                    if not payload["user_email"] or not payload["event_key"] or not payload["event_date"]:
+                        continue
                     target_conn.execute(
                         sql_text(
                             f"""
@@ -2784,6 +2825,8 @@ selected_date = st.date_input("Date", key="selected_date")
 entry = get_entry_for_date(selected_date, data)
 load_entry_into_state(selected_date, entry)
 is_meeting_day = selected_date.weekday() in meeting_days
+habit_labels = get_habit_labels()
+init_habit_label_state(habit_labels)
 if not is_meeting_day:
     st.session_state["input_meeting_attended"] = False
     st.session_state["input_prepare_meeting"] = False
@@ -2812,6 +2855,18 @@ with left_col:
     if not is_meeting_day:
         st.caption("Meeting habits are hidden on non-meeting days.")
 
+    with st.expander("Customize personal habits"):
+        st.caption(
+            "Personal labels are user-specific. Shared couple streak habits stay fixed "
+            "(Bible reading, workout, meeting habits, shower)."
+        )
+        for habit_key in CUSTOMIZABLE_HABIT_KEYS:
+            st.text_input(
+                f"{DEFAULT_HABIT_LABELS[habit_key]} label",
+                key=f"habit_label_{habit_key}",
+                on_change=save_custom_habit_labels,
+            )
+
     st.markdown("<div class='small-label' style='margin-top:6px;'>Daily priority habit</div>", unsafe_allow_html=True)
     priority_cols = st.columns([3, 1])
     with priority_cols[0]:
@@ -2823,9 +2878,10 @@ with left_col:
     st.markdown("<div class='small-label'>Habits</div>", unsafe_allow_html=True)
     habit_cols = st.columns(2)
     habit_index = 0
-    for key, label in HABITS:
+    for key, _ in HABITS:
         if key in MEETING_HABIT_KEYS and not is_meeting_day:
             continue
+        label = habit_labels.get(key, DEFAULT_HABIT_LABELS[key])
         with habit_cols[habit_index % 2]:
             st.checkbox(label, key=f"input_{key}", on_change=auto_save)
         habit_index += 1
