@@ -3356,6 +3356,7 @@ with right_col:
         unsafe_allow_html=True,
     )
     st.caption("Legend: `G` = Google events, `T` = your scheduled tasks, `Score` = life balance score.")
+    st.caption("Google events are read-only via iCal here. Delete hides them in this dashboard.")
 
     if calendar_error:
         st.warning(calendar_error)
@@ -3387,148 +3388,7 @@ with right_col:
     event_done_map = {k: v.get("is_done", False) for k, v in event_status_map.items()}
     event_hidden_map = {k: v.get("is_hidden", False) for k, v in event_status_map.items()}
 
-    st.caption(f"Daily view for {selected_date.strftime('%d/%m/%Y')}")
-
-    calendar_items = []
-    linked_task_ids = set()
-    for event in day_calendar_events:
-        event_key = event["event_key"]
-        override_task = override_tasks_by_event.get(event_key)
-        if override_task:
-            linked_task_ids.add(override_task["id"])
-            subtasks = task_subtasks_cache.get(override_task["id"], [])
-            progress = get_task_progress(override_task, subtasks)
-            calendar_items.append(
-                {
-                    "id": override_task["id"],
-                    "source": "calendar_override",
-                    "title": override_task.get("title") or event.get("title") or "",
-                    "time_label": format_time_interval(
-                        override_task.get("scheduled_time") or event.get("start_time"),
-                        override_task.get("estimated_minutes"),
-                    ),
-                    "time_sort": normalize_time_value(override_task.get("scheduled_time") or event.get("start_time")) or "23:59",
-                    "done": progress >= 100,
-                    "has_subtasks": len(subtasks) > 0,
-                    "priority_tag": normalize_priority_tag(override_task.get("priority_tag")),
-                }
-            )
-            continue
-
-        if event_hidden_map.get(event_key, False):
-            continue
-
-        event_done = bool(event_done_map.get(event_key, False))
-        if event["is_all_day"]:
-            time_label = "All day"
-            time_sort = "00:00"
-        elif event["start_time"] and event["end_time"]:
-            time_label = f"{event['start_time']} - {event['end_time']}"
-            time_sort = event["start_time"]
-        else:
-            time_label = event.get("start_time") or "No time"
-            time_sort = event.get("start_time") or "23:59"
-        calendar_items.append(
-            {
-                "id": event_key,
-                "source": "calendar",
-                "title": event["title"],
-                "time_label": time_label,
-                "time_sort": time_sort,
-                "done": event_done,
-                "has_subtasks": False,
-                "event_row": event,
-            }
-        )
-
-    for task in day_internal_tasks:
-        if task["id"] in linked_task_ids:
-            continue
-        subtasks = task_subtasks_cache.get(task["id"], [])
-        progress = get_task_progress(task, subtasks)
-        task_priority, _, _ = priority_meta(task.get("priority_tag"))
-        calendar_items.append(
-            {
-                "id": task["id"],
-                "source": "todo",
-                "title": task.get("title") or "",
-                "time_label": format_time_interval(
-                    task.get("scheduled_time"),
-                    task.get("estimated_minutes"),
-                ),
-                "time_sort": normalize_time_value(task.get("scheduled_time")) or "23:59",
-                "done": progress >= 100,
-                "has_subtasks": len(subtasks) > 0,
-                "priority_tag": task_priority,
-            }
-        )
-
-    calendar_items.sort(key=lambda item: (item["time_sort"], item["title"]))
-    if not calendar_items:
-        st.info("No events found for this day.")
-    else:
-        for item in calendar_items:
-            item_key = safe_widget_key(item["id"])
-            row_cols = st.columns([0.7, 4.4, 1.7, 1.2, 2.1])
-            with row_cols[0]:
-                if item["source"] == "calendar":
-                    done = st.checkbox(
-                        "done",
-                        value=item["done"],
-                        key=f"calendar_day_done_{item_key}",
-                        label_visibility="collapsed",
-                    )
-                    if done != item["done"]:
-                        set_calendar_event_done(item["id"], selected_date, done)
-                        st.rerun()
-                else:
-                    task_row = next((t for t in day_internal_tasks if t["id"] == item["id"]), {})
-                    has_actual = parse_minutes(task_row.get("actual_minutes")) is not None
-                    done = st.checkbox(
-                        "done",
-                        value=item["done"],
-                        key=f"calendar_task_done_{item_key}",
-                        disabled=item["has_subtasks"] or not has_actual,
-                        label_visibility="collapsed",
-                    )
-                    if not item["has_subtasks"] and done != item["done"]:
-                        set_todo_task_done(item["id"], done)
-                        st.rerun()
-            with row_cols[1]:
-                st.markdown(f"**{item['title']}**")
-            with row_cols[2]:
-                st.markdown(item["time_label"])
-            with row_cols[3]:
-                if item["source"] == "calendar":
-                    st.markdown(
-                        f"<span style='color:{ACTIVE_THEME['text_soft']};font-size:12px;'>Google</span>",
-                        unsafe_allow_html=True,
-                    )
-                elif item["source"] == "calendar_override":
-                    st.markdown(
-                        f"<span style='color:{ACTIVE_THEME['text_soft']};font-size:12px;'>Custom</span>",
-                        unsafe_allow_html=True,
-                    )
-                else:
-                    st.markdown(
-                        f"<span style='color:{ACTIVE_THEME['text_soft']};font-size:12px;'>{item.get('priority_tag', 'Medium')}</span>",
-                        unsafe_allow_html=True,
-                    )
-            with row_cols[4]:
-                if item["source"] == "calendar":
-                    action_cols = st.columns(2, gap="small")
-                    with action_cols[0]:
-                        if st.button("✎", key=f"customize_calendar_task_{item_key}", help="Customize", type="tertiary"):
-                            create_calendar_override_task(item["event_row"], selected_date)
-                            st.rerun()
-                    with action_cols[1]:
-                        if st.button("✕", key=f"hide_calendar_task_{item_key}", help="Delete", type="tertiary"):
-                            set_calendar_event_hidden(item["id"], selected_date, True)
-                            st.rerun()
-                elif st.button("✕", key=f"delete_calendar_task_{item_key}", help="Delete", type="tertiary"):
-                    delete_todo_task(item["id"])
-                    st.rerun()
-            st.divider()
+    st.caption(f"Unified list for {selected_date.strftime('%d/%m/%Y')} (calendar + manual tasks).")
 
     st.markdown("<div class='small-label' style='margin-top:8px;'>Add activity</div>", unsafe_allow_html=True)
 
