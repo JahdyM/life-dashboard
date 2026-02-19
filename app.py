@@ -542,6 +542,33 @@ div[data-baseweb="calendar"] button[aria-selected="true"] {
     }
 }
 
+.aesthetic-side {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: 74px;
+    gap: 7px;
+    margin-top: 6px;
+}
+
+.aesthetic-side-item {
+    overflow: hidden;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+}
+
+.aesthetic-side-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: saturate(0.78) contrast(0.9) brightness(0.84);
+}
+
+.aesthetic-side-1 { grid-column: span 2; grid-row: span 2; }
+.aesthetic-side-2 { grid-column: span 1; grid-row: span 1; }
+.aesthetic-side-3 { grid-column: span 1; grid-row: span 1; }
+.aesthetic-side-4 { grid-column: span 2; grid-row: span 1; }
+
 div[data-testid="stHeader"], div[data-testid="stToolbar"] {
     visibility: hidden;
     height: 0px;
@@ -1792,6 +1819,23 @@ def build_aesthetic_mosaic_html(image_urls):
     )
 
 
+def build_aesthetic_side_html(image_urls, offset=0):
+    if not image_urls:
+        return ""
+    tiles = [image_urls[(offset + idx) % len(image_urls)] for idx in range(4)]
+    blocks = []
+    for idx, image_url in enumerate(tiles, start=1):
+        safe_url = image_url.replace('"', "%22")
+        blocks.append(
+            (
+                f"<div class='aesthetic-side-item aesthetic-side-{idx}'>"
+                f"<img src='{safe_url}' loading='lazy' alt='Aesthetic detail' />"
+                "</div>"
+            )
+        )
+    return f"<div class='aesthetic-side'>{''.join(blocks)}</div>"
+
+
 def get_calendar_event_done_map(target_date, event_keys):
     if not event_keys:
         return {}
@@ -2202,8 +2246,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 aesthetic_image_urls = get_aesthetic_image_urls(tuple(PINTEREST_MOOD_LINKS))
-if aesthetic_image_urls:
-    st.markdown(build_aesthetic_mosaic_html(aesthetic_image_urls), unsafe_allow_html=True)
 
 meeting_days = get_meeting_days()
 if "meeting_days" not in st.session_state:
@@ -2939,9 +2981,6 @@ with right_col:
                     )
                     st.rerun()
         st.divider()
-
-if aesthetic_image_urls:
-    st.markdown(build_aesthetic_mosaic_html(list(reversed(aesthetic_image_urls))), unsafe_allow_html=True)
 
 # --- TODAY'S SUMMARY ---
 
