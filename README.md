@@ -28,7 +28,7 @@
   - `auth.cookie_secret`
   - `app.allowed_emails` (emails permitidos, separados por virgula)
   - `app.JAHDY_GOOGLE_CALENDAR_ICS` e `app.GUILHERME_GOOGLE_CALENDAR_ICS`
-  - `database.url` (Postgres - obrigatorio para nao perder dados em reboot)
+  - `database.url` (Postgres - obrigatorio; sem isso o app bloqueia entrada para evitar perda de dados)
 
 ## 5) Exemplo de bloco de secrets
 ```toml

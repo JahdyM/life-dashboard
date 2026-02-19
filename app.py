@@ -928,6 +928,28 @@ def using_local_sqlite(database_url):
     return str(database_url).strip().lower().startswith("sqlite")
 
 
+def running_on_streamlit_cloud():
+    redirect_uri = str(get_secret(("auth", "redirect_uri")) or "").strip().lower()
+    return ".streamlit.app/" in redirect_uri
+
+
+def enforce_persistent_storage_on_cloud():
+    database_url = get_database_url()
+    if running_on_streamlit_cloud() and using_local_sqlite(database_url):
+        st.error(
+            "Persistent storage is required. This app is currently using temporary SQLite and "
+            "new entries can be lost after reboot."
+        )
+        st.markdown(
+            "Set this in Streamlit Cloud Secrets and reboot once:\n\n"
+            "```toml\n"
+            "[database]\n"
+            "url = \"postgresql+psycopg2://USER:PASSWORD@HOST:5432/DBNAME?sslmode=require\"\n"
+            "```"
+        )
+        st.stop()
+
+
 def render_data_persistence_notice(storage_message=None):
     if storage_message:
         st.caption(storage_message)
@@ -2999,6 +3021,7 @@ def dot_chart(values, dates, title, color, height=260):
 
 
 enforce_google_login()
+enforce_persistent_storage_on_cloud()
 init_db()
 storage_migration_message = migrate_local_sqlite_to_configured_db()
 
