@@ -249,7 +249,19 @@ def _list_events_for_range_cached(user_email, start_iso, end_iso, calendar_ids_t
             "maxResults": 250,
         }
         response = requests.get(endpoint, headers=headers, params=params, timeout=25)
-        response.raise_for_status()
+        if response.status_code >= 400:
+            try:
+                payload = response.json()
+                message = (
+                    payload.get("error", {}).get("message")
+                    or payload.get("message")
+                    or response.text
+                )
+            except Exception:
+                message = response.text
+            raise RuntimeError(
+                f"Calendar API error ({response.status_code}) for '{calendar_id}': {message}"
+            )
         payload = response.json()
         for event in payload.get("items", []):
             if event.get("status") == "cancelled":

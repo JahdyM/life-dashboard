@@ -13,7 +13,7 @@ PRIORITY_TAGS = ["High", "Medium", "Low"]
 
 
 def _get_calendar_ids(ctx, user_email):
-    primary = user_email
+    primary = "primary"
     secret_getter = ctx["helpers"]["get_secret"]
 
     if user_email == ctx["constants"]["JAHDY_EMAIL"]:
@@ -24,7 +24,16 @@ def _get_calendar_ids(ctx, user_email):
         raw = ""
 
     extra = [item.strip() for item in str(raw).split(",") if item.strip()]
-    return [primary] + [item for item in extra if item != primary]
+    calendar_ids = [primary] + [item for item in extra if item and item != primary]
+    # Keep stable ordering and remove duplicates.
+    dedup = []
+    seen = set()
+    for item in calendar_ids:
+        if item in seen:
+            continue
+        seen.add(item)
+        dedup.append(item)
+    return dedup
 
 
 def _handle_google_oauth_callback(user_email):
