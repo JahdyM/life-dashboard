@@ -864,7 +864,51 @@ def normalize_time_value(value):
     return value_str[:5] if value_str else None
 
 
-def add_todo_task(title, source="manual", scheduled_date=None, scheduled_time=None):
+def normalize_priority_tag(value):
+    if value in PRIORITY_TAGS:
+        return value
+    return "Medium"
+
+
+def parse_minutes(value):
+    if value is None:
+        return None
+    try:
+        minutes = int(value)
+    except Exception:
+        return None
+    return minutes if minutes > 0 else None
+
+
+def priority_meta(priority_tag):
+    tag = normalize_priority_tag(priority_tag)
+    meta = PRIORITY_META[tag]
+    return tag, meta["weight"], meta["color"]
+
+
+def format_time_interval(start_time, estimated_minutes):
+    start = normalize_time_value(start_time)
+    if not start:
+        return "No time"
+    est_minutes = parse_minutes(estimated_minutes)
+    if not est_minutes:
+        return start
+    try:
+        start_dt = datetime.strptime(start, "%H:%M")
+        end_dt = start_dt + timedelta(minutes=est_minutes)
+    except Exception:
+        return start
+    return f"{start} - {end_dt.strftime('%H:%M')}"
+
+
+def add_todo_task(
+    title,
+    source="manual",
+    scheduled_date=None,
+    scheduled_time=None,
+    priority_tag="Medium",
+    estimated_minutes=None,
+):
     clean_title = (title or "").strip()
     if not clean_title:
         return None
@@ -876,6 +920,9 @@ def add_todo_task(title, source="manual", scheduled_date=None, scheduled_time=No
         "source": source,
         "scheduled_date": scheduled_date.isoformat() if scheduled_date else None,
         "scheduled_time": normalize_time_value(scheduled_time),
+        "priority_tag": normalize_priority_tag(priority_tag),
+        "estimated_minutes": parse_minutes(estimated_minutes),
+        "actual_minutes": None,
         "is_done": 0,
         "created_at": datetime.utcnow().isoformat(),
     }
@@ -884,8 +931,14 @@ def add_todo_task(title, source="manual", scheduled_date=None, scheduled_time=No
             sql_text(
                 f"""
                 INSERT INTO {TASKS_TABLE}
-                (id, user_email, title, source, scheduled_date, scheduled_time, is_done, created_at)
-                VALUES (:id, :user_email, :title, :source, :scheduled_date, :scheduled_time, :is_done, :created_at)
+                (
+                    id, user_email, title, source, scheduled_date, scheduled_time,
+                    priority_tag, estimated_minutes, actual_minutes, is_done, created_at
+                )
+                VALUES (
+                    :id, :user_email, :title, :source, :scheduled_date, :scheduled_time,
+                    :priority_tag, :estimated_minutes, :actual_minutes, :is_done, :created_at
+                )
                 """
             ),
             payload,
@@ -899,7 +952,9 @@ def list_todo_tasks():
         rows = conn.execute(
             sql_text(
                 f"""
-                SELECT id, user_email, title, source, scheduled_date, scheduled_time, is_done, created_at
+                SELECT
+                    id, user_email, title, source, scheduled_date, scheduled_time,
+                    priority_tag, estimated_minutes, actual_minutes, is_done, created_at
                 FROM {TASKS_TABLE}
                 WHERE user_email = :user_email
                 ORDER BY created_at DESC
@@ -916,7 +971,9 @@ def get_todo_task_subtasks(task_id):
         rows = conn.execute(
             sql_text(
                 f"""
-                SELECT id, task_id, user_email, title, is_done, created_at
+                SELECT
+                    id, task_id, user_email, title, priority_tag, estimated_minutes, actual_minutes,
+                    is_done, created_at
                 FROM {SUBTASKS_TABLE}
                 WHERE user_email = :user_email AND task_id = :task_id
                 ORDER BY created_at ASC
