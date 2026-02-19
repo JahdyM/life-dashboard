@@ -40,18 +40,16 @@ GUILHERME_EMAIL = "guilherme.m.rods@gmail.com"
 USER_PROFILES = {
     JAHDY_EMAIL: {
         "name": "Jahdy",
-        "calendar_ics_url": (
-            "https://calendar.google.com/calendar/ical/"
-            "jahdy.moreno%40gmail.com/private-110b8ad9714a64bf4be6c343b0051282/basic.ics"
-        ),
-        "calendar_public_ics_url": (
-            "https://calendar.google.com/calendar/ical/jahdy.moreno%40gmail.com/public/basic.ics"
+        "calendar_ics_url": os.getenv(
+            "JAHDY_GOOGLE_CALENDAR_ICS",
+            "https://calendar.google.com/calendar/ical/jahdy.moreno%40gmail.com/public/basic.ics",
         ),
     },
     GUILHERME_EMAIL: {
         "name": "Guilherme",
-        "calendar_ics_url": (
-            "https://calendar.google.com/calendar/ical/guilherme.m.rods%40gmail.com/public/basic.ics"
+        "calendar_ics_url": os.getenv(
+            "GUILHERME_GOOGLE_CALENDAR_ICS",
+            "https://calendar.google.com/calendar/ical/guilherme.m.rods%40gmail.com/public/basic.ics",
         ),
     },
 }
@@ -858,17 +856,6 @@ def normalize_time_value(value):
         return value.strftime("%H:%M")
     value_str = str(value).strip()
     return value_str[:5] if value_str else None
-
-
-def get_calendar_preferences():
-    provider = get_setting("calendar_provider") or "none"
-    ics_url = (get_setting("calendar_ics_url") or "").strip()
-    return provider, ics_url
-
-
-def save_calendar_preferences(provider, ics_url):
-    set_setting("calendar_provider", provider)
-    set_setting("calendar_ics_url", (ics_url or "").strip())
 
 
 def add_todo_task(title, source="manual", scheduled_date=None, scheduled_time=None):
@@ -1722,60 +1709,44 @@ with left_col:
 with right_col:
     st.markdown("<div class='section-title'>Calendar + To-do</div>", unsafe_allow_html=True)
 
-    calendar_embed_url = current_user_profile.get("calendar_embed_url")
-    if calendar_embed_url:
-        day_view_url = build_google_calendar_day_view_url(calendar_embed_url, selected_date)
-        st.markdown("<div class='small-label'>Your fixed Google Calendar</div>", unsafe_allow_html=True)
-        st.caption(f"Daily view • {selected_date.strftime('%d/%m/%Y')}")
-        components.html(
-            (
-                f"<iframe src=\"{day_view_url}\" "
-                "style=\"border:solid 1px #cbb9a5;border-radius:10px;background:#fff;\" "
-                "width=\"100%\" height=\"620\" frameborder=\"0\" scrolling=\"no\"></iframe>"
-            ),
-            height=635,
+    default_ics_url = (current_user_profile.get("calendar_ics_url") or "").strip()
+    if not default_ics_url:
+        default_ics_url = (
+            "https://calendar.google.com/calendar/ical/"
+            f"{current_user_email.replace('@', '%40')}/public/basic.ics"
         )
+    user_ics_url = (get_setting("calendar_ics_url") or "").strip()
+    ics_url = user_ics_url or default_ics_url
 
-    current_provider, current_ics_url = get_calendar_preferences()
-    if "calendar_provider" not in st.session_state:
-        st.session_state["calendar_provider"] = current_provider
-    if "calendar_ics_url" not in st.session_state:
-        st.session_state["calendar_ics_url"] = current_ics_url
+    if st.session_state.get("calendar_ics_url_input_user") != current_user_email:
+        st.session_state["calendar_ics_url_input"] = ics_url
+        st.session_state["calendar_ics_url_input_user"] = current_user_email
 
-    provider_options = {
-        "none": "No iCal sync",
-        "notion_ical": "Notion Calendar (iCal URL)",
-        "google_ical": "Google Calendar (iCal URL)",
-        "other_ical": "Other iCal URL",
-    }
-    with st.expander("Optional: sync hourly events from iCal feed"):
-        selected_provider = st.selectbox(
-            "Calendar source",
-            options=list(provider_options.keys()),
-            format_func=lambda key: provider_options[key],
-            key="calendar_provider",
-        )
-        ics_disabled = selected_provider == "none"
+    with st.expander("Calendar sync (Google iCal)"):
+        st.caption("Imports only events/tasks for the selected day (no full-month Google iframe).")
         st.text_input(
-            "Calendar iCal URL",
-            key="calendar_ics_url",
-            disabled=ics_disabled,
-            placeholder="https://...ics",
+            "Google Calendar iCal URL",
+            key="calendar_ics_url_input",
+            type="password",
+            placeholder="https://calendar.google.com/calendar/ical/.../basic.ics",
         )
-        if st.button("Save calendar integration", key="save_calendar_integration"):
-            save_calendar_preferences(
-                st.session_state.get("calendar_provider", "none"),
-                st.session_state.get("calendar_ics_url", ""),
-            )
-            st.success("Calendar settings saved.")
+        cfg_cols = st.columns(2)
+        with cfg_cols[0]:
+            if st.button("Save iCal URL", key="save_calendar_ics"):
+                set_setting("calendar_ics_url", st.session_state.get("calendar_ics_url_input", "").strip())
+                st.success("Calendar URL saved for this user.")
+                st.rerun()
+        with cfg_cols[1]:
+            if st.button("Use account default", key="reset_calendar_ics"):
+                set_setting("calendar_ics_url", "")
+                st.success("Default calendar URL restored.")
+                st.rerun()
 
-    provider = st.session_state.get("calendar_provider", "none")
-    ics_url = st.session_state.get("calendar_ics_url", "").strip() if provider != "none" else ""
     external_events = []
     calendar_error = None
-    if provider != "none" and ics_url:
+    if ics_url:
         external_events, calendar_error = fetch_ics_events(ics_url)
-    elif provider != "none":
+    else:
         calendar_error = "Set the iCal URL to load scheduled events."
     if calendar_error:
         st.warning(calendar_error)
@@ -1791,31 +1762,100 @@ with right_col:
         task for task in tasks
         if task.get("scheduled_date") == selected_iso
     ]
+    task_subtasks_cache = {
+        task["id"]: get_todo_task_subtasks(task["id"])
+        for task in day_internal_tasks
+    }
 
     event_done_map = get_calendar_event_done_map(
         selected_date,
         [event["event_key"] for event in day_calendar_events],
     )
 
-    timeline_items = []
+    st.markdown("<div class='section-title'>Calendar</div>", unsafe_allow_html=True)
+    st.caption(f"Daily view for {selected_date.strftime('%d/%m/%Y')}")
+
+    calendar_items = []
     for event in day_calendar_events:
-        timeline_items.append(
+        event_done = bool(event_done_map.get(event["event_key"], False))
+        if event["is_all_day"]:
+            time_label = "All day"
+            time_sort = "00:00"
+        elif event["start_time"] and event["end_time"]:
+            time_label = f"{event['start_time']} - {event['end_time']}"
+            time_sort = event["start_time"]
+        else:
+            time_label = event.get("start_time") or "No time"
+            time_sort = event.get("start_time") or "23:59"
+        calendar_items.append(
             {
+                "id": event["event_key"],
+                "source": "calendar",
                 "title": event["title"],
-                "time": event["start_time"],
-            }
-        )
-    for task in day_internal_tasks:
-        timeline_items.append(
-            {
-                "title": task.get("title") or "",
-                "time": task.get("scheduled_time"),
+                "time_label": time_label,
+                "time_sort": time_sort,
+                "done": event_done,
+                "has_subtasks": False,
             }
         )
 
-    st.markdown("<div class='small-label'>Calendar timeline (hourly)</div>", unsafe_allow_html=True)
-    schedule_rows = build_hourly_schedule_rows(timeline_items)
-    st.dataframe(pd.DataFrame(schedule_rows), hide_index=True, use_container_width=True)
+    for task in day_internal_tasks:
+        subtasks = task_subtasks_cache.get(task["id"], [])
+        progress = get_task_progress(task, subtasks)
+        calendar_items.append(
+            {
+                "id": task["id"],
+                "source": "todo",
+                "title": task.get("title") or "",
+                "time_label": task.get("scheduled_time") or "No time",
+                "time_sort": task.get("scheduled_time") or "23:59",
+                "done": progress >= 100,
+                "has_subtasks": len(subtasks) > 0,
+            }
+        )
+
+    calendar_items.sort(key=lambda item: (item["time_sort"], item["title"]))
+    if not calendar_items:
+        st.caption("No events or scheduled tasks for this day.")
+    else:
+        for item in calendar_items:
+            item_key = safe_widget_key(item["id"])
+            row_cols = st.columns([0.6, 5, 1.5, 1.2])
+            with row_cols[0]:
+                if item["source"] == "calendar":
+                    done = st.checkbox(
+                        "done",
+                        value=item["done"],
+                        key=f"calendar_day_done_{item_key}",
+                        label_visibility="collapsed",
+                    )
+                    if done != item["done"]:
+                        set_calendar_event_done(item["id"], selected_date, done)
+                        st.rerun()
+                else:
+                    done = st.checkbox(
+                        "done",
+                        value=item["done"],
+                        key=f"calendar_task_done_{item_key}",
+                        disabled=item["has_subtasks"],
+                        label_visibility="collapsed",
+                    )
+                    if not item["has_subtasks"] and done != item["done"]:
+                        set_todo_task_done(item["id"], done)
+                        st.rerun()
+            with row_cols[1]:
+                st.markdown(f"**{item['title']}**")
+            with row_cols[2]:
+                st.markdown(item["time_label"])
+            with row_cols[3]:
+                source_label = "Google" if item["source"] == "calendar" else "To-do"
+                st.markdown(
+                    f"<span style='color:#c8bbd8;font-size:12px;'>{source_label}</span>",
+                    unsafe_allow_html=True,
+                )
+            st.divider()
+
+    st.markdown("<div class='section-title'>To-do List</div>", unsafe_allow_html=True)
 
     with st.form("add_manual_task_form"):
         st.markdown("<div class='small-label'>Add task for this day</div>", unsafe_allow_html=True)
@@ -1899,7 +1939,7 @@ with right_col:
         )
 
     for task in day_internal_tasks:
-        subtasks = get_todo_task_subtasks(task["id"])
+        subtasks = task_subtasks_cache.get(task["id"], [])
         progress = get_task_progress(task, subtasks)
         done = progress >= 100
         priority_label, priority_weight, priority_color = compute_auto_priority(
