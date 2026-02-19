@@ -100,6 +100,16 @@ PRIORITY_META = {
     "Low": {"weight": 1, "color": "#8FB6D9"},
 }
 
+PINTEREST_MOOD_LINKS = [
+    "https://pin.it/663z0YrI0",
+    "https://pin.it/6X1bivk29",
+    "https://pin.it/72wKVio1I",
+    "https://pin.it/3NXG9cSQ4",
+    "https://pin.it/DPWzlzuoR",
+    "https://pin.it/1719yUkPi",
+    "https://pin.it/3F61d82Z0",
+]
+
 
 st.set_page_config(page_title="Personal Life Dashboard", layout="wide")
 
@@ -481,6 +491,52 @@ div[data-baseweb="calendar"] button[aria-selected="true"] {
     color: #9f95ad;
     background: rgba(159, 149, 173, 0.16);
     border-color: rgba(159, 149, 173, 0.25);
+}
+
+.aesthetic-wrap {
+    margin: 10px 0 14px 0;
+}
+
+.aesthetic-mosaic {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.aesthetic-tile {
+    overflow: hidden;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+    min-height: 82px;
+}
+
+.aesthetic-tile img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: saturate(0.82) contrast(0.92) brightness(0.86);
+}
+
+.aesthetic-1 { grid-column: span 4; grid-row: span 2; min-height: 176px; }
+.aesthetic-2 { grid-column: span 4; min-height: 84px; }
+.aesthetic-3 { grid-column: span 4; min-height: 84px; }
+.aesthetic-4 { grid-column: span 3; min-height: 90px; }
+.aesthetic-5 { grid-column: span 3; min-height: 90px; }
+.aesthetic-6 { grid-column: span 3; min-height: 90px; }
+.aesthetic-7 { grid-column: span 3; min-height: 90px; }
+
+@media (max-width: 900px) {
+    .aesthetic-1,
+    .aesthetic-2,
+    .aesthetic-3,
+    .aesthetic-4,
+    .aesthetic-5,
+    .aesthetic-6,
+    .aesthetic-7 {
+        grid-column: span 6;
+        min-height: 100px;
+    }
 }
 
 div[data-testid="stHeader"], div[data-testid="stToolbar"] {
