@@ -2,12 +2,19 @@ import os
 from datetime import date, datetime, timedelta
 import calendar
 from urllib.parse import urlparse
+from uuid import uuid4
 
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+import requests
 import streamlit as st
 from sqlalchemy import create_engine, inspect, text as sql_text
+
+try:
+    from icalendar import Calendar
+except Exception:
+    Calendar = None
 
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "life_dashboard.db")
@@ -39,6 +46,23 @@ HABITS = [
     ("writing", "Writing"),
     ("scientific_writing", "Scientific Writing"),
 ]
+MEETING_HABIT_KEYS = {"meeting_attended", "prepare_meeting"}
+
+ENTRY_DATA_COLUMNS = [h[0] for h in HABITS] + [
+    "sleep_hours",
+    "anxiety_level",
+    "work_hours",
+    "boredom_minutes",
+    "mood_category",
+    "priority_label",
+    "priority_done",
+]
+ENTRY_COLUMNS = ["date"] + ENTRY_DATA_COLUMNS
+ENTRIES_TABLE = "daily_entries_user"
+LEGACY_ENTRIES_TABLE = "daily_entries"
+TASKS_TABLE = "todo_tasks"
+SUBTASKS_TABLE = "todo_subtasks"
+CALENDAR_STATUS_TABLE = "calendar_event_status"
 
 MOODS = ["Paz", "Felicidade", "Ansiedade", "Medo", "Raiva", "Neutro"]
 MOOD_COLORS = {
@@ -452,6 +476,22 @@ def enforce_google_login():
             st.logout()
 
 
+def get_current_user_email():
+    user_email = str(getattr(st.user, "email", "")).strip().lower()
+    if user_email:
+        return user_email
+    fallback_email = (
+        get_secret(("app", "allowed_email"))
+        or os.getenv("ALLOWED_EMAIL")
+        or "local@offline"
+    ).strip().lower()
+    return fallback_email or "local@offline"
+
+
+def scoped_setting_key(key):
+    return f"{get_current_user_email()}::{key}"
+
+
 @st.cache_resource
 def get_engine(database_url):
     if database_url.startswith("sqlite"):
@@ -465,21 +505,23 @@ def get_engine(database_url):
 
 def init_db():
     engine = get_engine(get_database_url())
-    columns = ",\n    ".join([f"{key} INTEGER DEFAULT 0" for key, _ in HABITS])
+    habit_columns = ",\n    ".join([f"{key} INTEGER DEFAULT 0" for key, _ in HABITS])
     with engine.begin() as conn:
         conn.execute(
             sql_text(
                 f"""
-                CREATE TABLE IF NOT EXISTS daily_entries (
-                    date TEXT PRIMARY KEY,
-                    {columns},
+                CREATE TABLE IF NOT EXISTS {ENTRIES_TABLE} (
+                    user_email TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    {habit_columns},
                     sleep_hours REAL,
                     anxiety_level INTEGER,
                     work_hours REAL,
                     boredom_minutes INTEGER,
                     mood_category TEXT,
                     priority_label TEXT,
-                    priority_done INTEGER DEFAULT 0
+                    priority_done INTEGER DEFAULT 0,
+                    PRIMARY KEY (user_email, date)
                 )
                 """
             )
@@ -494,39 +536,124 @@ def init_db():
                 """
             )
         )
+        conn.execute(
+            sql_text(
+                f"""
+                CREATE TABLE IF NOT EXISTS {TASKS_TABLE} (
+                    id TEXT PRIMARY KEY,
+                    user_email TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    scheduled_date TEXT,
+                    scheduled_time TEXT,
+                    is_done INTEGER DEFAULT 0,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+        )
+        conn.execute(
+            sql_text(
+                f"""
+                CREATE TABLE IF NOT EXISTS {SUBTASKS_TABLE} (
+                    id TEXT PRIMARY KEY,
+                    task_id TEXT NOT NULL,
+                    user_email TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    is_done INTEGER DEFAULT 0,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+        )
+        conn.execute(
+            sql_text(
+                f"""
+                CREATE TABLE IF NOT EXISTS {CALENDAR_STATUS_TABLE} (
+                    user_email TEXT NOT NULL,
+                    event_key TEXT NOT NULL,
+                    event_date TEXT NOT NULL,
+                    is_done INTEGER DEFAULT 0,
+                    PRIMARY KEY (user_email, event_key, event_date)
+                )
+                """
+            )
+        )
 
-    # Ensure new columns exist for existing databases
-    existing_cols = {
-        col["name"] for col in inspect(engine).get_columns("daily_entries")
-    }
+    # Migrate legacy data (date-based table) to user-scoped table once.
+    inspector = inspect(engine)
+    if not inspector.has_table(LEGACY_ENTRIES_TABLE):
+        return
+    legacy_columns = {col["name"] for col in inspector.get_columns(LEGACY_ENTRIES_TABLE)}
+    if "date" not in legacy_columns:
+        return
+    with engine.connect() as conn:
+        existing_count = conn.execute(
+            sql_text(f"SELECT COUNT(*) FROM {ENTRIES_TABLE}")
+        ).scalar_one()
+    if existing_count > 0:
+        return
+
+    legacy_select_columns = [col for col in ENTRY_COLUMNS if col in legacy_columns]
+    owner_email = get_current_user_email()
+    select_query = (
+        f"SELECT {', '.join(legacy_select_columns)} FROM {LEGACY_ENTRIES_TABLE}"
+    )
+    with engine.connect() as conn:
+        legacy_rows = conn.execute(sql_text(select_query)).mappings().all()
+    if not legacy_rows:
+        return
+
+    insert_columns = ["user_email"] + ENTRY_COLUMNS
+    placeholders = ", ".join([f":{col}" for col in insert_columns])
+    updates = ", ".join([f"{col}=EXCLUDED.{col}" for col in ENTRY_DATA_COLUMNS])
     with engine.begin() as conn:
-        if "priority_label" not in existing_cols:
-            conn.execute(sql_text("ALTER TABLE daily_entries ADD COLUMN priority_label TEXT"))
-        if "priority_done" not in existing_cols:
-            conn.execute(sql_text("ALTER TABLE daily_entries ADD COLUMN priority_done INTEGER DEFAULT 0"))
+        for row in legacy_rows:
+            payload = {
+                "user_email": owner_email,
+                "date": row.get("date"),
+                "sleep_hours": 0,
+                "anxiety_level": 1,
+                "work_hours": 0,
+                "boredom_minutes": 0,
+                "mood_category": None,
+                "priority_label": "",
+                "priority_done": 0,
+            }
+            for key, _ in HABITS:
+                payload[key] = 0
+            for col in legacy_select_columns:
+                payload[col] = row.get(col)
+            if not payload.get("date"):
+                continue
+            conn.execute(
+                sql_text(
+                    f"""
+                    INSERT INTO {ENTRIES_TABLE} ({', '.join(insert_columns)})
+                    VALUES ({placeholders})
+                    ON CONFLICT(user_email, date) DO UPDATE SET {updates}
+                    """
+                ),
+                payload,
+            )
 
 
 def upsert_entry(payload):
     engine = get_engine(get_database_url())
-    columns = ["date"] + [h[0] for h in HABITS] + [
-        "sleep_hours",
-        "anxiety_level",
-        "work_hours",
-        "boredom_minutes",
-        "mood_category",
-        "priority_label",
-        "priority_done",
-    ]
+    columns = ["user_email"] + ENTRY_COLUMNS
     placeholders = ", ".join([f":{col}" for col in columns])
-    updates = ", ".join([f"{col}=EXCLUDED.{col}" for col in columns[1:]])
-    values = {col: payload.get(col) for col in columns}
+    updates = ", ".join([f"{col}=EXCLUDED.{col}" for col in ENTRY_DATA_COLUMNS])
+    values = {
+        "user_email": get_current_user_email(),
+        **{col: payload.get(col) for col in ENTRY_COLUMNS},
+    }
     with engine.begin() as conn:
         conn.execute(
             sql_text(
                 f"""
-                INSERT INTO daily_entries ({', '.join(columns)})
+                INSERT INTO {ENTRIES_TABLE} ({', '.join(columns)})
                 VALUES ({placeholders})
-                ON CONFLICT(date) DO UPDATE SET {updates}
+                ON CONFLICT(user_email, date) DO UPDATE SET {updates}
                 """
             ),
             values,
@@ -535,31 +662,44 @@ def upsert_entry(payload):
 
 def delete_entries(start_date, end_date=None):
     engine = get_engine(get_database_url())
+    user_email = get_current_user_email()
     with engine.begin() as conn:
         if end_date is None:
             cursor = conn.execute(
-                sql_text("DELETE FROM daily_entries WHERE date = :start"),
-                {"start": start_date.isoformat()},
+                sql_text(
+                    f"DELETE FROM {ENTRIES_TABLE} "
+                    "WHERE user_email = :user_email AND date = :start"
+                ),
+                {"user_email": user_email, "start": start_date.isoformat()},
             )
         else:
             cursor = conn.execute(
-                sql_text("DELETE FROM daily_entries WHERE date BETWEEN :start AND :end"),
-                {"start": start_date.isoformat(), "end": end_date.isoformat()},
+                sql_text(
+                    f"DELETE FROM {ENTRIES_TABLE} "
+                    "WHERE user_email = :user_email AND date BETWEEN :start AND :end"
+                ),
+                {
+                    "user_email": user_email,
+                    "start": start_date.isoformat(),
+                    "end": end_date.isoformat(),
+                },
             )
     return cursor.rowcount if cursor.rowcount is not None else 0
 
 
-def get_setting(key):
+def get_setting(key, scoped=True):
+    setting_key = scoped_setting_key(key) if scoped else key
     engine = get_engine(get_database_url())
     with engine.connect() as conn:
         row = conn.execute(
             sql_text("SELECT value FROM settings WHERE key = :key"),
-            {"key": key},
+            {"key": setting_key},
         ).fetchone()
     return row[0] if row else None
 
 
-def set_setting(key, value):
+def set_setting(key, value, scoped=True):
+    setting_key = scoped_setting_key(key) if scoped else key
     engine = get_engine(get_database_url())
     with engine.begin() as conn:
         conn.execute(
@@ -567,12 +707,17 @@ def set_setting(key, value):
                 "INSERT INTO settings (key, value) VALUES (:key, :value) "
                 "ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value"
             ),
-            {"key": key, "value": value},
+            {"key": setting_key, "value": value},
         )
 
 
 def get_meeting_days():
     raw = get_setting("meeting_days")
+    if not raw:
+        legacy_raw = get_setting("meeting_days", scoped=False)
+        if legacy_raw:
+            raw = legacy_raw
+            set_setting("meeting_days", raw)
     if not raw:
         default_days = [1, 3]
         set_setting("meeting_days", ",".join(map(str, default_days)))
@@ -592,8 +737,16 @@ def save_meeting_days():
 
 def load_data():
     engine = get_engine(get_database_url())
+    user_email = get_current_user_email()
     with engine.connect() as conn:
-        df = pd.read_sql(sql_text("SELECT * FROM daily_entries"), conn)
+        df = pd.read_sql(
+            sql_text(
+                f"SELECT * FROM {ENTRIES_TABLE} "
+                "WHERE user_email = :user_email ORDER BY date"
+            ),
+            conn,
+            params={"user_email": user_email},
+        )
     if df.empty:
         return df
     if "priority_label" not in df.columns:
@@ -628,7 +781,8 @@ def get_entry_for_date(entry_date, data):
 
 
 def load_entry_into_state(entry_date, entry):
-    if st.session_state.get("loaded_date") == entry_date:
+    loaded_key = (get_current_user_email(), entry_date.isoformat())
+    if st.session_state.get("loaded_entry_key") == loaded_key:
         return
     for key, _ in HABITS:
         st.session_state[f"input_{key}"] = bool(entry.get(key, 0) or 0)
@@ -639,7 +793,7 @@ def load_entry_into_state(entry_date, entry):
     st.session_state["input_mood_category"] = entry.get("mood_category") or MOODS[0]
     st.session_state["input_priority_label"] = entry.get("priority_label") or ""
     st.session_state["input_priority_done"] = bool(entry.get("priority_done", 0) or 0)
-    st.session_state["loaded_date"] = entry_date
+    st.session_state["loaded_entry_key"] = loaded_key
 
 
 def auto_save():
@@ -981,7 +1135,7 @@ st.multiselect(
 )
 
 if not is_meeting_day:
-    st.caption("Meeting habits are only enabled on scheduled meeting days.")
+    st.caption("Meeting habits are hidden on non-meeting days.")
 
 st.markdown("<div class='small-label' style='margin-top:6px;'>Daily priority habit</div>", unsafe_allow_html=True)
 priority_cols = st.columns([3, 1])
@@ -994,9 +1148,10 @@ with priority_cols[1]:
 st.markdown("<div class='small-label'>Habits</div>", unsafe_allow_html=True)
 habit_cols = st.columns(2)
 for i, (key, label) in enumerate(HABITS):
+    if key in MEETING_HABIT_KEYS and not is_meeting_day:
+        continue
     with habit_cols[i % 2]:
-        disabled = key in ("meeting_attended", "prepare_meeting") and not is_meeting_day
-        st.checkbox(label, key=f"input_{key}", on_change=auto_save, disabled=disabled)
+        st.checkbox(label, key=f"input_{key}", on_change=auto_save)
 
 st.markdown("<div class='small-label' style='margin-top:8px;'>Daily Metrics</div>", unsafe_allow_html=True)
 metric_cols = st.columns(5)
