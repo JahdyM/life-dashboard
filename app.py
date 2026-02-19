@@ -2910,12 +2910,7 @@ with right_col:
     st.metric("Total task score", todo_score)
     st.caption(build_time_estimation_insight(day_internal_tasks, task_subtasks_cache))
     st.caption("To complete manual tasks/subtasks, set `Actual min` greater than zero.")
-    task_list_head_cols = st.columns([3.3, 1.3], gap="small")
-    with task_list_head_cols[0]:
-        st.markdown("<div class='small-label'>Daily tasks list</div>", unsafe_allow_html=True)
-    with task_list_head_cols[1]:
-        if aesthetic_image_urls:
-            st.markdown(build_aesthetic_side_html(aesthetic_image_urls, offset=3), unsafe_allow_html=True)
+    st.markdown("<div class='small-label'>Daily tasks list</div>", unsafe_allow_html=True)
     if not combined_items:
         st.caption("No tasks for this day yet.")
     for item in combined_items:
