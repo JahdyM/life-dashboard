@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: life-dashboard-api
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port 10000
+    autoDeploy: true
+
+  - type: worker
+    name: life-dashboard-sync
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m backend.workers.sync_worker
+    autoDeploy: true
