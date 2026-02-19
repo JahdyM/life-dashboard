@@ -1,5 +1,6 @@
 import os
 import re
+import html
 from datetime import date, datetime, timedelta
 import calendar
 from urllib.parse import urlparse
@@ -474,6 +475,7 @@ div[data-baseweb="calendar"] button[aria-selected="true"] {
     border-radius: 999px;
     padding: 1px 6px;
     border: 1px solid transparent;
+    cursor: help;
 }
 
 .cal-google {
