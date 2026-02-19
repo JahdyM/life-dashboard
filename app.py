@@ -1341,12 +1341,6 @@ def init_db():
         )
         conn.execute(
             sql_text(
-                f"CREATE INDEX IF NOT EXISTS idx_{TASKS_TABLE}_user_google_event "
-                f"ON {TASKS_TABLE} (user_email, google_calendar_id, google_event_id)"
-            )
-        )
-        conn.execute(
-            sql_text(
                 f"CREATE INDEX IF NOT EXISTS idx_{SUBTASKS_TABLE}_user_task "
                 f"ON {SUBTASKS_TABLE} (user_email, task_id)"
             )
@@ -1373,6 +1367,13 @@ def init_db():
         except Exception:
             pass
 
+    def ensure_index(index_sql):
+        try:
+            with engine.begin() as conn:
+                conn.execute(sql_text(index_sql))
+        except Exception:
+            pass
+
     ensure_column(TASKS_TABLE, "priority_tag", "TEXT DEFAULT 'Medium'")
     ensure_column(TASKS_TABLE, "estimated_minutes", "INTEGER")
     ensure_column(TASKS_TABLE, "actual_minutes", "INTEGER")
@@ -1387,6 +1388,10 @@ def init_db():
     ensure_column(ENTRIES_TABLE, "mood_media_url", "TEXT")
     ensure_column(ENTRIES_TABLE, "mood_tags_json", "TEXT")
     ensure_column(ENTRIES_TABLE, "updated_at", "TEXT")
+    ensure_index(
+        f"CREATE INDEX IF NOT EXISTS idx_{TASKS_TABLE}_user_google_event "
+        f"ON {TASKS_TABLE} (user_email, google_calendar_id, google_event_id)"
+    )
 
     # Migrate legacy data (date-based table) to user-scoped table once.
     inspector = inspect(engine)
