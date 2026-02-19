@@ -352,6 +352,12 @@ def save_activity(activity_patch):
             payload = dict(activity_patch)
             payload.pop("user_email", None)
             if task_id:
+                payload.pop("id", None)
+            if "scheduled_date" in payload and isinstance(payload.get("scheduled_date"), date):
+                payload["scheduled_date"] = payload["scheduled_date"].isoformat()
+            if "scheduled_time" in payload:
+                payload["scheduled_time"] = _normalize_time_value(payload.get("scheduled_time"))
+            if task_id:
                 response = api_client.request("PATCH", f"/v1/tasks/{task_id}", json=payload)
                 _invalidate()
                 return response

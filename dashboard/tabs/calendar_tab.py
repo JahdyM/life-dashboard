@@ -203,21 +203,32 @@ def render_calendar_tab(ctx):
     start_day, end_day = _range_from_view(selected_day, view_mode, week_ref, month_ref, month_last_day)
 
     _sync_google_if_connected(user_email, connected, start_day, end_day, calendar_ids)
-    if api_client.is_enabled():
-        try:
-            payload = api_client.request(
-                "GET",
-                "/v1/tasks",
-                params={"start": start_day.isoformat(), "end": end_day.isoformat()},
-            )
-            range_tasks = payload.get("items", [])
-            subtasks = payload.get("subtasks", {})
-        except Exception:
+
+    cache_key = f"{user_email}:{start_day.isoformat()}:{end_day.isoformat()}"
+    force_refresh = bool(st.session_state.get("calendar.force_refresh", False))
+    cached = st.session_state.get("calendar.range_cache", {})
+    if (not force_refresh) and cached.get("key") == cache_key:
+        range_tasks = cached.get("items", [])
+        subtasks = cached.get("subtasks", {})
+    else:
+        if api_client.is_enabled():
+            try:
+                payload = api_client.request(
+                    "GET",
+                    "/v1/tasks",
+                    params={"start": start_day.isoformat(), "end": end_day.isoformat()},
+                )
+                range_tasks = payload.get("items", [])
+                subtasks = payload.get("subtasks", {})
+            except Exception:
+                range_tasks = repositories.list_activities_for_range(user_email, start_day, end_day)
+                subtasks = repositories.list_todo_subtasks([item["id"] for item in range_tasks], user_email=user_email)
+        else:
             range_tasks = repositories.list_activities_for_range(user_email, start_day, end_day)
             subtasks = repositories.list_todo_subtasks([item["id"] for item in range_tasks], user_email=user_email)
-    else:
-        range_tasks = repositories.list_activities_for_range(user_email, start_day, end_day)
-        subtasks = repositories.list_todo_subtasks([item["id"] for item in range_tasks], user_email=user_email)
+        st.session_state["calendar.range_cache"] = {"key": cache_key, "items": range_tasks, "subtasks": subtasks}
+        st.session_state["calendar.force_refresh"] = False
+
     day_tasks = [item for item in range_tasks if item.get("scheduled_date") == selected_day.isoformat()]
 
     st.markdown("<div class='small-label'>Open calendar view</div>", unsafe_allow_html=True)
@@ -305,6 +316,7 @@ def render_calendar_tab(ctx):
             except Exception as exc:
                 st.warning(f"Saved locally, but Google sync failed: {exc}")
             draft["title"] = ""
+            st.session_state["calendar.force_refresh"] = True
             st.rerun()
 
     st.markdown("<div class='small-label' style='margin-top:8px;'>Remembered tasks (to decide)</div>", unsafe_allow_html=True)
@@ -334,6 +346,7 @@ def render_calendar_tab(ctx):
                 }
             )
             st.session_state["calendar.remembered.title"] = ""
+            st.session_state["calendar.force_refresh"] = True
             st.rerun()
 
     if api_client.is_enabled():
@@ -387,9 +400,11 @@ def render_calendar_tab(ctx):
                     _sync_created_or_updated_activity_to_google(user_email, task_id, connected, primary_calendar_id)
                 except Exception as exc:
                     st.warning(f"Scheduled locally, but Google sync failed: {exc}")
+                st.session_state["calendar.force_refresh"] = True
                 st.rerun()
             if delete_remembered:
                 repositories.delete_activity(task_id, delete_remote_google=False)
+                st.session_state["calendar.force_refresh"] = True
                 st.rerun()
             st.divider()
 
@@ -495,10 +510,12 @@ def render_calendar_tab(ctx):
                     _sync_created_or_updated_activity_to_google(user_email, task_id, connected, primary_calendar_id)
                 except Exception as exc:
                     st.warning(f"Saved locally, but Google sync failed: {exc}")
+            st.session_state["calendar.force_refresh"] = True
             st.rerun()
 
         if delete_task:
             repositories.delete_activity(task_id, delete_remote_google=True)
+            st.session_state["calendar.force_refresh"] = True
             st.rerun()
 
         sub_items = subtasks.get(task_id, [])
@@ -533,9 +550,11 @@ def render_calendar_tab(ctx):
             if save_sub:
                 if (bool(sub.get("is_done", 0)) != bool(s_done)) or (int(sub.get("actual_minutes") or 0) != int(s_actual_new)):
                     repositories.update_subtask(sub["id"], {"is_done": s_done, "actual_minutes": int(s_actual_new)})
+                st.session_state["calendar.force_refresh"] = True
                 st.rerun()
             if delete_sub:
                 repositories.delete_subtask(sub["id"])
+                st.session_state["calendar.force_refresh"] = True
                 st.rerun()
 
         add_sub_key = f"calendar.sub.new.{task_key}"
@@ -565,6 +584,7 @@ def render_calendar_tab(ctx):
             if clean_sub_title:
                 repositories.add_subtask(task_id, clean_sub_title, estimated_minutes=sub_est)
                 st.session_state[add_sub_key] = ""
+                st.session_state["calendar.force_refresh"] = True
             st.rerun()
 
         st.divider()
