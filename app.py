@@ -3185,19 +3185,19 @@ with left_col:
                 st.markdown(f"<div style='padding-top:6px;'>{html.escape(habit['name'])}</div>", unsafe_allow_html=True)
         with row_cols[2]:
             if st.session_state.get(edit_mode_key, False):
-                if st.button("✅", key=f"save_custom_habit_{row_key}", help="Save name"):
+                if st.button("✔", key=f"save_custom_habit_{row_key}", help="Save name", type="tertiary"):
                     ok, message = rename_custom_habit(habit_id, st.session_state.get(edit_name_key, ""))
                     if ok:
                         st.session_state[edit_mode_key] = False
                         st.rerun()
                     st.warning(message)
             else:
-                if st.button("✏️", key=f"edit_custom_habit_{row_key}", help="Edit habit"):
+                if st.button("✎", key=f"edit_custom_habit_{row_key}", help="Edit habit", type="tertiary"):
                     st.session_state[edit_mode_key] = True
                     st.session_state[edit_name_key] = habit["name"]
                     st.rerun()
         with row_cols[3]:
-            if st.button("🗑️", key=f"delete_custom_habit_{row_key}", help="Delete habit"):
+            if st.button("✕", key=f"delete_custom_habit_{row_key}", help="Delete habit", type="tertiary"):
                 remove_custom_habit(habit_id)
                 st.rerun()
 
@@ -3218,7 +3218,7 @@ with left_col:
             placeholder="Add a new habit...",
         )
     with add_cols[2]:
-        if st.button("➕", key="add_custom_habit_inline", help="Add habit"):
+        if st.button("+", key="add_custom_habit_inline", help="Add habit", type="tertiary"):
             ok, message = add_custom_habit(st.session_state.get("new_custom_habit_name_inline", ""))
             if ok:
                 st.session_state["new_custom_habit_name_inline"] = ""
@@ -3518,14 +3518,14 @@ with right_col:
                 if item["source"] == "calendar":
                     action_cols = st.columns(2, gap="small")
                     with action_cols[0]:
-                        if st.button("Custom", key=f"customize_calendar_task_{item_key}", use_container_width=True):
+                        if st.button("✎", key=f"customize_calendar_task_{item_key}", help="Customize", type="tertiary"):
                             create_calendar_override_task(item["event_row"], selected_date)
                             st.rerun()
                     with action_cols[1]:
-                        if st.button("Delete", key=f"hide_calendar_task_{item_key}", use_container_width=True):
+                        if st.button("✕", key=f"hide_calendar_task_{item_key}", help="Delete", type="tertiary"):
                             set_calendar_event_hidden(item["id"], selected_date, True)
                             st.rerun()
-                elif st.button("Delete", key=f"delete_calendar_task_{item_key}", use_container_width=True):
+                elif st.button("✕", key=f"delete_calendar_task_{item_key}", help="Delete", type="tertiary"):
                     delete_todo_task(item["id"])
                     st.rerun()
             st.divider()
@@ -3772,14 +3772,14 @@ with right_col:
             if item["source"] == "calendar":
                 action_cols = st.columns(2, gap="small")
                 with action_cols[0]:
-                    if st.button("Custom", key=f"customize_task_{task_key}", use_container_width=True):
+                    if st.button("✎", key=f"customize_task_{task_key}", help="Customize", type="tertiary"):
                         create_calendar_override_task(item["event_row"], selected_date)
                         st.rerun()
                 with action_cols[1]:
-                    if st.button("Delete", key=f"hide_task_{task_key}", use_container_width=True):
+                    if st.button("✕", key=f"hide_task_{task_key}", help="Delete", type="tertiary"):
                         set_calendar_event_hidden(item["id"], selected_date, True)
                         st.rerun()
-            elif st.button("Delete", key=f"delete_task_{task_key}", use_container_width=True):
+            elif st.button("✕", key=f"delete_task_{task_key}", help="Delete", type="tertiary"):
                 delete_todo_task(item["id"])
                 st.rerun()
 
