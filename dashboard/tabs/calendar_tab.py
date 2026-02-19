@@ -369,45 +369,49 @@ def render_calendar_tab(ctx):
             task_id = task["id"]
             task_key = task_id.replace("-", "_")
             st.markdown(f"**{task.get('title')}**")
-            sch_cols = st.columns([1.6, 1.2, 1.0, 1.0, 0.8, 0.8])
-            with sch_cols[0]:
-                plan_date = st.date_input("Date", value=selected_day, key=f"calendar.rem.plan.date.{task_key}")
-            with sch_cols[1]:
-                has_time = st.checkbox("Time", value=False, key=f"calendar.rem.plan.timeflag.{task_key}")
-            with sch_cols[2]:
-                if has_time:
-                    plan_time = st.time_input(
-                        "Start",
-                        value=datetime.now().replace(second=0, microsecond=0).time(),
-                        key=f"calendar.rem.plan.time.{task_key}",
+            with st.form(key=f"calendar.rem.plan.form.{task_key}", clear_on_submit=False):
+                sch_cols = st.columns([1.6, 1.2, 1.0, 1.0, 1.1, 0.8])
+                with sch_cols[0]:
+                    plan_date = st.date_input("Date", value=selected_day, key=f"calendar.rem.plan.date.{task_key}")
+                with sch_cols[1]:
+                    has_time = st.checkbox("Time", value=False, key=f"calendar.rem.plan.timeflag.{task_key}")
+                with sch_cols[2]:
+                    if has_time:
+                        plan_time = st.time_input(
+                            "Start",
+                            value=datetime.now().replace(second=0, microsecond=0).time(),
+                            key=f"calendar.rem.plan.time.{task_key}",
+                        )
+                    else:
+                        plan_time = None
+                with sch_cols[3]:
+                    plan_priority = st.selectbox(
+                        "Priority",
+                        PRIORITY_TAGS,
+                        index=PRIORITY_TAGS.index(task.get("priority_tag") or "Medium") if task.get("priority_tag") in PRIORITY_TAGS else 1,
+                        key=f"calendar.rem.plan.priority.{task_key}",
                     )
-                else:
-                    plan_time = None
-            with sch_cols[3]:
-                plan_priority = st.selectbox(
-                    "Priority",
-                    PRIORITY_TAGS,
-                    index=PRIORITY_TAGS.index(task.get("priority_tag") or "Medium") if task.get("priority_tag") in PRIORITY_TAGS else 1,
-                    key=f"calendar.rem.plan.priority.{task_key}",
+                with sch_cols[4]:
+                    schedule_now = st.form_submit_button("Confirm schedule", use_container_width=True)
+                with sch_cols[5]:
+                    delete_remembered = st.form_submit_button("✕", use_container_width=True)
+
+            if schedule_now:
+                repositories.save_activity(
+                    {
+                        "id": task_id,
+                        "priority_tag": plan_priority,
+                    }
                 )
-            with sch_cols[4]:
-                if st.button("Schedule", key=f"calendar.rem.plan.save.{task_key}", type="tertiary"):
-                    repositories.save_activity(
-                        {
-                            "id": task_id,
-                            "priority_tag": plan_priority,
-                        }
-                    )
-                    repositories.schedule_remembered_task(task_id, plan_date, plan_time)
-                    try:
-                        _sync_created_or_updated_activity_to_google(user_email, task_id, connected, primary_calendar_id)
-                    except Exception as exc:
-                        st.warning(f"Scheduled locally, but Google sync failed: {exc}")
-                    st.rerun()
-            with sch_cols[5]:
-                if st.button("✕", key=f"calendar.rem.plan.delete.{task_key}", type="tertiary"):
-                    repositories.delete_activity(task_id, delete_remote_google=False)
-                    st.rerun()
+                repositories.schedule_remembered_task(task_id, plan_date, plan_time)
+                try:
+                    _sync_created_or_updated_activity_to_google(user_email, task_id, connected, primary_calendar_id)
+                except Exception as exc:
+                    st.warning(f"Scheduled locally, but Google sync failed: {exc}")
+                st.rerun()
+            if delete_remembered:
+                repositories.delete_activity(task_id, delete_remote_google=False)
+                st.rerun()
             st.divider()
 
     st.markdown("<div class='small-label' style='margin-top:8px;'>Daily tasks list</div>", unsafe_allow_html=True)
