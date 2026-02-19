@@ -656,11 +656,39 @@ def get_secret(path, default=None):
 
 
 def get_database_url():
-    return (
+    raw_value = (
         get_secret(("database", "url"))
+        or get_secret(("DATABASE_URL",))
         or os.getenv("DATABASE_URL")
-        or f"sqlite:///{DB_PATH}"
+        or ""
     )
+    database_url = str(raw_value).strip()
+    if database_url and database_url.lower() not in {"none", "null"}:
+        return database_url
+    return f"sqlite:///{DB_PATH}"
+
+
+def using_local_sqlite(database_url):
+    return str(database_url).strip().lower().startswith("sqlite")
+
+
+def render_data_persistence_notice():
+    database_url = get_database_url()
+    if using_local_sqlite(database_url):
+        st.warning(
+            "Storage mode: local SQLite. If this app runs on Streamlit Cloud, a reboot/redeploy "
+            "can reset the file and erase entries. To persist user data, configure [database].url "
+            "with a free Postgres connection string."
+        )
+        with st.expander("How to fix in 4 steps"):
+            st.markdown(
+                "1. Create a free Postgres database (Neon or Supabase).\n"
+                "2. Copy the connection URL and keep `postgresql+psycopg2://...` format.\n"
+                "3. In Streamlit Cloud, open Settings > Secrets and set `[database] url = \"...\"`.\n"
+                "4. Reboot the app once. Data will stay after restarts."
+            )
+    else:
+        st.caption("Storage mode: persistent external database configured.")
 
 
 def auth_configured():
@@ -2336,6 +2364,7 @@ st.markdown(
     f"<div class='small-label' style='margin-bottom:10px;'>Welcome, <strong>{current_user_name}</strong>.</div>",
     unsafe_allow_html=True,
 )
+render_data_persistence_notice()
 aesthetic_image_urls = get_aesthetic_image_urls(tuple(PINTEREST_MOOD_LINKS))
 
 meeting_days = get_meeting_days()

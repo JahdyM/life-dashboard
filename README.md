@@ -26,13 +26,20 @@
   - `auth.google.client_secret`
   - `auth.redirect_uri`
   - `auth.cookie_secret`
-  - `app.allowed_email` (seu email unico)
-  - `database.url` (Postgres)
+  - `app.allowed_emails` (emails permitidos, separados por virgula)
+  - `app.JAHDY_GOOGLE_CALENDAR_ICS` e `app.GUILHERME_GOOGLE_CALENDAR_ICS`
+  - `database.url` (Postgres - obrigatorio para nao perder dados em reboot)
 
-## 5) Publicar
+## 5) Exemplo de bloco de secrets
+```toml
+[database]
+url = "postgresql+psycopg2://USER:PASSWORD@HOST:5432/DBNAME?sslmode=require"
+```
+
+## 6) Publicar
 - Deploy no Streamlit Community Cloud apontando para `app.py`.
-- A aplicacao vai permitir acesso somente ao email em `app.allowed_email`.
+- A aplicacao vai permitir acesso somente aos emails em `app.allowed_emails`.
 
-## 6) Acesso no celular
+## 7) Acesso no celular
 - Abra a URL `https://SEU-APP.streamlit.app` no Safari/Chrome.
 - Login com Google usando o email permitido.
