@@ -16,6 +16,11 @@ try:
 except Exception:
     Calendar = None
 
+try:
+    import recurring_ical_events
+except Exception:
+    recurring_ical_events = None
+
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "life_dashboard.db")
 ENV_PATH = os.path.join(os.path.dirname(__file__), ".env")
@@ -1034,8 +1039,66 @@ def get_task_progress(task, subtasks):
     return 100.0 if int(task.get("is_done", 0) or 0) == 1 else 0.0
 
 
-@st.cache_data(ttl=600, show_spinner=False)
-def fetch_ics_events(ics_url):
+def _normalize_event_component(component):
+    start_raw = component.get("dtstart")
+    if not start_raw:
+        return None
+    end_raw = component.get("dtend")
+    title = str(component.get("summary") or "Untitled event")
+    uid = str(component.get("uid") or "")
+    recurrence_raw = component.get("recurrence-id")
+
+    start_value = start_raw.dt
+    end_value = end_raw.dt if end_raw else None
+    is_all_day = isinstance(start_value, date) and not isinstance(start_value, datetime)
+    if is_all_day:
+        start_dt = datetime.combine(start_value, datetime.min.time())
+        if end_value is None:
+            end_dt = start_dt + timedelta(days=1)
+        elif isinstance(end_value, datetime):
+            end_dt = end_value
+        else:
+            end_dt = datetime.combine(end_value, datetime.min.time())
+        end_date = end_dt.date()
+        if end_date > start_dt.date():
+            end_date = end_date - timedelta(days=1)
+    else:
+        start_dt = (
+            start_value
+            if isinstance(start_value, datetime)
+            else datetime.combine(start_value, datetime.min.time())
+        )
+        if end_value is None:
+            end_dt = start_dt + timedelta(hours=1)
+        elif isinstance(end_value, datetime):
+            end_dt = end_value
+        else:
+            end_dt = datetime.combine(end_value, datetime.min.time())
+        end_date = end_dt.date()
+
+    if recurrence_raw is not None:
+        recurrence_value = recurrence_raw.dt
+        if isinstance(recurrence_value, datetime):
+            occurrence_key = recurrence_value.isoformat()
+        else:
+            occurrence_key = datetime.combine(recurrence_value, datetime.min.time()).isoformat()
+    else:
+        occurrence_key = start_dt.isoformat()
+
+    event_key = f"{uid or title}|{occurrence_key}"
+    return {
+        "event_key": event_key,
+        "title": title,
+        "start_date": start_dt.date().isoformat(),
+        "end_date": end_date.isoformat(),
+        "start_time": None if is_all_day else start_dt.strftime("%H:%M"),
+        "end_time": None if is_all_day else end_dt.strftime("%H:%M"),
+        "is_all_day": is_all_day,
+    }
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def fetch_ics_events_for_date(ics_url, target_date):
     if not ics_url:
         return [], None
     if Calendar is None:
@@ -1047,64 +1110,29 @@ def fetch_ics_events(ics_url):
     except Exception as exc:
         return [], f"Unable to load calendar feed: {exc}"
 
-    events = []
-    for component in calendar_obj.walk():
-        if component.name != "VEVENT":
-            continue
-        start_raw = component.get("dtstart")
-        if not start_raw:
-            continue
-        end_raw = component.get("dtend")
-        title = str(component.get("summary") or "Untitled event")
-        uid = str(component.get("uid") or "")
+    components = []
+    if recurring_ical_events is not None:
+        try:
+            day_start = target_date
+            day_end = target_date + timedelta(days=1)
+            components = list(recurring_ical_events.of(calendar_obj).between(day_start, day_end))
+        except Exception:
+            components = []
 
-        start_value = start_raw.dt
-        end_value = end_raw.dt if end_raw else None
-        is_all_day = isinstance(start_value, date) and not isinstance(start_value, datetime)
-        if is_all_day:
-            start_dt = datetime.combine(start_value, datetime.min.time())
-            if end_value is None:
-                end_dt = start_dt + timedelta(days=1)
-            elif isinstance(end_value, datetime):
-                end_dt = end_value
-            else:
-                end_dt = datetime.combine(end_value, datetime.min.time())
-            end_date = end_dt.date()
-            if end_date > start_dt.date():
-                end_date = end_date - timedelta(days=1)
-        else:
-            start_dt = start_value if isinstance(start_value, datetime) else datetime.combine(start_value, datetime.min.time())
-            if end_value is None:
-                end_dt = start_dt + timedelta(hours=1)
-            elif isinstance(end_value, datetime):
-                end_dt = end_value
-            else:
-                end_dt = datetime.combine(end_value, datetime.min.time())
-            end_date = end_dt.date()
+    if not components:
+        components = [component for component in calendar_obj.walk() if component.name == "VEVENT"]
 
-        event_key = f"{uid or title}|{start_dt.isoformat()}"
-        events.append(
-            {
-                "event_key": event_key,
-                "title": title,
-                "start_date": start_dt.date().isoformat(),
-                "end_date": end_date.isoformat(),
-                "start_time": None if is_all_day else start_dt.strftime("%H:%M"),
-                "end_time": None if is_all_day else end_dt.strftime("%H:%M"),
-                "is_all_day": is_all_day,
-            }
-        )
-    return events, None
-
-
-def get_events_for_date(events, target_date):
     target_iso = target_date.isoformat()
-    day_events = []
-    for event in events:
-        if event["start_date"] <= target_iso <= event["end_date"]:
-            day_events.append(event)
-    day_events.sort(key=lambda item: (item["start_time"] is None, item["start_time"] or "23:59", item["title"]))
-    return day_events
+    events = []
+    for component in components:
+        event_payload = _normalize_event_component(component)
+        if not event_payload:
+            continue
+        if event_payload["start_date"] <= target_iso <= event_payload["end_date"]:
+            events.append(event_payload)
+
+    events.sort(key=lambda item: (item["start_time"] is None, item["start_time"] or "23:59", item["title"]))
+    return events, None
 
 
 def get_calendar_event_done_map(target_date, event_keys):
@@ -1707,7 +1735,7 @@ with left_col:
                 st.rerun()
 
 with right_col:
-    st.markdown("<div class='section-title'>Calendar + To-do</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-title'>Calendar</div>", unsafe_allow_html=True)
 
     default_ics_url = (current_user_profile.get("calendar_ics_url") or "").strip()
     if not default_ics_url:
@@ -1716,14 +1744,17 @@ with right_col:
             f"{current_user_email.replace('@', '%40')}/public/basic.ics"
         )
     user_ics_url = (get_setting("calendar_ics_url") or "").strip()
-    ics_url = user_ics_url or default_ics_url
+    if user_ics_url and "calendar.google.com/calendar/ical/" in user_ics_url:
+        ics_url = user_ics_url
+    else:
+        ics_url = default_ics_url
 
     if st.session_state.get("calendar_ics_url_input_user") != current_user_email:
         st.session_state["calendar_ics_url_input"] = ics_url
         st.session_state["calendar_ics_url_input_user"] = current_user_email
 
-    with st.expander("Calendar sync (Google iCal)"):
-        st.caption("Imports only events/tasks for the selected day (no full-month Google iframe).")
+    with st.expander("Settings"):
+        st.caption("Google iCal URL for this account.")
         st.text_input(
             "Google Calendar iCal URL",
             key="calendar_ics_url_input",
@@ -1742,15 +1773,16 @@ with right_col:
                 st.success("Default calendar URL restored.")
                 st.rerun()
 
-    external_events = []
+    day_calendar_events = []
     calendar_error = None
     if ics_url:
-        external_events, calendar_error = fetch_ics_events(ics_url)
+        day_calendar_events, calendar_error = fetch_ics_events_for_date(ics_url, selected_date)
     else:
-        calendar_error = "Set the iCal URL to load scheduled events."
+        calendar_error = "Set the iCal URL to load Google events."
     if calendar_error:
         st.warning(calendar_error)
-    day_calendar_events = get_events_for_date(external_events, selected_date)
+    else:
+        st.caption(f"{len(day_calendar_events)} Google event(s) on {selected_date.strftime('%d/%m/%Y')}")
 
     tasks = list_todo_tasks()
     selected_iso = selected_date.isoformat()
@@ -1772,7 +1804,6 @@ with right_col:
         [event["event_key"] for event in day_calendar_events],
     )
 
-    st.markdown("<div class='section-title'>Calendar</div>", unsafe_allow_html=True)
     st.caption(f"Daily view for {selected_date.strftime('%d/%m/%Y')}")
 
     calendar_items = []
@@ -1816,7 +1847,7 @@ with right_col:
 
     calendar_items.sort(key=lambda item: (item["time_sort"], item["title"]))
     if not calendar_items:
-        st.caption("No events or scheduled tasks for this day.")
+        st.info("No events found for this day.")
     else:
         for item in calendar_items:
             item_key = safe_widget_key(item["id"])
@@ -1848,14 +1879,14 @@ with right_col:
             with row_cols[2]:
                 st.markdown(item["time_label"])
             with row_cols[3]:
-                source_label = "Google" if item["source"] == "calendar" else "To-do"
+                source_label = "Google" if item["source"] == "calendar" else "Manual"
                 st.markdown(
                     f"<span style='color:#c8bbd8;font-size:12px;'>{source_label}</span>",
                     unsafe_allow_html=True,
                 )
             st.divider()
 
-    st.markdown("<div class='section-title'>To-do List</div>", unsafe_allow_html=True)
+    st.markdown("<div class='small-label' style='margin-top:8px;'>Task capture</div>", unsafe_allow_html=True)
 
     with st.form("add_manual_task_form"):
         st.markdown("<div class='small-label'>Add task for this day</div>", unsafe_allow_html=True)
@@ -1867,7 +1898,7 @@ with right_col:
             key="manual_task_time",
             disabled=not manual_has_time,
         )
-        add_manual = st.form_submit_button("Add to to-do")
+        add_manual = st.form_submit_button("Add task")
         if add_manual:
             if not (manual_title or "").strip():
                 st.warning("Task title is required.")
@@ -1966,9 +1997,9 @@ with right_col:
 
     combined_items.sort(key=lambda item: (-item["priority_weight"], item["time"] or "23:59", item["title"]))
     todo_score = build_todo_score(combined_items)
-    st.metric("Total task score (calendar + to-do)", todo_score)
+    st.metric("Total task score", todo_score)
 
-    st.markdown("<div class='small-label'>To-do list for selected day</div>", unsafe_allow_html=True)
+    st.markdown("<div class='small-label'>Daily tasks list</div>", unsafe_allow_html=True)
     if not combined_items:
         st.caption("No tasks for this day yet.")
     for item in combined_items:
