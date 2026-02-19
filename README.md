@@ -17,7 +17,7 @@
 ## 3) Configurar Google OAuth
 - No Google Cloud Console, crie um OAuth Client (Web application).
 - Authorized redirect URI:
-  - `https://SEU-APP.streamlit.app/oauth2callback`
+  - `https://jahdy-gui-dashboard.streamlit.app/oauth2callback`
 
 ## 4) Configurar Secrets no Streamlit Cloud
 - Abra o app no Streamlit Cloud e cole os secrets baseados em `.streamlit/secrets.example.toml`.
@@ -41,5 +41,5 @@ url = "postgresql+psycopg2://USER:PASSWORD@HOST:5432/DBNAME?sslmode=require"
 - A aplicacao vai permitir acesso somente aos emails em `app.allowed_emails`.
 
 ## 7) Acesso no celular
-- Abra a URL `https://SEU-APP.streamlit.app` no Safari/Chrome.
+- Abra a URL `https://jahdy-gui-dashboard.streamlit.app` no Safari/Chrome.
 - Login com Google usando o email permitido.

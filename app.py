@@ -789,7 +789,7 @@ def enforce_google_login():
         st.markdown("Configure Google OAuth in Streamlit Cloud secrets before using the app.")
         st.code(
             "[auth]\n"
-            "redirect_uri = \"https://YOUR-APP.streamlit.app/oauth2callback\"\n"
+            "redirect_uri = \"https://jahdy-gui-dashboard.streamlit.app/oauth2callback\"\n"
             "cookie_secret = \"LONG_RANDOM_SECRET\"\n\n"
             "[auth.google]\n"
             "client_id = \"YOUR_CLIENT_ID\"\n"
@@ -823,7 +823,7 @@ def enforce_google_login():
     if not redirect_uri or parsed_uri.path != "/oauth2callback":
         st.error(
             "Invalid auth.redirect_uri. For Streamlit st.login it must end with "
-            "/oauth2callback (example: https://your-app.streamlit.app/oauth2callback)."
+            "/oauth2callback (example: https://jahdy-gui-dashboard.streamlit.app/oauth2callback)."
         )
         st.stop()
 
