@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, inspect, text as sql_text
 
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "life_dashboard.db")
@@ -371,7 +371,7 @@ def init_db():
     columns = ",\n    ".join([f"{key} INTEGER DEFAULT 0" for key, _ in HABITS])
     with engine.begin() as conn:
         conn.execute(
-            text(
+            sql_text(
                 f"""
                 CREATE TABLE IF NOT EXISTS daily_entries (
                     date TEXT PRIMARY KEY,
@@ -388,7 +388,7 @@ def init_db():
             )
         )
         conn.execute(
-            text(
+            sql_text(
                 """
                 CREATE TABLE IF NOT EXISTS settings (
                     key TEXT PRIMARY KEY,
@@ -404,9 +404,9 @@ def init_db():
     }
     with engine.begin() as conn:
         if "priority_label" not in existing_cols:
-            conn.execute(text("ALTER TABLE daily_entries ADD COLUMN priority_label TEXT"))
+            conn.execute(sql_text("ALTER TABLE daily_entries ADD COLUMN priority_label TEXT"))
         if "priority_done" not in existing_cols:
-            conn.execute(text("ALTER TABLE daily_entries ADD COLUMN priority_done INTEGER DEFAULT 0"))
+            conn.execute(sql_text("ALTER TABLE daily_entries ADD COLUMN priority_done INTEGER DEFAULT 0"))
 
 
 def upsert_entry(payload):
@@ -425,7 +425,7 @@ def upsert_entry(payload):
     values = {col: payload.get(col) for col in columns}
     with engine.begin() as conn:
         conn.execute(
-            text(
+            sql_text(
                 f"""
                 INSERT INTO daily_entries ({', '.join(columns)})
                 VALUES ({placeholders})
@@ -441,12 +441,12 @@ def delete_entries(start_date, end_date=None):
     with engine.begin() as conn:
         if end_date is None:
             cursor = conn.execute(
-                text("DELETE FROM daily_entries WHERE date = :start"),
+                sql_text("DELETE FROM daily_entries WHERE date = :start"),
                 {"start": start_date.isoformat()},
             )
         else:
             cursor = conn.execute(
-                text("DELETE FROM daily_entries WHERE date BETWEEN :start AND :end"),
+                sql_text("DELETE FROM daily_entries WHERE date BETWEEN :start AND :end"),
                 {"start": start_date.isoformat(), "end": end_date.isoformat()},
             )
     return cursor.rowcount if cursor.rowcount is not None else 0
@@ -456,7 +456,7 @@ def get_setting(key):
     engine = get_engine(get_database_url())
     with engine.connect() as conn:
         row = conn.execute(
-            text("SELECT value FROM settings WHERE key = :key"),
+            sql_text("SELECT value FROM settings WHERE key = :key"),
             {"key": key},
         ).fetchone()
     return row[0] if row else None
@@ -466,7 +466,7 @@ def set_setting(key, value):
     engine = get_engine(get_database_url())
     with engine.begin() as conn:
         conn.execute(
-            text(
+            sql_text(
                 "INSERT INTO settings (key, value) VALUES (:key, :value) "
                 "ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value"
             ),
@@ -496,7 +496,7 @@ def save_meeting_days():
 def load_data():
     engine = get_engine(get_database_url())
     with engine.connect() as conn:
-        df = pd.read_sql(text("SELECT * FROM daily_entries"), conn)
+        df = pd.read_sql(sql_text("SELECT * FROM daily_entries"), conn)
     if df.empty:
         return df
     if "priority_label" not in df.columns:
@@ -710,7 +710,7 @@ def build_year_tracker_grid(year, mood_map):
     return z, text, month_labels, list(range(1, 32))
 
 
-def mood_heatmap(z, text, x_labels, y_labels, title=""):
+def mood_heatmap(z, hover_text, x_labels, y_labels, title=""):
     colorscale = []
     n = len(MOODS)
     for i, mood in enumerate(MOODS):
@@ -723,7 +723,7 @@ def mood_heatmap(z, text, x_labels, y_labels, title=""):
     fig = go.Figure(
         data=go.Heatmap(
             z=z,
-            text=text,
+            text=hover_text,
             hoverinfo="text",
             colorscale=colorscale,
             showscale=False,
@@ -859,7 +859,7 @@ st.markdown("<div class='section-title'>Daily Input Panel</div>", unsafe_allow_h
 if "selected_date" not in st.session_state:
     st.session_state["selected_date"] = date.today()
 
-selected_date = st.date_input("Date", value=st.session_state["selected_date"], key="selected_date")
+selected_date = st.date_input("Date", key="selected_date")
 entry = get_entry_for_date(selected_date, data)
 load_entry_into_state(selected_date, entry)
 is_meeting_day = selected_date.weekday() in meeting_days
@@ -1090,14 +1090,14 @@ else:
 
     with month_col:
         month_choice = st.date_input("Monthly view", value=now.replace(day=1))
-        z, text, x_labels, y_labels = build_month_tracker_grid(month_choice.year, month_choice.month, mood_map)
-        fig_month = mood_heatmap(z, text, x_labels=x_labels, y_labels=y_labels, title="Monthly Mood Grid")
+        z, hover_text, x_labels, y_labels = build_month_tracker_grid(month_choice.year, month_choice.month, mood_map)
+        fig_month = mood_heatmap(z, hover_text, x_labels=x_labels, y_labels=y_labels, title="Monthly Mood Grid")
         st.plotly_chart(fig_month, use_container_width=True)
 
     with year_col:
         year_choice = st.selectbox("Year", list(range(now.year - 3, now.year + 1)), index=3)
-        z, text, x_labels, y_labels = build_year_tracker_grid(year_choice, mood_map)
-        fig_year = mood_heatmap(z, text, x_labels=x_labels, y_labels=y_labels, title="Yearly Mood Grid")
+        z, hover_text, x_labels, y_labels = build_year_tracker_grid(year_choice, mood_map)
+        fig_year = mood_heatmap(z, hover_text, x_labels=x_labels, y_labels=y_labels, title="Yearly Mood Grid")
         st.plotly_chart(fig_year, use_container_width=True)
 
     legend = " • ".join([f"{m} ({MOOD_COLORS[m]})" for m in MOODS])
