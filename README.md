@@ -4,6 +4,7 @@
 - Hosting: Streamlit Community Cloud (free)
 - Login: Google OAuth nativo do Streamlit
 - Banco: Postgres (ex.: Supabase Free) para persistencia
+- Layout: tabs independentes com auto-save por aba
 
 ## 1) Subir para GitHub
 - Envie `app.py`, `requirements.txt` e este projeto para um repositorio.
@@ -28,6 +29,9 @@
   - `auth.cookie_secret`
   - `app.allowed_emails` (emails permitidos, separados por virgula)
   - `app.JAHDY_GOOGLE_CALENDAR_ICS` e `app.GUILHERME_GOOGLE_CALENDAR_ICS`
+  - `app.JAHDY_GOOGLE_ALLOWED_CALENDAR_IDS` e `app.GUILHERME_GOOGLE_ALLOWED_CALENDAR_IDS` (opcional)
+  - `app.GOOGLE_TOKEN_ENCRYPTION_KEY` (obrigatorio para escrita no Google Calendar)
+  - `calendar_auth.redirect_uri` (URL autorizada para conectar Google Calendar com escopo de escrita)
   - `database.url` (Postgres - obrigatorio; sem isso o app bloqueia entrada para evitar perda de dados)
 
 ## 5) Exemplo de bloco de secrets

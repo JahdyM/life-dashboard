@@ -18,6 +18,11 @@ import streamlit as st
 from sqlalchemy import bindparam, create_engine, inspect, text as sql_text
 from sqlalchemy.exc import SQLAlchemyError
 
+from dashboard.header import render_global_header
+from dashboard.router import render_router
+from dashboard.data import repositories
+from dashboard.services import google_calendar
+
 try:
     from icalendar import Calendar
 except Exception:
@@ -101,6 +106,9 @@ LEGACY_ENTRIES_TABLE = "daily_entries"
 TASKS_TABLE = "todo_tasks"
 SUBTASKS_TABLE = "todo_subtasks"
 CALENDAR_STATUS_TABLE = "calendar_event_status"
+PROMPT_CARDS_TABLE = "partner_prompt_cards"
+PROMPT_ANSWERS_TABLE = "partner_prompt_answers"
+GOOGLE_TOKENS_TABLE = "google_calendar_tokens"
 
 MOODS = ["Paz", "Felicidade", "Ansiedade", "Medo", "Raiva", "Neutro"]
 MOOD_COLORS = {
@@ -1172,8 +1180,12 @@ def init_db():
                     work_hours REAL,
                     boredom_minutes INTEGER,
                     mood_category TEXT,
+                    mood_note TEXT,
+                    mood_media_url TEXT,
+                    mood_tags_json TEXT,
                     priority_label TEXT,
                     priority_done INTEGER DEFAULT 0,
+                    updated_at TEXT,
                     PRIMARY KEY (user_email, date)
                 )
                 """
@@ -1204,6 +1216,8 @@ def init_db():
                     estimated_minutes INTEGER,
                     actual_minutes INTEGER,
                     is_done INTEGER DEFAULT 0,
+                    google_calendar_id TEXT,
+                    google_event_id TEXT,
                     created_at TEXT NOT NULL
                 )
                 """
@@ -1242,6 +1256,52 @@ def init_db():
         )
         conn.execute(
             sql_text(
+                f"""
+                CREATE TABLE IF NOT EXISTS {PROMPT_CARDS_TABLE} (
+                    id TEXT PRIMARY KEY,
+                    couple_key TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    category TEXT,
+                    is_active INTEGER DEFAULT 1,
+                    sort_order INTEGER DEFAULT 0,
+                    created_by TEXT,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+        )
+        conn.execute(
+            sql_text(
+                f"""
+                CREATE TABLE IF NOT EXISTS {PROMPT_ANSWERS_TABLE} (
+                    id TEXT PRIMARY KEY,
+                    card_id TEXT NOT NULL,
+                    couple_key TEXT NOT NULL,
+                    user_email TEXT NOT NULL,
+                    answer_date TEXT NOT NULL,
+                    answer_text TEXT,
+                    is_completed INTEGER DEFAULT 0,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+        )
+        conn.execute(
+            sql_text(
+                f"""
+                CREATE TABLE IF NOT EXISTS {GOOGLE_TOKENS_TABLE} (
+                    user_email TEXT PRIMARY KEY,
+                    refresh_token_enc TEXT NOT NULL,
+                    access_token TEXT,
+                    expires_at TEXT,
+                    scope TEXT,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+        )
+        conn.execute(
+            sql_text(
                 f"CREATE INDEX IF NOT EXISTS idx_{TASKS_TABLE}_user_scheduled "
                 f"ON {TASKS_TABLE} (user_email, scheduled_date)"
             )
@@ -1260,8 +1320,26 @@ def init_db():
         )
         conn.execute(
             sql_text(
+                f"CREATE INDEX IF NOT EXISTS idx_{TASKS_TABLE}_user_google_event "
+                f"ON {TASKS_TABLE} (user_email, google_calendar_id, google_event_id)"
+            )
+        )
+        conn.execute(
+            sql_text(
                 f"CREATE INDEX IF NOT EXISTS idx_{SUBTASKS_TABLE}_user_task "
                 f"ON {SUBTASKS_TABLE} (user_email, task_id)"
+            )
+        )
+        conn.execute(
+            sql_text(
+                f"CREATE UNIQUE INDEX IF NOT EXISTS idx_{PROMPT_ANSWERS_TABLE}_uniq_card_user_day "
+                f"ON {PROMPT_ANSWERS_TABLE} (card_id, user_email, answer_date)"
+            )
+        )
+        conn.execute(
+            sql_text(
+                f"CREATE INDEX IF NOT EXISTS idx_{PROMPT_ANSWERS_TABLE}_couple_day "
+                f"ON {PROMPT_ANSWERS_TABLE} (couple_key, answer_date)"
             )
         )
 
@@ -1278,10 +1356,16 @@ def init_db():
     ensure_column(TASKS_TABLE, "estimated_minutes", "INTEGER")
     ensure_column(TASKS_TABLE, "actual_minutes", "INTEGER")
     ensure_column(TASKS_TABLE, "external_event_key", "TEXT")
+    ensure_column(TASKS_TABLE, "google_calendar_id", "TEXT")
+    ensure_column(TASKS_TABLE, "google_event_id", "TEXT")
     ensure_column(SUBTASKS_TABLE, "priority_tag", "TEXT DEFAULT 'Medium'")
     ensure_column(SUBTASKS_TABLE, "estimated_minutes", "INTEGER")
     ensure_column(SUBTASKS_TABLE, "actual_minutes", "INTEGER")
     ensure_column(CALENDAR_STATUS_TABLE, "is_hidden", "INTEGER DEFAULT 0")
+    ensure_column(ENTRIES_TABLE, "mood_note", "TEXT")
+    ensure_column(ENTRIES_TABLE, "mood_media_url", "TEXT")
+    ensure_column(ENTRIES_TABLE, "mood_tags_json", "TEXT")
+    ensure_column(ENTRIES_TABLE, "updated_at", "TEXT")
 
     # Migrate legacy data (date-based table) to user-scoped table once.
     inspector = inspect(engine)
@@ -1403,6 +1487,8 @@ def migrate_local_sqlite_to_configured_db():
                         "estimated_minutes": row.get("estimated_minutes"),
                         "actual_minutes": row.get("actual_minutes"),
                         "is_done": row.get("is_done") or 0,
+                        "google_calendar_id": row.get("google_calendar_id"),
+                        "google_event_id": row.get("google_event_id"),
                         "created_at": row.get("created_at") or datetime.utcnow().isoformat(),
                     }
                     if not payload["id"] or not payload["user_email"] or not payload["title"]:
@@ -1414,13 +1500,13 @@ def migrate_local_sqlite_to_configured_db():
                             (
                                 id, user_email, title, source, external_event_key, scheduled_date,
                                 scheduled_time, priority_tag, estimated_minutes, actual_minutes,
-                                is_done, created_at
+                                is_done, google_calendar_id, google_event_id, created_at
                             )
                             VALUES
                             (
                                 :id, :user_email, :title, :source, :external_event_key, :scheduled_date,
                                 :scheduled_time, :priority_tag, :estimated_minutes, :actual_minutes,
-                                :is_done, :created_at
+                                :is_done, :google_calendar_id, :google_event_id, :created_at
                             )
                             ON CONFLICT(id) DO UPDATE SET
                                 user_email=EXCLUDED.user_email,
@@ -1432,7 +1518,9 @@ def migrate_local_sqlite_to_configured_db():
                                 priority_tag=EXCLUDED.priority_tag,
                                 estimated_minutes=EXCLUDED.estimated_minutes,
                                 actual_minutes=EXCLUDED.actual_minutes,
-                                is_done=EXCLUDED.is_done
+                                is_done=EXCLUDED.is_done,
+                                google_calendar_id=EXCLUDED.google_calendar_id,
+                                google_event_id=EXCLUDED.google_event_id
                             """
                         ),
                         payload,
@@ -1814,6 +1902,14 @@ def normalize_entries_df(df):
         df["priority_label"] = ""
     if "priority_done" not in df.columns:
         df["priority_done"] = 0
+    if "mood_note" not in df.columns:
+        df["mood_note"] = ""
+    if "mood_media_url" not in df.columns:
+        df["mood_media_url"] = ""
+    if "mood_tags_json" not in df.columns:
+        df["mood_tags_json"] = ""
+    if "updated_at" not in df.columns:
+        df["updated_at"] = ""
     df["date"] = pd.to_datetime(df["date"]).dt.date
     for key, _ in HABITS:
         df[key] = df[key].fillna(0).astype(int)
@@ -2542,6 +2638,11 @@ def get_week_range(reference_date):
     return week_start, week_end
 
 
+def month_last_day(reference_date):
+    days = calendar.monthrange(reference_date.year, reference_date.month)[1]
+    return reference_date.replace(day=days)
+
+
 def build_badge_popover(label, count, css_kind, details_text):
     lines = [line.strip() for line in str(details_text or "").split("\n") if line.strip()]
     if not lines:
@@ -3205,6 +3306,68 @@ if not data.empty:
     data["life_balance_score"] = data.apply(compute_balance_score, axis=1)
     data["weekday"] = data["date"].apply(lambda d: d.weekday())
     data["is_weekend"] = data["weekday"] >= 5
+
+# --- TAB ROUTER APP ---
+repositories.configure(
+    get_engine,
+    get_database_url,
+    get_current_user_email,
+    invalidate_callback=invalidate_runtime_caches,
+)
+google_calendar.configure(get_secret)
+repositories.set_google_delete_callback(google_calendar.google_delete_event)
+
+today_activities = repositories.list_activities_for_day(current_user_email, date.today())
+pending_tasks = sum(1 for row in today_activities if int(row.get("is_done", 0) or 0) == 0)
+
+render_global_header(
+    {
+        "data": data,
+        "helpers": {"streak_count": streak_count},
+        "quick_indicators": {"pending_tasks": pending_tasks},
+    }
+)
+
+context = {
+    "current_user_email": current_user_email,
+    "current_user_name": current_user_name,
+    "partner_email": partner_email,
+    "partner_name": partner_name,
+    "partner_data": partner_data,
+    "data": data,
+    "meeting_days": meeting_days,
+    "constants": {
+        "DAY_LABELS": DAY_LABELS,
+        "DAY_TO_INDEX": DAY_TO_INDEX,
+        "DEFAULT_HABIT_LABELS": DEFAULT_HABIT_LABELS,
+        "FIXED_COUPLE_HABIT_KEYS": FIXED_COUPLE_HABIT_KEYS,
+        "MEETING_HABIT_KEYS": MEETING_HABIT_KEYS,
+        "MOODS": MOODS,
+        "JAHDY_EMAIL": JAHDY_EMAIL,
+        "GUILHERME_EMAIL": GUILHERME_EMAIL,
+    },
+    "helpers": {
+        "get_secret": get_secret,
+        "get_user_calendar_ics_url": get_user_calendar_ics_url,
+        "fetch_ics_events_for_range": fetch_ics_events_for_range,
+        "filter_events_for_date": filter_events_for_date,
+        "build_event_count_map": build_event_count_map,
+        "build_event_detail_map": build_event_detail_map,
+        "build_task_count_map": build_task_count_map,
+        "build_task_detail_map": build_task_detail_map,
+        "build_week_calendar_html": build_week_calendar_html,
+        "get_week_range": get_week_range,
+        "month_last_day": month_last_day,
+        "dot_chart": dot_chart,
+        "mood_heatmap": mood_heatmap,
+        "build_month_tracker_grid": build_month_tracker_grid,
+        "build_year_tracker_grid": build_year_tracker_grid,
+        "streak_count": streak_count,
+    },
+}
+
+render_router(context)
+st.stop()
 
 # --- LIFE BALANCE SCORE ---
 
