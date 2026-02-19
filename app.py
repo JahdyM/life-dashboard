@@ -2838,27 +2838,27 @@ def compute_habits_metrics(row, meeting_days, custom_done_by_date, custom_habit_
 def apply_common_plot_style(fig, title, show_xgrid=True, show_ygrid=True):
     fig.update_layout(
         title=title,
-        title_font=dict(color="#f3edf9", size=16, family="Crimson Text"),
+        title_font=dict(color=ACTIVE_THEME["text_main"], size=16, family="Crimson Text"),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#ddd1ea", family="IBM Plex Sans"),
+        font=dict(color=ACTIVE_THEME["text_main"], family="IBM Plex Sans"),
         margin=dict(l=40, r=20, t=40, b=30),
         xaxis=dict(
             showgrid=show_xgrid,
-            gridcolor="#3d3550",
-            tickfont=dict(color="#c8bbd8"),
+            gridcolor=ACTIVE_THEME["plot_grid"],
+            tickfont=dict(color=ACTIVE_THEME["text_soft"]),
             zeroline=False,
             showline=True,
-            linecolor="#5b4f70",
+            linecolor=ACTIVE_THEME["border"],
             mirror=True,
         ),
         yaxis=dict(
             showgrid=show_ygrid,
-            gridcolor="#3d3550",
+            gridcolor=ACTIVE_THEME["plot_grid"],
             zeroline=False,
-            tickfont=dict(color="#c8bbd8"),
+            tickfont=dict(color=ACTIVE_THEME["text_soft"]),
             showline=True,
-            linecolor="#5b4f70",
+            linecolor=ACTIVE_THEME["border"],
             mirror=True,
         ),
     )
@@ -2927,21 +2927,21 @@ def mood_heatmap(z, hover_text, x_labels, y_labels, title=""):
 
     fig.update_layout(
         title=title,
-        title_font=dict(color="#f3edf9", size=16, family="Crimson Text"),
+        title_font=dict(color=ACTIVE_THEME["text_main"], size=16, family="Crimson Text"),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#ddd1ea", family="IBM Plex Sans"),
+        font=dict(color=ACTIVE_THEME["text_main"], family="IBM Plex Sans"),
         margin=dict(l=20, r=20, t=40, b=20),
         xaxis=dict(
             showgrid=False,
             zeroline=False,
-            tickfont=dict(color="#c8bbd8", size=11),
+            tickfont=dict(color=ACTIVE_THEME["text_soft"], size=11),
             tickmode="array",
             tickvals=list(range(len(x_labels))),
             ticktext=x_labels,
             side="top",
             showline=True,
-            linecolor="#5b4f70",
+            linecolor=ACTIVE_THEME["border"],
             mirror=True,
         ),
         yaxis=dict(
@@ -2951,9 +2951,9 @@ def mood_heatmap(z, hover_text, x_labels, y_labels, title=""):
             tickvals=list(range(len(y_labels))),
             ticktext=y_labels,
             autorange="reversed",
-            tickfont=dict(color="#c8bbd8", size=10),
+            tickfont=dict(color=ACTIVE_THEME["text_soft"], size=10),
             showline=True,
-            linecolor="#5b4f70",
+            linecolor=ACTIVE_THEME["border"],
             mirror=True,
         ),
     )
@@ -2968,13 +2968,13 @@ def dot_chart(values, dates, title, color, height=260):
             y=dates,
             mode="lines+markers",
             line=dict(color=color, width=2),
-            marker=dict(size=8, color=color, line=dict(width=1, color="#ddd1ea")),
+            marker=dict(size=8, color=color, line=dict(width=1, color=ACTIVE_THEME["plot_marker_line"])),
         )
     )
     apply_common_plot_style(fig, title, show_xgrid=True, show_ygrid=True)
     fig.update_layout(height=height)
     fig.update_yaxes(categoryorder="array", categoryarray=list(dates), automargin=True)
-    fig.update_xaxes(tickfont=dict(size=10, color="#c8bbd8"))
+    fig.update_xaxes(tickfont=dict(size=10, color=ACTIVE_THEME["text_soft"]))
     return fig
 
 
@@ -3501,17 +3501,17 @@ with right_col:
             with row_cols[3]:
                 if item["source"] == "calendar":
                     st.markdown(
-                        "<span style='color:#c8bbd8;font-size:12px;'>Google</span>",
+                        f"<span style='color:{ACTIVE_THEME['text_soft']};font-size:12px;'>Google</span>",
                         unsafe_allow_html=True,
                     )
                 elif item["source"] == "calendar_override":
                     st.markdown(
-                        "<span style='color:#c8bbd8;font-size:12px;'>Custom</span>",
+                        f"<span style='color:{ACTIVE_THEME['text_soft']};font-size:12px;'>Custom</span>",
                         unsafe_allow_html=True,
                     )
                 else:
                     st.markdown(
-                        f"<span style='color:#c8bbd8;font-size:12px;'>{item.get('priority_tag', 'Medium')}</span>",
+                        f"<span style='color:{ACTIVE_THEME['text_soft']};font-size:12px;'>{item.get('priority_tag', 'Medium')}</span>",
                         unsafe_allow_html=True,
                     )
             with row_cols[4]:
