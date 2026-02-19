@@ -5,9 +5,6 @@ import streamlit as st
 
 def render_stats_tab(ctx):
     data = ctx["data"]
-    partner_email = ctx.get("partner_email")
-    partner_name = ctx.get("partner_name")
-    partner_data = ctx.get("partner_data")
 
     dot_chart = ctx["helpers"]["dot_chart"]
     mood_heatmap = ctx["helpers"]["mood_heatmap"]
@@ -80,21 +77,3 @@ def render_stats_tab(ctx):
             mood_heatmap(z, hover_text, x_labels=x_labels, y_labels=y_labels, title="Yearly Mood Grid"),
             use_container_width=True,
         )
-
-    if partner_email and partner_data is not None and not partner_data.empty:
-        st.markdown("<div class='small-label'>Shared streak comparison</div>", unsafe_allow_html=True)
-        streak_count = ctx["helpers"]["streak_count"]
-        meeting_days_set = set(ctx.get("meeting_days", []))
-
-        my_read = streak_count(data, "bible_reading", today)
-        my_workout = streak_count(data, "workout", today)
-        my_meeting = streak_count(data, "meeting_attended", today, valid_weekdays=meeting_days_set)
-
-        partner_read = streak_count(partner_data, "bible_reading", today)
-        partner_workout = streak_count(partner_data, "workout", today)
-        partner_meeting = streak_count(partner_data, "meeting_attended", today, valid_weekdays=meeting_days_set)
-
-        compare_cols = st.columns(3)
-        compare_cols[0].metric("Bible", f"{my_read}d", delta=f"{partner_name}: {partner_read}d")
-        compare_cols[1].metric("Workout", f"{my_workout}d", delta=f"{partner_name}: {partner_workout}d")
-        compare_cols[2].metric("Meeting", f"{my_meeting}d", delta=f"{partner_name}: {partner_meeting}d")

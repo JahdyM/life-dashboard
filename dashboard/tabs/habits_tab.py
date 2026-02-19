@@ -43,6 +43,13 @@ def _save_custom_done(user_email, selected_day, custom_habits):
     repositories.set_custom_habit_done(user_email, selected_day, payload)
 
 
+def _save_meeting_days(user_email, day_to_index):
+    labels = st.session_state.get("habits.meeting_days_labels", [])
+    selected = [day_to_index[label] for label in labels if label in day_to_index]
+    repositories.set_setting(user_email, "meeting_days", ",".join(map(str, selected)))
+    st.session_state["habits.meeting_days_values"] = selected
+
+
 def render_habits_tab(ctx):
     user_email = ctx["current_user_email"]
     day_labels = ctx["constants"]["DAY_LABELS"]
@@ -69,9 +76,13 @@ def render_habits_tab(ctx):
         "Weekly meeting days",
         options=day_labels,
         key="habits.meeting_days_labels",
+        on_change=_save_meeting_days,
+        args=(user_email, day_to_index),
     )
-    selected_meeting_days = [day_to_index[label] for label in st.session_state.get("habits.meeting_days_labels", [])]
-    repositories.set_setting(user_email, "meeting_days", ",".join(map(str, selected_meeting_days)))
+    selected_meeting_days = st.session_state.get(
+        "habits.meeting_days_values",
+        [day_to_index[label] for label in st.session_state.get("habits.meeting_days_labels", [])],
+    )
     ctx["meeting_days"] = selected_meeting_days
 
     is_meeting_day = selected_day.weekday() in selected_meeting_days
@@ -93,13 +104,6 @@ def render_habits_tab(ctx):
                 args=(user_email, selected_day, habit_key, widget_key),
             )
         idx += 1
-
-    if not is_meeting_day:
-        repositories.save_entry_fields(
-            user_email,
-            selected_day,
-            {"meeting_attended": 0, "prepare_meeting": 0},
-        )
 
     st.markdown("<div class='small-label'>Personal habits</div>", unsafe_allow_html=True)
     custom_habits = repositories.get_custom_habits(user_email, active_only=True)

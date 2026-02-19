@@ -1,9 +1,9 @@
 import streamlit as st
 
 from dashboard.tabs.calendar_tab import render_calendar_tab
+from dashboard.tabs.couple_tab import render_couple_tab
 from dashboard.tabs.habits_tab import render_habits_tab
 from dashboard.tabs.mood_tab import render_mood_tab
-from dashboard.tabs.prompts_tab import render_prompts_tab
 from dashboard.tabs.stats_tab import render_stats_tab
 
 
@@ -12,7 +12,7 @@ TAB_OPTIONS = [
     "Calendar & Activities",
     "Statistics & Charts",
     "Mood Board",
-    "Spouse × Partner Prompts",
+    "Couple",
 ]
 
 
@@ -41,4 +41,4 @@ def render_router(ctx):
         render_mood_tab(ctx)
         return
 
-    render_prompts_tab(ctx)
+    render_couple_tab(ctx)

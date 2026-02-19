@@ -1,5 +1,5 @@
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from uuid import uuid4
 
 from sqlalchemy import bindparam, text as sql_text
@@ -86,6 +86,20 @@ def _parse_minutes(value):
     except Exception:
         return None
     return max(0, minutes)
+
+
+def _minutes_between(start_time, end_time):
+    if not start_time or not end_time:
+        return None
+    try:
+        start_dt = datetime.strptime(str(start_time), "%H:%M")
+        end_dt = datetime.strptime(str(end_time), "%H:%M")
+    except Exception:
+        return None
+    delta = int((end_dt - start_dt).total_seconds() // 60)
+    if delta <= 0:
+        return None
+    return delta
 
 
 def _entry_patch_for_date(user_email, day, patch):
@@ -437,6 +451,151 @@ def list_activities_for_range(user_email, start_day, end_day):
     return [dict(row) for row in rows]
 
 
+def list_unscheduled_remembered(user_email):
+    engine = _engine()
+    with engine.connect() as conn:
+        rows = conn.execute(
+            sql_text(
+                f"""
+                SELECT
+                    id, user_email, title, source, external_event_key, scheduled_date, scheduled_time,
+                    priority_tag, estimated_minutes, actual_minutes, is_done,
+                    google_calendar_id, google_event_id, created_at
+                FROM {TASKS_TABLE}
+                WHERE user_email = :user_email
+                  AND source = 'remembered'
+                  AND (scheduled_date IS NULL OR scheduled_date = '')
+                ORDER BY created_at DESC
+                """
+            ),
+            {"user_email": user_email},
+        ).mappings().all()
+    return [dict(row) for row in rows]
+
+
+def schedule_remembered_task(task_id, day, time_or_none):
+    payload = {
+        "id": task_id,
+        "scheduled_date": day.isoformat() if isinstance(day, date) else str(day),
+        "scheduled_time": _normalize_time_value(time_or_none),
+    }
+    return save_activity(payload)
+
+
+def upsert_google_activity(user_email, event_payload):
+    calendar_id = (event_payload or {}).get("calendar_id")
+    event_id = (event_payload or {}).get("event_id")
+    if not calendar_id or not event_id:
+        return None
+
+    engine = _engine()
+    with engine.connect() as conn:
+        existing = conn.execute(
+            sql_text(
+                f"""
+                SELECT
+                    id,
+                    title,
+                    source,
+                    external_event_key,
+                    scheduled_date,
+                    scheduled_time,
+                    estimated_minutes,
+                    google_calendar_id,
+                    google_event_id
+                FROM {TASKS_TABLE}
+                WHERE user_email = :user_email
+                  AND google_calendar_id = :calendar_id
+                  AND google_event_id = :event_id
+                LIMIT 1
+                """
+            ),
+            {
+                "user_email": user_email,
+                "calendar_id": calendar_id,
+                "event_id": event_id,
+            },
+        ).mappings().fetchone()
+
+    patch = {
+        "user_email": user_email,
+        "title": event_payload.get("title") or "Google event",
+        "source": "calendar_sync",
+        "external_event_key": event_payload.get("event_key"),
+        "scheduled_date": event_payload.get("start_date"),
+        "scheduled_time": event_payload.get("start_time"),
+        "estimated_minutes": _minutes_between(event_payload.get("start_time"), event_payload.get("end_time")),
+        "priority_tag": "Medium",
+        "google_calendar_id": calendar_id,
+        "google_event_id": event_id,
+    }
+    if not existing:
+        return save_activity(patch)
+
+    # Idempotent sync: skip write when row already matches Google state.
+    if (
+        (existing.get("title") or "") == (patch["title"] or "")
+        and (existing.get("source") or "") == (patch["source"] or "")
+        and (existing.get("external_event_key") or "") == (patch["external_event_key"] or "")
+        and (existing.get("scheduled_date") or "") == (patch["scheduled_date"] or "")
+        and (existing.get("scheduled_time") or "") == (patch["scheduled_time"] or "")
+        and int(existing.get("estimated_minutes") or 0) == int(patch.get("estimated_minutes") or 0)
+        and (existing.get("google_calendar_id") or "") == (patch["google_calendar_id"] or "")
+        and (existing.get("google_event_id") or "") == (patch["google_event_id"] or "")
+    ):
+        return dict(existing)
+
+    patch["id"] = existing["id"]
+    return save_activity(patch)
+
+
+def sync_google_events_for_range(user_email, start_date, end_date, calendar_ids):
+    from dashboard.services import google_calendar  # local import avoids circular import at module load
+
+    events = google_calendar.list_events_for_range(user_email, start_date, end_date, calendar_ids)
+    seen_pairs = set()
+    for event in events:
+        pair = (event.get("calendar_id"), event.get("event_id"))
+        if not all(pair):
+            continue
+        seen_pairs.add(pair)
+        upsert_google_activity(user_email, event)
+
+    # Remove stale auto-synced rows that disappeared from Google in this range.
+    engine = _engine()
+    deleted_count = 0
+    with engine.begin() as conn:
+        rows = conn.execute(
+            sql_text(
+                f"""
+                SELECT id, google_calendar_id, google_event_id
+                FROM {TASKS_TABLE}
+                WHERE user_email = :user_email
+                  AND source = 'calendar_sync'
+                  AND scheduled_date BETWEEN :start_date AND :end_date
+                """
+            ),
+            {
+                "user_email": user_email,
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
+            },
+        ).mappings().all()
+        for row in rows:
+            pair = (row.get("google_calendar_id"), row.get("google_event_id"))
+            if pair not in seen_pairs:
+                conn.execute(
+                    sql_text(
+                        f"DELETE FROM {TASKS_TABLE} WHERE id = :task_id AND user_email = :user_email"
+                    ),
+                    {"task_id": row["id"], "user_email": user_email},
+                )
+                deleted_count += 1
+    if deleted_count > 0:
+        _invalidate()
+    return events
+
+
 def delete_activity(activity_id, delete_remote_google=True):
     task_row = get_activity_by_id(activity_id)
     if not task_row:
@@ -469,6 +628,71 @@ def delete_activity(activity_id, delete_remote_google=True):
             {"user_email": _current_user(), "task_id": activity_id},
         )
     _invalidate()
+
+
+def create_google_event_for_activity(user_email, activity_id, calendar_id):
+    from dashboard.services import google_calendar
+
+    activity = get_activity_by_id(activity_id, user_email=user_email)
+    if not activity:
+        return None
+
+    payload = {
+        "summary": activity.get("title") or "Task",
+    }
+    scheduled_date = activity.get("scheduled_date")
+    scheduled_time = activity.get("scheduled_time")
+    estimated = _parse_minutes(activity.get("estimated_minutes")) or 30
+    if scheduled_time:
+        start_dt = datetime.fromisoformat(f"{scheduled_date}T{scheduled_time}:00")
+        end_dt = start_dt + timedelta(minutes=estimated)
+        payload["start"] = {"dateTime": start_dt.isoformat()}
+        payload["end"] = {"dateTime": end_dt.isoformat()}
+    else:
+        payload["start"] = {"date": scheduled_date}
+        payload["end"] = {"date": (date.fromisoformat(scheduled_date) + timedelta(days=1)).isoformat()}
+
+    event = google_calendar.create_event(user_email, calendar_id, payload)
+    save_activity(
+        {
+            "id": activity_id,
+            "google_calendar_id": calendar_id,
+            "google_event_id": event.get("id"),
+            "external_event_key": f"google::{calendar_id}::{event.get('id')}",
+        }
+    )
+    return event
+
+
+def update_google_event_for_activity(user_email, activity_id, patch=None):
+    from dashboard.services import google_calendar
+
+    activity = get_activity_by_id(activity_id, user_email=user_email)
+    if not activity:
+        return None
+    if not activity.get("google_calendar_id") or not activity.get("google_event_id"):
+        return None
+
+    if patch is None:
+        scheduled_date = activity.get("scheduled_date")
+        scheduled_time = activity.get("scheduled_time")
+        estimated = _parse_minutes(activity.get("estimated_minutes")) or 30
+        patch = {"summary": activity.get("title") or "Task"}
+        if scheduled_time:
+            start_dt = datetime.fromisoformat(f"{scheduled_date}T{scheduled_time}:00")
+            end_dt = start_dt + timedelta(minutes=estimated)
+            patch["start"] = {"dateTime": start_dt.isoformat()}
+            patch["end"] = {"dateTime": end_dt.isoformat()}
+        else:
+            patch["start"] = {"date": scheduled_date}
+            patch["end"] = {"date": (date.fromisoformat(scheduled_date) + timedelta(days=1)).isoformat()}
+
+    return google_calendar.update_event(
+        user_email,
+        activity["google_calendar_id"],
+        activity["google_event_id"],
+        patch,
+    )
 
 
 def save_mood_choice(user_email, day, mood):
@@ -520,6 +744,147 @@ def get_mood_details(user_email, day):
         "mood_media_url": row.get("mood_media_url") or "",
         "mood_tags": [str(tag).strip() for tag in mood_tags if str(tag).strip()],
     }
+
+
+def _habit_streak(habit_map, habit_key, today, valid_weekdays=None):
+    count = 0
+    current = today
+    while True:
+        if valid_weekdays is not None and current.weekday() not in valid_weekdays:
+            current -= timedelta(days=1)
+            continue
+        row = habit_map.get(current)
+        if not row:
+            break
+        if int(row.get(habit_key, 0) or 0) != 1:
+            break
+        count += 1
+        current -= timedelta(days=1)
+    return count
+
+
+def _meeting_days_for_user(user_email):
+    raw = get_setting(user_email, "meeting_days")
+    if not raw:
+        return {1, 3}
+    try:
+        return {int(item) for item in str(raw).split(",") if str(item).strip() != ""}
+    except Exception:
+        return {1, 3}
+
+
+def get_shared_habit_comparison(today, user_a, user_b, habit_keys):
+    engine = _engine()
+    with engine.connect() as conn:
+        rows = conn.execute(
+            sql_text(
+                f"""
+                SELECT user_email, date, {', '.join(habit_keys)}
+                FROM {ENTRIES_TABLE}
+                WHERE user_email IN (:user_a, :user_b)
+                  AND date <= :today
+                ORDER BY date DESC
+                """
+            ),
+            {"user_a": user_a, "user_b": user_b, "today": today.isoformat()},
+        ).mappings().all()
+
+    by_user = {user_a: {}, user_b: {}}
+    for row in rows:
+        try:
+            row_date = date.fromisoformat(str(row.get("date")))
+        except Exception:
+            continue
+        by_user.setdefault(row["user_email"], {})[row_date] = dict(row)
+
+    meeting_days = {
+        user_a: _meeting_days_for_user(user_a),
+        user_b: _meeting_days_for_user(user_b),
+    }
+
+    habits = []
+    for habit_key in habit_keys:
+        valid_weekdays = None
+        if habit_key in {"meeting_attended", "prepare_meeting"}:
+            # Keep per-user logic with their own meeting days.
+            valid_weekdays = "meeting"
+        a_streak = _habit_streak(
+            by_user.get(user_a, {}),
+            habit_key,
+            today,
+            valid_weekdays=meeting_days[user_a] if valid_weekdays == "meeting" else None,
+        )
+        b_streak = _habit_streak(
+            by_user.get(user_b, {}),
+            habit_key,
+            today,
+            valid_weekdays=meeting_days[user_b] if valid_weekdays == "meeting" else None,
+        )
+        habits.append({"habit_key": habit_key, "user_a_days": a_streak, "user_b_days": b_streak})
+
+    completed_both = 0
+    completed_any = 0
+    considered_habits = 0
+    today_a = by_user.get(user_a, {}).get(today, {})
+    today_b = by_user.get(user_b, {}).get(today, {})
+    user_a_meeting_today = today.weekday() in meeting_days[user_a]
+    user_b_meeting_today = today.weekday() in meeting_days[user_b]
+    for habit_key in habit_keys:
+        if habit_key in {"meeting_attended", "prepare_meeting"}:
+            expected_a = user_a_meeting_today
+            expected_b = user_b_meeting_today
+            if not expected_a and not expected_b:
+                continue
+        else:
+            expected_a = True
+            expected_b = True
+
+        considered_habits += 1
+        a_val = int(today_a.get(habit_key, 0) or 0)
+        b_val = int(today_b.get(habit_key, 0) or 0)
+        if expected_a and expected_b and a_val == 1 and b_val == 1:
+            completed_both += 1
+        if (expected_a and a_val == 1) or (expected_b and b_val == 1):
+            completed_any += 1
+
+    denominator = considered_habits or len(habit_keys) or 1
+    summary = (
+        f"Today both completed {completed_both}/{denominator} shared habits. "
+        f"At least one of you completed {completed_any}/{denominator}."
+    )
+    if user_a_meeting_today != user_b_meeting_today:
+        summary = f"{summary} Meeting-day habits are pending for one partner."
+
+    return {
+        "today": today.isoformat(),
+        "habits": habits,
+        "summary": summary,
+    }
+
+
+def get_couple_mood_feed(user_a, user_b, start_date, end_date):
+    engine = _engine()
+    with engine.connect() as conn:
+        rows = conn.execute(
+            sql_text(
+                f"""
+                SELECT user_email, date, mood_category, mood_note, mood_media_url, mood_tags_json
+                FROM {ENTRIES_TABLE}
+                WHERE user_email IN (:user_a, :user_b)
+                  AND date BETWEEN :start_date AND :end_date
+                  AND mood_category IS NOT NULL
+                  AND mood_category != ''
+                ORDER BY date DESC, user_email ASC
+                """
+            ),
+            {
+                "user_a": user_a,
+                "user_b": user_b,
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
+            },
+        ).mappings().all()
+    return [dict(row) for row in rows]
 
 
 def _default_prompt_cards():

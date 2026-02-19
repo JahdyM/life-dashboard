@@ -1975,10 +1975,27 @@ def load_data():
     return load_data_for_email(get_current_user_email())
 
 
+@st.cache_data(ttl=30, show_spinner=False)
+def load_today_activities_cached(user_email, day_iso):
+    return repositories.list_activities_for_day(user_email, date.fromisoformat(day_iso))
+
+
+@st.cache_data(ttl=30, show_spinner=False)
+def load_shared_snapshot_cached(day_iso, user_a, user_b, habit_keys):
+    return repositories.get_shared_habit_comparison(
+        date.fromisoformat(day_iso),
+        user_a,
+        user_b,
+        list(habit_keys),
+    )
+
+
 def invalidate_runtime_caches():
     load_data_for_email_cached.clear()
     load_custom_habit_done_by_date_cached.clear()
     list_todo_tasks_for_window_cached.clear()
+    load_today_activities_cached.clear()
+    load_shared_snapshot_cached.clear()
 
 
 def new_id():
@@ -3282,20 +3299,22 @@ def dot_chart(values, dates, title, color, height=260):
 
 enforce_google_login()
 enforce_persistent_storage_on_cloud()
-try:
-    init_db()
-    storage_migration_message = migrate_local_sqlite_to_configured_db()
-except SQLAlchemyError as exc:
-    show_database_connection_error(exc)
-except Exception as exc:
-    show_database_connection_error(exc)
+if not st.session_state.get("_db_bootstrap_done"):
+    try:
+        init_db()
+        st.session_state["_db_bootstrap_message"] = migrate_local_sqlite_to_configured_db()
+        st.session_state["_db_bootstrap_done"] = True
+    except SQLAlchemyError as exc:
+        show_database_connection_error(exc)
+    except Exception as exc:
+        show_database_connection_error(exc)
+
+storage_migration_message = st.session_state.get("_db_bootstrap_message")
 
 current_user_email = get_current_user_email()
 current_user_name = get_display_name(current_user_email)
-current_user_profile = USER_PROFILES.get(current_user_email, {})
 partner_email = get_partner_email(current_user_email)
 partner_name = get_display_name(partner_email) if partner_email else "Partner"
-partner_data = load_data_for_email(partner_email) if partner_email else pd.DataFrame()
 
 st.markdown(
     f"<div class='small-label' style='margin-bottom:10px;'>Welcome, <strong>{current_user_name}</strong>.</div>",
@@ -3308,12 +3327,15 @@ meeting_days = get_meeting_days()
 if "meeting_days" not in st.session_state:
     st.session_state["meeting_days"] = meeting_days
 meeting_days = st.session_state["meeting_days"]
-custom_habits = get_custom_habits(active_only=True)
-custom_habit_ids = [habit["id"] for habit in custom_habits]
-custom_done_by_date = load_custom_habit_done_by_date()
 
-data = load_data()
-if not data.empty:
+active_tab = st.session_state.get("ui.active_tab", "Daily Habits")
+tabs_needing_data = {"Daily Habits", "Statistics & Charts", "Mood Board"}
+data = load_data() if active_tab in tabs_needing_data else pd.DataFrame(columns=ENTRY_COLUMNS)
+
+if active_tab == "Statistics & Charts" and not data.empty:
+    custom_habits = get_custom_habits(active_only=True)
+    custom_habit_ids = [habit["id"] for habit in custom_habits]
+    custom_done_by_date = load_custom_habit_done_by_date()
     metrics = data.apply(
         lambda row: compute_habits_metrics(
             row,
@@ -3339,16 +3361,29 @@ repositories.configure(
     invalidate_callback=invalidate_runtime_caches,
 )
 google_calendar.configure(get_secret)
-repositories.set_google_delete_callback(google_calendar.google_delete_event)
+repositories.set_google_delete_callback(google_calendar.delete_event)
 
-today_activities = repositories.list_activities_for_day(current_user_email, date.today())
+today_activities = load_today_activities_cached(current_user_email, date.today().isoformat())
 pending_tasks = sum(1 for row in today_activities if int(row.get("is_done", 0) or 0) == 0)
+shared_habit_keys = ["bible_reading", "meeting_attended", "prepare_meeting", "workout", "shower"]
+shared_snapshot = {}
+if partner_email:
+    try:
+        shared_snapshot = load_shared_snapshot_cached(
+            date.today().isoformat(),
+            current_user_email,
+            partner_email,
+            tuple(shared_habit_keys),
+        )
+    except Exception:
+        shared_snapshot = {"today": date.today().isoformat(), "habits": [], "summary": "Shared summary unavailable."}
 
 render_global_header(
     {
-        "data": data,
-        "helpers": {"streak_count": streak_count},
-        "quick_indicators": {"pending_tasks": pending_tasks},
+        "shared_snapshot": shared_snapshot,
+        "current_user_name": current_user_name,
+        "partner_name": partner_name,
+        "habit_labels": DEFAULT_HABIT_LABELS,
     }
 )
 
@@ -3357,9 +3392,9 @@ context = {
     "current_user_name": current_user_name,
     "partner_email": partner_email,
     "partner_name": partner_name,
-    "partner_data": partner_data,
     "data": data,
     "meeting_days": meeting_days,
+    "quick_indicators": {"pending_tasks": pending_tasks},
     "constants": {
         "DAY_LABELS": DAY_LABELS,
         "DAY_TO_INDEX": DAY_TO_INDEX,
@@ -3392,978 +3427,3 @@ context = {
 
 render_router(context)
 st.stop()
-
-# --- LIFE BALANCE SCORE ---
-
-st.markdown("<div class='section-title'>Life Balance Score</div>", unsafe_allow_html=True)
-
-if data.empty:
-    st.markdown("Add today’s entry to calculate your Life Balance Score.")
-else:
-    today = date.today()
-    today_row = data[data["date"] == today]
-    if today_row.empty:
-        st.markdown("No entry for today yet.")
-    else:
-        score = float(today_row.iloc[0]["life_balance_score"])
-        if score < 40:
-            score_color = "#D95252"
-        elif score < 70:
-            score_color = "#D6D979"
-        else:
-            score_color = "#4FA36C"
-
-        st.markdown(
-            f"<div style='font-size:54px; font-weight:700; color:{score_color}; line-height:1;'>{score}</div>",
-            unsafe_allow_html=True,
-        )
-
-        weekly_start = today - timedelta(days=6)
-        weekly = data[(data["date"] >= weekly_start) & (data["date"] <= today)]
-        if len(weekly) > 1:
-            percentile = round((weekly["life_balance_score"] < score).sum() / len(weekly) * 100)
-            st.caption(f"Today you are more balanced than {percentile}% of your week.")
-        else:
-            st.caption("Add more days this week to see your weekly comparison.")
-
-        boredom_zero = zero_boredom_streak(data, today)
-        if boredom_zero >= 5:
-            st.warning("You may need mental quiet time.")
-
-        meeting_days_set = set(meeting_days)
-        streak_cols = st.columns(4)
-        streak_cols[0].markdown(f"📖 {streak_count(data, 'bible_reading', today)} day Bible reading streak")
-        streak_cols[1].markdown(f"🏃 {streak_count(data, 'workout', today)} day workout streak")
-        streak_cols[2].markdown(
-            f"🤝 {streak_count(data, 'meeting_attended', today, valid_weekdays=meeting_days_set)} meeting-day streak"
-        )
-        streak_cols[3].markdown(f"🚿 {streak_count(data, 'shower', today)} day shower streak")
-
-        if partner_email:
-            st.markdown(
-                "<div class='small-label' style='margin-top:8px;'>Shared streak comparison</div>",
-                unsafe_allow_html=True,
-            )
-            my_read = streak_count(data, "bible_reading", today)
-            my_workout = streak_count(data, "workout", today)
-            my_meeting = streak_count(data, "meeting_attended", today, valid_weekdays=meeting_days_set)
-            my_shower = streak_count(data, "shower", today)
-
-            partner_read = streak_count(partner_data, "bible_reading", today)
-            partner_workout = streak_count(partner_data, "workout", today)
-            partner_meeting = streak_count(
-                partner_data,
-                "meeting_attended",
-                today,
-                valid_weekdays=meeting_days_set,
-            )
-            partner_shower = streak_count(partner_data, "shower", today)
-
-            compare_cols = st.columns(4)
-            compare_cols[0].metric("Bible Reading", f"{my_read}d", delta=f"{partner_name}: {partner_read}d")
-            compare_cols[1].metric("Workout", f"{my_workout}d", delta=f"{partner_name}: {partner_workout}d")
-            compare_cols[2].metric("Meeting Day", f"{my_meeting}d", delta=f"{partner_name}: {partner_meeting}d")
-            compare_cols[3].metric("Shower", f"{my_shower}d", delta=f"{partner_name}: {partner_shower}d")
-
-# --- DAILY INPUT PANEL ---
-
-st.markdown("<div class='section-title'>Daily Workspace</div>", unsafe_allow_html=True)
-
-if "selected_date" not in st.session_state:
-    st.session_state["selected_date"] = date.today()
-
-selected_date = st.date_input("Date", key="selected_date")
-entry = get_entry_for_date(selected_date, data)
-load_entry_into_state(selected_date, entry)
-is_meeting_day = selected_date.weekday() in meeting_days
-load_custom_habits_into_state(selected_date, custom_habits, custom_done_by_date)
-if not is_meeting_day:
-    st.session_state["input_meeting_attended"] = False
-    st.session_state["input_prepare_meeting"] = False
-
-left_col, right_col = st.columns([1, 1.3], gap="large")
-
-with left_col:
-    st.markdown("<div class='section-title'>Habits</div>", unsafe_allow_html=True)
-
-    last_saved = st.session_state.get("last_saved_at")
-    if last_saved:
-        st.caption(f"Auto-save enabled. Last saved at {last_saved}.")
-    else:
-        st.caption("Auto-save enabled. Changes save instantly.")
-
-    st.markdown("<div class='small-label' style='margin-top:4px;'>Meeting schedule</div>", unsafe_allow_html=True)
-    if "meeting_days_labels" not in st.session_state:
-        st.session_state["meeting_days_labels"] = [DAY_LABELS[i] for i in meeting_days]
-    st.multiselect(
-        "Weekly meeting days",
-        options=DAY_LABELS,
-        key="meeting_days_labels",
-        on_change=save_meeting_days,
-    )
-
-    if not is_meeting_day:
-        st.caption("Meeting habits are hidden on non-meeting days.")
-
-    st.markdown("<div class='small-label' style='margin-top:6px;'>Daily priority habit</div>", unsafe_allow_html=True)
-    priority_cols = st.columns([3, 1])
-    with priority_cols[0]:
-        st.text_input("Priority focus for today", key="input_priority_label", on_change=auto_save)
-    with priority_cols[1]:
-        disabled_priority = not bool(st.session_state.get("input_priority_label", "").strip())
-        st.checkbox("Done", key="input_priority_done", on_change=auto_save, disabled=disabled_priority)
-
-    st.markdown("<div class='small-label'>Habits</div>", unsafe_allow_html=True)
-    habit_cols = st.columns(2)
-    habit_index = 0
-    for key, _ in HABITS:
-        if key not in FIXED_COUPLE_HABIT_KEYS:
-            continue
-        if key in MEETING_HABIT_KEYS and not is_meeting_day:
-            continue
-        label = DEFAULT_HABIT_LABELS[key]
-        with habit_cols[habit_index % 2]:
-            st.checkbox(label, key=f"input_{key}", on_change=auto_save)
-        habit_index += 1
-
-    st.markdown("<div class='small-label' style='margin-top:8px;'>Personal habits (inline)</div>", unsafe_allow_html=True)
-    if not custom_habits:
-        st.caption("No personal habits yet. Add one in the empty row below.")
-
-    for habit in custom_habits:
-        habit_id = habit["id"]
-        row_key = safe_widget_key(habit_id)
-        edit_mode_key = f"editing_custom_habit_{row_key}"
-        edit_name_key = f"edit_custom_habit_name_{row_key}"
-        row_cols = st.columns([0.8, 5.0, 0.8, 0.8], gap="small")
-        with row_cols[0]:
-            st.checkbox(
-                "",
-                key=f"input_custom_{row_key}",
-                on_change=auto_save,
-                label_visibility="collapsed",
-            )
-        with row_cols[1]:
-            if st.session_state.get(edit_mode_key, False):
-                st.text_input(
-                    "Edit habit",
-                    key=edit_name_key,
-                    label_visibility="collapsed",
-                    placeholder="Habit name",
-                )
-            else:
-                st.markdown(f"<div style='padding-top:6px;'>{html.escape(habit['name'])}</div>", unsafe_allow_html=True)
-        with row_cols[2]:
-            if st.session_state.get(edit_mode_key, False):
-                if st.button("✔", key=f"save_custom_habit_{row_key}", help="Save name", type="tertiary"):
-                    ok, message = rename_custom_habit(habit_id, st.session_state.get(edit_name_key, ""))
-                    if ok:
-                        st.session_state[edit_mode_key] = False
-                        st.rerun()
-                    st.warning(message)
-            else:
-                if st.button("✎", key=f"edit_custom_habit_{row_key}", help="Edit habit", type="tertiary"):
-                    st.session_state[edit_mode_key] = True
-                    st.session_state[edit_name_key] = habit["name"]
-                    st.rerun()
-        with row_cols[3]:
-            if st.button("✕", key=f"delete_custom_habit_{row_key}", help="Delete habit", type="tertiary"):
-                remove_custom_habit(habit_id)
-                st.rerun()
-
-    add_cols = st.columns([0.8, 5.0, 0.8, 0.8], gap="small")
-    with add_cols[0]:
-        st.checkbox(
-            "",
-            value=False,
-            key="empty_custom_habit_checkpoint",
-            disabled=True,
-            label_visibility="collapsed",
-        )
-    with add_cols[1]:
-        st.text_input(
-            "Add personal habit",
-            key="new_custom_habit_name_inline",
-            label_visibility="collapsed",
-            placeholder="Add a new habit...",
-        )
-    with add_cols[2]:
-        if st.button("+", key="add_custom_habit_inline", help="Add habit", type="tertiary"):
-            ok, message = add_custom_habit(st.session_state.get("new_custom_habit_name_inline", ""))
-            if ok:
-                st.session_state["new_custom_habit_name_inline"] = ""
-                st.rerun()
-            st.warning(message or "Unable to add habit.")
-
-    st.markdown("<div class='small-label' style='margin-top:8px;'>Daily Metrics</div>", unsafe_allow_html=True)
-    metric_cols = st.columns(2)
-    with metric_cols[0]:
-        st.number_input(
-            "Sleep hours",
-            min_value=0.0,
-            max_value=12.0,
-            step=0.5,
-            key="input_sleep_hours",
-            on_change=auto_save,
-        )
-        st.number_input(
-            "Anxiety level",
-            min_value=1,
-            max_value=10,
-            step=1,
-            key="input_anxiety_level",
-            on_change=auto_save,
-        )
-        st.number_input(
-            "Work/study hours",
-            min_value=0.0,
-            max_value=16.0,
-            step=0.5,
-            key="input_work_hours",
-            on_change=auto_save,
-        )
-    with metric_cols[1]:
-        st.number_input(
-            "Boredom minutes",
-            min_value=0,
-            max_value=60,
-            step=5,
-            key="input_boredom_minutes",
-            on_change=auto_save,
-        )
-        st.selectbox(
-            "Mood category",
-            MOODS,
-            key="input_mood_category",
-            on_change=auto_save,
-        )
-
-    with st.expander("Delete Records"):
-        delete_mode = st.selectbox("Delete mode", ["Single day", "Date range"])
-        if delete_mode == "Single day":
-            delete_date = st.date_input("Date to delete", value=date.today(), key="delete_single")
-            delete_confirm = st.checkbox("I understand this cannot be undone.", key="delete_confirm_single")
-            if st.button("Delete entry", disabled=not delete_confirm):
-                deleted = delete_entries(delete_date)
-                st.success(f"Deleted {deleted} entr{'y' if deleted == 1 else 'ies'}.")
-                st.rerun()
-        else:
-            start_date = st.date_input(
-                "Start date",
-                value=date.today() - timedelta(days=7),
-                key="delete_start",
-            )
-            end_date = st.date_input(
-                "End date",
-                value=date.today(),
-                key="delete_end",
-            )
-            if start_date > end_date:
-                st.warning("Start date must be before end date.")
-            delete_confirm = st.checkbox("I understand this cannot be undone.", key="delete_confirm_range")
-            if st.button("Delete range", disabled=not delete_confirm or start_date > end_date):
-                deleted = delete_entries(start_date, end_date)
-                st.success(f"Deleted {deleted} entr{'y' if deleted == 1 else 'ies'}.")
-                st.rerun()
-
-    if aesthetic_image_urls:
-        st.markdown(build_aesthetic_side_html(aesthetic_image_urls, offset=0), unsafe_allow_html=True)
-
-with right_col:
-    st.markdown("<div class='section-title'>Calendar</div>", unsafe_allow_html=True)
-
-    week_reference = st.date_input(
-        "Calendar week view",
-        value=selected_date,
-        key="calendar_week_ref",
-    )
-    week_start, week_end = get_week_range(week_reference)
-    st.caption(f"Week: {week_start.strftime('%d/%m/%Y')} - {week_end.strftime('%d/%m/%Y')}")
-
-    ics_url, calendar_secret_key = get_user_calendar_ics_url(current_user_email)
-    tasks = list_todo_tasks(week_start, week_end, selected_date)
-    week_task_counts = build_task_count_map(tasks, week_start, week_end)
-    week_task_details = build_task_detail_map(tasks, week_start, week_end)
-
-    week_calendar_events = []
-    day_calendar_events = []
-    calendar_error = None
-    if ics_url:
-        week_calendar_events, calendar_error = fetch_ics_events_for_range(ics_url, week_start, week_end)
-        if not calendar_error:
-            day_calendar_events = filter_events_for_date(week_calendar_events, selected_date)
-            if selected_date < week_start or selected_date > week_end:
-                day_calendar_events, calendar_error = fetch_ics_events_for_date(ics_url, selected_date)
-    else:
-        calendar_error = f"Missing private calendar URL in backend secret: {calendar_secret_key}"
-
-    week_google_counts = (
-        build_event_count_map(week_calendar_events, week_start, week_end)
-        if not calendar_error
-        else {}
-    )
-    week_google_details = (
-        build_event_detail_map(week_calendar_events, week_start, week_end)
-        if not calendar_error
-        else {}
-    )
-    week_score_map = {}
-    if not data.empty and "life_balance_score" in data.columns:
-        for _, row in data.iterrows():
-            row_date = row.get("date")
-            if isinstance(row_date, date) and week_start <= row_date <= week_end:
-                week_score_map[row_date] = row.get("life_balance_score")
-    st.markdown(
-        build_week_calendar_html(
-            week_start,
-            selected_date,
-            week_google_counts,
-            week_task_counts,
-            week_google_details,
-            week_task_details,
-            week_score_map,
-        ),
-        unsafe_allow_html=True,
-    )
-    st.caption("Legend: `G` = Google events, `T` = your scheduled tasks, `Score` = life balance score.")
-    st.caption("Google events are read-only via iCal here. Delete hides them in this dashboard.")
-
-    if calendar_error:
-        st.warning(calendar_error)
-    else:
-        st.caption(f"{len(day_calendar_events)} Google event(s) on {selected_date.strftime('%d/%m/%Y')}")
-
-    selected_iso = selected_date.isoformat()
-    unscheduled_remembered = [
-        task for task in tasks
-        if task.get("source") == "remembered" and not task.get("scheduled_date")
-    ]
-    day_internal_tasks = [
-        task for task in tasks
-        if task.get("scheduled_date") == selected_iso
-    ]
-    task_subtasks_cache = get_todo_subtasks_map([task["id"] for task in day_internal_tasks])
-    override_tasks_by_event = {}
-    for task in day_internal_tasks:
-        if task.get("source") == "calendar_override" and task.get("external_event_key"):
-            override_tasks_by_event[task["external_event_key"]] = task
-
-    event_status_map = get_calendar_event_status_map(
-        selected_date,
-        [event["event_key"] for event in day_calendar_events],
-    )
-    event_done_map = {k: v.get("is_done", False) for k, v in event_status_map.items()}
-    event_hidden_map = {k: v.get("is_hidden", False) for k, v in event_status_map.items()}
-
-    st.caption(f"Unified list for {selected_date.strftime('%d/%m/%Y')} (calendar + manual tasks).")
-
-    daily_list_container = st.container()
-    activity_forms_container = st.container()
-
-    with activity_forms_container:
-        st.markdown("<div class='small-label' style='margin-top:8px;'>Add activity</div>", unsafe_allow_html=True)
-
-        with st.form("add_manual_task_form"):
-            manual_title = st.text_input("Task title", key="manual_task_title")
-            manual_priority = st.selectbox("Priority tag", PRIORITY_TAGS, key="manual_task_priority")
-            manual_estimated = st.number_input(
-                "Estimated minutes",
-                min_value=5,
-                max_value=600,
-                step=5,
-                value=30,
-                key="manual_task_estimated",
-            )
-            manual_has_time = st.checkbox("Set a specific hour", key="manual_task_has_time")
-            manual_time_value = st.time_input(
-                "Start time",
-                value=datetime.now().replace(second=0, microsecond=0).time(),
-                key="manual_task_time",
-                disabled=not manual_has_time,
-            )
-            add_manual = st.form_submit_button("Add task")
-            if add_manual:
-                if not (manual_title or "").strip():
-                    st.warning("Task title is required.")
-                else:
-                    add_todo_task(
-                        manual_title,
-                        source="manual",
-                        scheduled_date=selected_date,
-                        scheduled_time=manual_time_value if manual_has_time else None,
-                        priority_tag=manual_priority,
-                        estimated_minutes=manual_estimated,
-                    )
-                    st.rerun()
-
-        with st.form("remember_item_form"):
-            remembered_title = st.text_input("Remembered item", key="remembered_task_title")
-            remembered_priority = st.selectbox("Priority", PRIORITY_TAGS, key="remembered_task_priority")
-            remembered_estimated = st.number_input(
-                "Estimated minutes",
-                min_value=5,
-                max_value=600,
-                step=5,
-                value=20,
-                key="remembered_task_estimated",
-            )
-            add_remembered = st.form_submit_button("Add to to-decide list")
-            if add_remembered:
-                if not (remembered_title or "").strip():
-                    st.warning("Item title is required.")
-                else:
-                    add_todo_task(
-                        remembered_title,
-                        source="remembered",
-                        priority_tag=remembered_priority,
-                        estimated_minutes=remembered_estimated,
-                    )
-                    st.rerun()
-
-        if unscheduled_remembered:
-            st.markdown("<div class='small-label'>To-decide list</div>", unsafe_allow_html=True)
-            for task in unscheduled_remembered:
-                task_id = task["id"]
-                task_key = safe_widget_key(task_id)
-                task_priority = normalize_priority_tag(task.get("priority_tag"))
-                task_est = int(task.get("estimated_minutes") or 0)
-                st.markdown(f"**{task['title']}**")
-                plan_cols = st.columns([1.7, 1.7, 1.5, 1.2, 1.0, 1.0])
-                with plan_cols[0]:
-                    plan_date = st.date_input("Date", value=selected_date, key=f"plan_date_{task_key}")
-                with plan_cols[1]:
-                    plan_time = st.time_input(
-                        "Time",
-                        value=datetime.now().replace(second=0, microsecond=0).time(),
-                        key=f"plan_time_{task_key}",
-                    )
-                with plan_cols[2]:
-                    edit_priority = st.selectbox(
-                        "Priority",
-                        PRIORITY_TAGS,
-                        index=PRIORITY_TAGS.index(task_priority),
-                        key=f"plan_priority_{task_key}",
-                    )
-                with plan_cols[3]:
-                    edit_est = st.number_input(
-                        "Est min",
-                        min_value=5,
-                        max_value=600,
-                        step=5,
-                        value=max(task_est, 5),
-                        key=f"plan_est_{task_key}",
-                    )
-                with plan_cols[4]:
-                    if st.button("Schedule", key=f"schedule_task_{task_key}"):
-                        update_todo_task_fields(
-                            task_id,
-                            priority_tag=edit_priority,
-                            estimated_minutes=edit_est,
-                        )
-                        schedule_todo_task(task_id, plan_date, plan_time)
-                        st.rerun()
-                with plan_cols[5]:
-                    if st.button("Delete", key=f"delete_unscheduled_{task_key}"):
-                        delete_todo_task(task_id)
-                        st.rerun()
-                st.divider()
-        else:
-            st.caption("No pending items in to-decide list.")
-
-    with daily_list_container:
-        combined_items = []
-        linked_combined_task_ids = set()
-        for event in day_calendar_events:
-            event_key = event["event_key"]
-            override_task = override_tasks_by_event.get(event_key)
-            if override_task:
-                linked_combined_task_ids.add(override_task["id"])
-                subtasks = task_subtasks_cache.get(override_task["id"], [])
-                progress = get_task_progress(override_task, subtasks)
-                done = progress >= 100
-                priority_label, priority_weight, priority_color = priority_meta(override_task.get("priority_tag"))
-                combined_items.append(
-                    {
-                        "id": override_task["id"],
-                        "title": override_task.get("title") or event["title"],
-                        "source": "calendar_override",
-                        "time": override_task.get("scheduled_time") or event["start_time"],
-                        "done": done,
-                        "progress": progress,
-                        "priority_label": priority_label,
-                        "priority_weight": priority_weight,
-                        "priority_color": priority_color,
-                        "subtasks": subtasks,
-                        "task_row": override_task,
-                        "event_row": event,
-                    }
-                )
-                continue
-
-            if event_hidden_map.get(event_key, False):
-                continue
-
-            event_done = bool(event_done_map.get(event_key, False))
-            progress = 100.0 if event_done else 0.0
-            priority_label, priority_weight, priority_color = compute_auto_priority(
-                selected_date,
-                event["start_time"],
-                "calendar",
-                progress,
-            )
-            combined_items.append(
-                {
-                    "id": event_key,
-                    "title": event["title"],
-                    "source": "calendar",
-                    "time": event["start_time"],
-                    "done": event_done,
-                    "progress": progress,
-                    "priority_label": priority_label,
-                    "priority_weight": priority_weight,
-                    "priority_color": priority_color,
-                    "subtasks": [],
-                    "event_row": event,
-                }
-            )
-
-        for task in day_internal_tasks:
-            if task["id"] in linked_combined_task_ids:
-                continue
-            subtasks = task_subtasks_cache.get(task["id"], [])
-            progress = get_task_progress(task, subtasks)
-            done = progress >= 100
-            priority_label, priority_weight, priority_color = priority_meta(task.get("priority_tag"))
-            combined_items.append(
-                {
-                    "id": task["id"],
-                    "title": task.get("title") or "",
-                    "source": task.get("source", "manual"),
-                    "time": task.get("scheduled_time"),
-                    "done": done,
-                    "progress": progress,
-                    "priority_label": priority_label,
-                    "priority_weight": priority_weight,
-                    "priority_color": priority_color,
-                    "subtasks": subtasks,
-                    "task_row": task,
-                }
-            )
-
-        combined_items.sort(key=lambda item: (-item["priority_weight"], item["time"] or "23:59", item["title"]))
-        todo_score = build_todo_score(combined_items)
-        st.metric("Total task score", todo_score)
-        st.caption(build_time_estimation_insight(day_internal_tasks, task_subtasks_cache))
-        st.caption("To complete manual tasks/subtasks, set `Actual min` greater than zero.")
-        st.markdown("<div class='small-label'>Daily tasks list</div>", unsafe_allow_html=True)
-        if not combined_items:
-            st.caption("No tasks for this day yet.")
-        for item in combined_items:
-            task_key = safe_widget_key(item["id"])
-            time_suffix = ""
-            if item["source"] != "calendar":
-                time_suffix = f" ({format_time_interval(item.get('time'), item['task_row'].get('estimated_minutes'))})"
-            elif item.get("time"):
-                time_suffix = f" ({item['time']})"
-
-            header_cols = st.columns([0.7, 4.1, 1.3, 1.1, 2.2])
-            with header_cols[0]:
-                if item["source"] == "calendar":
-                    checked = st.checkbox(
-                        "done",
-                        value=item["done"],
-                        key=f"calendar_done_{task_key}",
-                        label_visibility="collapsed",
-                    )
-                    if checked != item["done"]:
-                        set_calendar_event_done(item["id"], selected_date, checked)
-                        st.rerun()
-                else:
-                    has_subtasks = len(item["subtasks"]) > 0
-                    task_actual = parse_minutes(item["task_row"].get("actual_minutes"))
-                    checked = st.checkbox(
-                        "done",
-                        value=item["done"],
-                        key=f"task_done_{task_key}",
-                        disabled=has_subtasks or task_actual is None,
-                        label_visibility="collapsed",
-                    )
-                    if not has_subtasks and checked != item["done"]:
-                        set_todo_task_done(item["id"], checked)
-                        st.rerun()
-            with header_cols[1]:
-                st.markdown(f"**{item['title']}**{time_suffix}")
-            with header_cols[2]:
-                st.markdown(
-                    f"<span style='color:{item['priority_color']};font-weight:600;'>{item['priority_label']}</span>",
-                    unsafe_allow_html=True,
-                )
-            with header_cols[3]:
-                st.markdown(f"{item['progress']}%")
-            with header_cols[4]:
-                if item["source"] == "calendar":
-                    action_cols = st.columns(2, gap="small")
-                    with action_cols[0]:
-                        if st.button("✎", key=f"customize_task_{task_key}", help="Customize", type="tertiary"):
-                            create_calendar_override_task(item["event_row"], selected_date)
-                            st.rerun()
-                    with action_cols[1]:
-                        if st.button("✕", key=f"hide_task_{task_key}", help="Delete", type="tertiary"):
-                            set_calendar_event_hidden(item["id"], selected_date, True)
-                            st.rerun()
-                elif st.button("✕", key=f"delete_task_{task_key}", help="Delete", type="tertiary"):
-                    delete_todo_task(item["id"])
-                    st.rerun()
-
-            if item["source"] != "calendar":
-                task_row = item["task_row"]
-                current_task_priority = normalize_priority_tag(task_row.get("priority_tag"))
-                current_task_est = int(task_row.get("estimated_minutes") or 0)
-                current_task_actual = int(task_row.get("actual_minutes") or 0)
-                task_details_cols = st.columns([2.2, 1.4, 1.4])
-                with task_details_cols[0]:
-                    edited_priority = st.selectbox(
-                        "Priority tag",
-                        PRIORITY_TAGS,
-                        index=PRIORITY_TAGS.index(current_task_priority),
-                        key=f"task_priority_{task_key}",
-                    )
-                with task_details_cols[1]:
-                    edited_est = st.number_input(
-                        "Estimated min",
-                        min_value=0,
-                        max_value=600,
-                        step=5,
-                        value=current_task_est,
-                        key=f"task_est_{task_key}",
-                    )
-                with task_details_cols[2]:
-                    edited_actual = st.number_input(
-                        "Actual min",
-                        min_value=0,
-                        max_value=600,
-                        step=5,
-                        value=current_task_actual,
-                        key=f"task_actual_{task_key}",
-                    )
-                if (
-                    edited_priority != current_task_priority
-                    or int(edited_est) != current_task_est
-                    or int(edited_actual) != current_task_actual
-                ):
-                    update_todo_task_fields(
-                        item["id"],
-                        priority_tag=edited_priority,
-                        estimated_minutes=edited_est,
-                        actual_minutes=edited_actual,
-                    )
-
-                for subtask in item["subtasks"]:
-                    sub_key = safe_widget_key(subtask["id"])
-                    sub_priority_current = normalize_priority_tag(subtask.get("priority_tag"))
-                    sub_est_current = int(subtask.get("estimated_minutes") or 0)
-                    sub_actual_current = int(subtask.get("actual_minutes") or 0)
-
-                    sub_cols = st.columns([0.6, 2.8, 1.4, 1.2, 1.2, 0.9])
-                    with sub_cols[0]:
-                        sub_checked = st.checkbox(
-                            "done",
-                            value=bool(subtask.get("is_done", 0)),
-                            key=f"subtask_done_{sub_key}",
-                            label_visibility="collapsed",
-                            disabled=parse_minutes(subtask.get("actual_minutes")) is None,
-                        )
-                        if sub_checked != bool(subtask.get("is_done", 0)):
-                            set_todo_subtask_done(subtask["id"], sub_checked)
-                            st.rerun()
-                    with sub_cols[1]:
-                        st.markdown(f"Subtask: {subtask['title']}")
-                    with sub_cols[2]:
-                        sub_priority_edit = st.selectbox(
-                            "Priority",
-                            PRIORITY_TAGS,
-                            index=PRIORITY_TAGS.index(sub_priority_current),
-                            key=f"sub_priority_{sub_key}",
-                        )
-                    with sub_cols[3]:
-                        sub_est_edit = st.number_input(
-                            "Est",
-                            min_value=0,
-                            max_value=600,
-                            step=5,
-                            value=sub_est_current,
-                            key=f"sub_est_{sub_key}",
-                        )
-                    with sub_cols[4]:
-                        sub_actual_edit = st.number_input(
-                            "Actual",
-                            min_value=0,
-                            max_value=600,
-                            step=5,
-                            value=sub_actual_current,
-                            key=f"sub_actual_{sub_key}",
-                        )
-                    with sub_cols[5]:
-                        if st.button("Delete", key=f"delete_subtask_{sub_key}"):
-                            delete_todo_subtask(subtask["id"])
-                            st.rerun()
-                    if (
-                        sub_priority_edit != sub_priority_current
-                        or int(sub_est_edit) != sub_est_current
-                        or int(sub_actual_edit) != sub_actual_current
-                    ):
-                        update_todo_subtask_fields(
-                            subtask["id"],
-                            priority_tag=sub_priority_edit,
-                            estimated_minutes=sub_est_edit,
-                            actual_minutes=sub_actual_edit,
-                        )
-
-                new_sub_cols = st.columns([2.8, 1.4, 1.4, 0.9])
-                with new_sub_cols[0]:
-                    subtask_text = st.text_input(
-                        "New subtask",
-                        key=f"new_subtask_text_{task_key}",
-                        label_visibility="collapsed",
-                        placeholder="Add subtask",
-                    )
-                with new_sub_cols[1]:
-                    new_sub_priority = st.selectbox(
-                        "Priority",
-                        PRIORITY_TAGS,
-                        key=f"new_subtask_priority_{task_key}",
-                    )
-                with new_sub_cols[2]:
-                    new_sub_est = st.number_input(
-                        "Estimated",
-                        min_value=5,
-                        max_value=600,
-                        step=5,
-                        value=15,
-                        key=f"new_subtask_est_{task_key}",
-                    )
-                with new_sub_cols[3]:
-                    if st.button("Add", key=f"add_subtask_btn_{task_key}"):
-                        add_todo_subtask(
-                            item["id"],
-                            subtask_text,
-                            priority_tag=new_sub_priority,
-                            estimated_minutes=new_sub_est,
-                        )
-                        st.rerun()
-            st.divider()
-
-# --- TODAY'S SUMMARY ---
-
-st.markdown("<div class='section-title'>Today's Summary</div>", unsafe_allow_html=True)
-
-summary_container = st.container()
-
-if data.empty:
-    summary_container.markdown("No entries yet. Add your first day to get started.")
-else:
-    today = date.today()
-
-    today_row = data[data["date"] == today]
-    cols = summary_container.columns(4)
-    if not today_row.empty:
-        row = today_row.iloc[0]
-        cols[0].metric("Habits completed", int(row["habits_completed"]))
-        cols[1].metric("Life Balance Score", row["life_balance_score"])
-        cols[2].metric("Sleep hours", row.get("sleep_hours", 0))
-        cols[3].metric("Mood", row.get("mood_category", ""))
-    else:
-        summary_container.markdown("No entry for today yet.")
-
-    # Weekly averages
-    weekly_start = today - timedelta(days=6)
-    weekly = data[(data["date"] >= weekly_start) & (data["date"] <= today)]
-    if not weekly.empty:
-        st.markdown("<div class='small-label' style='margin-top:8px;'>Weekly averages (last 7 days)</div>", unsafe_allow_html=True)
-        avg_cols = st.columns(4)
-        avg_cols[0].metric("Sleep", round(weekly["sleep_hours"].mean(), 1))
-        avg_cols[1].metric("Anxiety", round(weekly["anxiety_level"].mean(), 1))
-        avg_cols[2].metric("Work hours", round(weekly["work_hours"].mean(), 1))
-        avg_cols[3].metric("Boredom min", round(weekly["boredom_minutes"].mean(), 1))
-
-# --- WEEKDAY VS WEEKEND ANALYSIS ---
-
-st.markdown("<div class='section-title'>Weekday vs Weekend Analysis</div>", unsafe_allow_html=True)
-
-if data.empty or data["is_weekend"].nunique() < 2:
-    st.markdown("Add more entries across weekdays and weekends to see the comparison.")
-else:
-    data["focus_score"] = (
-        data["work_hours"].fillna(0)
-        + data["writing"].fillna(0)
-        + data["scientific_writing"].fillna(0)
-        + data["dissertation_work"].fillna(0)
-    )
-    data["rest_score"] = data["sleep_hours"].fillna(0) + data["boredom_minutes"].fillna(0) / 60
-
-    weekday = data[~data["is_weekend"]]
-    weekend = data[data["is_weekend"]]
-
-    weekday_focus = round(weekday["focus_score"].mean(), 2)
-    weekend_focus = round(weekend["focus_score"].mean(), 2)
-    weekday_rest = round(weekday["rest_score"].mean(), 2)
-    weekend_rest = round(weekend["rest_score"].mean(), 2)
-
-    analysis_cols = st.columns(4)
-    analysis_cols[0].metric("Weekday focus", weekday_focus)
-    analysis_cols[1].metric("Weekend focus", weekend_focus)
-    analysis_cols[2].metric("Weekday rest", weekday_rest)
-    analysis_cols[3].metric("Weekend rest", weekend_rest)
-
-    focus_note = "Weekdays show more work + writing focus." if weekday_focus >= weekend_focus else "Weekends show more work + writing focus."
-    rest_note = "Weekends show more rest time." if weekend_rest >= weekday_rest else "Weekdays show more rest time."
-    st.markdown(f"{focus_note} {rest_note}")
-
-# --- VERTICAL CHARTS ---
-
-st.markdown("<div class='section-title'>Vertical Charts Analytics</div>", unsafe_allow_html=True)
-
-if data.empty:
-    st.markdown("Add entries to generate charts.")
-else:
-    view = st.selectbox("View", ["Last 7 days", "This month"], index=0)
-    if view == "Last 7 days":
-        start_date = date.today() - timedelta(days=6)
-        filtered = data[data["date"] >= start_date]
-    else:
-        today = date.today()
-        filtered = data[(data["date"].apply(lambda d: d.year == today.year and d.month == today.month))]
-
-    filtered = filtered.sort_values("date")
-    filtered["date_str"] = pd.to_datetime(filtered["date"]).dt.strftime("%b %d")
-
-    chart_cols = st.columns(2)
-
-    fig_sleep = dot_chart(filtered["sleep_hours"], filtered["date_str"], "Sleep hours per day", "#a9c0e8")
-    chart_cols[0].plotly_chart(fig_sleep, use_container_width=True)
-
-    fig_anxiety = dot_chart(filtered["anxiety_level"], filtered["date_str"], "Anxiety level per day", "#cbb5e2")
-    chart_cols[1].plotly_chart(fig_anxiety, use_container_width=True)
-
-    fig_work = dot_chart(filtered["work_hours"], filtered["date_str"], "Work/study hours per day", "#b7d1c9")
-    chart_cols[0].plotly_chart(fig_work, use_container_width=True)
-
-    fig_boredom = dot_chart(filtered["boredom_minutes"], filtered["date_str"], "Boredom minutes per day", "#f2d4a2")
-    chart_cols[1].plotly_chart(fig_boredom, use_container_width=True)
-
-    fig_habits = dot_chart(filtered["habits_percent"], filtered["date_str"], "Habits completed (%)", "#c9b3e5")
-    chart_cols[0].plotly_chart(fig_habits, use_container_width=True)
-
-# --- MOOD PIXEL BOARD ---
-
-st.markdown("<div class='section-title'>Mood Pixel Board</div>", unsafe_allow_html=True)
-
-if data.empty and (not partner_email or partner_data.empty):
-    st.markdown("Add mood entries to see the pixel board.")
-else:
-    mood_map = {row["date"]: row["mood_category"] for _, row in data.iterrows() if row.get("mood_category")}
-
-    now = date.today()
-    month_col, year_col = st.columns(2)
-
-    with month_col:
-        month_choice = st.date_input("Monthly view", value=now.replace(day=1))
-        z, hover_text, x_labels, y_labels = build_month_tracker_grid(month_choice.year, month_choice.month, mood_map)
-        fig_month = mood_heatmap(z, hover_text, x_labels=x_labels, y_labels=y_labels, title="Monthly Mood Grid")
-        st.plotly_chart(fig_month, use_container_width=True)
-
-    with year_col:
-        year_choice = st.selectbox("Year", list(range(now.year - 3, now.year + 1)), index=3)
-        z, hover_text, x_labels, y_labels = build_year_tracker_grid(year_choice, mood_map)
-        fig_year = mood_heatmap(z, hover_text, x_labels=x_labels, y_labels=y_labels, title="Yearly Mood Grid")
-        st.plotly_chart(fig_year, use_container_width=True)
-
-    if partner_email:
-        st.markdown("<div class='small-label' style='margin-top:8px;'>Shared mood board (both users)</div>", unsafe_allow_html=True)
-        shared_month = st.date_input(
-            "Shared month",
-            value=now.replace(day=1),
-            key="shared_mood_month",
-        )
-        shared_year = st.selectbox(
-            "Shared year",
-            list(range(now.year - 3, now.year + 1)),
-            index=3,
-            key="shared_mood_year",
-        )
-
-        couple_entries = [
-            (current_user_name, mood_map),
-            (
-                partner_name,
-                {
-                    row["date"]: row["mood_category"]
-                    for _, row in partner_data.iterrows()
-                    if row.get("mood_category")
-                },
-            ),
-        ]
-
-        month_pair_cols = st.columns(2)
-        for idx, (name, user_mood_map) in enumerate(couple_entries):
-            with month_pair_cols[idx]:
-                z, hover_text, x_labels, y_labels = build_month_tracker_grid(
-                    shared_month.year,
-                    shared_month.month,
-                    user_mood_map,
-                )
-                fig_shared_month = mood_heatmap(
-                    z,
-                    hover_text,
-                    x_labels=x_labels,
-                    y_labels=y_labels,
-                    title=f"{name} • Monthly",
-                )
-                st.plotly_chart(fig_shared_month, use_container_width=True)
-
-        year_pair_cols = st.columns(2)
-        for idx, (name, user_mood_map) in enumerate(couple_entries):
-            with year_pair_cols[idx]:
-                z, hover_text, x_labels, y_labels = build_year_tracker_grid(
-                    shared_year,
-                    user_mood_map,
-                )
-                fig_shared_year = mood_heatmap(
-                    z,
-                    hover_text,
-                    x_labels=x_labels,
-                    y_labels=y_labels,
-                    title=f"{name} • Yearly",
-                )
-                st.plotly_chart(fig_shared_year, use_container_width=True)
-
-    legend = " • ".join([f"{m} ({MOOD_COLORS[m]})" for m in MOODS])
-    st.caption("Mood colors: " + legend)
-
-# --- MONTHLY STATISTICS ---
-
-st.markdown("<div class='section-title'>Monthly Statistics</div>", unsafe_allow_html=True)
-
-if data.empty:
-    st.markdown("No monthly statistics available yet.")
-else:
-    today = date.today()
-    monthly = data[(data["date"].apply(lambda d: d.year == today.year and d.month == today.month))]
-    if monthly.empty:
-        st.markdown("No entries for the current month yet.")
-    else:
-        stats_cols = st.columns(5)
-        stats_cols[0].metric("Days logged", int(monthly.shape[0]))
-        stats_cols[1].metric("Avg sleep", round(monthly["sleep_hours"].mean(), 1))
-        stats_cols[2].metric("Avg anxiety", round(monthly["anxiety_level"].mean(), 1))
-        stats_cols[3].metric("Avg work", round(monthly["work_hours"].mean(), 1))
-        stats_cols[4].metric("Avg boredom", round(monthly["boredom_minutes"].mean(), 1))
-
-        balance_avg = round(monthly["life_balance_score"].mean(), 1)
-        habits_avg = round(monthly["habits_completed"].mean(), 1)
-        extra_cols = st.columns(2)
-        extra_cols[0].metric("Avg habits completed", habits_avg)
-        extra_cols[1].metric("Avg balance", balance_avg)
-
-        st.markdown("<div class='small-label' style='margin-top:8px;'>Life balance formula</div>", unsafe_allow_html=True)
-        st.markdown("35% habits + 25% work + 25% sleep + 15% intentional boredom (10–40 min ideal).")

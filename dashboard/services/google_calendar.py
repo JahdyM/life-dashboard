@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 from urllib.parse import urlencode, quote
 
 import requests
+import streamlit as st
 from cryptography.fernet import Fernet
 
 from dashboard.data import repositories
@@ -28,11 +29,11 @@ def _get_secret(path, default=None):
 
 
 def _client_id():
-    return _get_secret(("auth", "google", "client_id"))
+    return _get_secret(("calendar_auth", "client_id")) or _get_secret(("auth", "google", "client_id"))
 
 
 def _client_secret():
-    return _get_secret(("auth", "google", "client_secret"))
+    return _get_secret(("calendar_auth", "client_secret")) or _get_secret(("auth", "google", "client_secret"))
 
 
 def _redirect_uri():
@@ -47,6 +48,10 @@ def _redirect_uri():
     if auth_redirect.endswith("/oauth2callback"):
         return auth_redirect[: -len("/oauth2callback")]
     return auth_redirect
+
+
+def get_effective_redirect_uri():
+    return _redirect_uri()
 
 
 def _fernet():
@@ -222,7 +227,12 @@ def _parse_google_event(calendar_id, event):
     }
 
 
-def list_events_for_range(user_email, start_day, end_day, calendar_ids):
+@st.cache_data(ttl=120, show_spinner=False)
+def _list_events_for_range_cached(user_email, start_iso, end_iso, calendar_ids_tuple):
+    start_day = date.fromisoformat(start_iso)
+    end_day = date.fromisoformat(end_iso)
+    calendar_ids = list(calendar_ids_tuple)
+
     events = []
     headers = _google_headers(user_email)
 
@@ -250,18 +260,52 @@ def list_events_for_range(user_email, start_day, end_day, calendar_ids):
     return events
 
 
-def google_update_event(user_email, calendar_id, event_id, patch):
+def list_events_for_range(user_email, start_day, end_day, calendar_ids):
+    return _list_events_for_range_cached(
+        user_email,
+        start_day.isoformat(),
+        end_day.isoformat(),
+        tuple(calendar_ids),
+    )
+
+
+def clear_event_cache():
+    _list_events_for_range_cached.clear()
+
+
+def create_event(user_email, calendar_id, payload):
+    endpoint = f"{CALENDAR_API}/calendars/{quote(calendar_id, safe='')}/events"
+    headers = _google_headers(user_email)
+    headers["Content-Type"] = "application/json"
+    response = requests.post(endpoint, headers=headers, json=payload, timeout=20)
+    response.raise_for_status()
+    clear_event_cache()
+    return response.json()
+
+
+def update_event(user_email, calendar_id, event_id, patch):
     endpoint = f"{CALENDAR_API}/calendars/{quote(calendar_id, safe='')}/events/{quote(event_id, safe='')}"
     headers = _google_headers(user_email)
     headers["Content-Type"] = "application/json"
     response = requests.patch(endpoint, headers=headers, json=patch, timeout=20)
     response.raise_for_status()
+    clear_event_cache()
     return response.json()
 
 
-def google_delete_event(user_email, calendar_id, event_id):
+def delete_event(user_email, calendar_id, event_id):
     endpoint = f"{CALENDAR_API}/calendars/{quote(calendar_id, safe='')}/events/{quote(event_id, safe='')}"
     headers = _google_headers(user_email)
     response = requests.delete(endpoint, headers=headers, timeout=20)
     if response.status_code not in {200, 204}:
         response.raise_for_status()
+    clear_event_cache()
+
+
+# Backward-compatible names
+def google_update_event(user_email, calendar_id, event_id, patch):
+    return update_event(user_email, calendar_id, event_id, patch)
+
+
+def google_delete_event(user_email, calendar_id, event_id):
+    return delete_event(user_email, calendar_id, event_id)

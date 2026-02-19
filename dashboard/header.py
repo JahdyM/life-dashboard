@@ -4,8 +4,10 @@ import streamlit as st
 
 
 def render_global_header(ctx):
-    data = ctx["data"]
-    streak_count = ctx["helpers"]["streak_count"]
+    shared_snapshot = ctx.get("shared_snapshot") or {}
+    current_name = ctx.get("current_user_name") or "You"
+    partner_name = ctx.get("partner_name") or "Partner"
+    habit_labels = ctx.get("habit_labels", {})
 
     st.markdown(
         """
@@ -14,39 +16,59 @@ def render_global_header(ctx):
             position: sticky;
             top: 0.25rem;
             z-index: 999;
-            padding: 0.5rem;
+            padding: 0.6rem 0.8rem;
             border-radius: 14px;
-            border: 1px solid var(--divider);
+            border: 1px solid var(--border);
             backdrop-filter: blur(8px);
             background: var(--bg-panel);
             margin-bottom: 0.8rem;
+        }
+        .streak-row {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.35rem 0.55rem;
+            background: var(--bg-card);
+            margin-bottom: 0.35rem;
+        }
+        .streak-title {
+            font-weight: 600;
+            margin-bottom: 0.15rem;
+        }
+        .streak-line {
+            font-size: 0.86rem;
         }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
-    today = date.today()
-    row = data[data["date"] == today] if not data.empty else None
-
-    score = 0
-    mood = "-"
-    habits_percent = 0
-    if row is not None and not row.empty:
-        score = int(round(float(row.iloc[0].get("life_balance_score", 0) or 0)))
-        mood = row.iloc[0].get("mood_category") or "-"
-        habits_percent = int(round(float(row.iloc[0].get("habits_percent", 0) or 0)))
-
-    daily_streak = streak_count(data, "workout", today) if not data.empty else 0
-
-    indicators = ctx.get("quick_indicators", {})
-    pending_tasks = indicators.get("pending_tasks", 0)
+    habits = shared_snapshot.get("habits", [])
+    summary = shared_snapshot.get("summary") or "Shared streak summary unavailable yet."
+    today_iso = shared_snapshot.get("today") or date.today().isoformat()
 
     st.markdown("<div class='sticky-header-wrap'>", unsafe_allow_html=True)
-    cols = st.columns(5)
-    cols[0].metric("Daily streak", f"{daily_streak}d")
-    cols[1].metric("Life balance", f"{score}")
-    cols[2].metric("Habits %", f"{habits_percent}%")
-    cols[3].metric("Mood", mood)
-    cols[4].metric("Pending tasks", int(pending_tasks))
+    st.markdown(f"<div class='small-label'>Shared Habits Streak • {today_iso}</div>", unsafe_allow_html=True)
+
+    if not habits:
+        st.caption("No shared streak data available yet.")
+    else:
+        cols = st.columns(5)
+        for idx, item in enumerate(habits):
+            habit_key = item.get("habit_key")
+            label = habit_labels.get(habit_key, habit_key.replace("_", " ").title())
+            a_days = int(item.get("user_a_days", 0) or 0)
+            b_days = int(item.get("user_b_days", 0) or 0)
+            with cols[idx % 5]:
+                st.markdown(
+                    (
+                        "<div class='streak-row'>"
+                        f"<div class='streak-title'>🔥 {label}</div>"
+                        f"<div class='streak-line'>{a_days} days | {current_name}</div>"
+                        f"<div class='streak-line'>{b_days} days | {partner_name}</div>"
+                        "</div>"
+                    ),
+                    unsafe_allow_html=True,
+                )
+
+    st.caption(summary)
     st.markdown("</div>", unsafe_allow_html=True)
