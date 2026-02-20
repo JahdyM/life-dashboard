@@ -7,6 +7,7 @@ from uuid import uuid4
 from sqlalchemy import text as sql_text, bindparam
 
 from backend.db import get_sessionmaker
+from backend.settings import get_settings
 
 ENTRIES_TABLE = "daily_entries_user"
 SETTINGS_TABLE = "settings"
@@ -47,10 +48,16 @@ def _normalize_priority(value):
 
 
 def get_partner_email(user_email: str) -> str | None:
-    if user_email == JAHDY_EMAIL:
-        return GUILHERME_EMAIL
-    if user_email == GUILHERME_EMAIL:
-        return JAHDY_EMAIL
+    settings = get_settings()
+    allowed = settings.allowed_emails
+    if len(allowed) >= 2:
+        a = allowed[0].lower()
+        b = allowed[1].lower()
+        current = user_email.lower()
+        if current == a:
+            return allowed[1]
+        if current == b:
+            return allowed[0]
     return None
 
 
