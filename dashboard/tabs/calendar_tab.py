@@ -460,6 +460,10 @@ def render_calendar_tab(ctx):
         add_est_key = f"calendar.add.est.{add_prefix}"
         add_date_key = f"calendar.add.date.{add_prefix}"
         add_time_key = f"calendar.add.time.{add_prefix}"
+        reset_key = f"calendar.add.reset.{add_prefix}"
+        if st.session_state.pop(reset_key, False):
+            for key in (add_title_key, add_priority_key, add_est_key, add_date_key, add_time_key):
+                st.session_state.pop(key, None)
         if add_title_key not in st.session_state:
             st.session_state[add_title_key] = draft["title"]
         if add_priority_key not in st.session_state:
@@ -546,8 +550,7 @@ def render_calendar_tab(ctx):
                     draft["title"] = ""
                     draft["date"] = ""
                     draft["time"] = ""
-                    st.session_state[add_date_key] = ""
-                    st.session_state[add_time_key] = ""
+                    st.session_state[reset_key] = True
                     st.session_state["calendar.force_refresh"] = True
                     st.rerun()
 
