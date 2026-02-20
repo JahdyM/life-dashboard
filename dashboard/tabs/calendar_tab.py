@@ -196,17 +196,6 @@ def _build_calendar_events(tasks):
                     "borderColor": color,
                 }
             )
-        else:
-            events.append(
-                {
-                    "id": task_id,
-                    "title": title,
-                    "start": scheduled_date,
-                    "allDay": True,
-                    "backgroundColor": color,
-                    "borderColor": color,
-                }
-            )
     return events
 
 
@@ -385,7 +374,7 @@ def render_calendar_tab(ctx):
     layout = st.columns([2.4, 1.0], gap="large")
 
     with layout[0]:
-        st.markdown("<div class='calendar-compact task-list'>", unsafe_allow_html=True)
+        st.markdown("<div class='calendar-compact task-list calendar-hacker'>", unsafe_allow_html=True)
         st.markdown("<div class='calendar-section-title'>Daily tasks list</div>", unsafe_allow_html=True)
         planned_count = len(day_tasks)
         done_count = sum(1 for item in day_tasks if int(item.get("is_done", 0) or 0) == 1)
@@ -569,7 +558,7 @@ def render_calendar_tab(ctx):
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown("<div class='calendar-compact'>", unsafe_allow_html=True)
+        st.markdown("<div class='calendar-compact calendar-hacker'>", unsafe_allow_html=True)
         st.markdown("<div class='calendar-section-title'>Add activity</div>", unsafe_allow_html=True)
         draft = _day_draft(selected_day)
         add_prefix = selected_day.isoformat()
@@ -777,7 +766,7 @@ def render_calendar_tab(ctx):
                 "selectable": True,
                 "selectMirror": True,
                 "nowIndicator": True,
-                "allDaySlot": True,
+                "allDaySlot": False,
                 "slotMinTime": "00:00:00",
                 "slotMaxTime": "24:00:00",
                 "slotDuration": "00:30:00",
