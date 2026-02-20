@@ -27,6 +27,7 @@ def render_couple_tab(ctx):
     st.markdown("<div class='section-title'>Couple</div>", unsafe_allow_html=True)
 
     today = date.today()
+    row_meta = [(0, user_a, "Jahdy"), (1, user_b, "Guilherme")]
     if repositories.api_enabled():
         try:
             streak_snapshot = api_client.request("GET", "/v1/couple/streaks")
@@ -72,7 +73,6 @@ def render_couple_tab(ctx):
 
         z = [[float("nan") for _ in range(month_last)] for _ in range(2)]
         hover_text = [["" for _ in range(month_last)] for _ in range(2)]
-        row_meta = [(0, user_a, "Jahdy"), (1, user_b, "Guilherme")]
         for row_idx, email, label in row_meta:
             for day in range(1, month_last + 1):
                 current = month_start.replace(day=day)

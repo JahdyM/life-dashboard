@@ -28,7 +28,7 @@ def _get_day_cache(day_iso: str):
     entry = cache.get(day_iso)
     if not entry:
         return None
-    if time.time() - entry.get("ts", 0) > 8:
+    if time.time() - entry.get("ts", 0) > 30:
         return None
     return entry.get("data", {})
 
@@ -44,7 +44,7 @@ def _get_custom_done_cache(day_iso: str):
     entry = cache.get(day_iso)
     if not entry:
         return None
-    if time.time() - entry.get("ts", 0) > 10:
+    if time.time() - entry.get("ts", 0) > 30:
         return None
     return entry.get("data", {})
 
@@ -67,6 +67,7 @@ def _apply_local_header_update(habit_key: str, done_value: bool):
             break
     snapshot["habits"] = habits
     st.session_state["header.shared_snapshot"] = snapshot
+    st.session_state["header.local_dirty_until"] = time.time() + 15
 
 
 def _save_fixed_habit(user_email, selected_day, habit_key, widget_key):
@@ -81,19 +82,10 @@ def _save_fixed_habit(user_email, selected_day, habit_key, widget_key):
             selected_day,
             habit_key,
             st.session_state.get(widget_key, False),
-            sync=True,
+            sync=False,
         )
     except Exception as exc:
         st.warning(f"Couldn't save habit update: {exc}")
-        # Fall back to async save to keep UI responsive
-        repositories.save_habit_toggle(
-            user_email,
-            selected_day,
-            habit_key,
-            st.session_state.get(widget_key, False),
-            sync=False,
-        )
-    st.session_state["header.invalidate"] = True
 
 
 def _save_metrics(user_email, selected_day):
@@ -222,7 +214,7 @@ def render_habits_tab(ctx):
 
         @st.cache_resource
         def _habit_executor():
-            return ThreadPoolExecutor(max_workers=2)
+            return ThreadPoolExecutor(max_workers=6)
 
         def _get_custom_cache():
             cache = st.session_state.get("habits.custom_cache")

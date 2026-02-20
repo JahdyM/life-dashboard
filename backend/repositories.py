@@ -929,6 +929,7 @@ async def get_couple_mood_feed(user_a: str, user_b: str, start_date: date, end_d
 
 
 async def get_shared_habit_comparison(today: date, user_a: str, user_b: str, habit_keys: list[str]) -> dict:
+    start_window = today - timedelta(days=400)
     session_factory = get_sessionmaker()
     async with session_factory() as session:
         rows = (await session.execute(
@@ -938,10 +939,16 @@ async def get_shared_habit_comparison(today: date, user_a: str, user_b: str, hab
                 FROM {ENTRIES_TABLE}
                 WHERE user_email IN (:user_a, :user_b)
                   AND date <= :today
+                  AND date >= :start_date
                 ORDER BY date DESC
                 """
             ),
-            {"user_a": user_a, "user_b": user_b, "today": today.isoformat()},
+            {
+                "user_a": user_a,
+                "user_b": user_b,
+                "today": today.isoformat(),
+                "start_date": start_window.isoformat(),
+            },
         )).mappings().all()
 
     by_user = {user_a: {}, user_b: {}}

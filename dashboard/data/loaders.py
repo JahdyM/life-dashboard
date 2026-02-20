@@ -143,7 +143,7 @@ def fetch_ics_events_for_range(ics_url, start_date, end_date):
     return events, None
 
 
-@st.cache_data(ttl=5, show_spinner=False)
+@st.cache_data(ttl=15, show_spinner=False)
 def fetch_header_cached(user_email: str, api_base: str):
     if not repositories.api_enabled():
         return {}
@@ -214,6 +214,16 @@ def load_custom_habit_done_by_date_cached(user_email, database_url, start_iso, e
         }
     return done_by_date
 
+
+@st.cache_data(ttl=15, show_spinner=False)
+def fetch_init_cached(user_email: str, api_base: str):
+    if not repositories.api_enabled():
+        return {}
+    try:
+        return api_client.request("GET", "/v1/init")
+    except Exception as exc:
+        logger.warning("Failed to fetch init payload: %s", exc)
+        return {}
 
 def load_custom_habit_done_by_date(start_date, end_date):
     return load_custom_habit_done_by_date_cached(

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from backend.auth import require_user_email
 from backend import repositories
+from backend.settings import get_settings
 
 router = APIRouter()
 
@@ -23,7 +24,9 @@ SHARED_HABITS = [
 
 @router.get("/v1/couple/streaks")
 async def couple_streaks(user_email: str = Depends(require_user_email)):
-    partner = "guilherme.m.rods@gmail.com" if user_email == "jahdy.moreno@gmail.com" else "jahdy.moreno@gmail.com"
+    partner = repositories.get_partner_email(user_email)
+    if not partner:
+        return {"today": date.today().isoformat(), "habits": [], "summary": "Shared summary unavailable."}
     snapshot = await repositories.get_shared_habit_comparison(date.today(), user_email, partner, SHARED_HABITS)
     return snapshot
 
@@ -35,8 +38,15 @@ async def couple_moodboard(
     year: int | None = Query(None),
     user_email: str = Depends(require_user_email),
 ):
-    user_a = "jahdy.moreno@gmail.com"
-    user_b = "guilherme.m.rods@gmail.com"
+    settings = get_settings()
+    if len(settings.allowed_emails) >= 2:
+        user_a = settings.allowed_emails[0]
+        user_b = settings.allowed_emails[1]
+    else:
+        user_a = user_email
+        user_b = repositories.get_partner_email(user_email)
+        if not user_b:
+            raise HTTPException(status_code=400, detail="Partner not configured")
     if range not in {"month", "year"}:
         raise HTTPException(status_code=400, detail="Invalid range")
 
@@ -63,7 +73,15 @@ async def couple_moodboard(
     total_slots = len(x_labels)
     z = [[float("nan") for _ in range(total_slots)] for _ in range(2)]
     hover_text = [["" for _ in range(total_slots)] for _ in range(2)]
-    row_meta = [(0, user_a, "Jahdy"), (1, user_b, "Guilherme")]
+    def _label(email: str) -> str:
+        lowered = email.lower()
+        if lowered.startswith("jahdy"):
+            return "Jahdy"
+        if lowered.startswith("guilherme"):
+            return "Guilherme"
+        return email.split("@")[0].title()
+
+    row_meta = [(0, user_a, _label(user_a)), (1, user_b, _label(user_b))]
     by_key = {(row["user_email"], str(row["date"])): row["mood_category"] for row in feed}
 
     for row_idx, email, label in row_meta:
@@ -78,7 +96,7 @@ async def couple_moodboard(
 
     return {
         "x_labels": x_labels,
-        "y_labels": ["Jahdy", "Guilherme"],
+        "y_labels": [row_meta[0][2], row_meta[1][2]],
         "z": z,
         "hover_text": hover_text,
     }

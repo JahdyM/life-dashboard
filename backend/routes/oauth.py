@@ -22,6 +22,8 @@ async def google_connect(user_email: str = Depends(require_user_email)):
 async def google_callback(code: str, state: str):
     if not state:
         raise HTTPException(status_code=400, detail="Missing state")
-    user_email = state
+    user_email = google_calendar_service.validate_oauth_state(state)
+    if not user_email:
+        raise HTTPException(status_code=400, detail="Invalid state")
     await google_calendar_service.exchange_code_for_tokens(user_email, code)
     return {"ok": True}

@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import hmac
+import time
+import asyncio
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode, quote
 
@@ -14,6 +17,7 @@ from backend import repositories
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 CALENDAR_API = "https://www.googleapis.com/calendar/v3"
+_TOKEN_REFRESH_LOCK = asyncio.Lock()
 
 
 def _fernet() -> Fernet:
@@ -33,6 +37,7 @@ def decrypt_token(value: str) -> str:
 
 def build_connect_url(user_email: str) -> str:
     settings = get_settings()
+    state = build_oauth_state(user_email)
     params = {
         "client_id": settings.calendar_client_id,
         "redirect_uri": settings.calendar_redirect_uri,
@@ -41,9 +46,40 @@ def build_connect_url(user_email: str) -> str:
         "access_type": "offline",
         "include_granted_scopes": "true",
         "prompt": "consent",
-        "state": user_email,
+        "state": state,
     }
     return f"{AUTH_URL}?{urlencode(params)}"
+
+
+def build_oauth_state(user_email: str) -> str:
+    settings = get_settings()
+    secret = settings.backend_session_secret or settings.google_token_encryption_key
+    ts = int(time.time())
+    payload = f"{user_email}|{ts}"
+    sig = hmac.new(secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+    return f"{payload}|{sig}"
+
+
+def validate_oauth_state(state: str) -> str | None:
+    try:
+        user_email, ts_str, sig = state.split("|", 2)
+    except ValueError:
+        return None
+    settings = get_settings()
+    secret = settings.backend_session_secret or settings.google_token_encryption_key
+    payload = f"{user_email}|{ts_str}"
+    expected = hmac.new(secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, sig):
+        return None
+    try:
+        ts = int(ts_str)
+    except Exception:
+        return None
+    if abs(int(time.time()) - ts) > 900:
+        return None
+    if settings.allowed_emails and user_email.lower() not in settings.allowed_emails:
+        return None
+    return user_email
 
 
 async def exchange_code_for_tokens(user_email: str, code: str) -> None:
@@ -55,7 +91,7 @@ async def exchange_code_for_tokens(user_email: str, code: str) -> None:
         "redirect_uri": settings.calendar_redirect_uri,
         "grant_type": "authorization_code",
     }
-    async with httpx.AsyncClient(timeout=20) as client:
+    async with httpx.AsyncClient(timeout=10) as client:
         response = await client.post(TOKEN_URL, data=payload)
     response.raise_for_status()
     token_data = response.json()
@@ -80,31 +116,32 @@ async def exchange_code_for_tokens(user_email: str, code: str) -> None:
 
 
 async def _refresh_access_token(user_email: str) -> str | None:
-    token_row = await repositories.get_google_tokens(user_email)
-    if not token_row:
-        return None
-    refresh_enc = token_row.get("refresh_token_enc")
-    if not refresh_enc:
-        return None
-    refresh_token = decrypt_token(refresh_enc)
-    settings = get_settings()
-    payload = {
-        "client_id": settings.calendar_client_id,
-        "client_secret": settings.calendar_client_secret,
-        "refresh_token": refresh_token,
-        "grant_type": "refresh_token",
-    }
-    async with httpx.AsyncClient(timeout=20) as client:
-        response = await client.post(TOKEN_URL, data=payload)
-    response.raise_for_status()
-    token_data = response.json()
-    access_token = token_data.get("access_token")
-    if not access_token:
-        return None
-    expires_in = int(token_data.get("expires_in", 3600) or 3600)
-    expires_at = (datetime.now(timezone.utc) + timedelta(seconds=expires_in - 30)).isoformat()
-    await repositories.update_google_access_token(user_email, access_token, expires_at, token_data.get("scope"))
-    return access_token
+    async with _TOKEN_REFRESH_LOCK:
+        token_row = await repositories.get_google_tokens(user_email)
+        if not token_row:
+            return None
+        refresh_enc = token_row.get("refresh_token_enc")
+        if not refresh_enc:
+            return None
+        refresh_token = decrypt_token(refresh_enc)
+        settings = get_settings()
+        payload = {
+            "client_id": settings.calendar_client_id,
+            "client_secret": settings.calendar_client_secret,
+            "refresh_token": refresh_token,
+            "grant_type": "refresh_token",
+        }
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.post(TOKEN_URL, data=payload)
+        response.raise_for_status()
+        token_data = response.json()
+        access_token = token_data.get("access_token")
+        if not access_token:
+            return None
+        expires_in = int(token_data.get("expires_in", 3600) or 3600)
+        expires_at = (datetime.now(timezone.utc) + timedelta(seconds=expires_in - 30)).isoformat()
+        await repositories.update_google_access_token(user_email, access_token, expires_at, token_data.get("scope"))
+        return access_token
 
 
 async def get_access_token(user_email: str) -> str | None:
@@ -149,7 +186,7 @@ async def list_events(
     else:
         params["timeMin"] = time_min
         params["timeMax"] = time_max
-    async with httpx.AsyncClient(timeout=25) as client:
+    async with httpx.AsyncClient(timeout=8) as client:
         response = await client.get(endpoint, headers=headers, params=params)
     if response.status_code >= 400:
         try:
@@ -165,7 +202,7 @@ async def create_event(user_email: str, calendar_id: str, payload: dict) -> dict
     headers = await _google_headers(user_email)
     headers["Content-Type"] = "application/json"
     endpoint = f"{CALENDAR_API}/calendars/{quote(calendar_id, safe='')}/events"
-    async with httpx.AsyncClient(timeout=20) as client:
+    async with httpx.AsyncClient(timeout=8) as client:
         response = await client.post(endpoint, headers=headers, json=payload)
     if response.status_code >= 400:
         try:
@@ -181,7 +218,7 @@ async def update_event(user_email: str, calendar_id: str, event_id: str, patch: 
     headers = await _google_headers(user_email)
     headers["Content-Type"] = "application/json"
     endpoint = f"{CALENDAR_API}/calendars/{quote(calendar_id, safe='')}/events/{quote(event_id, safe='')}"
-    async with httpx.AsyncClient(timeout=20) as client:
+    async with httpx.AsyncClient(timeout=8) as client:
         response = await client.patch(endpoint, headers=headers, json=patch)
     if response.status_code >= 400:
         try:
@@ -196,7 +233,7 @@ async def update_event(user_email: str, calendar_id: str, event_id: str, patch: 
 async def delete_event(user_email: str, calendar_id: str, event_id: str) -> None:
     headers = await _google_headers(user_email)
     endpoint = f"{CALENDAR_API}/calendars/{quote(calendar_id, safe='')}/events/{quote(event_id, safe='')}"
-    async with httpx.AsyncClient(timeout=20) as client:
+    async with httpx.AsyncClient(timeout=8) as client:
         response = await client.delete(endpoint, headers=headers)
     if response.status_code not in {200, 204}:
         response.raise_for_status()

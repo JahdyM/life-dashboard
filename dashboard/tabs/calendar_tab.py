@@ -1,4 +1,5 @@
 import logging
+import json
 import time
 from datetime import date, datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
@@ -23,7 +24,7 @@ except Exception:
 
 @st.cache_resource
 def _calendar_executor():
-    return ThreadPoolExecutor(max_workers=3)
+    return ThreadPoolExecutor(max_workers=6)
 
 
 PRIORITY_COLORS = {
@@ -33,7 +34,7 @@ PRIORITY_COLORS = {
 }
 
 
-@st.cache_data(ttl=5, show_spinner=False)
+@st.cache_data(ttl=30, show_spinner=False)
 def _fetch_tasks_range_cached(user_email: str, start_iso: str, end_iso: str, api_base: str):
     payload = api_client.request(
         "GET",
@@ -417,11 +418,14 @@ def render_calendar_tab(ctx):
             task_id = task["id"]
             task_key = task_id.replace("-", "_")
             time_current = task.get("scheduled_time")
-            default_time = (
-                datetime.strptime(time_current, "%H:%M").time()
-                if time_current
-                else datetime.now().replace(second=0, microsecond=0).time()
-            )
+            try:
+                default_time = (
+                    datetime.strptime(time_current, "%H:%M").time()
+                    if time_current
+                    else datetime.now().replace(second=0, microsecond=0).time()
+                )
+            except Exception:
+                default_time = datetime.now().replace(second=0, microsecond=0).time()
 
             open_key = f"calendar.task.open.{task_key}"
             if open_key not in st.session_state:
@@ -736,7 +740,7 @@ def render_calendar_tab(ctx):
                                 "title": draft["title"],
                                 "source": "manual",
                                 "scheduled_date": scheduled_date,
-                                "scheduled_time": scheduled_time,
+                                "scheduled_time": scheduled_time.strftime("%H:%M") if scheduled_time else None,
                                 "priority_tag": draft["priority"],
                                 "estimated_minutes": draft["estimated"],
                             }
@@ -890,7 +894,7 @@ def render_calendar_tab(ctx):
             if cal_state and cal_state.get("callback"):
                 callback = cal_state.get("callback")
                 payload = cal_state.get(callback)
-                signature = f"{callback}:{payload}"
+                signature = f"{callback}:{json.dumps(payload or {}, sort_keys=True, default=str)}"
                 last_sig = st.session_state.get("calendar.last_callback")
                 if signature != last_sig:
                     st.session_state["calendar.last_callback"] = signature

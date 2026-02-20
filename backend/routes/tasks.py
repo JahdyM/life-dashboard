@@ -4,6 +4,7 @@ import logging
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.encoders import jsonable_encoder
 
 from backend.auth import require_user_email
 from backend.schemas import TaskCreate, TaskPatch, TaskSchedule, SubtaskCreate, SubtaskPatch
@@ -38,7 +39,7 @@ async def list_tasks(
     items = await repositories.list_tasks(user_email, start.isoformat(), end.isoformat())
     task_ids = [item["id"] for item in items]
     subtasks = await repositories.list_subtasks(task_ids, user_email=user_email)
-    return {"items": items, "subtasks": subtasks}
+    return {"items": jsonable_encoder(items), "subtasks": jsonable_encoder(subtasks)}
 
 
 @router.get("/v1/tasks/unscheduled")
@@ -63,7 +64,7 @@ async def create_task(payload: TaskCreate, user_email: str = Depends(require_use
             },
         )
         await repositories.enqueue_outbox(user_email, "task", record["id"], "create", record)
-        return record
+        return jsonable_encoder(record)
     except Exception as exc:
         logger.exception("Failed to create task: %s", exc)
         raise HTTPException(status_code=500, detail="Internal error")
@@ -75,7 +76,7 @@ async def patch_task(task_id: str, payload: TaskPatch, user_email: str = Depends
         patch = _normalize_task_patch(payload.model_dump(exclude_unset=True))
         record = await repositories.update_task(user_email, task_id, patch)
         await repositories.enqueue_outbox(user_email, "task", task_id, "update", patch)
-        return record
+        return jsonable_encoder(record)
     except Exception as exc:
         logger.exception("Failed to update task: %s", exc)
         raise HTTPException(status_code=500, detail="Internal error")
@@ -87,7 +88,7 @@ async def schedule_task(task_id: str, payload: TaskSchedule, user_email: str = D
         patch = _normalize_task_patch(payload.model_dump(exclude_unset=True))
         record = await repositories.update_task(user_email, task_id, patch)
         await repositories.enqueue_outbox(user_email, "task", task_id, "update", patch)
-        return record
+        return jsonable_encoder(record)
     except Exception as exc:
         logger.exception("Failed to schedule task: %s", exc)
         raise HTTPException(status_code=500, detail="Internal error")

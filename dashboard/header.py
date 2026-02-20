@@ -12,47 +12,6 @@ def render_global_header(ctx):
     shared_habit_keys = ctx.get("shared_habit_keys", [])
     backend_ok = ctx.get("backend_ok", True)
 
-    st.markdown(
-        """
-        <style>
-        .sticky-header-wrap {
-            position: sticky;
-            top: 0.2rem;
-            z-index: 999;
-            padding: 0.45rem 0.6rem;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            backdrop-filter: blur(6px);
-            background: rgba(18, 14, 26, 0.65);
-            margin-bottom: 0.6rem;
-        }
-        .streak-row {
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 0.45rem 0.65rem;
-            background: rgba(22, 18, 32, 0.7);
-            margin-bottom: 0.35rem;
-        }
-        .streak-title {
-            font-weight: 600;
-            font-size: 0.95rem;
-            margin-bottom: 0.18rem;
-            display: flex;
-            align-items: center;
-            gap: 0.35rem;
-        }
-        .streak-line {
-            font-size: 0.84rem;
-        }
-        .streak-emoji {
-            font-size: 1.45rem;
-            line-height: 1;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
     habits = shared_snapshot.get("habits", [])
     summary = shared_snapshot.get("summary") or "Shared streak summary unavailable yet."
     today_iso = shared_snapshot.get("today") or date.today().isoformat()

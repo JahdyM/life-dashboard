@@ -256,7 +256,7 @@ def _list_events_for_range_cached(user_email, start_iso, end_iso, calendar_ids_t
             "orderBy": "startTime",
             "maxResults": 250,
         }
-        response = requests.get(endpoint, headers=headers, params=params, timeout=25)
+        response = requests.get(endpoint, headers=headers, params=params, timeout=8)
         if response.status_code >= 400:
             try:
                 payload = response.json()
@@ -297,7 +297,7 @@ def create_event(user_email, calendar_id, payload):
     endpoint = f"{CALENDAR_API}/calendars/{quote(calendar_id, safe='')}/events"
     headers = _google_headers(user_email)
     headers["Content-Type"] = "application/json"
-    response = requests.post(endpoint, headers=headers, json=payload, timeout=20)
+    response = requests.post(endpoint, headers=headers, json=payload, timeout=8)
     if response.status_code >= 400:
         try:
             err_payload = response.json()
@@ -317,7 +317,7 @@ def update_event(user_email, calendar_id, event_id, patch):
     endpoint = f"{CALENDAR_API}/calendars/{quote(calendar_id, safe='')}/events/{quote(event_id, safe='')}"
     headers = _google_headers(user_email)
     headers["Content-Type"] = "application/json"
-    response = requests.patch(endpoint, headers=headers, json=patch, timeout=20)
+    response = requests.patch(endpoint, headers=headers, json=patch, timeout=8)
     if response.status_code >= 400:
         try:
             err_payload = response.json()
@@ -336,7 +336,7 @@ def update_event(user_email, calendar_id, event_id, patch):
 def delete_event(user_email, calendar_id, event_id):
     endpoint = f"{CALENDAR_API}/calendars/{quote(calendar_id, safe='')}/events/{quote(event_id, safe='')}"
     headers = _google_headers(user_email)
-    response = requests.delete(endpoint, headers=headers, timeout=20)
+    response = requests.delete(endpoint, headers=headers, timeout=8)
     if response.status_code not in {200, 204}:
         response.raise_for_status()
     clear_event_cache()

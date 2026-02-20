@@ -33,9 +33,10 @@ class Settings(BaseSettings):
         return [email.strip().lower() for email in self.allowed_emails_raw.split(",") if email.strip()]
 
     def allowed_calendar_ids(self, user_email: str) -> list[str]:
-        if user_email.lower().startswith("jahdy"):
+        email = user_email.lower()
+        if email == "jahdy.moreno@gmail.com":
             raw = self.jahdy_allowed_calendars_raw
-        elif user_email.lower().startswith("guilherme"):
+        elif email == "guilherme.m.rods@gmail.com":
             raw = self.guilherme_allowed_calendars_raw
         else:
             raw = ""
@@ -50,9 +51,10 @@ class Settings(BaseSettings):
         return dedup
 
     def user_timezone(self, user_email: str) -> str | None:
-        if user_email.lower().startswith("jahdy"):
+        email = user_email.lower()
+        if email == "jahdy.moreno@gmail.com":
             tz = self.jahdy_timezone_raw
-        elif user_email.lower().startswith("guilherme"):
+        elif email == "guilherme.m.rods@gmail.com":
             tz = self.guilherme_timezone_raw
         else:
             tz = ""

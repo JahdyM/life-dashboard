@@ -16,6 +16,7 @@ from dashboard.router import render_router
 from dashboard.data import repositories, api_client
 from dashboard.data.loaders import (
     fetch_header_cached,
+    fetch_init_cached,
     fetch_ics_events_for_range,
     load_custom_habit_done_by_date,
     load_custom_habit_done_by_date_cached,
@@ -101,8 +102,9 @@ ACTIVE_THEME = theme_info["theme"]
 THEME_TOGGLE_ICON = theme_info["toggle_icon"]
 THEME_TOGGLE_HELP = theme_info["toggle_help"]
 
-st_components.html(
-    """
+if not st.session_state.get("ui.cursor_trail_injected"):
+    st_components.html(
+        """
 <script>
 (function () {
   const parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
@@ -146,8 +148,9 @@ st_components.html(
 })();
 </script>
 """,
-    height=0,
-)
+        height=0,
+    )
+    st.session_state["ui.cursor_trail_injected"] = True
 
 
 title_cols = st.columns([16, 1])
@@ -918,6 +921,7 @@ def invalidate_tasks_cache():
 def invalidate_header_cache():
     if repositories.api_enabled():
         fetch_header_cached.clear()
+        fetch_init_cached.clear()
         return
     load_shared_snapshot_cached.clear()
 
@@ -945,7 +949,7 @@ def invalidate_by_domain(domain=None):
         handler()
 
 
-@st.cache_data(ttl=30, show_spinner=False)
+@st.cache_data(ttl=10, show_spinner=False)
 def check_backend_health(api_base: str) -> bool:
     if not api_base:
         return False
@@ -1737,54 +1741,36 @@ def _perf_mark(label, start_ts):
         return
     perf_marks[label] = round((time.perf_counter() - start_ts) * 1000, 2)
 
+init_payload = {}
+if api_enabled:
+    init_payload = fetch_init_cached(current_user_email, api_client.api_base_url())
+
 meeting_days = repositories.get_meeting_days(current_user_email) if api_enabled else get_meeting_days()
+if api_enabled and init_payload and init_payload.get("meeting_days") is not None:
+    meeting_days = init_payload.get("meeting_days") or meeting_days
 if "meeting_days" not in st.session_state:
     st.session_state["meeting_days"] = meeting_days
 meeting_days = st.session_state["meeting_days"]
 
 family_worship_day = repositories.get_family_worship_day(current_user_email) if api_enabled else get_family_worship_day()
+if api_enabled and init_payload and init_payload.get("family_worship_day") is not None:
+    family_worship_day = init_payload.get("family_worship_day")
 if "family_worship_day" not in st.session_state:
     st.session_state["family_worship_day"] = family_worship_day
 family_worship_day = st.session_state["family_worship_day"]
 
 active_tab = st.session_state.get("ui.active_tab", "Daily Habits")
-tabs_needing_data = {"Statistics & Charts", "Mood Board"} if api_enabled else {"Daily Habits", "Statistics & Charts", "Mood Board"}
-if active_tab in tabs_needing_data:
-    if active_tab == "Statistics & Charts":
-        range_start, range_end = _default_entries_range(window_days=180)
-    elif active_tab == "Mood Board":
-        range_start, range_end = _default_entries_range(window_days=400)
-    else:
-        range_start, range_end = _default_entries_range(window_days=30)
-    data = load_data(range_start, range_end)
-else:
-    data = None
-
-if active_tab == "Statistics & Charts" and data is not None and not data.empty:
-    custom_habits = (
-        repositories.get_custom_habits(current_user_email, active_only=True)
-        if api_enabled
-        else get_custom_habits(active_only=True)
-    )
-    custom_habit_ids = [habit["id"] for habit in custom_habits]
-    custom_done_by_date = load_custom_habit_done_by_date()
-    metrics = data.apply(
-        lambda row: compute_habits_metrics(
-            row,
-            meeting_days,
-            family_worship_day,
-            custom_done_by_date,
-            custom_habit_ids,
-        ),
-        axis=1,
-        result_type="expand",
-    )
-    data["habits_completed"] = metrics[0]
-    data["habits_percent"] = metrics[1]
-    data["habits_total"] = metrics[2]
-    data["life_balance_score"] = data.apply(compute_balance_score, axis=1)
-    data["weekday"] = data["date"].apply(lambda d: d.weekday())
-    data["is_weekend"] = data["weekday"] >= 5
+data = None
+if not api_enabled:
+    tabs_needing_data = {"Daily Habits", "Statistics & Charts", "Mood Board"}
+    if active_tab in tabs_needing_data:
+        if active_tab == "Statistics & Charts":
+            range_start, range_end = _default_entries_range(window_days=180)
+        elif active_tab == "Mood Board":
+            range_start, range_end = _default_entries_range(window_days=400)
+        else:
+            range_start, range_end = _default_entries_range(window_days=30)
+        data = load_data(range_start, range_end)
 
 # --- TAB ROUTER APP ---
 repositories.set_google_delete_callback(google_calendar.delete_event)
@@ -1808,12 +1794,15 @@ if api_enabled:
     try:
         if st.session_state.pop("header.invalidate", False):
             fetch_header_cached.clear()
-        header_payload = fetch_header_cached(
+            fetch_init_cached.clear()
+        header_payload = init_payload if init_payload else fetch_header_cached(
             current_user_email,
             api_client.api_base_url(),
         )
-        pending_tasks = int(header_payload.get("pending_tasks", 0) or 0)
-        shared_snapshot = header_payload.get("shared_snapshot") or shared_snapshot
+        pending_tasks = int(header_payload.get("pending_tasks", pending_tasks) or pending_tasks)
+        local_dirty_until = float(st.session_state.get("header.local_dirty_until", 0) or 0)
+        if time.time() >= local_dirty_until:
+            shared_snapshot = header_payload.get("shared_snapshot") or shared_snapshot
         st.session_state["header.pending_tasks"] = pending_tasks
         st.session_state["header.shared_snapshot"] = shared_snapshot
     except Exception:

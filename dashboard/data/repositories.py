@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 @st.cache_resource
 def _executor():
-    return ThreadPoolExecutor(max_workers=3)
+    return ThreadPoolExecutor(max_workers=6)
 
 
 def configure(engine_getter, database_url_getter, current_user_getter, invalidate_callback=None, secret_getter=None):
@@ -167,28 +167,19 @@ def _entry_patch_for_date(user_email, day, patch):
             ),
             payload,
         )
-    _invalidate(["entries", "header"])
+    _invalidate(["entries"])
 
 
 def save_habit_toggle(user_email, day, habit_key, value, sync: bool = False):
     if api_client.is_enabled():
         day_iso = day if isinstance(day, str) else day.isoformat()
         payload = {habit_key: bool(value)}
-        if sync:
-            try:
-                api_client.request("PATCH", f"/v1/day/{day_iso}", json=payload, timeout=5)
-                _invalidate(["entries", "header"])
-                return
-            except Exception:
-                _fire_and_forget_api("PATCH", f"/v1/day/{day_iso}", json_payload=payload)
-                _invalidate(["entries", "header"])
-                return
         _fire_and_forget_api(
             "PATCH",
             f"/v1/day/{day_iso}",
             json_payload=payload,
         )
-        _invalidate(["entries", "header"])
+        _invalidate(["entries"])
         return
     _entry_patch_for_date(user_email, day, {habit_key: int(bool(value))})
 
@@ -213,7 +204,7 @@ def save_entry_fields(user_email, day, fields):
     if api_client.is_enabled():
         day_iso = day if isinstance(day, str) else day.isoformat()
         _fire_and_forget_api("PATCH", f"/v1/day/{day_iso}", json_payload=clean)
-        _invalidate(["entries", "header"])
+        _invalidate(["entries"])
         return
     _entry_patch_for_date(user_email, day, clean)
 

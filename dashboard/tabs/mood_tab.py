@@ -1,12 +1,17 @@
-from datetime import date
+from datetime import date, timedelta
 
 import streamlit as st
 
 from dashboard.visualizations import mood_heatmap, build_month_tracker_grid, build_year_tracker_grid
+from dashboard.data.loaders import load_data
 
 def render_mood_tab(ctx):
     data = ctx.get("data")
     st.markdown("<div class='section-title'>Mood Board</div>", unsafe_allow_html=True)
+
+    if data is None or getattr(data, "empty", True):
+        range_start = date.today() - timedelta(days=400)
+        data = load_data(range_start, date.today())
 
     mood_map = {}
     if data is not None and not getattr(data, "empty", True):

@@ -227,3 +227,10 @@ async def init_db():
         f"CREATE INDEX IF NOT EXISTS idx_{DAY_SNAPSHOT_CACHE_TABLE}_user_date "
         f"ON {DAY_SNAPSHOT_CACHE_TABLE} (user_email, date)"
     )
+    await ensure_index(
+        "CREATE INDEX IF NOT EXISTS idx_settings_key_prefix ON settings (key)"
+    )
+    await ensure_index(
+        f"CREATE INDEX IF NOT EXISTS idx_{SUBTASKS_TABLE}_task_id "
+        f"ON {SUBTASKS_TABLE} (user_email, task_id)"
+    )

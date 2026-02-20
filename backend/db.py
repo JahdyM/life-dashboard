@@ -58,10 +58,11 @@ def get_engine() -> AsyncEngine:
                 connect_args["ssl"] = True
         except Exception:
             logger.debug("Failed to parse database URL for SSL hint.")
+        engine_kwargs = {"pool_pre_ping": True, "future": True, "pool_size": 20, "max_overflow": 10}
         if connect_args:
-            _engine = create_async_engine(db_url, pool_pre_ping=True, future=True, connect_args=connect_args)
+            _engine = create_async_engine(db_url, connect_args=connect_args, **engine_kwargs)
         else:
-            _engine = create_async_engine(db_url, pool_pre_ping=True, future=True)
+            _engine = create_async_engine(db_url, **engine_kwargs)
     return _engine
 
 

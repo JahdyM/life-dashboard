@@ -167,6 +167,9 @@ def inject_theme_css() -> dict:
     --button: {active_theme['button']};
     --button-hover: {active_theme['button_hover']};
     --accent-purple: {active_theme['accent_purple']};
+    --accent: {active_theme['accent_purple']};
+    --accent-soft: {active_theme['border']};
+    --text-strong: {active_theme['text_main']};
     --plot-grid: {active_theme['plot_grid']};
     --plot-marker-line: {active_theme['plot_marker_line']};
     --overlay-start: {active_theme['overlay_start']};
@@ -190,6 +193,17 @@ def inject_theme_css() -> dict:
     --atom-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='1.8'%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8'/%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8' transform='rotate(60 14 14)'/%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8' transform='rotate(-60 14 14)'/%3E%3C/g%3E%3Ccircle cx='14' cy='14' r='2.6' fill='%23000000' stroke='%23ffffff' stroke-width='1.1'/%3E%3C/svg%3E") 14 14, auto;
 }}
 """
+
+    background_image_css_url = resolve_background_image_css_url()
+    css_key = f"{active_name}:{background_image_css_url}"
+    if st.session_state.get("theme.css_key") == css_key:
+        return {
+            "name": active_name,
+            "theme": active_theme,
+            "toggle_icon": theme_toggle_icon,
+            "toggle_help": theme_toggle_help,
+        }
+    st.session_state["theme.css_key"] = css_key
 
     st.markdown(
         """
@@ -216,6 +230,44 @@ h1, h2, h3, .page-title {
 .stApp {
     background: radial-gradient(1400px 900px at 20% 0%, var(--bg-glow) 0%, var(--bg-main) 58%);
     color: var(--text-main);
+}
+
+.sticky-header-wrap {
+    position: sticky;
+    top: 0.2rem;
+    z-index: 999;
+    padding: 0.45rem 0.6rem;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    backdrop-filter: blur(6px);
+    background: rgba(18, 14, 26, 0.65);
+    margin-bottom: 0.6rem;
+}
+
+.streak-row {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.45rem 0.65rem;
+    background: rgba(22, 18, 32, 0.7);
+    margin-bottom: 0.35rem;
+}
+
+.streak-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 0.18rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.streak-line {
+    font-size: 0.84rem;
+}
+
+.streak-emoji {
+    font-size: 1.45rem;
+    line-height: 1;
 }
 
 .section-title {
@@ -1226,7 +1278,6 @@ select:focus-visible {
         unsafe_allow_html=True,
     )
 
-    background_image_css_url = resolve_background_image_css_url()
     if background_image_css_url:
         safe_background_url = background_image_css_url.replace("'", "%27")
         st.markdown(

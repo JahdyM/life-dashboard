@@ -58,5 +58,7 @@ async def list_custom_done_range(
     end: date = Query(...),
     user_email: str = Depends(require_user_email),
 ):
+    if end < start:
+        raise HTTPException(status_code=400, detail="End date must be after start date")
     items = await repositories.list_custom_habit_done_range(user_email, start.isoformat(), end.isoformat())
     return {"items": items}
