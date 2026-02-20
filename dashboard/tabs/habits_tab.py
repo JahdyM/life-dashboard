@@ -183,7 +183,6 @@ def render_habits_tab(ctx):
         if submit_add:
             try:
                 repositories.add_habit(user_email, st.session_state.get("habits.new_habit", ""))
-                st.session_state["habits.new_habit"] = ""
                 st.rerun()
             except Exception as exc:
                 st.warning(str(exc))
