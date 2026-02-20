@@ -1,6 +1,7 @@
-import threading
+import logging
 import time
 from datetime import date, datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor
 
 import pandas as pd
 import streamlit as st
@@ -13,10 +14,17 @@ from dashboard.auth import get_secret
 from dashboard.constants import JAHDY_EMAIL, GUILHERME_EMAIL, PRIORITY_TAGS, PRIORITY_META
 from dashboard.visualizations import month_last_day
 
+logger = logging.getLogger(__name__)
+
 try:
     from streamlit_calendar import calendar as st_calendar
 except Exception:
     st_calendar = None
+
+
+@st.cache_resource
+def _calendar_executor():
+    return ThreadPoolExecutor(max_workers=3)
 
 
 PRIORITY_COLORS = {
@@ -229,9 +237,9 @@ def _sync_google_if_connected(user_email, connected, start_day, end_day, calenda
             def _fire_sync():
                 try:
                     api_client.request("POST", "/v1/calendar/sync/run")
-                except Exception:
-                    pass
-            threading.Thread(target=_fire_sync, daemon=True).start()
+                except Exception as exc:
+                    logger.warning("Background calendar sync failed: %s", exc)
+            _calendar_executor().submit(_fire_sync)
             st.session_state["calendar.last_sync_key"] = sync_key
             st.session_state["calendar.last_sync_ts"] = now
             return []
@@ -269,7 +277,8 @@ def _sync_created_or_updated_activity_to_google(user_email, activity_id, connect
             st.session_state["calendar.sync_error"] = str(exc)
             if "429" in str(exc):
                 st.session_state["calendar.sync_cooldown_until"] = time.time() + 30
-            raise
+            logger.warning("Calendar sync push failed: %s", exc)
+            return
         return
     activity = repositories.get_activity_by_id(activity_id, user_email=user_email)
     if not activity:
@@ -301,8 +310,8 @@ def render_calendar_tab(ctx):
             if time.time() - float(sync_started) > 8:
                 st.session_state["calendar.sync_status"] = "Idle"
                 sync_status = "Idle"
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed to finalize sync timer: %s", exc)
 
     top = st.columns([1.2, 0.8, 1.0, 1.0, 0.75, 0.75])
     with top[0]:

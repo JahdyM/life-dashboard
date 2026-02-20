@@ -4,10 +4,14 @@ import json
 import logging
 import re
 from datetime import date, datetime, timedelta
+from typing import TYPE_CHECKING
 
 import requests
 import streamlit as st
 from sqlalchemy import text as sql_text
+
+if TYPE_CHECKING:  # pragma: no cover
+    import pandas as pd
 
 from dashboard.constants import (
     CUSTOM_HABIT_DONE_PREFIX,
@@ -19,6 +23,11 @@ from dashboard.auth import get_database_url, get_engine, get_current_user_email
 from dashboard.data import repositories, api_client
 
 logger = logging.getLogger(__name__)
+
+
+def _pd():
+    import pandas as pd  # lazy import
+    return pd
 
 try:
     from icalendar import Calendar
@@ -217,9 +226,10 @@ def load_custom_habit_done_by_date(start_date, end_date):
     )
 
 
-def normalize_entries_df(df: pd.DataFrame) -> pd.DataFrame:
+def normalize_entries_df(df):
     if df.empty:
         return df
+    pd = _pd()
     if "priority_label" not in df.columns:
         df["priority_label"] = ""
     if "priority_done" not in df.columns:
@@ -261,12 +271,15 @@ def load_data_for_email_cached(user_email, database_url, api_enabled, api_base, 
                 "/v1/entries",
                 params={"start": start_iso, "end": end_iso},
             )
+            pd = _pd()
             df = pd.DataFrame(payload.get("items", []))
             return normalize_entries_df(df) if not df.empty else pd.DataFrame(columns=ENTRY_COLUMNS)
         except Exception:
+            pd = _pd()
             return pd.DataFrame(columns=ENTRY_COLUMNS)
     engine = get_engine(database_url)
     with engine.connect() as conn:
+        pd = _pd()
         df = pd.read_sql(
             sql_text(
                 f"SELECT * FROM {ENTRIES_TABLE} "
