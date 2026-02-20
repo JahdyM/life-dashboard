@@ -53,6 +53,7 @@ def _save_meeting_days(user_email, day_to_index):
     selected = [day_to_index[label] for label in labels if label in day_to_index]
     repositories.set_setting(user_email, "meeting_days", ",".join(map(str, selected)))
     st.session_state["habits.meeting_days_values"] = selected
+    st.session_state["meeting_days"] = selected
 
 
 def _save_family_worship_day(user_email, day_to_index):
