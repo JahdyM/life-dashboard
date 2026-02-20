@@ -443,29 +443,33 @@ h1, h2, h3, .page-title {
 }
 
 .stButton>button {
-    background: transparent;
-    color: var(--text-main);
-    border: 1px solid var(--divider);
-    border-radius: 10px;
-    padding: 8px 12px;
-    font-weight: 600;
-    box-shadow: none;
+    background: transparent !important;
+    color: var(--text-main) !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    font-weight: 500;
+    box-shadow: none !important;
+    min-height: unset !important;
 }
 
 .stButton>button:hover {
-    background: var(--row-hover);
-    border-color: var(--divider);
+    background: transparent !important;
+    border-color: transparent !important;
 }
 
 .stButton>button[kind="primary"] {
-    background: var(--button);
-    color: #f6f0ff;
-    border: 1px solid #7d6a98;
+    background: var(--button) !important;
+    color: #f6f0ff !important;
+    border: 1px solid #7d6a98 !important;
+    border-radius: 10px !important;
+    padding: 6px 12px !important;
+    min-height: 32px !important;
 }
 
 .stButton>button[kind="primary"]:hover {
-    background: var(--button-hover);
-    border-color: #9583b1;
+    background: var(--button-hover) !important;
+    border-color: #9583b1 !important;
 }
 
 button[kind="tertiary"] {
@@ -985,11 +989,12 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 }
 
 .task-list [data-testid="stHorizontalBlock"] {
-    padding: 0.18rem 0.2rem;
-    margin-bottom: 4px;
-    min-height: 34px;
+    padding: 0.12rem 0.1rem;
+    margin-bottom: 0;
+    min-height: 32px;
     border-bottom: 1px solid var(--divider);
     align-items: center;
+    gap: 8px;
 }
 
 .task-list [data-testid="stHorizontalBlock"]:last-child {
