@@ -251,6 +251,10 @@ def _sync_created_or_updated_activity_to_google(user_email, activity_id, connect
     if not connected:
         return
     if api_client.is_enabled():
+        cooldown_until = float(st.session_state.get("calendar.sync_cooldown_until", 0.0) or 0.0)
+        if time.time() < cooldown_until:
+            st.session_state["calendar.sync_status"] = "Idle"
+            return
         try:
             st.session_state["calendar.sync_status"] = "Syncing"
             st.session_state["calendar.sync_error"] = ""
@@ -259,6 +263,8 @@ def _sync_created_or_updated_activity_to_google(user_email, activity_id, connect
         except Exception as exc:
             st.session_state["calendar.sync_status"] = "Failed"
             st.session_state["calendar.sync_error"] = str(exc)
+            if "429" in str(exc):
+                st.session_state["calendar.sync_cooldown_until"] = time.time() + 30
             raise
         return
     activity = repositories.get_activity_by_id(activity_id, user_email=user_email)
@@ -286,6 +292,7 @@ def render_calendar_tab(ctx):
     sync_status = st.session_state.get("calendar.sync_status", "Idle")
     sync_error = st.session_state.get("calendar.sync_error", "")
     sync_started = st.session_state.get("calendar.sync_started")
+    cooldown_until = float(st.session_state.get("calendar.sync_cooldown_until", 0.0) or 0.0)
     if sync_status == "Syncing" and sync_started:
         try:
             if time.time() - float(sync_started) > 8:
@@ -317,8 +324,16 @@ def render_calendar_tab(ctx):
         )
     with top[4]:
         if st.button("Sync now", key="calendar.sync_now", use_container_width=True, type="primary"):
-            st.session_state["calendar.force_sync"] = True
-        st.caption(f"Status: {sync_status}")
+            if time.time() < cooldown_until:
+                st.session_state["calendar.sync_status"] = "Failed"
+                st.session_state["calendar.sync_error"] = "Rate limited. Please wait a few seconds."
+            else:
+                st.session_state["calendar.force_sync"] = True
+        if time.time() < cooldown_until:
+            wait = int(cooldown_until - time.time())
+            st.caption(f"Status: Rate limited ({wait}s)")
+        else:
+            st.caption(f"Status: {sync_status}")
     with top[5]:
         connect_url = ""
         try:
