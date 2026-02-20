@@ -427,12 +427,14 @@ def render_calendar_tab(ctx):
             current_snapshot = bool(checked)
             last_snapshot = st.session_state.get(auto_key)
             if last_snapshot is not None and last_snapshot != current_snapshot:
-                patch = {
-                    "id": task_id,
-                    "is_done": int(bool(checked)),
-                }
-                repositories.save_activity(patch)
-                st.session_state["calendar.force_refresh"] = True
+                patch = {"id": task_id, "is_done": int(bool(checked))}
+                try:
+                    repositories.save_activity(patch)
+                    st.session_state["calendar.force_refresh"] = True
+                except Exception as exc:
+                    st.session_state["calendar.sync_status"] = "Failed"
+                    st.session_state["calendar.sync_error"] = str(exc)
+                    st.warning(f"Couldn't save task update: {exc}")
             st.session_state[auto_key] = current_snapshot
 
             if st.session_state.get(open_key):
@@ -498,15 +500,20 @@ def render_calendar_tab(ctx):
                             "actual_minutes": int(actual_new),
                             "scheduled_time": final_time,
                         }
-                        repositories.save_activity(patch)
                         try:
-                            _sync_created_or_updated_activity_to_google(user_email, task_id, connected, primary_calendar_id)
+                            repositories.save_activity(patch)
+                            try:
+                                _sync_created_or_updated_activity_to_google(user_email, task_id, connected, primary_calendar_id)
+                            except Exception as exc:
+                                st.session_state["calendar.sync_status"] = "Failed"
+                                st.session_state["calendar.sync_error"] = str(exc)
+                                st.warning(f"Saved locally, but Google sync failed: {exc}")
+                            st.session_state["calendar.force_refresh"] = True
+                            st.rerun()
                         except Exception as exc:
                             st.session_state["calendar.sync_status"] = "Failed"
                             st.session_state["calendar.sync_error"] = str(exc)
-                            st.warning(f"Saved locally, but Google sync failed: {exc}")
-                        st.session_state["calendar.force_refresh"] = True
-                        st.rerun()
+                            st.warning(f"Couldn't save task changes: {exc}")
 
                     st.markdown("<div class='subtask-list'>", unsafe_allow_html=True)
                     sub_items = subtasks.get(task_id, [])
@@ -526,12 +533,18 @@ def render_calendar_tab(ctx):
                             delete_sub = st.button("✕", key=f"calendar.sub.delete.{sub_key}")
 
                         if bool(sub.get("is_done", 0)) != bool(s_done):
-                            repositories.update_subtask(sub["id"], {"is_done": s_done})
-                            st.session_state["calendar.force_refresh"] = True
+                            try:
+                                repositories.update_subtask(sub["id"], {"is_done": s_done})
+                                st.session_state["calendar.force_refresh"] = True
+                            except Exception as exc:
+                                st.warning(f"Couldn't update subtask: {exc}")
                         if delete_sub:
-                            repositories.delete_subtask(sub["id"])
-                            st.session_state["calendar.force_refresh"] = True
-                            st.rerun()
+                            try:
+                                repositories.delete_subtask(sub["id"])
+                                st.session_state["calendar.force_refresh"] = True
+                                st.rerun()
+                            except Exception as exc:
+                                st.warning(f"Couldn't delete subtask: {exc}")
                     st.markdown("</div>", unsafe_allow_html=True)
 
                     add_sub_key = f"calendar.sub.new.{task_key}"
@@ -549,15 +562,21 @@ def render_calendar_tab(ctx):
                     if add_sub:
                         clean_sub_title = (sub_title or "").strip()
                         if clean_sub_title:
-                            repositories.add_subtask(task_id, clean_sub_title, estimated_minutes=15)
-                            st.session_state[add_sub_key] = ""
-                            st.session_state["calendar.force_refresh"] = True
-                            st.rerun()
+                            try:
+                                repositories.add_subtask(task_id, clean_sub_title, estimated_minutes=15)
+                                st.session_state[add_sub_key] = ""
+                                st.session_state["calendar.force_refresh"] = True
+                                st.rerun()
+                            except Exception as exc:
+                                st.warning(f"Couldn't add subtask: {exc}")
 
                     if st.button("Delete task", key=f"calendar.task.delete.{task_key}", type="tertiary"):
-                        repositories.delete_activity(task_id, delete_remote_google=True)
-                        st.session_state["calendar.force_refresh"] = True
-                        st.rerun()
+                        try:
+                            repositories.delete_activity(task_id, delete_remote_google=True)
+                            st.session_state["calendar.force_refresh"] = True
+                            st.rerun()
+                        except Exception as exc:
+                            st.warning(f"Couldn't delete task: {exc}")
 
                     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -593,9 +612,14 @@ def render_calendar_tab(ctx):
                 last_snapshot = st.session_state.get(auto_key)
                 if last_snapshot is not None and last_snapshot != current_snapshot:
                     patch = {"id": task_id, "is_done": int(bool(checked))}
-                    repositories.save_activity(patch)
-                    st.session_state["calendar.force_refresh"] = True
-                    st.rerun()
+                    try:
+                        repositories.save_activity(patch)
+                        st.session_state["calendar.force_refresh"] = True
+                        st.rerun()
+                    except Exception as exc:
+                        st.session_state["calendar.sync_status"] = "Failed"
+                        st.session_state["calendar.sync_error"] = str(exc)
+                        st.warning(f"Couldn't update completed task: {exc}")
                 st.session_state[auto_key] = current_snapshot
 
         st.markdown("</div>", unsafe_allow_html=True)
@@ -681,29 +705,34 @@ def render_calendar_tab(ctx):
                     scheduled_time = None
 
                 if not invalid:
-                    created = repositories.save_activity(
-                        {
-                            "user_email": user_email,
-                            "title": draft["title"],
-                            "source": "manual",
-                            "scheduled_date": scheduled_date,
-                            "scheduled_time": scheduled_time,
-                            "priority_tag": draft["priority"],
-                            "estimated_minutes": draft["estimated"],
-                        }
-                    )
-                try:
-                    _sync_created_or_updated_activity_to_google(user_email, created["id"], connected, primary_calendar_id)
-                except Exception as exc:
-                    st.session_state["calendar.sync_status"] = "Failed"
-                    st.session_state["calendar.sync_error"] = str(exc)
-                    st.warning(f"Saved locally, but Google sync failed: {exc}")
-                    draft["title"] = ""
-                    draft["date"] = ""
-                    draft["time"] = ""
-                    st.session_state[reset_key] = True
-                    st.session_state["calendar.force_refresh"] = True
-                    st.rerun()
+                    try:
+                        created = repositories.save_activity(
+                            {
+                                "user_email": user_email,
+                                "title": draft["title"],
+                                "source": "manual",
+                                "scheduled_date": scheduled_date,
+                                "scheduled_time": scheduled_time,
+                                "priority_tag": draft["priority"],
+                                "estimated_minutes": draft["estimated"],
+                            }
+                        )
+                        try:
+                            _sync_created_or_updated_activity_to_google(user_email, created["id"], connected, primary_calendar_id)
+                        except Exception as exc:
+                            st.session_state["calendar.sync_status"] = "Failed"
+                            st.session_state["calendar.sync_error"] = str(exc)
+                            st.warning(f"Saved locally, but Google sync failed: {exc}")
+                        draft["title"] = ""
+                        draft["date"] = ""
+                        draft["time"] = ""
+                        st.session_state[reset_key] = True
+                        st.session_state["calendar.force_refresh"] = True
+                        st.rerun()
+                    except Exception as exc:
+                        st.session_state["calendar.sync_status"] = "Failed"
+                        st.session_state["calendar.sync_error"] = str(exc)
+                        st.warning(f"Couldn't create task: {exc}")
 
         with st.expander("Remembered tasks (to decide)", expanded=False):
             with st.form(key="calendar.remembered.form", clear_on_submit=False):
@@ -722,18 +751,21 @@ def render_calendar_tab(ctx):
             if not title:
                 st.warning("Remembered task title is required.")
             else:
-                repositories.save_activity(
-                    {
-                        "user_email": user_email,
-                        "title": title,
-                        "source": "remembered",
-                        "priority_tag": st.session_state.get("calendar.remembered.priority", "Medium"),
-                        "estimated_minutes": int(st.session_state.get("calendar.remembered.est", 20) or 20),
-                    }
-                )
-                st.session_state["calendar.remembered.title"] = ""
-                st.session_state["calendar.force_refresh"] = True
-                st.rerun()
+                try:
+                    repositories.save_activity(
+                        {
+                            "user_email": user_email,
+                            "title": title,
+                            "source": "remembered",
+                            "priority_tag": st.session_state.get("calendar.remembered.priority", "Medium"),
+                            "estimated_minutes": int(st.session_state.get("calendar.remembered.est", 20) or 20),
+                        }
+                    )
+                    st.session_state["calendar.remembered.title"] = ""
+                    st.session_state["calendar.force_refresh"] = True
+                    st.rerun()
+                except Exception as exc:
+                    st.warning(f"Couldn't add remembered task: {exc}")
 
         if api_client.is_enabled():
             try:
@@ -775,23 +807,29 @@ def render_calendar_tab(ctx):
                         delete_remembered = st.form_submit_button("✕", use_container_width=True)
 
                 if schedule_now:
-                    repositories.save_activity(
-                        {
-                            "id": task_id,
-                            "priority_tag": plan_priority,
-                        }
-                    )
-                    repositories.schedule_remembered_task(task_id, plan_date, plan_time if has_time else None)
                     try:
-                        _sync_created_or_updated_activity_to_google(user_email, task_id, connected, primary_calendar_id)
+                        repositories.save_activity(
+                            {
+                                "id": task_id,
+                                "priority_tag": plan_priority,
+                            }
+                        )
+                        repositories.schedule_remembered_task(task_id, plan_date, plan_time if has_time else None)
+                        try:
+                            _sync_created_or_updated_activity_to_google(user_email, task_id, connected, primary_calendar_id)
+                        except Exception as exc:
+                            st.warning(f"Scheduled locally, but Google sync failed: {exc}")
+                        st.session_state["calendar.force_refresh"] = True
+                        st.rerun()
                     except Exception as exc:
-                        st.warning(f"Scheduled locally, but Google sync failed: {exc}")
-                    st.session_state["calendar.force_refresh"] = True
-                    st.rerun()
+                        st.warning(f"Couldn't schedule task: {exc}")
                 if delete_remembered:
-                    repositories.delete_activity(task_id, delete_remote_google=False)
-                    st.session_state["calendar.force_refresh"] = True
-                    st.rerun()
+                    try:
+                        repositories.delete_activity(task_id, delete_remote_google=False)
+                        st.session_state["calendar.force_refresh"] = True
+                        st.rerun()
+                    except Exception as exc:
+                        st.warning(f"Couldn't delete task: {exc}")
                 st.divider()
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -848,25 +886,28 @@ def render_calendar_tab(ctx):
                                     est_minutes = int(max((end_dt - start_dt).total_seconds() // 60, 15))
                                 else:
                                     est_minutes = 30
-                            created = repositories.save_activity(
-                                {
-                                    "user_email": user_email,
-                                    "title": "New activity",
-                                    "source": "manual",
-                                    "scheduled_date": scheduled_date,
-                                    "scheduled_time": scheduled_time,
-                                    "priority_tag": "Medium",
-                                    "estimated_minutes": est_minutes,
-                                }
-                            )
                             try:
-                                _sync_created_or_updated_activity_to_google(user_email, created["id"], connected, primary_calendar_id)
+                                created = repositories.save_activity(
+                                    {
+                                        "user_email": user_email,
+                                        "title": "New activity",
+                                        "source": "manual",
+                                        "scheduled_date": scheduled_date,
+                                        "scheduled_time": scheduled_time,
+                                        "priority_tag": "Medium",
+                                        "estimated_minutes": est_minutes,
+                                    }
+                                )
+                                try:
+                                    _sync_created_or_updated_activity_to_google(user_email, created["id"], connected, primary_calendar_id)
+                                except Exception as exc:
+                                    st.session_state["calendar.sync_status"] = "Failed"
+                                    st.session_state["calendar.sync_error"] = str(exc)
+                                    st.warning(f"Saved locally, but Google sync failed: {exc}")
+                                st.session_state["calendar.force_refresh"] = True
+                                st.rerun()
                             except Exception as exc:
-                                st.session_state["calendar.sync_status"] = "Failed"
-                                st.session_state["calendar.sync_error"] = str(exc)
-                                st.warning(f"Saved locally, but Google sync failed: {exc}")
-                            st.session_state["calendar.force_refresh"] = True
-                            st.rerun()
+                                st.warning(f"Couldn't create task from calendar: {exc}")
                     elif callback == "eventChange" and payload:
                         event = payload.get("event", {})
                         task_id = event.get("id")
@@ -880,15 +921,18 @@ def render_calendar_tab(ctx):
                             if (not all_day) and start_dt and end_dt:
                                 est_minutes = int(max((end_dt - start_dt).total_seconds() // 60, 15))
                                 patch["estimated_minutes"] = est_minutes
-                            repositories.save_activity(patch)
                             try:
-                                _sync_created_or_updated_activity_to_google(user_email, task_id, connected, primary_calendar_id)
+                                repositories.save_activity(patch)
+                                try:
+                                    _sync_created_or_updated_activity_to_google(user_email, task_id, connected, primary_calendar_id)
+                                except Exception as exc:
+                                    st.session_state["calendar.sync_status"] = "Failed"
+                                    st.session_state["calendar.sync_error"] = str(exc)
+                                    st.warning(f"Saved locally, but Google sync failed: {exc}")
+                                st.session_state["calendar.force_refresh"] = True
+                                st.rerun()
                             except Exception as exc:
-                                st.session_state["calendar.sync_status"] = "Failed"
-                                st.session_state["calendar.sync_error"] = str(exc)
-                                st.warning(f"Saved locally, but Google sync failed: {exc}")
-                            st.session_state["calendar.force_refresh"] = True
-                            st.rerun()
+                                st.warning(f"Couldn't update calendar event: {exc}")
         else:
             day_rows = _build_day_hour_board(day_tasks)
             grid_html = "<div class='day-grid'>" + "".join(

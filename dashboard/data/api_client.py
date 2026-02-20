@@ -57,7 +57,12 @@ def request(method: str, path: str, params: dict | None = None, json: dict | Non
     }
     url = f"{base}{path}"
     response = requests.request(method, url, params=params, json=json, headers=headers, timeout=timeout)
-    response.raise_for_status()
+    if not response.ok:
+        try:
+            detail = response.json()
+        except Exception:
+            detail = response.text
+        raise RuntimeError(f"API error {response.status_code} {response.reason}: {detail}")
     if response.status_code == 204:
         return None
     return response.json()

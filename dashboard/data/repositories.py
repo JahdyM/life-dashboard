@@ -1413,6 +1413,14 @@ def add_subtask(task_id, title, priority_tag="Medium", estimated_minutes=15):
     clean_title = (title or "").strip()
     if not clean_title:
         return None
+    if api_client.is_enabled():
+        payload = {
+            "task_id": task_id,
+            "title": clean_title,
+            "priority_tag": _normalize_priority(priority_tag),
+            "estimated_minutes": _parse_minutes(estimated_minutes),
+        }
+        return api_client.request("POST", "/v1/subtasks", json=payload)
     payload = {
         "id": _new_id(),
         "task_id": task_id,
@@ -1441,6 +1449,16 @@ def add_subtask(task_id, title, priority_tag="Medium", estimated_minutes=15):
 
 
 def update_subtask(subtask_id, fields):
+    if api_client.is_enabled():
+        payload = {}
+        for key in ["title", "priority_tag", "estimated_minutes", "actual_minutes", "is_done"]:
+            if key in (fields or {}):
+                payload[key] = fields[key]
+        if not payload:
+            return
+        api_client.request("PATCH", f"/v1/subtasks/{subtask_id}", json=payload)
+        _invalidate()
+        return
     allowed = {"title", "priority_tag", "estimated_minutes", "actual_minutes", "is_done"}
     updates = []
     params = {"id": subtask_id, "user_email": _current_user()}
@@ -1474,6 +1492,10 @@ def update_subtask(subtask_id, fields):
 
 
 def delete_subtask(subtask_id):
+    if api_client.is_enabled():
+        api_client.request("DELETE", f"/v1/subtasks/{subtask_id}")
+        _invalidate()
+        return
     engine = _engine()
     with engine.begin() as conn:
         conn.execute(
