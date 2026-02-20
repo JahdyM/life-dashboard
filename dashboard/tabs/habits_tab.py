@@ -71,7 +71,6 @@ def render_habits_tab(ctx):
         st.session_state["habits.meeting_days_labels"] = [day_labels[i] for i in meeting_days]
 
     st.markdown("<div class='section-title'>Daily Habits</div>", unsafe_allow_html=True)
-    st.caption("Each interaction auto-saves only this tab's fields.")
 
     top_cols = st.columns([1.4, 1.0])
     with top_cols[0]:
@@ -83,9 +82,6 @@ def render_habits_tab(ctx):
             on_change=_save_meeting_days,
             args=(user_email, day_to_index),
         )
-    with top_cols[1]:
-        st.markdown("<div class='small-label'>Quick note</div>", unsafe_allow_html=True)
-        st.caption("Reflection is the anchor for this day.")
 
     selected_meeting_days = st.session_state.get(
         "habits.meeting_days_values",
