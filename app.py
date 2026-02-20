@@ -1998,6 +1998,23 @@ def get_meeting_days():
         return [1, 3]
 
 
+def get_family_worship_day():
+    raw = get_setting("family_worship_day")
+    if not raw:
+        legacy_raw = get_setting("family_worship_day", scoped=False)
+        if legacy_raw:
+            raw = legacy_raw
+            set_setting("family_worship_day", raw)
+    if not raw:
+        default_day = 6
+        set_setting("family_worship_day", str(default_day))
+        return default_day
+    try:
+        return int(str(raw).strip())
+    except ValueError:
+        return 6
+
+
 def save_meeting_days():
     labels = st.session_state.get("meeting_days_labels", [])
     days = [DAY_TO_INDEX[label] for label in labels]
@@ -3399,6 +3416,8 @@ def compute_habits_metrics(row, meeting_days, custom_done_by_date, custom_habit_
         if key not in FIXED_COUPLE_HABIT_KEYS:
             continue
         if key in MEETING_HABIT_KEYS and weekday not in meeting_days:
+            continue
+        if key in FAMILY_WORSHIP_HABIT_KEYS and weekday != st.session_state.get("family_worship_day", 6):
             continue
         total += 1
         completed += int(row.get(key, 0) or 0)
