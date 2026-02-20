@@ -70,13 +70,23 @@ def render_global_header(ctx):
         label = habit_labels.get(habit_key, habit_key.replace("_", " ").title())
         a_days = int(item.get("user_a_days", 0) or 0)
         b_days = int(item.get("user_b_days", 0) or 0)
+        a_expected = int(item.get("user_a_today_expected", 0) or 0) == 1
+        b_expected = int(item.get("user_b_today_expected", 0) or 0) == 1
+        a_done = int(item.get("user_a_today_done", 0) or 0) == 1
+        b_done = int(item.get("user_b_today_done", 0) or 0) == 1
+        a_suffix = ""
+        b_suffix = ""
+        if a_expected and not a_done:
+            a_suffix = " • today pending"
+        if b_expected and not b_done:
+            b_suffix = " • today pending"
         with cols[idx % 5]:
             st.markdown(
                 (
                     "<div class='streak-row'>"
                     f"<div class='streak-title'><span class='streak-emoji'>🔥</span>{label}</div>"
-                    f"<div class='streak-line'>{a_days} days | {current_name}</div>"
-                    f"<div class='streak-line'>{b_days} days | {partner_name}</div>"
+                    f"<div class='streak-line'>{a_days} days | {current_name}{a_suffix}</div>"
+                    f"<div class='streak-line'>{b_days} days | {partner_name}{b_suffix}</div>"
                     "</div>"
                 ),
                 unsafe_allow_html=True,

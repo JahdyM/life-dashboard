@@ -898,9 +898,9 @@ async def get_shared_habit_comparison(today: date, user_a: str, user_b: str, hab
             continue
         by_user.setdefault(row["user_email"], {})[row_date] = dict(row)
 
-    async def habit_streak(habit_map, habit_key, valid_weekdays=None):
+    async def habit_streak(habit_map, habit_key, valid_weekdays=None, include_today=True):
         count = 0
-        current = today
+        current = today if include_today else today - timedelta(days=1)
         while True:
             if valid_weekdays is not None and current.weekday() not in valid_weekdays:
                 current = current - timedelta(days=1)
@@ -932,9 +932,36 @@ async def get_shared_habit_comparison(today: date, user_a: str, user_b: str, hab
         elif habit_key == "family_worship":
             valid_a = {family_days[user_a]}
             valid_b = {family_days[user_b]}
-        a_streak = await habit_streak(by_user.get(user_a, {}), habit_key, valid_a)
-        b_streak = await habit_streak(by_user.get(user_b, {}), habit_key, valid_b)
-        habits.append({"habit_key": habit_key, "user_a_days": a_streak, "user_b_days": b_streak})
+        a_today_row = by_user.get(user_a, {}).get(today, {})
+        b_today_row = by_user.get(user_b, {}).get(today, {})
+        a_today_val = int(a_today_row.get(habit_key, 0) or 0)
+        b_today_val = int(b_today_row.get(habit_key, 0) or 0)
+
+        a_expected_today = True
+        b_expected_today = True
+        if habit_key in {"meeting_attended", "prepare_meeting"}:
+            a_expected_today = today.weekday() in meeting_days[user_a]
+            b_expected_today = today.weekday() in meeting_days[user_b]
+        elif habit_key == "family_worship":
+            a_expected_today = today.weekday() == family_days[user_a]
+            b_expected_today = today.weekday() == family_days[user_b]
+
+        a_include_today = a_expected_today and a_today_val == 1
+        b_include_today = b_expected_today and b_today_val == 1
+        a_streak = await habit_streak(by_user.get(user_a, {}), habit_key, valid_a, include_today=a_include_today)
+        b_streak = await habit_streak(by_user.get(user_b, {}), habit_key, valid_b, include_today=b_include_today)
+
+        habits.append(
+            {
+                "habit_key": habit_key,
+                "user_a_days": a_streak,
+                "user_b_days": b_streak,
+                "user_a_today_done": int(a_today_val == 1),
+                "user_b_today_done": int(b_today_val == 1),
+                "user_a_today_expected": int(bool(a_expected_today)),
+                "user_b_today_expected": int(bool(b_expected_today)),
+            }
+        )
 
     completed_both = 0
     completed_any = 0
