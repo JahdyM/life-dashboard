@@ -1,4 +1,6 @@
 from datetime import date
+from concurrent.futures import ThreadPoolExecutor
+import uuid
 
 import streamlit as st
 
@@ -43,6 +45,8 @@ def _save_daily_text(user_email, selected_day):
 def _save_custom_done(user_email, selected_day, custom_habits):
     payload = {}
     for habit in custom_habits:
+        if str(habit.get("id", "")).startswith("temp-") or habit.get("pending"):
+            continue
         key = f"habits.custom_done.{habit['id']}"
         payload[habit["id"]] = int(bool(st.session_state.get(key, False)))
     repositories.set_custom_habit_done(user_email, selected_day, payload)
@@ -131,7 +135,49 @@ def render_habits_tab(ctx):
 
         st.markdown("<div class='panel habits-compact'>", unsafe_allow_html=True)
         st.markdown("<div class='small-label'>Personal habits</div>", unsafe_allow_html=True)
-        custom_habits = repositories.get_custom_habits(user_email, active_only=True)
+
+        @st.cache_resource
+        def _habit_executor():
+            return ThreadPoolExecutor(max_workers=2)
+
+        def _get_custom_cache():
+            cache = st.session_state.get("habits.custom_cache")
+            if cache and cache.get("user") == user_email:
+                return cache.get("items", [])
+            items = repositories.get_custom_habits(user_email, active_only=True)
+            st.session_state["habits.custom_cache"] = {"user": user_email, "items": items}
+            return items
+
+        def _set_custom_cache(items):
+            st.session_state["habits.custom_cache"] = {"user": user_email, "items": items}
+
+        def _reconcile_pending(items):
+            pending = st.session_state.get("habits.pending_futures", {})
+            if not pending:
+                return items
+            updated = list(items)
+            remove_ids = []
+            for temp_id, future in pending.items():
+                if not future.done():
+                    continue
+                remove_ids.append(temp_id)
+                try:
+                    record = future.result()
+                except Exception:
+                    updated = [h for h in updated if h.get("id") != temp_id]
+                    continue
+                updated = [h for h in updated if h.get("id") != temp_id]
+                if record:
+                    updated.append(record)
+            if remove_ids:
+                for temp_id in remove_ids:
+                    pending.pop(temp_id, None)
+                st.session_state["habits.pending_futures"] = pending
+            return updated
+
+        custom_habits = _get_custom_cache()
+        custom_habits = _reconcile_pending(custom_habits)
+        _set_custom_cache(custom_habits)
         custom_done = repositories.get_custom_habit_done(user_email, selected_day)
 
         for habit in custom_habits:
@@ -153,7 +199,10 @@ def render_habits_tab(ctx):
                 if st.session_state.get(edit_key, False):
                     st.text_input("Edit", key=name_key, label_visibility="collapsed")
                 else:
-                    st.markdown(habit["name"])
+                    label = habit.get("name") or ""
+                    if habit.get("pending"):
+                        label = f"{label} (saving...)"
+                    st.markdown(label)
 
             with row_cols[2]:
                 edit_key = f"habits.editing.{habit['id']}"
@@ -169,11 +218,16 @@ def render_habits_tab(ctx):
                 else:
                     if st.button("✎", key=f"habits.edit.{habit['id']}", type="tertiary"):
                         st.session_state[edit_key] = True
-                        st.session_state[name_key] = habit["name"]
+                        st.session_state[name_key] = habit.get("name", "")
                         st.rerun()
             with row_cols[3]:
                 if st.button("✕", key=f"habits.delete.{habit['id']}", type="tertiary"):
-                    repositories.delete_habit(user_email, habit["id"])
+                    try:
+                        repositories.delete_habit(user_email, habit["id"])
+                    except Exception as exc:
+                        st.warning(str(exc))
+                    remaining = [h for h in custom_habits if h.get("id") != habit["id"]]
+                    _set_custom_cache(remaining)
                     st.rerun()
 
         with st.form(key="habits.add_form", clear_on_submit=True):
@@ -184,11 +238,17 @@ def render_habits_tab(ctx):
                 submit_add = st.form_submit_button("+", use_container_width=True)
 
         if submit_add:
-            try:
-                repositories.add_habit(user_email, st.session_state.get("habits.new_habit", ""))
+            name = (st.session_state.get("habits.new_habit", "") or "").strip()
+            if name:
+                temp_id = f"temp-{uuid.uuid4().hex[:8]}"
+                pending_item = {"id": temp_id, "name": name, "pending": True}
+                updated = list(custom_habits) + [pending_item]
+                _set_custom_cache(updated)
+                pending = st.session_state.get("habits.pending_futures", {})
+                executor = _habit_executor()
+                pending[temp_id] = executor.submit(repositories.add_habit, user_email, name)
+                st.session_state["habits.pending_futures"] = pending
                 st.rerun()
-            except Exception as exc:
-                st.warning(str(exc))
 
         st.markdown("</div>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)

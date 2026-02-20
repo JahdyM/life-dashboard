@@ -9,8 +9,7 @@ from backend.settings import get_settings
 from backend.services import google_calendar_service
 
 
-def _build_event_payload(task: dict) -> dict:
-    settings = get_settings()
+def _build_event_payload(task: dict, timezone_name: str) -> dict:
     title = task.get("title") or "Untitled task"
     scheduled_date = task.get("scheduled_date")
     scheduled_time = task.get("scheduled_time")
@@ -22,8 +21,8 @@ def _build_event_payload(task: dict) -> dict:
         ).strftime("%Y-%m-%dT%H:%M:%S")
         return {
             "summary": title,
-            "start": {"dateTime": start_dt, "timeZone": settings.calendar_timezone},
-            "end": {"dateTime": end_dt, "timeZone": settings.calendar_timezone},
+            "start": {"dateTime": start_dt, "timeZone": timezone_name},
+            "end": {"dateTime": end_dt, "timeZone": timezone_name},
         }
     if scheduled_date:
         next_day = (datetime.fromisoformat(scheduled_date) + timedelta(days=1)).strftime("%Y-%m-%d")
@@ -48,7 +47,15 @@ async def _handle_task_outbox(row: dict) -> None:
             return
         if task.get("google_event_id"):
             return
-        event = await google_calendar_service.create_event(user_email, calendar_id, _build_event_payload(task))
+        try:
+            tz_name = await google_calendar_service.get_calendar_timezone(user_email, calendar_id)
+        except Exception:
+            tz_name = get_settings().calendar_timezone
+        event = await google_calendar_service.create_event(
+            user_email,
+            calendar_id,
+            _build_event_payload(task, tz_name),
+        )
         await repositories.update_task(
             user_email,
             task_id,
@@ -64,11 +71,15 @@ async def _handle_task_outbox(row: dict) -> None:
             return
         if not task.get("scheduled_date"):
             return
+        try:
+            tz_name = await google_calendar_service.get_calendar_timezone(user_email, calendar_id)
+        except Exception:
+            tz_name = get_settings().calendar_timezone
         await google_calendar_service.update_event(
             user_email,
             calendar_id,
             event_id,
-            _build_event_payload(task),
+            _build_event_payload(task, tz_name),
         )
         return
 
