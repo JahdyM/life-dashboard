@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from datetime import date, datetime, timedelta
 
-import pandas as pd
 import requests
 import streamlit as st
 from sqlalchemy import text as sql_text
@@ -17,6 +17,8 @@ from dashboard.constants import (
 )
 from dashboard.auth import get_database_url, get_engine, get_current_user_email
 from dashboard.data import repositories, api_client
+
+logger = logging.getLogger(__name__)
 
 try:
     from icalendar import Calendar
@@ -118,6 +120,7 @@ def fetch_ics_events_for_range(ics_url, start_date, end_date):
                 )
             )
         except Exception:
+            logger.warning("Failed to expand recurring events from ICS feed.")
             components = []
 
     if not components:
@@ -129,6 +132,17 @@ def fetch_ics_events_for_range(ics_url, start_date, end_date):
         if payload:
             events.append(payload)
     return events, None
+
+
+@st.cache_data(ttl=5, show_spinner=False)
+def fetch_header_cached(user_email: str, api_base: str):
+    if not repositories.api_enabled():
+        return {}
+    try:
+        return api_client.request("GET", "/v1/header")
+    except Exception as exc:
+        logger.warning("Failed to fetch header snapshot: %s", exc)
+        return {}
 
 
 @st.cache_data(ttl=120, show_spinner=False)

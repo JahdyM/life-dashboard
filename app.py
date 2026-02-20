@@ -15,6 +15,7 @@ from dashboard.header import render_global_header
 from dashboard.router import render_router
 from dashboard.data import repositories, api_client
 from dashboard.data.loaders import (
+    fetch_header_cached,
     fetch_ics_events_for_range,
     load_custom_habit_done_by_date,
     load_custom_habit_done_by_date_cached,
@@ -1455,133 +1456,6 @@ def get_task_progress(task, subtasks):
     return 100.0 if int(task.get("is_done", 0) or 0) == 1 else 0.0
 
 
-def fetch_ics_events_for_date(ics_url, target_date):
-    return fetch_ics_events_for_range(ics_url, target_date, target_date)
-
-
-def filter_events_for_date(events, target_date):
-    target_iso = target_date.isoformat()
-    day_events = [
-        event
-        for event in events
-        if event["start_date"] <= target_iso <= event["end_date"]
-    ]
-    day_events.sort(key=lambda item: (item["start_time"] is None, item["start_time"] or "23:59", item["title"]))
-    return day_events
-
-
-def build_event_count_map(events, start_date, end_date):
-    counts = {}
-    for event in events:
-        try:
-            event_start = date.fromisoformat(event["start_date"])
-            event_end = date.fromisoformat(event["end_date"])
-        except Exception:
-            continue
-        current = max(event_start, start_date)
-        last = min(event_end, end_date)
-        while current <= last:
-            counts[current] = counts.get(current, 0) + 1
-            current += timedelta(days=1)
-    return counts
-
-
-def build_event_detail_map(events, start_date, end_date, max_items=4):
-    detail_map = {}
-    for event in events:
-        try:
-            event_start = date.fromisoformat(event["start_date"])
-            event_end = date.fromisoformat(event["end_date"])
-        except Exception:
-            continue
-        time_label = event.get("start_time") or "All day"
-        line = f"{time_label} • {event.get('title', 'Event')}"
-        current = max(event_start, start_date)
-        last = min(event_end, end_date)
-        while current <= last:
-            detail_map.setdefault(current, []).append(line)
-            current += timedelta(days=1)
-    compact = {}
-    for day, lines in detail_map.items():
-        shown = lines[:max_items]
-        if len(lines) > max_items:
-            shown.append(f"... +{len(lines) - max_items} more")
-        compact[day] = "\n".join(shown)
-    return compact
-
-
-def build_task_count_map(tasks, start_date, end_date):
-    counts = {}
-    for task in tasks:
-        raw_date = task.get("scheduled_date")
-        if not raw_date:
-            continue
-        try:
-            task_date = date.fromisoformat(raw_date)
-        except Exception:
-            continue
-        if start_date <= task_date <= end_date:
-            counts[task_date] = counts.get(task_date, 0) + 1
-    return counts
-
-
-def build_task_detail_map(tasks, start_date, end_date, max_items=4):
-    detail_map = {}
-    for task in tasks:
-        raw_date = task.get("scheduled_date")
-        if not raw_date:
-            continue
-        try:
-            task_date = date.fromisoformat(raw_date)
-        except Exception:
-            continue
-        if not (start_date <= task_date <= end_date):
-            continue
-        time_label = task.get("scheduled_time") or "No time"
-        line = f"{time_label} • {task.get('title', 'Task')}"
-        detail_map.setdefault(task_date, []).append(line)
-    compact = {}
-    for day, lines in detail_map.items():
-        shown = lines[:max_items]
-        if len(lines) > max_items:
-            shown.append(f"... +{len(lines) - max_items} more")
-        compact[day] = "\n".join(shown)
-    return compact
-
-
-def get_week_range(reference_date):
-    week_start = reference_date - timedelta(days=reference_date.weekday())
-    week_end = week_start + timedelta(days=6)
-    return week_start, week_end
-
-
-def month_last_day(reference_date):
-    days = calendar.monthrange(reference_date.year, reference_date.month)[1]
-    return reference_date.replace(day=days)
-
-
-def build_aesthetic_mosaic_html(image_urls):
-    if not image_urls:
-        return ""
-    tiles = [image_urls[idx % len(image_urls)] for idx in range(7)]
-    blocks = []
-    for idx, image_url in enumerate(tiles, start=1):
-        safe_url = image_url.replace('"', "%22")
-        blocks.append(
-            (
-                f"<div class='aesthetic-tile aesthetic-{idx}'>"
-                f"<img src='{safe_url}' loading='lazy' alt='Aesthetic mood' />"
-                "</div>"
-            )
-        )
-    return (
-        "<div class='aesthetic-wrap'>"
-        "<div class='aesthetic-mosaic'>"
-        f"{''.join(blocks)}"
-        "</div>"
-        "</div>"
-    )
-
 
 def build_aesthetic_side_html(image_urls, offset=0):
     if not image_urls:
@@ -2054,35 +1928,6 @@ context = {
     "meeting_days": meeting_days,
     "family_worship_day": family_worship_day,
     "quick_indicators": {"pending_tasks": pending_tasks},
-    "constants": {
-        "DAY_LABELS": DAY_LABELS,
-        "DAY_TO_INDEX": DAY_TO_INDEX,
-        "DEFAULT_HABIT_LABELS": DEFAULT_HABIT_LABELS,
-        "FIXED_COUPLE_HABIT_KEYS": FIXED_COUPLE_HABIT_KEYS,
-        "MEETING_HABIT_KEYS": MEETING_HABIT_KEYS,
-        "FAMILY_WORSHIP_HABIT_KEYS": FAMILY_WORSHIP_HABIT_KEYS,
-        "MOODS": MOODS,
-        "JAHDY_EMAIL": JAHDY_EMAIL,
-        "GUILHERME_EMAIL": GUILHERME_EMAIL,
-    },
-    "helpers": {
-        "get_secret": get_secret,
-        "get_user_calendar_ics_url": get_user_calendar_ics_url,
-        "fetch_ics_events_for_range": fetch_ics_events_for_range,
-        "filter_events_for_date": filter_events_for_date,
-        "build_event_count_map": build_event_count_map,
-        "build_event_detail_map": build_event_detail_map,
-        "build_task_count_map": build_task_count_map,
-        "build_task_detail_map": build_task_detail_map,
-        "build_week_calendar_html": build_week_calendar_html,
-        "get_week_range": get_week_range,
-        "month_last_day": month_last_day,
-        "dot_chart": dot_chart,
-        "mood_heatmap": mood_heatmap,
-        "build_month_tracker_grid": build_month_tracker_grid,
-        "build_year_tracker_grid": build_year_tracker_grid,
-        "streak_count": streak_count,
-    },
 }
 
 _t1 = time.perf_counter()
