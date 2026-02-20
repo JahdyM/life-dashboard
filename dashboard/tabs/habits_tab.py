@@ -36,6 +36,10 @@ def _save_metrics(user_email, selected_day):
     )
 
 
+def _save_daily_text(user_email, selected_day):
+    repositories.set_daily_text(user_email, selected_day, st.session_state.get("habits.daily_text", ""))
+
+
 def _save_custom_done(user_email, selected_day, custom_habits):
     payload = {}
     for habit in custom_habits:
@@ -89,6 +93,7 @@ def render_habits_tab(ctx):
 
     is_meeting_day = selected_day.weekday() in selected_meeting_days
 
+    st.markdown("<div class='habits-compact'>", unsafe_allow_html=True)
     st.markdown("<div class='small-label'>Fixed shared habits</div>", unsafe_allow_html=True)
     fixed_cols = st.columns(2)
     idx = 0
@@ -107,13 +112,21 @@ def render_habits_tab(ctx):
             )
         idx += 1
 
-    st.markdown("<div class='habits-compact'>", unsafe_allow_html=True)
+    if st.session_state.get("habits.loaded_key") != loaded_key:
+        st.session_state["habits.daily_text"] = repositories.get_daily_text(user_email, selected_day)
+    st.text_input(
+        "Texto diário",
+        key="habits.daily_text",
+        on_change=_save_daily_text,
+        args=(user_email, selected_day),
+    )
+
     st.markdown("<div class='small-label'>Personal habits</div>", unsafe_allow_html=True)
     custom_habits = repositories.get_custom_habits(user_email, active_only=True)
     custom_done = repositories.get_custom_habit_done(user_email, selected_day)
 
     for habit in custom_habits:
-        row_cols = st.columns([0.4, 5.6, 0.5, 0.5])
+        row_cols = st.columns([0.25, 5.9, 0.45, 0.45])
         done_key = f"habits.custom_done.{habit['id']}"
         if st.session_state.get("habits.loaded_key") != loaded_key:
             st.session_state[done_key] = bool(custom_done.get(habit["id"], 0))

@@ -908,12 +908,35 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
     margin-bottom: 0.05rem;
 }
 
+.calendar-compact .task-title-btn button {
+    width: 100%;
+    text-align: left;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.2rem 0.5rem;
+    min-height: 28px;
+}
+
+.calendar-compact .task-title-btn button:hover {
+    border-color: var(--accent-soft);
+}
+
+.calendar-compact .task-details {
+    margin-left: 0.1rem;
+    margin-bottom: 0.2rem;
+}
+
 .habits-compact [data-testid="stHorizontalBlock"] {
     gap: 0.2rem;
 }
 
 .habits-compact .stMarkdown p {
     margin: 0.05rem 0;
+}
+
+.habits-compact [data-testid="stCheckbox"] {
+    margin-top: -2px;
 }
 </style>
 """,

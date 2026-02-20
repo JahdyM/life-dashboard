@@ -342,6 +342,16 @@ def set_custom_habit_done(user_email, day, done_map):
     )
 
 
+def get_daily_text(user_email, day):
+    day_iso = day if isinstance(day, str) else day.isoformat()
+    return get_setting(user_email, f"daily_text::{day_iso}") or ""
+
+
+def set_daily_text(user_email, day, value):
+    day_iso = day if isinstance(day, str) else day.isoformat()
+    set_setting(user_email, f"daily_text::{day_iso}", (value or "").strip())
+
+
 def save_activity(activity_patch):
     user_email = activity_patch.get("user_email") or _current_user()
     task_id = activity_patch.get("id")
