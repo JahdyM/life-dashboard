@@ -38,12 +38,20 @@ def render_stats_tab(ctx):
         weekly_cols[3].metric("Avg boredom (7d)", round(weekly["boredom_minutes"].mean(), 1))
 
     st.markdown("<div class='small-label' style='margin-top:8px;'>Charts</div>", unsafe_allow_html=True)
-    view = st.selectbox("Window", ["Last 7 days", "This month"], index=0, key="stats.view")
+    view = st.selectbox("Window", ["Last 7 days", "This month", "This quarter"], index=0, key="stats.view")
     if view == "Last 7 days":
         start_date = today - timedelta(days=6)
         filtered = data[data["date"] >= start_date]
-    else:
+    elif view == "This month":
         filtered = data[data["date"].apply(lambda d: d.year == today.year and d.month == today.month)]
+    else:
+        quarter_index = (today.month - 1) // 3
+        quarter_start = date(today.year, quarter_index * 3 + 1, 1)
+        if quarter_index == 3:
+            quarter_end = date(today.year, 12, 31)
+        else:
+            quarter_end = date(today.year, quarter_index * 3 + 4, 1) - timedelta(days=1)
+        filtered = data[(data["date"] >= quarter_start) & (data["date"] <= quarter_end)]
 
     filtered = filtered.sort_values("date").copy()
     filtered["date_str"] = filtered["date"].apply(lambda d: d.strftime("%b %d"))

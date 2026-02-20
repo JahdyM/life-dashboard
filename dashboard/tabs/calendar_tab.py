@@ -10,8 +10,18 @@ from dashboard.data import api_client
 from dashboard.services import google_calendar
 from dashboard.state import session_slices
 
+try:
+    from streamlit_calendar import calendar as st_calendar
+except Exception:
+    st_calendar = None
+
 
 PRIORITY_TAGS = ["High", "Medium", "Low"]
+PRIORITY_COLORS = {
+    "High": "#D95252",
+    "Medium": "#8FB6D9",
+    "Low": "#3772A6",
+}
 
 
 def _get_calendar_ids(ctx, user_email):
@@ -136,6 +146,68 @@ def _build_week_hour_board(range_tasks, start_day):
             row[day_key] = " | ".join(values)
         hour_rows.append(row)
     return hour_rows
+
+
+def _parse_iso_datetime(value):
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, date):
+        return datetime.combine(value, datetime.min.time())
+    raw = str(value)
+    try:
+        if raw.endswith("Z"):
+            raw = raw.replace("Z", "+00:00")
+        return datetime.fromisoformat(raw)
+    except ValueError:
+        try:
+            return datetime.strptime(raw, "%Y-%m-%d")
+        except ValueError:
+            return None
+
+
+def _build_calendar_events(tasks):
+    events = []
+    for item in tasks:
+        title = (item.get("title") or "Untitled").strip()
+        task_id = item.get("id")
+        scheduled_date = item.get("scheduled_date")
+        scheduled_time = item.get("scheduled_time")
+        priority = item.get("priority_tag") or "Medium"
+        color = PRIORITY_COLORS.get(priority, "#8FB6D9")
+        if scheduled_time:
+            start = f"{scheduled_date}T{scheduled_time}"
+            est = int(item.get("estimated_minutes") or 30)
+            end_dt = _parse_iso_datetime(start)
+            if end_dt:
+                end_dt = end_dt + timedelta(minutes=max(est, 15))
+                end = end_dt.isoformat()
+            else:
+                end = None
+            events.append(
+                {
+                    "id": task_id,
+                    "title": title,
+                    "start": start,
+                    "end": end,
+                    "allDay": False,
+                    "backgroundColor": color,
+                    "borderColor": color,
+                }
+            )
+        else:
+            events.append(
+                {
+                    "id": task_id,
+                    "title": title,
+                    "start": scheduled_date,
+                    "allDay": True,
+                    "backgroundColor": color,
+                    "borderColor": color,
+                }
+            )
+    return events
 
 
 def _sync_google_if_connected(user_email, connected, start_day, end_day, calendar_ids):
@@ -263,13 +335,6 @@ def render_calendar_tab(ctx):
         st.session_state["calendar.force_refresh"] = False
 
     day_tasks = [item for item in range_tasks if item.get("scheduled_date") == selected_day.isoformat()]
-    day_rows = _build_day_hour_board(day_tasks)
-    grid_html = "<div class='day-grid'>" + "".join(
-        [
-            f"<div class='day-row'><div class='day-hour'>{hour}</div><div class='day-slot'>{slot or ''}</div></div>"
-            for hour, slot in day_rows
-        ]
-    ) + "</div>"
 
     layout = st.columns([1.45, 0.9], gap="large")
 
@@ -645,32 +710,127 @@ def render_calendar_tab(ctx):
 
     with layout[1]:
         st.markdown("<div class='calendar-section-title'>Day Schedule</div>", unsafe_allow_html=True)
-        st.markdown(grid_html, unsafe_allow_html=True)
+        if st_calendar:
+            view_map = {"Day": "timeGridDay", "Week": "timeGridWeek", "Month": "dayGridMonth"}
+            calendar_events = _build_calendar_events(range_tasks)
+            calendar_options = {
+                "initialView": view_map.get(view_mode, "timeGridDay"),
+                "initialDate": selected_day.isoformat(),
+                "editable": True,
+                "selectable": True,
+                "selectMirror": True,
+                "nowIndicator": True,
+                "allDaySlot": True,
+                "slotMinTime": "00:00:00",
+                "slotMaxTime": "24:00:00",
+                "slotDuration": "00:30:00",
+                "height": 680,
+                "headerToolbar": {
+                    "left": "prev,next today",
+                    "center": "title",
+                    "right": "",
+                },
+            }
+            cal_state = st_calendar(
+                events=calendar_events,
+                options=calendar_options,
+                key=f"calendar.full.{selected_day.isoformat()}",
+            )
 
-        if view_mode in {"Week", "Month"}:
-            with st.expander("Secondary calendar view", expanded=False):
-                if view_mode == "Week":
-                    week_hour_rows = _build_week_hour_board(range_tasks, start_day)
-                    st.dataframe(pd.DataFrame(week_hour_rows), use_container_width=True, hide_index=True, height=300)
-                else:
-                    month_rows = []
-                    day = start_day
-                    while day <= end_day:
-                        day_items = [item for item in range_tasks if item.get("scheduled_date") == day.isoformat()]
-                        month_rows.append(
-                            {
-                                "Date": day.strftime("%d/%m/%Y"),
-                                "Tasks": len(day_items),
-                                "Preview": " | ".join(
-                                    [
-                                        f"{(item.get('scheduled_time') or 'All day')} • {item.get('title')}"
-                                        for item in day_items[:3]
-                                    ]
-                                ),
-                            }
-                        )
-                        day += timedelta(days=1)
-                    st.dataframe(pd.DataFrame(month_rows), use_container_width=True, hide_index=True, height=300)
+            if cal_state and cal_state.get("callback"):
+                callback = cal_state.get("callback")
+                payload = cal_state.get(callback)
+                signature = f"{callback}:{payload}"
+                last_sig = st.session_state.get("calendar.last_callback")
+                if signature != last_sig:
+                    st.session_state["calendar.last_callback"] = signature
+                    if callback == "select" and payload:
+                        start_dt = _parse_iso_datetime(payload.get("start"))
+                        end_dt = _parse_iso_datetime(payload.get("end"))
+                        all_day = bool(payload.get("allDay"))
+                        if start_dt:
+                            if all_day:
+                                scheduled_date = start_dt.date()
+                                scheduled_time = None
+                                est_minutes = 60
+                            else:
+                                scheduled_date = start_dt.date()
+                                scheduled_time = start_dt.strftime("%H:%M")
+                                if end_dt:
+                                    est_minutes = int(max((end_dt - start_dt).total_seconds() // 60, 15))
+                                else:
+                                    est_minutes = 30
+                            created = repositories.save_activity(
+                                {
+                                    "user_email": user_email,
+                                    "title": "New activity",
+                                    "source": "manual",
+                                    "scheduled_date": scheduled_date,
+                                    "scheduled_time": scheduled_time,
+                                    "priority_tag": "Medium",
+                                    "estimated_minutes": est_minutes,
+                                }
+                            )
+                            try:
+                                _sync_created_or_updated_activity_to_google(user_email, created["id"], connected, primary_calendar_id)
+                            except Exception as exc:
+                                st.warning(f"Saved locally, but Google sync failed: {exc}")
+                            st.session_state["calendar.force_refresh"] = True
+                            st.rerun()
+                    elif callback == "eventChange" and payload:
+                        event = payload.get("event", {})
+                        task_id = event.get("id")
+                        if task_id:
+                            start_dt = _parse_iso_datetime(event.get("start"))
+                            end_dt = _parse_iso_datetime(event.get("end"))
+                            all_day = bool(event.get("allDay"))
+                            scheduled_date = start_dt.date() if start_dt else selected_day
+                            scheduled_time = None if all_day else (start_dt.strftime("%H:%M") if start_dt else None)
+                            patch = {"id": task_id, "scheduled_date": scheduled_date, "scheduled_time": scheduled_time}
+                            if (not all_day) and start_dt and end_dt:
+                                est_minutes = int(max((end_dt - start_dt).total_seconds() // 60, 15))
+                                patch["estimated_minutes"] = est_minutes
+                            repositories.save_activity(patch)
+                            try:
+                                _sync_created_or_updated_activity_to_google(user_email, task_id, connected, primary_calendar_id)
+                            except Exception as exc:
+                                st.warning(f"Saved locally, but Google sync failed: {exc}")
+                            st.session_state["calendar.force_refresh"] = True
+                            st.rerun()
+        else:
+            day_rows = _build_day_hour_board(day_tasks)
+            grid_html = "<div class='day-grid'>" + "".join(
+                [
+                    f"<div class='day-row'><div class='day-hour'>{hour}</div><div class='day-slot'>{slot or ''}</div></div>"
+                    for hour, slot in day_rows
+                ]
+            ) + "</div>"
+            st.markdown(grid_html, unsafe_allow_html=True)
+
+            if view_mode in {"Week", "Month"}:
+                with st.expander("Secondary calendar view", expanded=False):
+                    if view_mode == "Week":
+                        week_hour_rows = _build_week_hour_board(range_tasks, start_day)
+                        st.dataframe(pd.DataFrame(week_hour_rows), use_container_width=True, hide_index=True, height=300)
+                    else:
+                        month_rows = []
+                        day = start_day
+                        while day <= end_day:
+                            day_items = [item for item in range_tasks if item.get("scheduled_date") == day.isoformat()]
+                            month_rows.append(
+                                {
+                                    "Date": day.strftime("%d/%m/%Y"),
+                                    "Tasks": len(day_items),
+                                    "Preview": " | ".join(
+                                        [
+                                            f"{(item.get('scheduled_time') or 'All day')} • {item.get('title')}"
+                                            for item in day_items[:3]
+                                        ]
+                                    ),
+                                }
+                            )
+                            day += timedelta(days=1)
+                        st.dataframe(pd.DataFrame(month_rows), use_container_width=True, hide_index=True, height=300)
 
     st.markdown("</div>", unsafe_allow_html=True)
     st.divider()
