@@ -997,6 +997,11 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
     gap: 8px;
 }
 
+.task-title-btn.completed button {
+    text-decoration: line-through;
+    opacity: 0.55;
+}
+
 .task-list [data-testid="stHorizontalBlock"]:last-child {
     border-bottom: none;
 }

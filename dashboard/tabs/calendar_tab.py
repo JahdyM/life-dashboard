@@ -387,6 +387,10 @@ def render_calendar_tab(ctx):
     with layout[0]:
         st.markdown("<div class='calendar-compact task-list'>", unsafe_allow_html=True)
         st.markdown("<div class='calendar-section-title'>Daily tasks list</div>", unsafe_allow_html=True)
+        planned_count = len(day_tasks)
+        done_count = sum(1 for item in day_tasks if int(item.get("is_done", 0) or 0) == 1)
+        percent_done = round((done_count / planned_count) * 100) if planned_count else 0
+        st.caption(f"{done_count}/{planned_count} done • {percent_done}% completed")
         if not day_tasks:
             st.caption("No local tasks for this day.")
 
@@ -414,7 +418,8 @@ def render_calendar_tab(ctx):
                 )
             with row[1]:
                 task_title = (task.get("title") or "Untitled task").strip()
-                st.markdown("<div class='task-title-btn'>", unsafe_allow_html=True)
+                title_class = "task-title-btn completed" if checked else "task-title-btn"
+                st.markdown(f"<div class='{title_class}'>", unsafe_allow_html=True)
                 if st.button(task_title, key=f"calendar.task.openbtn.{task_key}"):
                     st.session_state[open_key] = not st.session_state[open_key]
                 st.markdown("</div>", unsafe_allow_html=True)
