@@ -940,7 +940,7 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 }
 
 .calendar-compact .task-title-btn button:hover {
-    background: var(--row-hover);
+    background: transparent;
 }
 
 .calendar-compact .task-details {
@@ -969,8 +969,8 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 }
 
 .task-list [data-testid="stHorizontalBlock"]:hover {
-    background: var(--row-hover);
-    border-radius: 6px;
+    background: transparent;
+    border-radius: 0;
 }
 
 .task-list .stButton > button {
