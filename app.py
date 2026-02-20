@@ -944,6 +944,16 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
     background: transparent;
 }
 
+.calendar-compact .stButton > button,
+.calendar-compact .stButton > button:hover,
+.calendar-compact .stButton > button:active,
+.calendar-compact .stButton > button:focus {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: var(--text-main) !important;
+}
+
 .calendar-compact .task-details {
     background: var(--bg-card);
     border: 1px solid var(--divider);
