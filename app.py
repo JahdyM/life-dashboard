@@ -929,6 +929,23 @@ def invalidate_all_caches():
     invalidate_header_cache()
 
 
+def invalidate_by_domain(domain=None):
+    if domain is None:
+        invalidate_all_caches()
+        return
+    mapping = {
+        "entries": invalidate_entries_cache,
+        "habits": invalidate_habits_cache,
+        "tasks": invalidate_tasks_cache,
+        "header": invalidate_header_cache,
+        "calendar": invalidate_tasks_cache,
+        "prompts": invalidate_entries_cache,
+    }
+    handler = mapping.get(domain)
+    if handler:
+        handler()
+
+
 def new_id():
     return uuid4().hex
 
