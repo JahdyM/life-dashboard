@@ -72,9 +72,14 @@ def render_habits_tab(ctx):
 
     st.markdown("<div class='section-title'>Daily Habits</div>", unsafe_allow_html=True)
 
+    selected_day = st.session_state.get("habits.selected_date", date.today())
+    row = data[data["date"] == selected_day]
+    row_payload = row.iloc[0].to_dict() if not row.empty else {}
+    loaded_key = f"{user_email}:{selected_day.isoformat()}"
+
     top_cols = st.columns([1.15, 0.85])
     with top_cols[0]:
-        selected_day = st.date_input("Date", key="habits.selected_date")
+        selected_day = st.date_input("Date", key="habits.selected_date", value=selected_day)
     with top_cols[1]:
         st.markdown("<div class='panel'>", unsafe_allow_html=True)
         if st.session_state.get("habits.loaded_key") != loaded_key:
