@@ -263,7 +263,6 @@ def render_calendar_tab(ctx):
         st.session_state["calendar.force_refresh"] = False
 
     day_tasks = [item for item in range_tasks if item.get("scheduled_date") == selected_day.isoformat()]
-    all_day = [t for t in day_tasks if not t.get("scheduled_time")]
     day_rows = _build_day_hour_board(day_tasks)
     grid_html = "<div class='day-grid'>" + "".join(
         [
@@ -272,184 +271,184 @@ def render_calendar_tab(ctx):
         ]
     ) + "</div>"
 
-    layout = st.columns([1.35, 0.85], gap="large")
+    layout = st.columns([1.45, 0.9], gap="large")
 
     with layout[0]:
         st.markdown("<div class='calendar-compact'>", unsafe_allow_html=True)
         st.markdown("<div class='calendar-section-title'>Daily tasks list</div>", unsafe_allow_html=True)
-    if not day_tasks:
-        st.caption("No local tasks for this day.")
+        if not day_tasks:
+            st.caption("No local tasks for this day.")
 
-    for task_idx, task in enumerate(day_tasks, start=1):
-        task_id = task["id"]
-        task_key = task_id.replace("-", "_")
-        time_current = task.get("scheduled_time")
-        default_time = (
-            datetime.strptime(time_current, "%H:%M").time()
-            if time_current
-            else datetime.now().replace(second=0, microsecond=0).time()
-        )
-
-        open_key = f"calendar.task.open.{task_key}"
-        if open_key not in st.session_state:
-            st.session_state[open_key] = False
-
-        row = st.columns([0.5, 7.4, 0.8, 0.6])
-        with row[0]:
-            checked = st.checkbox(
-                "",
-                value=bool(task.get("is_done", 0)),
-                key=f"calendar.task.done.{task_key}",
-                label_visibility="collapsed",
+        for task_idx, task in enumerate(day_tasks, start=1):
+            task_id = task["id"]
+            task_key = task_id.replace("-", "_")
+            time_current = task.get("scheduled_time")
+            default_time = (
+                datetime.strptime(time_current, "%H:%M").time()
+                if time_current
+                else datetime.now().replace(second=0, microsecond=0).time()
             )
-        with row[1]:
-            task_title = (task.get("title") or "Untitled task").strip()
-            st.markdown("<div class='task-title-btn'>", unsafe_allow_html=True)
-            if st.button(task_title, key=f"calendar.task.openbtn.{task_key}"):
-                st.session_state[open_key] = not st.session_state[open_key]
-            st.markdown("</div>", unsafe_allow_html=True)
-        with row[2]:
-            time_badge = task.get("scheduled_time") or "All day"
-            st.caption(time_badge)
-        with row[3]:
-            delete_task = st.button("✕", key=f"calendar.task.delete.{task_key}")
 
-        # Auto-save for main task (minimal fields only)
-        auto_key = f"calendar.task.autosave.{task_key}"
-        current_snapshot = bool(checked)
-        last_snapshot = st.session_state.get(auto_key)
-        if last_snapshot is not None and last_snapshot != current_snapshot:
-            patch = {
-                "id": task_id,
-                "is_done": int(bool(checked)),
-            }
-            repositories.save_activity(patch)
-            st.session_state["calendar.force_refresh"] = True
-        st.session_state[auto_key] = current_snapshot
+            open_key = f"calendar.task.open.{task_key}"
+            if open_key not in st.session_state:
+                st.session_state[open_key] = False
 
-        if st.session_state.get(open_key):
-            with st.container():
-                st.markdown("<div class='task-details'>", unsafe_allow_html=True)
-                with st.form(key=f"calendar.task.form.{task_key}", clear_on_submit=False):
-                    edit_cols = st.columns([1.2, 1.1, 1.1, 1.2, 1.4])
-                    with edit_cols[0]:
-                        current_pr = task.get("priority_tag") or "Medium"
-                        pr = st.selectbox(
-                            "Priority",
-                            PRIORITY_TAGS,
-                            index=PRIORITY_TAGS.index(current_pr) if current_pr in PRIORITY_TAGS else 1,
-                            key=f"calendar.task.priority.{task_key}",
-                        )
-                    with edit_cols[1]:
-                        est_current = int(task.get("estimated_minutes") or 0)
-                        est_new = st.number_input(
-                            "Est",
-                            min_value=0,
-                            max_value=600,
-                            step=5,
-                            value=est_current,
-                            key=f"calendar.task.est.{task_key}",
-                        )
-                    with edit_cols[2]:
-                        actual_current = int(task.get("actual_minutes") or 0)
-                        actual_new = st.number_input(
-                            "Actual",
-                            min_value=0,
-                            max_value=600,
-                            step=5,
-                            value=actual_current,
-                            key=f"calendar.task.actual.{task_key}",
-                        )
-                    with edit_cols[3]:
-                        has_time_new = st.checkbox(
-                            "Time",
-                            value=bool(task.get("scheduled_time")),
-                            key=f"calendar.task.timeflag.{task_key}",
-                        )
-                    with edit_cols[4]:
-                        if has_time_new:
-                            time_new = st.time_input("Start", value=default_time, key=f"calendar.task.time.{task_key}")
-                        else:
-                            time_new = None
-                    title_new = st.text_input(
-                        "Title",
-                        value=task_title,
-                        key=f"calendar.task.title.edit.{task_key}",
-                    )
-                    save_task = st.form_submit_button("Save changes", use_container_width=True)
-
-                if save_task:
-                    final_title = (title_new or "").strip() or task_title
-                    final_time = time_new.strftime("%H:%M") if (has_time_new and time_new) else None
-                    patch = {
-                        "id": task_id,
-                        "is_done": int(bool(checked)),
-                        "title": final_title,
-                        "priority_tag": pr,
-                        "estimated_minutes": int(est_new),
-                        "actual_minutes": int(actual_new),
-                        "scheduled_time": final_time,
-                    }
-                    repositories.save_activity(patch)
-                    try:
-                        _sync_created_or_updated_activity_to_google(user_email, task_id, connected, primary_calendar_id)
-                    except Exception as exc:
-                        st.warning(f"Saved locally, but Google sync failed: {exc}")
-                    st.session_state["calendar.force_refresh"] = True
-                    st.rerun()
-
-                sub_items = subtasks.get(task_id, [])
-                for sub_idx, sub in enumerate(sub_items, start=1):
-                    sub_key = sub["id"].replace("-", "_")
-                    sub_row = st.columns([0.6, 7.2, 0.8])
-                    with sub_row[0]:
-                        s_done = st.checkbox(
-                            "",
-                            value=bool(sub.get("is_done", 0)),
-                            key=f"calendar.sub.done.{sub_key}",
-                            label_visibility="collapsed",
-                        )
-                    with sub_row[1]:
-                        st.caption(f"{task_idx}.{sub_idx} · {sub.get('title') or ''}")
-                    with sub_row[2]:
-                        delete_sub = st.button("✕", key=f"calendar.sub.delete.{sub_key}")
-
-                    if bool(sub.get("is_done", 0)) != bool(s_done):
-                        repositories.update_subtask(sub["id"], {"is_done": s_done})
-                        st.session_state["calendar.force_refresh"] = True
-                    if delete_sub:
-                        repositories.delete_subtask(sub["id"])
-                        st.session_state["calendar.force_refresh"] = True
-                        st.rerun()
-
-                add_sub_key = f"calendar.sub.new.{task_key}"
-                sub_cols = st.columns([7.2, 0.8])
-                with sub_cols[0]:
-                    sub_title = st.text_input(
-                        "New subtask",
-                        key=add_sub_key,
-                        label_visibility="collapsed",
-                        placeholder="Add subtask",
-                    )
-                with sub_cols[1]:
-                    add_sub = st.button("Add", key=f"calendar.sub.add.{task_key}")
-
-                if add_sub:
-                    clean_sub_title = (sub_title or "").strip()
-                    if clean_sub_title:
-                        repositories.add_subtask(task_id, clean_sub_title, estimated_minutes=15)
-                        st.session_state[add_sub_key] = ""
-                        st.session_state["calendar.force_refresh"] = True
-                        st.rerun()
-
+            row = st.columns([0.5, 7.4, 0.8, 0.6])
+            with row[0]:
+                checked = st.checkbox(
+                    "",
+                    value=bool(task.get("is_done", 0)),
+                    key=f"calendar.task.done.{task_key}",
+                    label_visibility="collapsed",
+                )
+            with row[1]:
+                task_title = (task.get("title") or "Untitled task").strip()
+                st.markdown("<div class='task-title-btn'>", unsafe_allow_html=True)
+                if st.button(task_title, key=f"calendar.task.openbtn.{task_key}"):
+                    st.session_state[open_key] = not st.session_state[open_key]
                 st.markdown("</div>", unsafe_allow_html=True)
+            with row[2]:
+                time_badge = task.get("scheduled_time") or "All day"
+                st.caption(time_badge)
+            with row[3]:
+                delete_task = st.button("✕", key=f"calendar.task.delete.{task_key}")
 
-        if delete_task:
-            repositories.delete_activity(task_id, delete_remote_google=True)
-            st.session_state["calendar.force_refresh"] = True
-            st.rerun()
+            # Auto-save for main task (minimal fields only)
+            auto_key = f"calendar.task.autosave.{task_key}"
+            current_snapshot = bool(checked)
+            last_snapshot = st.session_state.get(auto_key)
+            if last_snapshot is not None and last_snapshot != current_snapshot:
+                patch = {
+                    "id": task_id,
+                    "is_done": int(bool(checked)),
+                }
+                repositories.save_activity(patch)
+                st.session_state["calendar.force_refresh"] = True
+            st.session_state[auto_key] = current_snapshot
 
-        st.divider()
+            if st.session_state.get(open_key):
+                with st.container():
+                    st.markdown("<div class='task-details'>", unsafe_allow_html=True)
+                    with st.form(key=f"calendar.task.form.{task_key}", clear_on_submit=False):
+                        edit_cols = st.columns([1.2, 1.1, 1.1, 1.2, 1.4])
+                        with edit_cols[0]:
+                            current_pr = task.get("priority_tag") or "Medium"
+                            pr = st.selectbox(
+                                "Priority",
+                                PRIORITY_TAGS,
+                                index=PRIORITY_TAGS.index(current_pr) if current_pr in PRIORITY_TAGS else 1,
+                                key=f"calendar.task.priority.{task_key}",
+                            )
+                        with edit_cols[1]:
+                            est_current = int(task.get("estimated_minutes") or 0)
+                            est_new = st.number_input(
+                                "Est",
+                                min_value=0,
+                                max_value=600,
+                                step=5,
+                                value=est_current,
+                                key=f"calendar.task.est.{task_key}",
+                            )
+                        with edit_cols[2]:
+                            actual_current = int(task.get("actual_minutes") or 0)
+                            actual_new = st.number_input(
+                                "Actual",
+                                min_value=0,
+                                max_value=600,
+                                step=5,
+                                value=actual_current,
+                                key=f"calendar.task.actual.{task_key}",
+                            )
+                        with edit_cols[3]:
+                            has_time_new = st.checkbox(
+                                "Time",
+                                value=bool(task.get("scheduled_time")),
+                                key=f"calendar.task.timeflag.{task_key}",
+                            )
+                        with edit_cols[4]:
+                            if has_time_new:
+                                time_new = st.time_input("Start", value=default_time, key=f"calendar.task.time.{task_key}")
+                            else:
+                                time_new = None
+                        title_new = st.text_input(
+                            "Title",
+                            value=task_title,
+                            key=f"calendar.task.title.edit.{task_key}",
+                        )
+                        save_task = st.form_submit_button("Save changes", use_container_width=True)
+
+                    if save_task:
+                        final_title = (title_new or "").strip() or task_title
+                        final_time = time_new.strftime("%H:%M") if (has_time_new and time_new) else None
+                        patch = {
+                            "id": task_id,
+                            "is_done": int(bool(checked)),
+                            "title": final_title,
+                            "priority_tag": pr,
+                            "estimated_minutes": int(est_new),
+                            "actual_minutes": int(actual_new),
+                            "scheduled_time": final_time,
+                        }
+                        repositories.save_activity(patch)
+                        try:
+                            _sync_created_or_updated_activity_to_google(user_email, task_id, connected, primary_calendar_id)
+                        except Exception as exc:
+                            st.warning(f"Saved locally, but Google sync failed: {exc}")
+                        st.session_state["calendar.force_refresh"] = True
+                        st.rerun()
+
+                    sub_items = subtasks.get(task_id, [])
+                    for sub_idx, sub in enumerate(sub_items, start=1):
+                        sub_key = sub["id"].replace("-", "_")
+                        sub_row = st.columns([0.6, 7.2, 0.8])
+                        with sub_row[0]:
+                            s_done = st.checkbox(
+                                "",
+                                value=bool(sub.get("is_done", 0)),
+                                key=f"calendar.sub.done.{sub_key}",
+                                label_visibility="collapsed",
+                            )
+                        with sub_row[1]:
+                            st.caption(f"{task_idx}.{sub_idx} · {sub.get('title') or ''}")
+                        with sub_row[2]:
+                            delete_sub = st.button("✕", key=f"calendar.sub.delete.{sub_key}")
+
+                        if bool(sub.get("is_done", 0)) != bool(s_done):
+                            repositories.update_subtask(sub["id"], {"is_done": s_done})
+                            st.session_state["calendar.force_refresh"] = True
+                        if delete_sub:
+                            repositories.delete_subtask(sub["id"])
+                            st.session_state["calendar.force_refresh"] = True
+                            st.rerun()
+
+                    add_sub_key = f"calendar.sub.new.{task_key}"
+                    sub_cols = st.columns([7.2, 0.8])
+                    with sub_cols[0]:
+                        sub_title = st.text_input(
+                            "New subtask",
+                            key=add_sub_key,
+                            label_visibility="collapsed",
+                            placeholder="Add subtask",
+                        )
+                    with sub_cols[1]:
+                        add_sub = st.button("Add", key=f"calendar.sub.add.{task_key}")
+
+                    if add_sub:
+                        clean_sub_title = (sub_title or "").strip()
+                        if clean_sub_title:
+                            repositories.add_subtask(task_id, clean_sub_title, estimated_minutes=15)
+                            st.session_state[add_sub_key] = ""
+                            st.session_state["calendar.force_refresh"] = True
+                            st.rerun()
+
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+            if delete_task:
+                repositories.delete_activity(task_id, delete_remote_google=True)
+                st.session_state["calendar.force_refresh"] = True
+                st.rerun()
+
+            st.divider()
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -607,10 +606,6 @@ def render_calendar_tab(ctx):
 
     with layout[1]:
         st.markdown("<div class='calendar-section-title'>Day Schedule</div>", unsafe_allow_html=True)
-        if all_day:
-            st.caption("All‑day / no‑time")
-            for item in all_day:
-                st.caption(f"• {item.get('title')}")
         st.markdown(grid_html, unsafe_allow_html=True)
 
         if view_mode in {"Week", "Month"}:
