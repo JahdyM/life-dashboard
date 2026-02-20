@@ -2,13 +2,10 @@ from datetime import date
 
 import streamlit as st
 
+from dashboard.visualizations import mood_heatmap, build_month_tracker_grid, build_year_tracker_grid
 
 def render_mood_tab(ctx):
     data = ctx["data"]
-    mood_heatmap = ctx["helpers"]["mood_heatmap"]
-    build_month_tracker_grid = ctx["helpers"]["build_month_tracker_grid"]
-    build_year_tracker_grid = ctx["helpers"]["build_year_tracker_grid"]
-
     st.markdown("<div class='section-title'>Mood Board</div>", unsafe_allow_html=True)
 
     mood_map = {row["date"]: row["mood_category"] for _, row in data.iterrows() if row.get("mood_category")}

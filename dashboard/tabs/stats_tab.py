@@ -2,11 +2,10 @@ from datetime import date, timedelta
 
 import streamlit as st
 
+from dashboard.visualizations import dot_chart
 
 def render_stats_tab(ctx):
     data = ctx["data"]
-
-    dot_chart = ctx["helpers"]["dot_chart"]
 
     st.markdown("<div class='section-title'>Statistics & Charts</div>", unsafe_allow_html=True)
 

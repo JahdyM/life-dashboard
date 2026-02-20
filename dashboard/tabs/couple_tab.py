@@ -4,7 +4,7 @@ from datetime import date, timedelta
 import streamlit as st
 
 from dashboard.data import repositories, api_client
-from dashboard.constants import JAHDY_EMAIL, GUILHERME_EMAIL, MOODS, MOOD_TO_INT, DEFAULT_HABIT_LABELS
+from dashboard.constants import JAHDY_EMAIL, GUILHERME_EMAIL, MOOD_TO_INT, DEFAULT_HABIT_LABELS
 from dashboard.visualizations import mood_heatmap
 
 
