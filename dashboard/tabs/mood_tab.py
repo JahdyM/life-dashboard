@@ -30,13 +30,4 @@ def render_mood_tab(ctx):
             use_container_width=True,
         )
 
-    st.markdown("<div class='small-label' style='margin-top:8px;'>Timeline</div>", unsafe_allow_html=True)
-    timeline = data[data["mood_category"].notna() & (data["mood_category"] != "")].sort_values("date", ascending=False).head(60)
-    if timeline.empty:
-        st.caption("No mood entries yet.")
-        return
-    for _, row in timeline.iterrows():
-        day = row.get("date")
-        mood = row.get("mood_category") or "-"
-        st.markdown(f"**{day}** • {mood}")
-        st.divider()
+    # Timeline removed per UX request (keep mood grids only).
