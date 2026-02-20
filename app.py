@@ -931,6 +931,60 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
     margin-bottom: 0.2rem;
 }
 
+.calendar-top [data-testid="stHorizontalBlock"] {
+    gap: 0.25rem;
+}
+
+.calendar-top .stSelectbox,
+.calendar-top .stDateInput {
+    min-height: 30px;
+}
+
+.calendar-top label {
+    font-size: 0.72rem !important;
+}
+
+.day-grid {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.day-row {
+    display: grid;
+    grid-template-columns: 58px 1fr;
+    align-items: center;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    min-height: 28px;
+}
+
+.day-row:first-child {
+    border-top: none;
+}
+
+.day-hour {
+    font-size: 0.72rem;
+    color: var(--text-soft);
+    padding: 0.2rem 0.4rem;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.day-slot {
+    font-size: 0.78rem;
+    color: var(--text-strong);
+    padding: 0.15rem 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.calendar-section-title {
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin: 0.4rem 0 0.2rem 0;
+}
+
 .habits-compact [data-testid="stHorizontalBlock"] {
     gap: 0.2rem;
 }
