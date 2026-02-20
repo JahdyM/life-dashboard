@@ -506,12 +506,14 @@ def render_calendar_tab(ctx):
             if not (draft["title"] or "").strip():
                 st.warning("Task title is required.")
             else:
+                invalid = False
                 if draft["date"]:
                     try:
                         scheduled_date = datetime.strptime(draft["date"], "%Y-%m-%d").date()
                     except ValueError:
                         st.warning("Date must be in YYYY-MM-DD format.")
-                        return
+                        invalid = True
+                        scheduled_date = selected_day
                 else:
                     scheduled_date = selected_day
 
@@ -520,32 +522,34 @@ def render_calendar_tab(ctx):
                         scheduled_time = datetime.strptime(draft["time"], "%H:%M").time()
                     except ValueError:
                         st.warning("Time must be in HH:MM format.")
-                        return
+                        invalid = True
+                        scheduled_time = None
                 else:
                     scheduled_time = None
 
-                created = repositories.save_activity(
-                    {
-                        "user_email": user_email,
-                        "title": draft["title"],
-                        "source": "manual",
-                        "scheduled_date": scheduled_date,
-                        "scheduled_time": scheduled_time,
-                        "priority_tag": draft["priority"],
-                        "estimated_minutes": draft["estimated"],
-                    }
-                )
-                try:
-                    _sync_created_or_updated_activity_to_google(user_email, created["id"], connected, primary_calendar_id)
-                except Exception as exc:
-                    st.warning(f"Saved locally, but Google sync failed: {exc}")
-                draft["title"] = ""
-                draft["date"] = ""
-                draft["time"] = ""
-                st.session_state[add_date_key] = ""
-                st.session_state[add_time_key] = ""
-                st.session_state["calendar.force_refresh"] = True
-                st.rerun()
+                if not invalid:
+                    created = repositories.save_activity(
+                        {
+                            "user_email": user_email,
+                            "title": draft["title"],
+                            "source": "manual",
+                            "scheduled_date": scheduled_date,
+                            "scheduled_time": scheduled_time,
+                            "priority_tag": draft["priority"],
+                            "estimated_minutes": draft["estimated"],
+                        }
+                    )
+                    try:
+                        _sync_created_or_updated_activity_to_google(user_email, created["id"], connected, primary_calendar_id)
+                    except Exception as exc:
+                        st.warning(f"Saved locally, but Google sync failed: {exc}")
+                    draft["title"] = ""
+                    draft["date"] = ""
+                    draft["time"] = ""
+                    st.session_state[add_date_key] = ""
+                    st.session_state[add_time_key] = ""
+                    st.session_state["calendar.force_refresh"] = True
+                    st.rerun()
 
         with st.expander("Remembered tasks (to decide)", expanded=False):
             with st.form(key="calendar.remembered.form", clear_on_submit=False):
