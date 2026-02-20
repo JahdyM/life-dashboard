@@ -156,51 +156,6 @@ with title_cols[1]:
         st.rerun()
 
 
-def get_user_calendar_secret_keys(user_email):
-    if user_email == JAHDY_EMAIL:
-        return "JAHDY_GOOGLE_CALENDAR_ICS", "jahdy_google_calendar_ics"
-    if user_email == GUILHERME_EMAIL:
-        return "GUILHERME_GOOGLE_CALENDAR_ICS", "guilherme_google_calendar_ics"
-    local_name = (user_email or "").split("@")[0].replace(".", "_").upper()
-    env_key = f"{local_name}_GOOGLE_CALENDAR_ICS"
-    return env_key, env_key.lower()
-
-
-def get_user_calendar_ics_url(user_email):
-    env_key, normalized_key = get_user_calendar_secret_keys(user_email)
-    candidates = [
-        os.getenv(env_key),
-        get_secret((env_key,)),
-        get_secret((env_key.lower(),)),
-        get_secret(("calendar", env_key)),
-        get_secret(("calendar", env_key.lower())),
-        get_secret(("calendar", normalized_key)),
-        get_secret(("app", env_key)),
-        get_secret(("app", env_key.lower())),
-        get_secret(("app", normalized_key)),
-        get_setting("calendar_ics_url"),
-    ]
-    for value in candidates:
-        if value and str(value).strip():
-            return str(value).strip(), env_key
-    return "", env_key
-
-
-def scoped_setting_key(key):
-    return f"{get_current_user_email()}::{key}"
-
-
-@st.cache_resource
-def get_engine(database_url):
-    if database_url.startswith("sqlite"):
-        return create_engine(
-            database_url,
-            connect_args={"check_same_thread": False},
-            future=True,
-        )
-    return create_engine(database_url, pool_pre_ping=True, future=True)
-
-
 def init_db():
     engine = get_engine(get_database_url())
     habit_columns = ",\n    ".join([f"{key} INTEGER DEFAULT 0" for key, _ in HABITS])
@@ -980,20 +935,14 @@ def normalize_entries_df(df):
 
 
 def invalidate_entries_cache():
-    if repositories.api_enabled():
-        return
     load_data_for_email_cached.clear()
 
 
 def invalidate_habits_cache():
-    if repositories.api_enabled():
-        return
     load_custom_habit_done_by_date_cached.clear()
 
 
 def invalidate_tasks_cache():
-    if repositories.api_enabled():
-        return
     list_todo_tasks_for_window_cached.clear()
     load_today_activities_cached.clear()
 
@@ -1700,29 +1649,6 @@ def compute_balance_score(row):
         + boredom_score * 0.15
     )
     return round(score, 1)
-
-
-def streak_count(data, habit_key, today, valid_weekdays=None):
-    if data.empty:
-        return 0
-    habit_map = {row["date"]: int(row.get(habit_key, 0)) for _, row in data.iterrows()}
-    if not habit_map:
-        return 0
-    min_date = min(habit_map.keys())
-    allowed_days = set(valid_weekdays) if valid_weekdays is not None else None
-    count = 0
-    current = today
-    while current >= min_date:
-        if allowed_days is not None and current.weekday() not in allowed_days:
-            current -= timedelta(days=1)
-            continue
-        if current not in habit_map:
-            break
-        if habit_map[current] != 1:
-            break
-        count += 1
-        current -= timedelta(days=1)
-    return count
 
 
 def zero_boredom_streak(data, today):
