@@ -79,7 +79,9 @@ def render_habits_tab(ctx):
 
     top_cols = st.columns([1.15, 0.85])
     with top_cols[0]:
+        st.markdown("<div class='habits-tight'>", unsafe_allow_html=True)
         selected_day = st.date_input("Date", key="habits.selected_date", value=selected_day)
+        st.markdown("</div>", unsafe_allow_html=True)
     with top_cols[1]:
         st.markdown("<div class='panel'>", unsafe_allow_html=True)
         if st.session_state.get("habits.loaded_key") != loaded_key:
@@ -173,6 +175,7 @@ def render_habits_tab(ctx):
 
     body_cols = st.columns([1.15, 0.85])
     with body_cols[0]:
+        st.markdown("<div class='habits-tight'>", unsafe_allow_html=True)
         st.markdown("<div class='panel habits-compact'>", unsafe_allow_html=True)
         st.markdown("<div class='small-label'>Fixed shared habits</div>", unsafe_allow_html=True)
         fixed_cols = st.columns(2)
@@ -191,6 +194,7 @@ def render_habits_tab(ctx):
                     args=(user_email, selected_day, habit_key, widget_key),
                 )
             idx += 1
+        st.markdown("</div>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown("<div class='panel habits-compact'>", unsafe_allow_html=True)

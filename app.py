@@ -949,6 +949,19 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
     min-height: 24px;
 }
 
+.habits-tight [data-testid="stVerticalBlock"] > div {
+    padding-top: 0.1rem;
+    padding-bottom: 0.1rem;
+}
+
+.habits-tight [data-testid="stHorizontalBlock"] {
+    gap: 0.2rem;
+}
+
+.habits-tight .stMarkdown p {
+    margin: 0.05rem 0;
+}
+
 .panel {
     background: rgba(18, 14, 26, 0.7);
     border: 1px solid var(--border);
