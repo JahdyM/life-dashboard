@@ -562,6 +562,9 @@ def render_calendar_tab(ctx):
             for task_idx, task in enumerate(done_tasks, start=1):
                 task_id = task["id"]
                 task_key = task_id.replace("-", "_")
+                open_key = f"calendar.task.open.{task_key}"
+                if open_key not in st.session_state:
+                    st.session_state[open_key] = False
                 row = st.columns([0.45, 7.6, 0.9])
                 with row[0]:
                     checked = st.checkbox(
@@ -580,6 +583,16 @@ def render_calendar_tab(ctx):
                     time_badge = task.get("scheduled_time") or ""
                     if time_badge:
                         st.markdown(f"<div class='task-time'>{time_badge}</div>", unsafe_allow_html=True)
+
+                auto_key = f"calendar.task.autosave.done.{task_key}"
+                current_snapshot = bool(checked)
+                last_snapshot = st.session_state.get(auto_key)
+                if last_snapshot is not None and last_snapshot != current_snapshot:
+                    patch = {"id": task_id, "is_done": int(bool(checked))}
+                    repositories.save_activity(patch)
+                    st.session_state["calendar.force_refresh"] = True
+                    st.rerun()
+                st.session_state[auto_key] = current_snapshot
 
         st.markdown("</div>", unsafe_allow_html=True)
 
