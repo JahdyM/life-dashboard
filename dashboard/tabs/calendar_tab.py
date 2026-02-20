@@ -264,12 +264,7 @@ def render_calendar_tab(ctx):
 
     day_tasks = [item for item in range_tasks if item.get("scheduled_date") == selected_day.isoformat()]
 
-    st.markdown("<div class='calendar-section-title'>Day Schedule</div>", unsafe_allow_html=True)
     all_day = [t for t in day_tasks if not t.get("scheduled_time")]
-    if all_day:
-        st.caption("All‑day / no‑time")
-        for item in all_day:
-            st.caption(f"• {item.get('title')}")
     day_rows = _build_day_hour_board(day_tasks)
     grid_html = "<div class='day-grid'>" + "".join(
         [
@@ -277,32 +272,6 @@ def render_calendar_tab(ctx):
             for hour, slot in day_rows
         ]
     ) + "</div>"
-    st.markdown(grid_html, unsafe_allow_html=True)
-
-    if view_mode in {"Week", "Month"}:
-        with st.expander("Secondary calendar view", expanded=False):
-            if view_mode == "Week":
-                week_hour_rows = _build_week_hour_board(range_tasks, start_day)
-                st.dataframe(pd.DataFrame(week_hour_rows), use_container_width=True, hide_index=True, height=300)
-            else:
-                month_rows = []
-                day = start_day
-                while day <= end_day:
-                    day_items = [item for item in range_tasks if item.get("scheduled_date") == day.isoformat()]
-                    month_rows.append(
-                        {
-                            "Date": day.strftime("%d/%m/%Y"),
-                            "Tasks": len(day_items),
-                            "Preview": " | ".join(
-                                [
-                                    f"{(item.get('scheduled_time') or 'All day')} • {item.get('title')}"
-                                    for item in day_items[:3]
-                                ]
-                            ),
-                        }
-                    )
-                    day += timedelta(days=1)
-                st.dataframe(pd.DataFrame(month_rows), use_container_width=True, hide_index=True, height=300)
 
     st.markdown("<div class='calendar-section-title'>Add activity</div>", unsafe_allow_html=True)
     draft = _day_draft(selected_day)
@@ -631,6 +600,38 @@ def render_calendar_tab(ctx):
             st.rerun()
 
         st.divider()
+
+    st.markdown("<div class='calendar-section-title'>Day Schedule</div>", unsafe_allow_html=True)
+    if all_day:
+        st.caption("All‑day / no‑time")
+        for item in all_day:
+            st.caption(f"• {item.get('title')}")
+    st.markdown(grid_html, unsafe_allow_html=True)
+
+    if view_mode in {"Week", "Month"}:
+        with st.expander("Secondary calendar view", expanded=False):
+            if view_mode == "Week":
+                week_hour_rows = _build_week_hour_board(range_tasks, start_day)
+                st.dataframe(pd.DataFrame(week_hour_rows), use_container_width=True, hide_index=True, height=300)
+            else:
+                month_rows = []
+                day = start_day
+                while day <= end_day:
+                    day_items = [item for item in range_tasks if item.get("scheduled_date") == day.isoformat()]
+                    month_rows.append(
+                        {
+                            "Date": day.strftime("%d/%m/%Y"),
+                            "Tasks": len(day_items),
+                            "Preview": " | ".join(
+                                [
+                                    f"{(item.get('scheduled_time') or 'All day')} • {item.get('title')}"
+                                    for item in day_items[:3]
+                                ]
+                            ),
+                        }
+                    )
+                    day += timedelta(days=1)
+                st.dataframe(pd.DataFrame(month_rows), use_container_width=True, hide_index=True, height=300)
 
     st.markdown("</div>", unsafe_allow_html=True)
     st.divider()
