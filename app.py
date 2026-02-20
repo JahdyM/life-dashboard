@@ -1495,7 +1495,7 @@ def compute_auto_priority(selected_day, scheduled_time, source, progress):
                 if delta_minutes <= 360:
                     return "Medium", 2, "#D9C979"
         except Exception:
-            pass
+            logger.debug("Failed to compute scheduled priority for %s %s", selected_day, scheduled_time)
     if source == "calendar":
         return "Medium", 2, "#D9C979"
     if progress < 50:
@@ -1786,7 +1786,7 @@ if api_enabled:
         st.session_state["header.pending_tasks"] = pending_tasks
         st.session_state["header.shared_snapshot"] = shared_snapshot
     except Exception:
-        pass
+        logger.warning("Failed to refresh header snapshot.")
 else:
     today_activities = load_today_activities_cached(current_user_email, date.today().isoformat())
     pending_tasks = sum(1 for row in today_activities if int(row.get("is_done", 0) or 0) == 0)
