@@ -445,82 +445,11 @@ def render_calendar_tab(ctx):
             delete_task = st.button("✕", key=f"calendar.task.delete.{task_key}")
 
         with st.expander(f"Details · {task_idx}", expanded=False):
-            with st.form(key=f"calendar.task.form.{task_key}", clear_on_submit=False):
-                edit_cols = st.columns([1.2, 1.1, 1.1, 1.2, 1.4])
-                with edit_cols[0]:
-                    current_pr = task.get("priority_tag") or "Medium"
-                    pr = st.selectbox(
-                        "Priority",
-                        PRIORITY_TAGS,
-                        index=PRIORITY_TAGS.index(current_pr) if current_pr in PRIORITY_TAGS else 1,
-                        key=f"calendar.task.priority.{task_key}",
-                    )
-                with edit_cols[1]:
-                    est_current = int(task.get("estimated_minutes") or 0)
-                    est_new = st.number_input(
-                        "Est",
-                        min_value=0,
-                        max_value=600,
-                        step=5,
-                        value=est_current,
-                        key=f"calendar.task.est.{task_key}",
-                    )
-                with edit_cols[2]:
-                    actual_current = int(task.get("actual_minutes") or 0)
-                    actual_new = st.number_input(
-                        "Actual",
-                        min_value=0,
-                        max_value=600,
-                        step=5,
-                        value=actual_current,
-                        key=f"calendar.task.actual.{task_key}",
-                    )
-                with edit_cols[3]:
-                    has_time_new = st.checkbox(
-                        "Time",
-                        value=bool(task.get("scheduled_time")),
-                        key=f"calendar.task.timeflag.{task_key}",
-                    )
-                with edit_cols[4]:
-                    if has_time_new:
-                        time_new = st.time_input("Start", value=default_time, key=f"calendar.task.time.{task_key}")
-                    else:
-                        time_new = None
-                save_task = st.form_submit_button("Save changes", use_container_width=True)
-
-            if save_task:
-                final_title = (new_title or "").strip() or (task.get("title") or "Untitled task")
-                final_time = time_new.strftime("%H:%M") if (has_time_new and time_new) else None
-                patch = {
-                    "id": task_id,
-                    "is_done": int(bool(checked)),
-                    "title": final_title,
-                    "priority_tag": pr,
-                    "estimated_minutes": int(est_new),
-                    "actual_minutes": int(actual_new),
-                    "scheduled_time": final_time,
-                }
-                changed = (
-                    int(task.get("is_done", 0) or 0) != int(bool(checked))
-                    or (task.get("title") or "") != final_title
-                    or (task.get("priority_tag") or "Medium") != pr
-                    or int(task.get("estimated_minutes") or 0) != int(est_new)
-                    or int(task.get("actual_minutes") or 0) != int(actual_new)
-                    or (task.get("scheduled_time") or None) != final_time
-                )
-                if changed:
-                    repositories.save_activity(patch)
-                    try:
-                        _sync_created_or_updated_activity_to_google(user_email, task_id, connected, primary_calendar_id)
-                    except Exception as exc:
-                        st.warning(f"Saved locally, but Google sync failed: {exc}")
-                st.session_state["calendar.force_refresh"] = True
-                st.rerun()
-
+            # Subtasks only (compact list)
             sub_items = subtasks.get(task_id, [])
             for sub_idx, sub in enumerate(sub_items, start=1):
                 sub_key = sub["id"].replace("-", "_")
-                sub_row = st.columns([0.6, 6.2, 1.0, 0.8])
+                sub_row = st.columns([0.6, 7.2, 0.8])
                 with sub_row[0]:
                     s_done = st.checkbox(
                         "",
@@ -531,20 +460,10 @@ def render_calendar_tab(ctx):
                 with sub_row[1]:
                     st.caption(f"{task_idx}.{sub_idx} · {sub.get('title') or ''}")
                 with sub_row[2]:
-                    s_actual = int(sub.get("actual_minutes") or 0)
-                    s_actual_new = st.number_input(
-                        "Actual",
-                        min_value=0,
-                        max_value=600,
-                        step=5,
-                        value=s_actual,
-                        key=f"calendar.sub.actual.{sub_key}",
-                    )
-                with sub_row[3]:
                     delete_sub = st.button("✕", key=f"calendar.sub.delete.{sub_key}")
 
-                if (bool(sub.get("is_done", 0)) != bool(s_done)) or (int(sub.get("actual_minutes") or 0) != int(s_actual_new)):
-                    repositories.update_subtask(sub["id"], {"is_done": s_done, "actual_minutes": int(s_actual_new)})
+                if bool(sub.get("is_done", 0)) != bool(s_done):
+                    repositories.update_subtask(sub["id"], {"is_done": s_done})
                     st.session_state["calendar.force_refresh"] = True
                 if delete_sub:
                     repositories.delete_subtask(sub["id"])
@@ -552,7 +471,7 @@ def render_calendar_tab(ctx):
                     st.rerun()
 
             add_sub_key = f"calendar.sub.new.{task_key}"
-            sub_cols = st.columns([6.2, 1.2, 1.0])
+            sub_cols = st.columns([7.2, 0.8])
             with sub_cols[0]:
                 sub_title = st.text_input(
                     "New subtask",
@@ -561,21 +480,12 @@ def render_calendar_tab(ctx):
                     placeholder="Add subtask",
                 )
             with sub_cols[1]:
-                sub_est = st.number_input(
-                    "Est",
-                    min_value=5,
-                    max_value=600,
-                    step=5,
-                    value=15,
-                    key=f"calendar.sub.est.{task_key}",
-                )
-            with sub_cols[2]:
                 add_sub = st.button("Add", key=f"calendar.sub.add.{task_key}")
 
             if add_sub:
                 clean_sub_title = (sub_title or "").strip()
                 if clean_sub_title:
-                    repositories.add_subtask(task_id, clean_sub_title, estimated_minutes=sub_est)
+                    repositories.add_subtask(task_id, clean_sub_title, estimated_minutes=15)
                     st.session_state[add_sub_key] = ""
                     st.session_state["calendar.force_refresh"] = True
                     st.rerun()
