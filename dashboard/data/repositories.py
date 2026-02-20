@@ -64,10 +64,18 @@ def _current_user():
     return _CURRENT_USER_GETTER()
 
 
-def _invalidate():
+def _invalidate(domains=None):
     if _INVALIDATE_CALLBACK is None:
         return
     try:
+        if domains is None:
+            _INVALIDATE_CALLBACK()
+        elif isinstance(domains, (list, tuple, set)):
+            for domain in domains:
+                _INVALIDATE_CALLBACK(domain)
+        else:
+            _INVALIDATE_CALLBACK(domains)
+    except TypeError:
         _INVALIDATE_CALLBACK()
     except Exception as exc:
         logger.warning("Cache invalidation failed: %s", exc)
@@ -159,7 +167,7 @@ def _entry_patch_for_date(user_email, day, patch):
             ),
             payload,
         )
-    _invalidate()
+    _invalidate(["entries", "header"])
 
 
 def save_habit_toggle(user_email, day, habit_key, value, sync: bool = False):
@@ -169,15 +177,18 @@ def save_habit_toggle(user_email, day, habit_key, value, sync: bool = False):
         if sync:
             try:
                 api_client.request("PATCH", f"/v1/day/{day_iso}", json=payload, timeout=5)
+                _invalidate(["entries", "header"])
                 return
             except Exception:
                 _fire_and_forget_api("PATCH", f"/v1/day/{day_iso}", json_payload=payload)
+                _invalidate(["entries", "header"])
                 return
         _fire_and_forget_api(
             "PATCH",
             f"/v1/day/{day_iso}",
             json_payload=payload,
         )
+        _invalidate(["entries", "header"])
         return
     _entry_patch_for_date(user_email, day, {habit_key: int(bool(value))})
 
@@ -202,6 +213,7 @@ def save_entry_fields(user_email, day, fields):
     if api_client.is_enabled():
         day_iso = day if isinstance(day, str) else day.isoformat()
         _fire_and_forget_api("PATCH", f"/v1/day/{day_iso}", json_payload=clean)
+        _invalidate(["entries", "header"])
         return
     _entry_patch_for_date(user_email, day, clean)
 
@@ -263,7 +275,7 @@ def get_setting(user_email, key, scoped=True):
     return row[0] if row else None
 
 
-def set_setting(user_email, key, value, scoped=True):
+def set_setting(user_email, key, value, scoped=True, invalidate_domains=None):
     setting_key = _scoped_setting_key(user_email, key) if scoped else key
     engine = _engine()
     with engine.begin() as conn:
@@ -274,7 +286,8 @@ def set_setting(user_email, key, value, scoped=True):
             ),
             {"key": setting_key, "value": value},
         )
-    _invalidate()
+    if invalidate_domains is not None:
+        _invalidate(invalidate_domains)
 
 
 def get_meeting_days(user_email):
@@ -299,11 +312,11 @@ def set_meeting_days(user_email, days):
     if api_client.is_enabled():
         try:
             api_client.request("PUT", "/v1/settings/meeting-days", json={"days": clean})
-            _invalidate()
+            _invalidate("header")
             return
         except Exception:
             return
-    set_setting(user_email, "meeting_days", ",".join(map(str, clean)))
+    set_setting(user_email, "meeting_days", ",".join(map(str, clean)), invalidate_domains="header")
 
 
 def get_family_worship_day(user_email):
@@ -326,11 +339,11 @@ def set_family_worship_day(user_email, day_index):
     if api_client.is_enabled():
         try:
             api_client.request("PUT", "/v1/settings/family-worship-day", json={"day": int(day_index)})
-            _invalidate()
+            _invalidate("header")
             return
         except Exception:
             return
-    set_setting(user_email, "family_worship_day", str(int(day_index)))
+    set_setting(user_email, "family_worship_day", str(int(day_index)), invalidate_domains="header")
 
 
 def _sanitize_habit_name(raw_value):
@@ -384,6 +397,7 @@ def _save_custom_habits(user_email, habits_catalog):
         user_email,
         CUSTOM_HABITS_SETTING_KEY,
         json.dumps(habits_catalog, ensure_ascii=False),
+        invalidate_domains="habits",
     )
 
 
@@ -409,7 +423,7 @@ def save_habit_label_edit(user_email, habit_id, label):
         raise ValueError("Habit name cannot be empty")
     if api_client.is_enabled():
         api_client.request("PATCH", f"/v1/habits/custom/{habit_id}", json={"name": clean_label})
-        _invalidate()
+        _invalidate("habits")
         return
     catalog = get_custom_habits(user_email, active_only=False)
     for item in catalog:
@@ -423,7 +437,7 @@ def save_habit_label_edit(user_email, habit_id, label):
 def delete_habit(user_email, habit_id):
     if api_client.is_enabled():
         api_client.request("DELETE", f"/v1/habits/custom/{habit_id}")
-        _invalidate()
+        _invalidate("habits")
         return
     catalog = get_custom_habits(user_email, active_only=False)
     changed = False
@@ -460,8 +474,14 @@ def set_custom_habit_done(user_email, day, done_map):
     day_iso = day.isoformat() if isinstance(day, date) else str(day)
     if api_client.is_enabled():
         _fire_and_forget_api("PUT", f"/v1/habits/custom/done/{day_iso}", json_payload={"done": clean})
+        _invalidate(["habits", "entries"])
         return
-    set_setting(user_email, f"custom_habit_done::{day_iso}", json.dumps(clean, ensure_ascii=False))
+    set_setting(
+        user_email,
+        f"custom_habit_done::{day_iso}",
+        json.dumps(clean, ensure_ascii=False),
+        invalidate_domains=["habits", "entries"],
+    )
 
 
 def list_custom_habit_done_range(user_email, start_day, end_day):
@@ -483,7 +503,12 @@ def get_daily_text(user_email, day):
 
 def set_daily_text(user_email, day, value):
     day_iso = day if isinstance(day, str) else day.isoformat()
-    set_setting(user_email, f"daily_text::{day_iso}", (value or "").strip())
+    set_setting(
+        user_email,
+        f"daily_text::{day_iso}",
+        (value or "").strip(),
+        invalidate_domains=["entries", "header"],
+    )
 
 
 def save_activity(activity_patch):
@@ -501,10 +526,10 @@ def save_activity(activity_patch):
             payload["scheduled_time"] = _normalize_time_value(payload.get("scheduled_time"))
         if task_id:
             response = api_client.request("PATCH", f"/v1/tasks/{task_id}", json=payload)
-            _invalidate()
+            _invalidate("tasks")
             return response
         response = api_client.request("POST", "/v1/tasks", json=payload)
-        _invalidate()
+        _invalidate("tasks")
         return response
 
     engine = _engine()
@@ -553,7 +578,7 @@ def save_activity(activity_patch):
                     ),
                     params,
                 )
-            _invalidate()
+            _invalidate("tasks")
             return get_activity_by_id(task_id, user_email)
 
     payload = {
@@ -596,7 +621,7 @@ def save_activity(activity_patch):
             ),
             payload,
         )
-    _invalidate()
+    _invalidate("tasks")
     return payload
 
 
@@ -614,8 +639,10 @@ def save_activity_async(activity_patch):
             payload["scheduled_time"] = _normalize_time_value(payload.get("scheduled_time"))
         if task_id:
             _fire_and_forget_api("PATCH", f"/v1/tasks/{task_id}", json_payload=payload)
+            _invalidate("tasks")
             return
         _fire_and_forget_api("POST", "/v1/tasks", json_payload=payload)
+        _invalidate("tasks")
         return
     save_activity(activity_patch)
 
@@ -738,7 +765,7 @@ def schedule_remembered_task(task_id, day, time_or_none):
             "scheduled_time": _normalize_time_value(time_or_none),
         }
         response = api_client.request("PATCH", f"/v1/tasks/{task_id}/schedule", json=payload)
-        _invalidate()
+        _invalidate("tasks")
         return response
     payload = {
         "id": task_id,
@@ -858,14 +885,14 @@ def sync_google_events_for_range(user_email, start_date, end_date, calendar_ids)
                 )
                 deleted_count += 1
     if deleted_count > 0:
-        _invalidate()
+        _invalidate("tasks")
     return events
 
 
 def delete_activity(activity_id, delete_remote_google=True):
     if api_client.is_enabled():
         api_client.request("DELETE", f"/v1/tasks/{activity_id}")
-        _invalidate()
+        _invalidate("tasks")
         return
     task_row = get_activity_by_id(activity_id)
     if not task_row:
@@ -897,7 +924,7 @@ def delete_activity(activity_id, delete_remote_google=True):
             ),
             {"user_email": _current_user(), "task_id": activity_id},
         )
-    _invalidate()
+    _invalidate("tasks")
 
 
 def create_google_event_for_activity(user_email, activity_id, calendar_id):
@@ -1265,7 +1292,7 @@ def add_prompt_card(couple_key, title, category=""):
             ),
             payload,
         )
-    _invalidate()
+    _invalidate("prompts")
     return payload
 
 
@@ -1282,7 +1309,7 @@ def remove_prompt_card(couple_key, card_id):
             ),
             {"couple_key": couple_key, "card_id": card_id},
         )
-    _invalidate()
+    _invalidate("prompts")
 
 
 def save_prompt_answer(card_id, user_email, day, answer, done):
@@ -1325,7 +1352,7 @@ def save_prompt_answer(card_id, user_email, day, answer, done):
             ),
             payload,
         )
-    _invalidate()
+    _invalidate("prompts")
 
 
 def list_prompt_answers_by_date(couple_key, day):
@@ -1372,7 +1399,7 @@ def store_google_tokens(user_email, refresh_token_enc, access_token=None, expire
                 "updated_at": datetime.utcnow().isoformat(),
             },
         )
-    _invalidate()
+    _invalidate("calendar")
 
 
 def update_google_access_token(user_email, access_token, expires_at, scope=None):
@@ -1397,7 +1424,7 @@ def update_google_access_token(user_email, access_token, expires_at, scope=None)
                 "updated_at": datetime.utcnow().isoformat(),
             },
         )
-    _invalidate()
+    _invalidate("calendar")
 
 
 def get_google_tokens(user_email):
@@ -1481,7 +1508,7 @@ def add_subtask(task_id, title, priority_tag="Medium", estimated_minutes=15):
             ),
             payload,
         )
-    _invalidate()
+    _invalidate("tasks")
     return payload
 
 
@@ -1494,7 +1521,7 @@ def update_subtask(subtask_id, fields):
         if not payload:
             return
         api_client.request("PATCH", f"/v1/subtasks/{subtask_id}", json=payload)
-        _invalidate()
+        _invalidate("tasks")
         return
     allowed = {"title", "priority_tag", "estimated_minutes", "actual_minutes", "is_done"}
     updates = []
@@ -1525,13 +1552,13 @@ def update_subtask(subtask_id, fields):
             ),
             params,
         )
-    _invalidate()
+    _invalidate("tasks")
 
 
 def delete_subtask(subtask_id):
     if api_client.is_enabled():
         api_client.request("DELETE", f"/v1/subtasks/{subtask_id}")
-        _invalidate()
+        _invalidate("tasks")
         return
     engine = _engine()
     with engine.begin() as conn:
@@ -1541,4 +1568,4 @@ def delete_subtask(subtask_id):
             ),
             {"id": subtask_id, "user_email": _current_user()},
         )
-    _invalidate()
+    _invalidate("tasks")
