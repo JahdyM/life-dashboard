@@ -989,12 +989,12 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 }
 
 .task-list [data-testid="stHorizontalBlock"] {
-    padding: 0.12rem 0.1rem;
-    margin-bottom: 0;
+    padding: 0.1rem 0.05rem;
+    margin-bottom: 2px;
     min-height: 32px;
     border-bottom: 1px solid var(--divider);
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .task-title-btn.completed button {
@@ -1030,6 +1030,25 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
     font-weight: 500;
     color: var(--text-main) !important;
     letter-spacing: 0.2px;
+}
+
+.task-list .task-title-btn,
+.task-list .task-title-btn button {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}
+
+.task-list button,
+.task-list button:hover,
+.task-list button:active,
+.task-list button:focus {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    outline: none !important;
 }
 
 .task-list [data-testid="stButton"] > button:hover {
