@@ -9,6 +9,9 @@ from dashboard.data import repositories
 from dashboard.data import api_client
 from dashboard.services import google_calendar
 from dashboard.state import session_slices
+from dashboard.auth import get_secret
+from dashboard.constants import JAHDY_EMAIL, GUILHERME_EMAIL, PRIORITY_TAGS, PRIORITY_META
+from dashboard.visualizations import month_last_day
 
 try:
     from streamlit_calendar import calendar as st_calendar
@@ -16,11 +19,10 @@ except Exception:
     st_calendar = None
 
 
-PRIORITY_TAGS = ["High", "Medium", "Low"]
 PRIORITY_COLORS = {
-    "High": "#D95252",
-    "Medium": "#8FB6D9",
-    "Low": "#3772A6",
+    "High": PRIORITY_META["High"]["color"],
+    "Medium": PRIORITY_META["Medium"]["color"],
+    "Low": PRIORITY_META["Low"]["color"],
 }
 
 
@@ -34,14 +36,13 @@ def _fetch_tasks_range_cached(user_email: str, start_iso: str, end_iso: str, api
     return payload.get("items", []), payload.get("subtasks", {})
 
 
-def _get_calendar_ids(ctx, user_email):
+def _get_calendar_ids(user_email):
     primary = "primary"
-    secret_getter = ctx["helpers"]["get_secret"]
 
-    if user_email == ctx["constants"]["JAHDY_EMAIL"]:
-        raw = secret_getter(("app", "JAHDY_GOOGLE_ALLOWED_CALENDAR_IDS"), "") or secret_getter(("JAHDY_GOOGLE_ALLOWED_CALENDAR_IDS",), "")
-    elif user_email == ctx["constants"]["GUILHERME_EMAIL"]:
-        raw = secret_getter(("app", "GUILHERME_GOOGLE_ALLOWED_CALENDAR_IDS"), "") or secret_getter(("GUILHERME_GOOGLE_ALLOWED_CALENDAR_IDS",), "")
+    if user_email == JAHDY_EMAIL:
+        raw = get_secret(("app", "JAHDY_GOOGLE_ALLOWED_CALENDAR_IDS"), "") or get_secret(("JAHDY_GOOGLE_ALLOWED_CALENDAR_IDS",), "")
+    elif user_email == GUILHERME_EMAIL:
+        raw = get_secret(("app", "GUILHERME_GOOGLE_ALLOWED_CALENDAR_IDS"), "") or get_secret(("GUILHERME_GOOGLE_ALLOWED_CALENDAR_IDS",), "")
     else:
         raw = ""
 
