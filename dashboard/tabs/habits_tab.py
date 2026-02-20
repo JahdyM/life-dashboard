@@ -15,13 +15,24 @@ def _get_selected_date():
 
 
 def _save_fixed_habit(user_email, selected_day, habit_key, widget_key):
-    repositories.save_habit_toggle(
-        user_email,
-        selected_day,
-        habit_key,
-        st.session_state.get(widget_key, False),
-        sync=True,
-    )
+    try:
+        repositories.save_habit_toggle(
+            user_email,
+            selected_day,
+            habit_key,
+            st.session_state.get(widget_key, False),
+            sync=True,
+        )
+    except Exception as exc:
+        st.warning(f"Couldn't save habit update: {exc}")
+        # Fall back to async save to keep UI responsive
+        repositories.save_habit_toggle(
+            user_email,
+            selected_day,
+            habit_key,
+            st.session_state.get(widget_key, False),
+            sync=False,
+        )
     st.session_state["header.bump"] = time.time()
 
 

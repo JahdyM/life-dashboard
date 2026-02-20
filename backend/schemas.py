@@ -25,6 +25,8 @@ class DayEntryPatch(BaseModel):
     prepare_meeting: Optional[bool] = None
     writing: Optional[bool] = None
     scientific_writing: Optional[bool] = None
+    daily_text: Optional[bool] = None
+    family_worship: Optional[bool] = None
 
 
 class DayEntryResponse(BaseModel):
