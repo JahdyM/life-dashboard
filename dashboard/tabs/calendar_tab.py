@@ -389,7 +389,7 @@ def render_calendar_tab(ctx):
             if open_key not in st.session_state:
                 st.session_state[open_key] = False
 
-            row = st.columns([0.45, 7.8])
+            row = st.columns([0.45, 7.2, 0.9])
             with row[0]:
                 checked = st.checkbox(
                     "",
@@ -403,6 +403,10 @@ def render_calendar_tab(ctx):
                 if st.button(task_title, key=f"calendar.task.openbtn.{task_key}"):
                     st.session_state[open_key] = not st.session_state[open_key]
                 st.markdown("</div>", unsafe_allow_html=True)
+            with row[2]:
+                time_badge = task.get("scheduled_time") or ""
+                if time_badge:
+                    st.markdown(f"<div class='task-time'>{time_badge}</div>", unsafe_allow_html=True)
 
             # Auto-save for main task (minimal fields only)
             auto_key = f"calendar.task.autosave.{task_key}"

@@ -928,11 +928,12 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 .calendar-compact .task-title-btn button {
     width: 100%;
     text-align: left;
-    background: transparent;
+    background: transparent !important;
     color: var(--text-main);
-    border: none;
+    border: none !important;
+    box-shadow: none !important;
     border-radius: 6px;
-    padding: 0;
+    padding: 0 !important;
     min-height: 22px;
     white-space: nowrap;
     overflow: hidden;
@@ -975,11 +976,12 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 
 .task-list .stButton > button {
     font-size: 0.75rem;
-    padding: 0.08rem 0.2rem;
-    min-height: 24px;
-    background: transparent;
-    border: 1px solid var(--divider);
-    color: var(--text-main);
+    padding: 0 !important;
+    min-height: 22px;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: var(--text-main) !important;
 }
 
 .task-list .stButton > button:hover {
@@ -994,6 +996,13 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 
 .subtask-list [data-testid="stHorizontalBlock"] {
     padding: 0.06rem 0.08rem;
+}
+
+.task-time {
+    font-size: 0.7rem;
+    color: var(--text-soft);
+    text-align: right;
+    padding-right: 0.1rem;
 }
 
 .task-details .stButton > button {
