@@ -857,6 +857,35 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
     visibility: hidden;
     height: 0px;
 }
+
+.calendar-compact [data-testid="stVerticalBlock"] > div {
+    padding-top: 0.2rem;
+    padding-bottom: 0.2rem;
+}
+
+.calendar-compact [data-testid="stHorizontalBlock"] {
+    gap: 0.35rem;
+}
+
+.calendar-compact .stMarkdown p {
+    margin: 0.15rem 0;
+}
+
+.calendar-compact hr {
+    margin: 0.35rem 0;
+}
+
+.calendar-compact .stExpander {
+    margin-top: 0.2rem;
+    margin-bottom: 0.2rem;
+}
+
+.calendar-compact .stTextInput > div > div input,
+.calendar-compact .stNumberInput input,
+.calendar-compact .stTimeInput input {
+    padding-top: 0.2rem;
+    padding-bottom: 0.2rem;
+}
 </style>
 """,
     unsafe_allow_html=True,

@@ -408,6 +408,7 @@ def render_calendar_tab(ctx):
                 st.rerun()
             st.divider()
 
+    st.markdown("<div class='calendar-compact'>", unsafe_allow_html=True)
     st.markdown("<div class='small-label' style='margin-top:8px;'>Daily tasks list</div>", unsafe_allow_html=True)
     if not day_tasks:
         st.caption("No local tasks for this day.")
@@ -586,6 +587,7 @@ def render_calendar_tab(ctx):
 
         st.divider()
 
+    st.markdown("</div>", unsafe_allow_html=True)
     st.divider()
     st.caption(f"Range: {start_day.strftime('%d/%m/%Y')} - {end_day.strftime('%d/%m/%Y')}")
     _render_diagnostics(connected)
