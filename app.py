@@ -944,8 +944,8 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 10px;
-    padding: 0.35rem 0.5rem;
-    margin: 0.15rem 0 0.25rem 1.1rem;
+    padding: 0.3rem 0.45rem;
+    margin: 0.08rem 0 0.18rem 1.0rem;
     transition: all 140ms ease-out;
 }
 
@@ -953,12 +953,12 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
     background: var(--calendar-panel);
     border: 1px solid var(--calendar-panel-border);
     border-radius: 14px;
-    padding: 0.55rem 0.65rem;
+    padding: 0.45rem 0.55rem;
     backdrop-filter: blur(6px);
 }
 
 .task-list [data-testid="stHorizontalBlock"] {
-    padding: 0.1rem 0.1rem;
+    padding: 0.06rem 0.08rem;
     border-bottom: 1px solid var(--border);
     align-items: center;
 }
@@ -989,6 +989,53 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 
 .subtask-list [data-testid="stHorizontalBlock"] {
     padding: 0.06rem 0.08rem;
+}
+
+.calendar-card .fc {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 12px;
+    color: var(--text-main);
+}
+
+.calendar-card .fc .fc-toolbar-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.calendar-card .fc .fc-button {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.7rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-main);
+}
+
+.calendar-card .fc .fc-scrollgrid,
+.calendar-card .fc .fc-scrollgrid-section,
+.calendar-card .fc .fc-timegrid-divider {
+    border-color: var(--border) !important;
+}
+
+.calendar-card .fc .fc-timegrid-slot {
+    height: 26px;
+}
+
+.calendar-card .fc .fc-timegrid-axis {
+    font-size: 11px;
+    color: var(--text-soft);
+}
+
+.calendar-card .fc .fc-timegrid-slot-label {
+    font-size: 11px;
+    color: var(--text-soft);
+}
+
+.calendar-card .fc .fc-event {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1px 4px;
+    font-size: 11px;
 }
 }
 

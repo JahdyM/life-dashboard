@@ -515,8 +515,6 @@ def render_calendar_tab(ctx):
                 st.session_state["calendar.force_refresh"] = True
                 st.rerun()
 
-            st.divider()
-
         st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown("<div class='calendar-compact'>", unsafe_allow_html=True)
