@@ -385,7 +385,7 @@ theme_vars_css = f"""
 st.markdown(
     """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap');
 """
     + theme_vars_css
     + """
@@ -1047,6 +1047,82 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
     text-align: right;
     padding-right: 0.1rem;
     min-width: 52px;
+}
+
+.calendar-hacker {
+    background: rgba(0, 0, 0, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 0.45rem 0.55rem;
+    font-family: "IBM Plex Mono", monospace;
+    color: #f2f2f2;
+}
+
+.calendar-hacker .calendar-section-title {
+    color: #f5f5f5;
+    font-family: "IBM Plex Mono", monospace;
+    letter-spacing: 0.1em;
+}
+
+.calendar-hacker .task-title-btn button {
+    font-family: "IBM Plex Mono", monospace;
+    color: #f2f2f2 !important;
+}
+
+.calendar-hacker .task-time {
+    color: #7cfc8a;
+}
+
+.calendar-hacker [data-testid="stHorizontalBlock"] {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.calendar-card {
+    background: rgba(0, 0, 0, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 0.4rem 0.5rem;
+    backdrop-filter: blur(6px);
+}
+
+.calendar-card .fc {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    color: #f2f2f2;
+}
+
+.calendar-card .fc .fc-toolbar-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.calendar-card .fc .fc-button {
+    padding: 0.12rem 0.3rem;
+    font-size: 0.68rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: transparent;
+    color: #f2f2f2;
+}
+
+.calendar-card .fc .fc-scrollgrid,
+.calendar-card .fc .fc-scrollgrid-section,
+.calendar-card .fc .fc-timegrid-divider,
+.calendar-card .fc .fc-timegrid-slot {
+    border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.calendar-card .fc .fc-timegrid-slot {
+    height: 28px;
+}
+
+.calendar-card .fc .fc-event {
+    background: rgba(30, 140, 80, 0.35) !important;
+    border: 1px solid rgba(124, 252, 138, 0.6) !important;
+    color: #eafff3 !important;
+    border-radius: 6px;
+    padding: 1px 4px;
+    font-size: 11px;
 }
 
 .task-list .stButton > button:hover {
