@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from backend.db_init import init_db
-from backend.routes import bootstrap, day, habits, tasks, calendar, sync, oauth, couple
+from backend.routes import bootstrap, day, habits, tasks, calendar, sync, oauth, couple, entries, settings, header
 
 
 def create_app() -> FastAPI:
@@ -17,6 +17,9 @@ def create_app() -> FastAPI:
     app.include_router(sync.router)
     app.include_router(oauth.router)
     app.include_router(couple.router)
+    app.include_router(entries.router)
+    app.include_router(settings.router)
+    app.include_router(header.router)
 
     @app.on_event("startup")
     async def _startup():

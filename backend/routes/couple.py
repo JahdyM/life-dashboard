@@ -10,7 +10,15 @@ from backend import repositories
 
 router = APIRouter()
 
-SHARED_HABITS = ["bible_reading", "meeting_attended", "prepare_meeting", "workout", "shower"]
+SHARED_HABITS = [
+    "bible_reading",
+    "meeting_attended",
+    "prepare_meeting",
+    "workout",
+    "shower",
+    "daily_text",
+    "family_worship",
+]
 
 
 @router.get("/v1/couple/streaks")

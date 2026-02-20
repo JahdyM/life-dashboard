@@ -4,6 +4,7 @@ import html
 import json
 import base64
 import mimetypes
+import time
 from functools import lru_cache
 from datetime import date, datetime, timedelta
 import calendar
@@ -21,7 +22,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from dashboard.header import render_global_header
 from dashboard.router import render_router
-from dashboard.data import repositories
+from dashboard.data import repositories, api_client
 from dashboard.services import google_calendar
 
 try:
@@ -1587,9 +1588,9 @@ def running_on_streamlit_cloud():
     return ".streamlit.app/" in redirect_uri
 
 
-def enforce_persistent_storage_on_cloud():
+def enforce_persistent_storage_on_cloud(api_enabled=False):
     database_url = get_database_url()
-    if running_on_streamlit_cloud() and using_local_sqlite(database_url):
+    if running_on_streamlit_cloud() and (not api_enabled) and using_local_sqlite(database_url):
         st.error(
             "Persistent storage is required. This app is currently using temporary SQLite and "
             "new entries can be lost after reboot."
@@ -2304,6 +2305,8 @@ def set_setting(key, value, scoped=True):
 
 
 def get_meeting_days():
+    if repositories.api_enabled():
+        return repositories.get_meeting_days(get_current_user_email())
     raw = get_setting("meeting_days")
     if not raw:
         legacy_raw = get_setting("meeting_days", scoped=False)
@@ -2321,6 +2324,8 @@ def get_meeting_days():
 
 
 def get_family_worship_day():
+    if repositories.api_enabled():
+        return repositories.get_family_worship_day(get_current_user_email())
     raw = get_setting("family_worship_day")
     if not raw:
         legacy_raw = get_setting("family_worship_day", scoped=False)
@@ -2356,6 +2361,8 @@ def default_custom_habits():
 
 
 def get_custom_habits(active_only=True):
+    if repositories.api_enabled():
+        return repositories.get_custom_habits(get_current_user_email(), active_only=active_only)
     raw = get_setting(CUSTOM_HABITS_SETTING_KEY)
     if not raw:
         defaults = default_custom_habits()
@@ -2434,6 +2441,8 @@ def remove_custom_habit(habit_id):
 
 
 def get_custom_habit_done_for_date(entry_date):
+    if repositories.api_enabled():
+        return repositories.get_custom_habit_done(get_current_user_email(), entry_date)
     raw = get_setting(f"{CUSTOM_HABIT_DONE_PREFIX}{entry_date.isoformat()}")
     if not raw:
         return {}
@@ -2451,6 +2460,9 @@ def get_custom_habit_done_for_date(entry_date):
 
 
 def set_custom_habit_done_for_date(entry_date, habit_done_map):
+    if repositories.api_enabled():
+        repositories.set_custom_habit_done(get_current_user_email(), entry_date, habit_done_map)
+        return
     clean_map = {}
     for habit_id, value in (habit_done_map or {}).items():
         clean_id = sanitize_habit_name(habit_id)
@@ -2463,8 +2475,33 @@ def set_custom_habit_done_for_date(entry_date, habit_done_map):
     )
 
 
-@st.cache_data(ttl=45, show_spinner=False)
-def load_custom_habit_done_by_date_cached(user_email, database_url):
+@st.cache_data(ttl=120, show_spinner=False)
+def load_custom_habit_done_by_date_cached(user_email, database_url, start_iso, end_iso, api_enabled, api_base):
+    if api_enabled:
+        try:
+            payload = api_client.request(
+                "GET",
+                "/v1/habits/custom/done",
+                params={"start": start_iso, "end": end_iso},
+            )
+            raw_items = payload.get("items", {})
+            done_by_date = {}
+            for day_iso, parsed in (raw_items or {}).items():
+                try:
+                    day = date.fromisoformat(day_iso)
+                except Exception:
+                    continue
+                if not isinstance(parsed, dict):
+                    continue
+                done_by_date[day] = {
+                    str(habit_id): int(bool(value))
+                    for habit_id, value in parsed.items()
+                    if sanitize_habit_name(habit_id)
+                }
+            return done_by_date
+        except Exception:
+            return {}
+
     engine = get_engine(database_url)
     key_prefix = f"{user_email}::{CUSTOM_HABIT_DONE_PREFIX}"
     like_expr = f"{key_prefix}%"
@@ -2479,6 +2516,8 @@ def load_custom_habit_done_by_date_cached(user_email, database_url):
         if not full_key:
             continue
         date_part = str(full_key).split(CUSTOM_HABIT_DONE_PREFIX, 1)[-1]
+        if not (start_iso <= date_part <= end_iso):
+            continue
         try:
             day = date.fromisoformat(date_part)
         except Exception:
@@ -2497,10 +2536,21 @@ def load_custom_habit_done_by_date_cached(user_email, database_url):
     return done_by_date
 
 
+def _default_entries_range():
+    end_date = date.today()
+    start_date = end_date - timedelta(days=365 * 4)
+    return start_date, end_date
+
+
 def load_custom_habit_done_by_date():
+    start_date, end_date = _default_entries_range()
     return load_custom_habit_done_by_date_cached(
         get_current_user_email(),
         get_database_url(),
+        start_date.isoformat(),
+        end_date.isoformat(),
+        repositories.api_enabled(),
+        api_client.api_base_url(),
     )
 
 
@@ -2555,8 +2605,20 @@ def normalize_entries_df(df):
     return df
 
 
-@st.cache_data(ttl=45, show_spinner=False)
-def load_data_for_email_cached(user_email, database_url):
+@st.cache_data(ttl=120, show_spinner=False)
+def load_data_for_email_cached(user_email, database_url, api_enabled, api_base):
+    if api_enabled:
+        start_date, end_date = _default_entries_range()
+        try:
+            payload = api_client.request(
+                "GET",
+                "/v1/entries",
+                params={"start": start_date.isoformat(), "end": end_date.isoformat()},
+            )
+            df = pd.DataFrame(payload.get("items", []))
+            return normalize_entries_df(df) if not df.empty else pd.DataFrame(columns=ENTRY_COLUMNS)
+        except Exception:
+            return pd.DataFrame(columns=ENTRY_COLUMNS)
     engine = get_engine(database_url)
     with engine.connect() as conn:
         df = pd.read_sql(
@@ -2571,7 +2633,12 @@ def load_data_for_email_cached(user_email, database_url):
 
 
 def load_data_for_email(user_email):
-    return load_data_for_email_cached(user_email, get_database_url())
+    return load_data_for_email_cached(
+        user_email,
+        get_database_url(),
+        repositories.api_enabled(),
+        api_client.api_base_url(),
+    )
 
 
 def load_data():
@@ -2580,11 +2647,22 @@ def load_data():
 
 @st.cache_data(ttl=30, show_spinner=False)
 def load_today_activities_cached(user_email, day_iso):
+    if repositories.api_enabled():
+        try:
+            payload = api_client.request("GET", "/v1/tasks", params={"start": day_iso, "end": day_iso})
+            return payload.get("items", [])
+        except Exception:
+            return []
     return repositories.list_activities_for_day(user_email, date.fromisoformat(day_iso))
 
 
 @st.cache_data(ttl=30, show_spinner=False)
 def load_shared_snapshot_cached(day_iso, user_a, user_b, habit_keys):
+    if repositories.api_enabled():
+        try:
+            return api_client.request("GET", "/v1/couple/streaks")
+        except Exception:
+            return {"today": day_iso, "habits": [], "summary": "Shared summary unavailable."}
     return repositories.get_shared_habit_comparison(
         date.fromisoformat(day_iso),
         user_a,
@@ -2594,6 +2672,8 @@ def load_shared_snapshot_cached(day_iso, user_a, user_b, habit_keys):
 
 
 def invalidate_runtime_caches():
+    if repositories.api_enabled():
+        return
     load_data_for_email_cached.clear()
     load_custom_habit_done_by_date_cached.clear()
     list_todo_tasks_for_window_cached.clear()
@@ -3134,6 +3214,7 @@ def _normalize_event_component(component):
 
 
 @st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner=False)
 def fetch_ics_events_for_range(ics_url, start_date, end_date):
     if not ics_url:
         return [], None
@@ -3397,6 +3478,7 @@ def resolve_pinterest_image_url(pin_url):
     return _extract_meta_image(response.text)
 
 
+@st.cache_data(ttl=86400, show_spinner=False)
 @st.cache_data(ttl=86400, show_spinner=False)
 def get_aesthetic_image_urls(pin_urls):
     image_urls = []
@@ -3903,16 +3985,27 @@ def dot_chart(values, dates, title, color, height=260):
 
 
 enforce_google_login()
-enforce_persistent_storage_on_cloud()
-if not st.session_state.get("_db_bootstrap_done"):
-    try:
-        init_db()
-        st.session_state["_db_bootstrap_message"] = migrate_local_sqlite_to_configured_db()
-        st.session_state["_db_bootstrap_done"] = True
-    except SQLAlchemyError as exc:
-        show_database_connection_error(exc)
-    except Exception as exc:
-        show_database_connection_error(exc)
+repositories.configure(
+    get_engine,
+    get_database_url,
+    get_current_user_email,
+    invalidate_callback=invalidate_runtime_caches,
+    secret_getter=get_secret,
+)
+google_calendar.configure(get_secret)
+
+api_enabled = repositories.api_enabled()
+enforce_persistent_storage_on_cloud(api_enabled=api_enabled)
+if not api_enabled:
+    if not st.session_state.get("_db_bootstrap_done"):
+        try:
+            init_db()
+            st.session_state["_db_bootstrap_message"] = migrate_local_sqlite_to_configured_db()
+            st.session_state["_db_bootstrap_done"] = True
+        except SQLAlchemyError as exc:
+            show_database_connection_error(exc)
+        except Exception as exc:
+            show_database_connection_error(exc)
 
 storage_migration_message = st.session_state.get("_db_bootstrap_message")
 
@@ -3926,24 +4019,35 @@ st.markdown(
     unsafe_allow_html=True,
 )
 render_data_persistence_notice(storage_migration_message)
-aesthetic_image_urls = get_aesthetic_image_urls(tuple(PINTEREST_MOOD_LINKS))
 
-meeting_days = get_meeting_days()
+perf_debug = st.sidebar.toggle("Perf debug", value=bool(os.getenv("PERF_DEBUG")))
+perf_marks = {}
+
+def _perf_mark(label, start_ts):
+    if not perf_debug:
+        return
+    perf_marks[label] = round((time.perf_counter() - start_ts) * 1000, 2)
+
+meeting_days = repositories.get_meeting_days(current_user_email) if api_enabled else get_meeting_days()
 if "meeting_days" not in st.session_state:
     st.session_state["meeting_days"] = meeting_days
 meeting_days = st.session_state["meeting_days"]
 
-family_worship_day = get_family_worship_day()
+family_worship_day = repositories.get_family_worship_day(current_user_email) if api_enabled else get_family_worship_day()
 if "family_worship_day" not in st.session_state:
     st.session_state["family_worship_day"] = family_worship_day
 family_worship_day = st.session_state["family_worship_day"]
 
 active_tab = st.session_state.get("ui.active_tab", "Daily Habits")
-tabs_needing_data = {"Daily Habits", "Statistics & Charts", "Mood Board"}
+tabs_needing_data = {"Statistics & Charts", "Mood Board"} if api_enabled else {"Daily Habits", "Statistics & Charts", "Mood Board"}
 data = load_data() if active_tab in tabs_needing_data else pd.DataFrame(columns=ENTRY_COLUMNS)
 
 if active_tab == "Statistics & Charts" and not data.empty:
-    custom_habits = get_custom_habits(active_only=True)
+    custom_habits = (
+        repositories.get_custom_habits(current_user_email, active_only=True)
+        if api_enabled
+        else get_custom_habits(active_only=True)
+    )
     custom_habit_ids = [habit["id"] for habit in custom_habits]
     custom_done_by_date = load_custom_habit_done_by_date()
     metrics = data.apply(
@@ -3965,18 +4069,8 @@ if active_tab == "Statistics & Charts" and not data.empty:
     data["is_weekend"] = data["weekday"] >= 5
 
 # --- TAB ROUTER APP ---
-repositories.configure(
-    get_engine,
-    get_database_url,
-    get_current_user_email,
-    invalidate_callback=invalidate_runtime_caches,
-    secret_getter=get_secret,
-)
-google_calendar.configure(get_secret)
 repositories.set_google_delete_callback(google_calendar.delete_event)
 
-today_activities = load_today_activities_cached(current_user_email, date.today().isoformat())
-pending_tasks = sum(1 for row in today_activities if int(row.get("is_done", 0) or 0) == 0)
 shared_habit_keys = [
     "bible_reading",
     "meeting_attended",
@@ -3986,18 +4080,30 @@ shared_habit_keys = [
     "daily_text",
     "family_worship",
 ]
-shared_snapshot = {}
-if partner_email:
+pending_tasks = 0
+shared_snapshot = {"today": date.today().isoformat(), "habits": [], "summary": "Shared summary unavailable."}
+if api_enabled:
     try:
-        shared_snapshot = load_shared_snapshot_cached(
-            date.today().isoformat(),
-            current_user_email,
-            partner_email,
-            tuple(shared_habit_keys),
-        )
+        header_payload = api_client.request("GET", "/v1/header")
+        pending_tasks = int(header_payload.get("pending_tasks", 0) or 0)
+        shared_snapshot = header_payload.get("shared_snapshot") or shared_snapshot
     except Exception:
-        shared_snapshot = {"today": date.today().isoformat(), "habits": [], "summary": "Shared summary unavailable."}
+        pass
+else:
+    today_activities = load_today_activities_cached(current_user_email, date.today().isoformat())
+    pending_tasks = sum(1 for row in today_activities if int(row.get("is_done", 0) or 0) == 0)
+    if partner_email:
+        try:
+            shared_snapshot = load_shared_snapshot_cached(
+                date.today().isoformat(),
+                current_user_email,
+                partner_email,
+                tuple(shared_habit_keys),
+            )
+        except Exception:
+            shared_snapshot = {"today": date.today().isoformat(), "habits": [], "summary": "Shared summary unavailable."}
 
+_t0 = time.perf_counter()
 render_global_header(
     {
         "shared_snapshot": shared_snapshot,
@@ -4006,6 +4112,7 @@ render_global_header(
         "habit_labels": DEFAULT_HABIT_LABELS,
     }
 )
+_perf_mark("header_ms", _t0)
 
 context = {
     "current_user_email": current_user_email,
@@ -4047,5 +4154,12 @@ context = {
     },
 }
 
+_t1 = time.perf_counter()
 render_router(context)
+_perf_mark("tab_render_ms", _t1)
+if perf_debug and perf_marks:
+    with st.sidebar:
+        st.markdown("**Perf timings (ms)**")
+        for key, value in perf_marks.items():
+            st.caption(f"{key}: {value} ms")
 st.stop()

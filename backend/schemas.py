@@ -43,6 +43,10 @@ class CustomHabitCreate(BaseModel):
     name: str
 
 
+class CustomHabitDonePayload(BaseModel):
+    done: Dict[str, int] = Field(default_factory=dict)
+
+
 class TaskCreate(BaseModel):
     title: str
     scheduled_date: Optional[date] = None
@@ -132,3 +136,21 @@ class CoupleMoodboardResponse(BaseModel):
     y_labels: List[str]
     z: List[List[float]]
     hover_text: List[List[str]]
+
+
+class MeetingDaysPayload(BaseModel):
+    days: List[int]
+
+
+class FamilyWorshipPayload(BaseModel):
+    day: int
+
+
+class EntriesResponse(BaseModel):
+    items: List[Dict[str, Any]]
+
+
+class HeaderSnapshotResponse(BaseModel):
+    today: str
+    pending_tasks: int
+    shared_snapshot: Dict[str, Any]

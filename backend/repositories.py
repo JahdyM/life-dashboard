@@ -46,6 +46,14 @@ def _normalize_priority(value):
     return "Medium"
 
 
+def get_partner_email(user_email: str) -> str | None:
+    if user_email == JAHDY_EMAIL:
+        return GUILHERME_EMAIL
+    if user_email == GUILHERME_EMAIL:
+        return JAHDY_EMAIL
+    return None
+
+
 def _entry_patch_payload(user_email: str, day_iso: str, patch: dict) -> dict:
     clean_patch = dict(patch)
     clean_patch["updated_at"] = datetime.utcnow().isoformat()
@@ -70,6 +78,28 @@ async def get_day_entry(user_email: str, day_iso: str) -> dict:
             {"user_email": user_email, "date": day_iso},
         )).mappings().fetchone()
     return dict(row) if row else {}
+
+
+async def list_entries_range(user_email: str, start_iso: str, end_iso: str) -> list[dict]:
+    session_factory = get_sessionmaker()
+    async with session_factory() as session:
+        rows = (await session.execute(
+            sql_text(
+                f"""
+                SELECT *
+                FROM {ENTRIES_TABLE}
+                WHERE user_email = :user_email
+                  AND date BETWEEN :start_date AND :end_date
+                ORDER BY date
+                """
+            ),
+            {
+                "user_email": user_email,
+                "start_date": start_iso,
+                "end_date": end_iso,
+            },
+        )).mappings().all()
+    return [dict(row) for row in rows]
 
 
 async def patch_day_entry(user_email: str, day_iso: str, patch: dict) -> None:
@@ -112,6 +142,55 @@ async def set_setting(user_email: str, key: str, value: str, scoped: bool = True
             {"key": setting_key, "value": value},
         )
         await session.commit()
+
+
+async def get_custom_habit_done(user_email: str, day_iso: str) -> dict:
+    raw = await get_setting(user_email, f"custom_habit_done::{day_iso}")
+    if not raw:
+        return {}
+    try:
+        payload = json.loads(raw)
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    return {str(k): int(bool(v)) for k, v in payload.items()}
+
+
+async def set_custom_habit_done(user_email: str, day_iso: str, done_map: dict) -> None:
+    clean = {str(k): int(bool(v)) for k, v in (done_map or {}).items()}
+    await set_setting(user_email, f"custom_habit_done::{day_iso}", json.dumps(clean, ensure_ascii=False))
+
+
+async def list_custom_habit_done_range(user_email: str, start_iso: str, end_iso: str) -> dict:
+    prefix = f"{user_email}::custom_habit_done::"
+    session_factory = get_sessionmaker()
+    async with session_factory() as session:
+        rows = (await session.execute(
+            sql_text(
+                f"""
+                SELECT key, value
+                FROM {SETTINGS_TABLE}
+                WHERE key LIKE :prefix
+                """
+            ),
+            {"prefix": f"{prefix}%"},
+        )).mappings().all()
+    payload = {}
+    for row in rows:
+        key = str(row.get("key") or "")
+        date_part = key.replace(prefix, "", 1)
+        if not date_part:
+            continue
+        if not (start_iso <= date_part <= end_iso):
+            continue
+        try:
+            decoded = json.loads(row.get("value") or "{}")
+        except Exception:
+            decoded = {}
+        if isinstance(decoded, dict):
+            payload[date_part] = {str(k): int(bool(v)) for k, v in decoded.items()}
+    return payload
 
 
 async def list_custom_habits(user_email: str) -> list[dict]:
@@ -171,6 +250,35 @@ async def delete_custom_habit(user_email: str, habit_id: str) -> None:
         await save_custom_habits(user_email, catalog)
 
 
+async def get_meeting_days(user_email: str) -> list[int]:
+    raw = await get_setting(user_email, "meeting_days")
+    if not raw:
+        return [1, 3]
+    try:
+        return [int(item) for item in str(raw).split(",") if str(item).strip() != ""]
+    except Exception:
+        return [1, 3]
+
+
+async def set_meeting_days(user_email: str, days: list[int]) -> None:
+    clean = [int(day) for day in days if isinstance(day, int) or str(day).isdigit()]
+    await set_setting(user_email, "meeting_days", ",".join(map(str, clean)))
+
+
+async def get_family_worship_day(user_email: str) -> int:
+    raw = await get_setting(user_email, "family_worship_day")
+    if not raw:
+        return 6
+    try:
+        return int(str(raw).strip())
+    except Exception:
+        return 6
+
+
+async def set_family_worship_day(user_email: str, day_index: int) -> None:
+    await set_setting(user_email, "family_worship_day", str(int(day_index)))
+
+
 async def list_tasks(user_email: str, start_iso: str, end_iso: str) -> list[dict]:
     session_factory = get_sessionmaker()
     async with session_factory() as session:
@@ -190,6 +298,23 @@ async def list_tasks(user_email: str, start_iso: str, end_iso: str) -> list[dict
             {"user_email": user_email, "start_date": start_iso, "end_date": end_iso},
         )).mappings().all()
     return [dict(row) for row in rows]
+
+
+async def count_pending_tasks(user_email: str, day_iso: str) -> int:
+    session_factory = get_sessionmaker()
+    async with session_factory() as session:
+        count = (await session.execute(
+            sql_text(
+                f"""
+                SELECT COUNT(*) FROM {TASKS_TABLE}
+                WHERE user_email = :user_email
+                  AND scheduled_date = :day_iso
+                  AND COALESCE(is_done, 0) = 0
+                """
+            ),
+            {"user_email": user_email, "day_iso": day_iso},
+        )).scalar_one()
+    return int(count or 0)
 
 
 async def list_unscheduled_tasks(user_email: str, source: str | None = None) -> list[dict]:
@@ -766,10 +891,13 @@ async def get_shared_habit_comparison(today: date, user_a: str, user_b: str, hab
             continue
         by_user.setdefault(row["user_email"], {})[row_date] = dict(row)
 
-    def habit_streak(habit_map, habit_key):
+    async def habit_streak(habit_map, habit_key, valid_weekdays=None):
         count = 0
         current = today
         while True:
+            if valid_weekdays is not None and current.weekday() not in valid_weekdays:
+                current = current - timedelta(days=1)
+                continue
             row = habit_map.get(current)
             if not row:
                 break
@@ -780,9 +908,66 @@ async def get_shared_habit_comparison(today: date, user_a: str, user_b: str, hab
         return count
 
     habits = []
+    meeting_days = {
+        user_a: set(await get_meeting_days(user_a)),
+        user_b: set(await get_meeting_days(user_b)),
+    }
+    family_days = {
+        user_a: await get_family_worship_day(user_a),
+        user_b: await get_family_worship_day(user_b),
+    }
     for habit_key in habit_keys:
-        a_streak = habit_streak(by_user.get(user_a, {}), habit_key)
-        b_streak = habit_streak(by_user.get(user_b, {}), habit_key)
+        valid_a = None
+        valid_b = None
+        if habit_key in {"meeting_attended", "prepare_meeting"}:
+            valid_a = meeting_days[user_a]
+            valid_b = meeting_days[user_b]
+        elif habit_key == "family_worship":
+            valid_a = {family_days[user_a]}
+            valid_b = {family_days[user_b]}
+        a_streak = await habit_streak(by_user.get(user_a, {}), habit_key, valid_a)
+        b_streak = await habit_streak(by_user.get(user_b, {}), habit_key, valid_b)
         habits.append({"habit_key": habit_key, "user_a_days": a_streak, "user_b_days": b_streak})
 
-    return {"today": today.isoformat(), "habits": habits, "summary": ""}
+    completed_both = 0
+    completed_any = 0
+    considered = 0
+    today_a = by_user.get(user_a, {}).get(today, {})
+    today_b = by_user.get(user_b, {}).get(today, {})
+    user_a_meeting_today = today.weekday() in meeting_days[user_a]
+    user_b_meeting_today = today.weekday() in meeting_days[user_b]
+    user_a_family_today = today.weekday() == family_days[user_a]
+    user_b_family_today = today.weekday() == family_days[user_b]
+    for habit_key in habit_keys:
+        if habit_key in {"meeting_attended", "prepare_meeting"}:
+            expected_a = user_a_meeting_today
+            expected_b = user_b_meeting_today
+            if not expected_a and not expected_b:
+                continue
+        elif habit_key == "family_worship":
+            expected_a = user_a_family_today
+            expected_b = user_b_family_today
+            if not expected_a and not expected_b:
+                continue
+        else:
+            expected_a = True
+            expected_b = True
+        considered += 1
+        a_val = int(today_a.get(habit_key, 0) or 0)
+        b_val = int(today_b.get(habit_key, 0) or 0)
+        if expected_a and expected_b and a_val == 1 and b_val == 1:
+            completed_both += 1
+        if (expected_a and a_val == 1) or (expected_b and b_val == 1):
+            completed_any += 1
+
+    denominator = considered or len(habit_keys) or 1
+    summary = (
+        f"Today both completed {completed_both}/{denominator} shared habits. "
+        f"At least one of you completed {completed_any}/{denominator}."
+    )
+    if user_a_meeting_today != user_b_meeting_today:
+        summary = f"{summary} Meeting-day habits are pending for one partner."
+    if user_a_family_today != user_b_family_today:
+        summary = f"{summary} Family worship day differs between partners."
+
+    return {"today": today.isoformat(), "habits": habits, "summary": summary}

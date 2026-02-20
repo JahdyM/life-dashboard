@@ -1,4 +1,5 @@
 import json
+import threading
 from datetime import date, datetime, timedelta
 from uuid import uuid4
 
@@ -39,6 +40,10 @@ def set_google_delete_callback(callback):
     _GOOGLE_DELETE_CALLBACK = callback
 
 
+def api_enabled() -> bool:
+    return api_client.is_enabled()
+
+
 def _engine():
     if _ENGINE_GETTER is None or _DATABASE_URL_GETTER is None:
         raise RuntimeError("repositories not configured")
@@ -58,6 +63,15 @@ def _invalidate():
         _INVALIDATE_CALLBACK()
     except Exception:
         pass
+
+
+def _fire_and_forget_api(method, path, params=None, json_payload=None):
+    def _call():
+        try:
+            api_client.request(method, path, params=params, json=json_payload, timeout=8)
+        except Exception:
+            pass
+    threading.Thread(target=_call, daemon=True).start()
 
 
 def _scoped_setting_key(user_email, key):
@@ -143,16 +157,12 @@ def _entry_patch_for_date(user_email, day, patch):
 def save_habit_toggle(user_email, day, habit_key, value):
     if api_client.is_enabled():
         day_iso = day if isinstance(day, str) else day.isoformat()
-        try:
-            api_client.request(
-                "PATCH",
-                f"/v1/day/{day_iso}",
-                json={habit_key: bool(value)},
-            )
-            _invalidate()
-            return
-        except Exception:
-            pass
+        _fire_and_forget_api(
+            "PATCH",
+            f"/v1/day/{day_iso}",
+            json_payload={habit_key: bool(value)},
+        )
+        return
     _entry_patch_for_date(user_email, day, {habit_key: int(bool(value))})
 
 
@@ -175,13 +185,54 @@ def save_entry_fields(user_email, day, fields):
             clean[key] = int(bool(clean[key]))
     if api_client.is_enabled():
         day_iso = day if isinstance(day, str) else day.isoformat()
-        try:
-            api_client.request("PATCH", f"/v1/day/{day_iso}", json=clean)
-            _invalidate()
-            return
-        except Exception:
-            pass
+        _fire_and_forget_api("PATCH", f"/v1/day/{day_iso}", json_payload=clean)
+        return
     _entry_patch_for_date(user_email, day, clean)
+
+
+def get_day_entry(user_email, day):
+    day_iso = day if isinstance(day, str) else day.isoformat()
+    if api_client.is_enabled():
+        try:
+            payload = api_client.request("GET", f"/v1/day/{day_iso}")
+            return payload.get("data") or {}
+        except Exception:
+            return {}
+    engine = _engine()
+    with engine.connect() as conn:
+        row = conn.execute(
+            sql_text(
+                f"SELECT * FROM {ENTRIES_TABLE} WHERE user_email = :user_email AND date = :date"
+            ),
+            {"user_email": user_email, "date": day_iso},
+        ).mappings().fetchone()
+    return dict(row) if row else {}
+
+
+def list_entries_range(user_email, start_day, end_day):
+    start_iso = start_day.isoformat() if isinstance(start_day, date) else str(start_day)
+    end_iso = end_day.isoformat() if isinstance(end_day, date) else str(end_day)
+    if api_client.is_enabled():
+        try:
+            payload = api_client.request("GET", "/v1/entries", params={"start": start_iso, "end": end_iso})
+            return payload.get("items", [])
+        except Exception:
+            return []
+    engine = _engine()
+    with engine.connect() as conn:
+        rows = conn.execute(
+            sql_text(
+                f"""
+                SELECT *
+                FROM {ENTRIES_TABLE}
+                WHERE user_email = :user_email
+                  AND date BETWEEN :start_date AND :end_date
+                ORDER BY date
+                """
+            ),
+            {"user_email": user_email, "start_date": start_iso, "end_date": end_iso},
+        ).mappings().all()
+    return [dict(row) for row in rows]
 
 
 def get_setting(user_email, key, scoped=True):
@@ -209,6 +260,62 @@ def set_setting(user_email, key, value, scoped=True):
     _invalidate()
 
 
+def get_meeting_days(user_email):
+    if api_client.is_enabled():
+        try:
+            payload = api_client.request("GET", "/v1/settings/meeting-days")
+            days = payload.get("days", [])
+            return [int(day) for day in days if str(day).isdigit() or isinstance(day, int)]
+        except Exception:
+            return [1, 3]
+    raw = get_setting(user_email, "meeting_days")
+    if not raw:
+        return [1, 3]
+    try:
+        return [int(item) for item in str(raw).split(",") if str(item).strip() != ""]
+    except Exception:
+        return [1, 3]
+
+
+def set_meeting_days(user_email, days):
+    clean = [int(day) for day in days if str(day).isdigit() or isinstance(day, int)]
+    if api_client.is_enabled():
+        try:
+            api_client.request("PUT", "/v1/settings/meeting-days", json={"days": clean})
+            _invalidate()
+            return
+        except Exception:
+            return
+    set_setting(user_email, "meeting_days", ",".join(map(str, clean)))
+
+
+def get_family_worship_day(user_email):
+    if api_client.is_enabled():
+        try:
+            payload = api_client.request("GET", "/v1/settings/family-worship-day")
+            return int(payload.get("day", 6))
+        except Exception:
+            return 6
+    raw = get_setting(user_email, "family_worship_day")
+    if not raw:
+        return 6
+    try:
+        return int(str(raw).strip())
+    except Exception:
+        return 6
+
+
+def set_family_worship_day(user_email, day_index):
+    if api_client.is_enabled():
+        try:
+            api_client.request("PUT", "/v1/settings/family-worship-day", json={"day": int(day_index)})
+            _invalidate()
+            return
+        except Exception:
+            return
+    set_setting(user_email, "family_worship_day", str(int(day_index)))
+
+
 def _sanitize_habit_name(raw_value):
     return " ".join(str(raw_value or "").split()).strip()[:60]
 
@@ -222,7 +329,7 @@ def get_custom_habits(user_email, active_only=True):
                 return [item for item in items if item.get("active", True)]
             return items
         except Exception:
-            pass
+            return []
     raw = get_setting(user_email, CUSTOM_HABITS_SETTING_KEY)
     if not raw:
         return []
@@ -268,10 +375,7 @@ def add_habit(user_email, label):
     if not clean_label:
         raise ValueError("Habit name cannot be empty")
     if api_client.is_enabled():
-        try:
-            return api_client.request("POST", "/v1/habits/custom", json={"name": clean_label})
-        except Exception:
-            pass
+        return api_client.request("POST", "/v1/habits/custom", json={"name": clean_label})
     catalog = get_custom_habits(user_email, active_only=False)
     for item in catalog:
         if item.get("active", True) and item["name"].lower() == clean_label.lower():
@@ -287,12 +391,9 @@ def save_habit_label_edit(user_email, habit_id, label):
     if not clean_label:
         raise ValueError("Habit name cannot be empty")
     if api_client.is_enabled():
-        try:
-            api_client.request("PATCH", f"/v1/habits/custom/{habit_id}", json={"name": clean_label})
-            _invalidate()
-            return
-        except Exception:
-            pass
+        api_client.request("PATCH", f"/v1/habits/custom/{habit_id}", json={"name": clean_label})
+        _invalidate()
+        return
     catalog = get_custom_habits(user_email, active_only=False)
     for item in catalog:
         if item["id"] == habit_id:
@@ -304,12 +405,9 @@ def save_habit_label_edit(user_email, habit_id, label):
 
 def delete_habit(user_email, habit_id):
     if api_client.is_enabled():
-        try:
-            api_client.request("DELETE", f"/v1/habits/custom/{habit_id}")
-            _invalidate()
-            return
-        except Exception:
-            pass
+        api_client.request("DELETE", f"/v1/habits/custom/{habit_id}")
+        _invalidate()
+        return
     catalog = get_custom_habits(user_email, active_only=False)
     changed = False
     for item in catalog:
@@ -321,6 +419,13 @@ def delete_habit(user_email, habit_id):
 
 
 def get_custom_habit_done(user_email, day):
+    if api_client.is_enabled():
+        day_iso = day.isoformat() if isinstance(day, date) else str(day)
+        try:
+            payload = api_client.request("GET", f"/v1/habits/custom/done/{day_iso}")
+            return payload.get("done") or {}
+        except Exception:
+            return {}
     raw = get_setting(user_email, f"custom_habit_done::{day.isoformat()}")
     if not raw:
         return {}
@@ -335,11 +440,23 @@ def get_custom_habit_done(user_email, day):
 
 def set_custom_habit_done(user_email, day, done_map):
     clean = {str(k): int(bool(v)) for k, v in (done_map or {}).items()}
-    set_setting(
-        user_email,
-        f"custom_habit_done::{day.isoformat()}",
-        json.dumps(clean, ensure_ascii=False),
-    )
+    day_iso = day.isoformat() if isinstance(day, date) else str(day)
+    if api_client.is_enabled():
+        _fire_and_forget_api("PUT", f"/v1/habits/custom/done/{day_iso}", json_payload={"done": clean})
+        return
+    set_setting(user_email, f"custom_habit_done::{day_iso}", json.dumps(clean, ensure_ascii=False))
+
+
+def list_custom_habit_done_range(user_email, start_day, end_day):
+    start_iso = start_day.isoformat() if isinstance(start_day, date) else str(start_day)
+    end_iso = end_day.isoformat() if isinstance(end_day, date) else str(end_day)
+    if api_client.is_enabled():
+        try:
+            payload = api_client.request("GET", "/v1/habits/custom/done", params={"start": start_iso, "end": end_iso})
+            return payload.get("items", {})
+        except Exception:
+            return {}
+    return {}
 
 
 def get_daily_text(user_email, day):
@@ -355,27 +472,25 @@ def set_daily_text(user_email, day, value):
 def save_activity(activity_patch):
     user_email = activity_patch.get("user_email") or _current_user()
     task_id = activity_patch.get("id")
-    engine = _engine()
 
     if api_client.is_enabled():
-        try:
-            payload = dict(activity_patch)
-            payload.pop("user_email", None)
-            if task_id:
-                payload.pop("id", None)
-            if "scheduled_date" in payload and isinstance(payload.get("scheduled_date"), date):
-                payload["scheduled_date"] = payload["scheduled_date"].isoformat()
-            if "scheduled_time" in payload:
-                payload["scheduled_time"] = _normalize_time_value(payload.get("scheduled_time"))
-            if task_id:
-                response = api_client.request("PATCH", f"/v1/tasks/{task_id}", json=payload)
-                _invalidate()
-                return response
-            response = api_client.request("POST", "/v1/tasks", json=payload)
+        payload = dict(activity_patch)
+        payload.pop("user_email", None)
+        if task_id:
+            payload.pop("id", None)
+        if "scheduled_date" in payload and isinstance(payload.get("scheduled_date"), date):
+            payload["scheduled_date"] = payload["scheduled_date"].isoformat()
+        if "scheduled_time" in payload:
+            payload["scheduled_time"] = _normalize_time_value(payload.get("scheduled_time"))
+        if task_id:
+            response = api_client.request("PATCH", f"/v1/tasks/{task_id}", json=payload)
             _invalidate()
             return response
-        except Exception:
-            pass
+        response = api_client.request("POST", "/v1/tasks", json=payload)
+        _invalidate()
+        return response
+
+    engine = _engine()
 
     if task_id:
         updates = []
@@ -489,6 +604,13 @@ def get_activity_by_id(task_id, user_email=None):
 
 
 def list_activities_for_day(user_email, day):
+    if api_client.is_enabled():
+        try:
+            day_iso = day.isoformat() if isinstance(day, date) else str(day)
+            payload = api_client.request("GET", "/v1/tasks", params={"start": day_iso, "end": day_iso})
+            return payload.get("items", [])
+        except Exception:
+            return []
     engine = _engine()
     day_iso = day.isoformat() if isinstance(day, date) else str(day)
     with engine.connect() as conn:
@@ -510,6 +632,16 @@ def list_activities_for_day(user_email, day):
 
 
 def list_activities_for_range(user_email, start_day, end_day):
+    if api_client.is_enabled():
+        try:
+            payload = api_client.request(
+                "GET",
+                "/v1/tasks",
+                params={"start": start_day.isoformat(), "end": end_day.isoformat()},
+            )
+            return payload.get("items", [])
+        except Exception:
+            return []
     engine = _engine()
     with engine.connect() as conn:
         rows = conn.execute(
@@ -535,6 +667,12 @@ def list_activities_for_range(user_email, start_day, end_day):
 
 
 def list_unscheduled_remembered(user_email):
+    if api_client.is_enabled():
+        try:
+            payload = api_client.request("GET", "/v1/tasks/unscheduled")
+            return payload.get("items", [])
+        except Exception:
+            return []
     engine = _engine()
     with engine.connect() as conn:
         rows = conn.execute(
@@ -558,16 +696,13 @@ def list_unscheduled_remembered(user_email):
 
 def schedule_remembered_task(task_id, day, time_or_none):
     if api_client.is_enabled():
-        try:
-            payload = {
-                "scheduled_date": day.isoformat() if isinstance(day, date) else str(day),
-                "scheduled_time": _normalize_time_value(time_or_none),
-            }
-            response = api_client.request("PATCH", f"/v1/tasks/{task_id}/schedule", json=payload)
-            _invalidate()
-            return response
-        except Exception:
-            pass
+        payload = {
+            "scheduled_date": day.isoformat() if isinstance(day, date) else str(day),
+            "scheduled_time": _normalize_time_value(time_or_none),
+        }
+        response = api_client.request("PATCH", f"/v1/tasks/{task_id}/schedule", json=payload)
+        _invalidate()
+        return response
     payload = {
         "id": task_id,
         "scheduled_date": day.isoformat() if isinstance(day, date) else str(day),
@@ -692,12 +827,9 @@ def sync_google_events_for_range(user_email, start_date, end_date, calendar_ids)
 
 def delete_activity(activity_id, delete_remote_google=True):
     if api_client.is_enabled():
-        try:
-            api_client.request("DELETE", f"/v1/tasks/{activity_id}")
-            _invalidate()
-            return
-        except Exception:
-            pass
+        api_client.request("DELETE", f"/v1/tasks/{activity_id}")
+        _invalidate()
+        return
     task_row = get_activity_by_id(activity_id)
     if not task_row:
         return
@@ -867,26 +999,19 @@ def _habit_streak(habit_map, habit_key, today, valid_weekdays=None):
 
 
 def _meeting_days_for_user(user_email):
-    raw = get_setting(user_email, "meeting_days")
-    if not raw:
-        return {1, 3}
-    try:
-        return {int(item) for item in str(raw).split(",") if str(item).strip() != ""}
-    except Exception:
-        return {1, 3}
+    return set(get_meeting_days(user_email))
 
 
 def _family_worship_day_for_user(user_email):
-    raw = get_setting(user_email, "family_worship_day")
-    if not raw:
-        return 6
-    try:
-        return int(str(raw).strip())
-    except Exception:
-        return 6
+    return get_family_worship_day(user_email)
 
 
 def get_shared_habit_comparison(today, user_a, user_b, habit_keys):
+    if api_client.is_enabled():
+        try:
+            return api_client.request("GET", "/v1/couple/streaks")
+        except Exception:
+            return {"today": today.isoformat(), "habits": [], "summary": "Shared summary unavailable."}
     engine = _engine()
     with engine.connect() as conn:
         rows = conn.execute(

@@ -51,7 +51,7 @@ def _save_custom_done(user_email, selected_day, custom_habits):
 def _save_meeting_days(user_email, day_to_index):
     labels = st.session_state.get("habits.meeting_days_labels", [])
     selected = [day_to_index[label] for label in labels if label in day_to_index]
-    repositories.set_setting(user_email, "meeting_days", ",".join(map(str, selected)))
+    repositories.set_meeting_days(user_email, selected)
     st.session_state["habits.meeting_days_values"] = selected
     st.session_state["meeting_days"] = selected
 
@@ -61,7 +61,7 @@ def _save_family_worship_day(user_email, day_to_index):
     if label not in day_to_index:
         return
     day_index = day_to_index[label]
-    repositories.set_setting(user_email, "family_worship_day", str(day_index))
+    repositories.set_family_worship_day(user_email, day_index)
     st.session_state["habits.family_worship_day_value"] = day_index
     st.session_state["family_worship_day"] = day_index
 
@@ -76,8 +76,6 @@ def render_habits_tab(ctx):
     default_habit_labels = ctx["constants"]["DEFAULT_HABIT_LABELS"]
     moods = ctx["constants"]["MOODS"]
 
-    data = ctx["data"]
-
     meeting_days = ctx["meeting_days"]
     family_worship_day = ctx.get("family_worship_day", 6)
     if "habits.meeting_days_labels" not in st.session_state:
@@ -88,8 +86,12 @@ def render_habits_tab(ctx):
     st.markdown("<div class='section-title'>Daily Habits</div>", unsafe_allow_html=True)
 
     selected_day = st.session_state.get("habits.selected_date", date.today())
-    row = data[data["date"] == selected_day]
-    row_payload = row.iloc[0].to_dict() if not row.empty else {}
+    if repositories.api_enabled():
+        row_payload = repositories.get_day_entry(user_email, selected_day)
+    else:
+        data = ctx["data"]
+        row = data[data["date"] == selected_day]
+        row_payload = row.iloc[0].to_dict() if not row.empty else {}
     loaded_key = f"{user_email}:{selected_day.isoformat()}"
 
     selected_meeting_days = st.session_state.get(

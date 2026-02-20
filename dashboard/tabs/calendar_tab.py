@@ -208,7 +208,7 @@ def _sync_google_if_connected(user_email, connected, start_day, end_day, calenda
     now = time.monotonic()
     last_sync_key = st.session_state.get("calendar.last_sync_key")
     last_sync_ts = float(st.session_state.get("calendar.last_sync_ts", 0.0) or 0.0)
-    if (not force) and last_sync_key == sync_key and (now - last_sync_ts) < 20:
+    if (not force) and last_sync_key == sync_key and (now - last_sync_ts) < 60:
         return []
     try:
         st.session_state["calendar.sync_status"] = "Syncing"
@@ -245,10 +245,14 @@ def _sync_created_or_updated_activity_to_google(user_email, activity_id, connect
             st.session_state["calendar.sync_status"] = "Idle"
             return
         try:
+            last_push = float(st.session_state.get("calendar.last_push_sync_ts", 0.0) or 0.0)
+            if time.time() - last_push < 20:
+                return
             st.session_state["calendar.sync_status"] = "Syncing"
             st.session_state["calendar.sync_error"] = ""
             api_client.request("POST", "/v1/sync/run")
             st.session_state["calendar.sync_status"] = "Idle"
+            st.session_state["calendar.last_push_sync_ts"] = time.time()
         except Exception as exc:
             st.session_state["calendar.sync_status"] = "Failed"
             st.session_state["calendar.sync_error"] = str(exc)
