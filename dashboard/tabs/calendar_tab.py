@@ -273,7 +273,7 @@ def render_calendar_tab(ctx):
     day_rows = _build_day_hour_board(day_tasks)
     grid_html = "<div class='day-grid'>" + "".join(
         [
-            f\"<div class='day-row'><div class='day-hour'>{hour}</div><div class='day-slot'>{slot or ''}</div></div>\"
+            f"<div class='day-row'><div class='day-hour'>{hour}</div><div class='day-slot'>{slot or ''}</div></div>"
             for hour, slot in day_rows
         ]
     ) + "</div>"
@@ -295,7 +295,7 @@ def render_calendar_tab(ctx):
                             "Tasks": len(day_items),
                             "Preview": " | ".join(
                                 [
-                                    f\"{(item.get('scheduled_time') or 'All day')} • {item.get('title')}\"
+                                    f"{(item.get('scheduled_time') or 'All day')} • {item.get('title')}"
                                     for item in day_items[:3]
                                 ]
                             ),
