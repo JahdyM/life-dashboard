@@ -21,20 +21,10 @@ def _normalize_database_url(database_url: str) -> str:
         parsed = urlparse(url)
         query_items = [(k, v) for k, v in parse_qsl(parsed.query, keep_blank_values=True)]
         clean = []
-        has_ssl = False
         for key, value in query_items:
-            if key == "channel_binding":
+            if key in {"sslmode", "channel_binding", "ssl"}:
                 continue
-            if key == "sslmode":
-                # asyncpg does not accept sslmode; convert to ssl=true
-                has_ssl = True
-                continue
-            if key == "ssl":
-                has_ssl = True
             clean.append((key, value))
-        if has_ssl:
-            clean = [(k, v) for k, v in clean if k != "ssl"]
-            clean.append(("ssl", "true"))
         parsed = parsed._replace(query=urlencode(clean))
         url = urlunparse(parsed)
     except Exception:
@@ -51,7 +41,18 @@ def get_engine() -> AsyncEngine:
     if _engine is None:
         settings = get_settings()
         db_url = _normalize_database_url(settings.database_url)
-        _engine = create_async_engine(db_url, pool_pre_ping=True, future=True)
+        connect_args: dict = {}
+        try:
+            parsed = urlparse(db_url)
+            host = parsed.hostname or ""
+            if host and host not in {"localhost", "127.0.0.1"}:
+                connect_args["ssl"] = True
+        except Exception:
+            pass
+        if connect_args:
+            _engine = create_async_engine(db_url, pool_pre_ping=True, future=True, connect_args=connect_args)
+        else:
+            _engine = create_async_engine(db_url, pool_pre_ping=True, future=True)
     return _engine
 
 
