@@ -72,9 +72,81 @@ def render_habits_tab(ctx):
 
     st.markdown("<div class='section-title'>Daily Habits</div>", unsafe_allow_html=True)
 
-    top_cols = st.columns([1.4, 1.0])
+    top_cols = st.columns([1.15, 0.85])
     with top_cols[0]:
         selected_day = st.date_input("Date", key="habits.selected_date")
+    with top_cols[1]:
+        st.markdown("<div class='panel'>", unsafe_allow_html=True)
+        if st.session_state.get("habits.loaded_key") != loaded_key:
+            st.session_state["habits.sleep_hours"] = float(row_payload.get("sleep_hours", 0) or 0)
+            st.session_state["habits.anxiety_level"] = int(row_payload.get("anxiety_level", 1) or 1)
+            st.session_state["habits.work_hours"] = float(row_payload.get("work_hours", 0) or 0)
+            st.session_state["habits.boredom_minutes"] = int(row_payload.get("boredom_minutes", 0) or 0)
+            st.session_state["habits.mood_category"] = (row_payload.get("mood_category") or "Neutro")
+            st.session_state["habits.priority_label"] = row_payload.get("priority_label") or ""
+            st.session_state["habits.priority_done"] = bool(row_payload.get("priority_done", 0))
+            st.session_state["habits.loaded_key"] = loaded_key
+
+        metrics_cols = st.columns(2)
+        with metrics_cols[0]:
+            st.number_input(
+                "Sleep hours",
+                min_value=0.0,
+                max_value=12.0,
+                step=0.5,
+                key="habits.sleep_hours",
+                on_change=_save_metrics,
+                args=(user_email, selected_day),
+            )
+            st.number_input(
+                "Anxiety level",
+                min_value=1,
+                max_value=10,
+                step=1,
+                key="habits.anxiety_level",
+                on_change=_save_metrics,
+                args=(user_email, selected_day),
+            )
+            st.number_input(
+                "Work/study hours",
+                min_value=0.0,
+                max_value=16.0,
+                step=0.5,
+                key="habits.work_hours",
+                on_change=_save_metrics,
+                args=(user_email, selected_day),
+            )
+        with metrics_cols[1]:
+            st.number_input(
+                "Boredom minutes",
+                min_value=0,
+                max_value=60,
+                step=5,
+                key="habits.boredom_minutes",
+                on_change=_save_metrics,
+                args=(user_email, selected_day),
+            )
+            st.selectbox(
+                "Mood",
+                moods,
+                key="habits.mood_category",
+                on_change=_save_metrics,
+                args=(user_email, selected_day),
+            )
+            st.text_input(
+                "Priority focus",
+                key="habits.priority_label",
+                on_change=_save_metrics,
+                args=(user_email, selected_day),
+            )
+            st.checkbox(
+                "Priority done",
+                key="habits.priority_done",
+                on_change=_save_metrics,
+                args=(user_email, selected_day),
+            )
+        st.markdown("</div>", unsafe_allow_html=True)
+
         st.multiselect(
             "Weekly meeting days",
             options=day_labels,
@@ -178,73 +250,4 @@ def render_habits_tab(ctx):
         st.markdown("</div>", unsafe_allow_html=True)
 
     with body_cols[1]:
-        st.markdown("<div class='panel'>", unsafe_allow_html=True)
-        if st.session_state.get("habits.loaded_key") != loaded_key:
-            st.session_state["habits.sleep_hours"] = float(row_payload.get("sleep_hours", 0) or 0)
-            st.session_state["habits.anxiety_level"] = int(row_payload.get("anxiety_level", 1) or 1)
-            st.session_state["habits.work_hours"] = float(row_payload.get("work_hours", 0) or 0)
-            st.session_state["habits.boredom_minutes"] = int(row_payload.get("boredom_minutes", 0) or 0)
-            st.session_state["habits.mood_category"] = (row_payload.get("mood_category") or "Neutro")
-            st.session_state["habits.priority_label"] = row_payload.get("priority_label") or ""
-            st.session_state["habits.priority_done"] = bool(row_payload.get("priority_done", 0))
-            st.session_state["habits.loaded_key"] = loaded_key
-
-        metrics_cols = st.columns(2)
-        with metrics_cols[0]:
-            st.number_input(
-                "Sleep hours",
-                min_value=0.0,
-                max_value=12.0,
-                step=0.5,
-                key="habits.sleep_hours",
-                on_change=_save_metrics,
-                args=(user_email, selected_day),
-            )
-            st.number_input(
-                "Anxiety level",
-                min_value=1,
-                max_value=10,
-                step=1,
-                key="habits.anxiety_level",
-                on_change=_save_metrics,
-                args=(user_email, selected_day),
-            )
-            st.number_input(
-                "Work/study hours",
-                min_value=0.0,
-                max_value=16.0,
-                step=0.5,
-                key="habits.work_hours",
-                on_change=_save_metrics,
-                args=(user_email, selected_day),
-            )
-        with metrics_cols[1]:
-            st.number_input(
-                "Boredom minutes",
-                min_value=0,
-                max_value=60,
-                step=5,
-                key="habits.boredom_minutes",
-                on_change=_save_metrics,
-                args=(user_email, selected_day),
-            )
-            st.selectbox(
-                "Mood",
-                moods,
-                key="habits.mood_category",
-                on_change=_save_metrics,
-                args=(user_email, selected_day),
-            )
-            st.text_input(
-                "Priority focus",
-                key="habits.priority_label",
-                on_change=_save_metrics,
-                args=(user_email, selected_day),
-            )
-            st.checkbox(
-                "Priority done",
-                key="habits.priority_done",
-                on_change=_save_metrics,
-                args=(user_email, selected_day),
-            )
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.empty()
