@@ -210,16 +210,21 @@ def _build_calendar_events(tasks):
     return events
 
 
-def _sync_google_if_connected(user_email, connected, start_day, end_day, calendar_ids):
+def _sync_google_if_connected(user_email, connected, start_day, end_day, calendar_ids, force=False):
     if not connected:
+        st.session_state["calendar.sync_status"] = "Idle"
+        st.session_state["calendar.sync_error"] = ""
         return []
     sync_key = f"{user_email}:{start_day.isoformat()}:{end_day.isoformat()}:{','.join(calendar_ids)}"
     now = time.monotonic()
     last_sync_key = st.session_state.get("calendar.last_sync_key")
     last_sync_ts = float(st.session_state.get("calendar.last_sync_ts", 0.0) or 0.0)
-    if last_sync_key == sync_key and (now - last_sync_ts) < 20:
+    if (not force) and last_sync_key == sync_key and (now - last_sync_ts) < 20:
         return []
     try:
+        st.session_state["calendar.sync_status"] = "Syncing"
+        st.session_state["calendar.sync_started"] = time.time()
+        st.session_state["calendar.sync_error"] = ""
         if api_client.is_enabled():
             def _fire_sync():
                 try:
@@ -233,8 +238,11 @@ def _sync_google_if_connected(user_email, connected, start_day, end_day, calenda
         events = repositories.sync_google_events_for_range(user_email, start_day, end_day, calendar_ids)
         st.session_state["calendar.last_sync_key"] = sync_key
         st.session_state["calendar.last_sync_ts"] = now
+        st.session_state["calendar.sync_status"] = "Idle"
         return events
     except Exception as exc:
+        st.session_state["calendar.sync_status"] = "Failed"
+        st.session_state["calendar.sync_error"] = str(exc)
         st.warning(f"Google sync failed: {exc}")
         return []
 
@@ -272,7 +280,18 @@ def render_calendar_tab(ctx):
     st.markdown("<div class='section-title'>Calendar & Activities</div>", unsafe_allow_html=True)
 
     st.markdown("<div class='calendar-top'>", unsafe_allow_html=True)
-    top = st.columns([1.4, 0.9, 1.1, 1.1, 1.1])
+    sync_status = st.session_state.get("calendar.sync_status", "Idle")
+    sync_error = st.session_state.get("calendar.sync_error", "")
+    sync_started = st.session_state.get("calendar.sync_started")
+    if sync_status == "Syncing" and sync_started:
+        try:
+            if time.time() - float(sync_started) > 8:
+                st.session_state["calendar.sync_status"] = "Idle"
+                sync_status = "Idle"
+        except Exception:
+            pass
+
+    top = st.columns([1.2, 0.8, 1.0, 1.0, 0.75, 0.75])
     with top[0]:
         selected_day = st.date_input("Day", key="calendar.selected_day", value=date.today())
     with top[1]:
@@ -294,6 +313,10 @@ def render_calendar_tab(ctx):
             disabled=view_mode != "Month",
         )
     with top[4]:
+        if st.button("Sync now", key="calendar.sync_now", use_container_width=True):
+            st.session_state["calendar.force_sync"] = True
+        st.caption(f"Status: {sync_status}")
+    with top[5]:
         connect_url = ""
         try:
             connect_url, _ = google_calendar.build_connect_url(user_email)
@@ -304,10 +327,15 @@ def render_calendar_tab(ctx):
         else:
             st.caption("Calendar OAuth is not configured in backend secrets.")
     st.markdown("</div>", unsafe_allow_html=True)
+    if sync_status == "Failed":
+        st.warning("Couldn't update Google Calendar. Retry or check permissions.")
+        if sync_error:
+            st.caption(sync_error)
 
     start_day, end_day = _range_from_view(selected_day, view_mode, week_ref, month_ref, month_last_day)
 
-    _sync_google_if_connected(user_email, connected, start_day, end_day, calendar_ids)
+    force_sync = bool(st.session_state.pop("calendar.force_sync", False))
+    _sync_google_if_connected(user_email, connected, start_day, end_day, calendar_ids, force=force_sync)
 
     cache_key = f"{user_email}:{start_day.isoformat()}:{end_day.isoformat()}"
     force_refresh = bool(st.session_state.get("calendar.force_refresh", False))
@@ -336,7 +364,7 @@ def render_calendar_tab(ctx):
 
     day_tasks = [item for item in range_tasks if item.get("scheduled_date") == selected_day.isoformat()]
 
-    layout = st.columns([1.6, 0.8], gap="large")
+    layout = st.columns([2.4, 1.0], gap="large")
 
     with layout[0]:
         st.markdown("<div class='calendar-compact task-list'>", unsafe_allow_html=True)
@@ -458,6 +486,8 @@ def render_calendar_tab(ctx):
                         try:
                             _sync_created_or_updated_activity_to_google(user_email, task_id, connected, primary_calendar_id)
                         except Exception as exc:
+                            st.session_state["calendar.sync_status"] = "Failed"
+                            st.session_state["calendar.sync_error"] = str(exc)
                             st.warning(f"Saved locally, but Google sync failed: {exc}")
                         st.session_state["calendar.force_refresh"] = True
                         st.rerun()
@@ -609,10 +639,12 @@ def render_calendar_tab(ctx):
                             "estimated_minutes": draft["estimated"],
                         }
                     )
-                    try:
-                        _sync_created_or_updated_activity_to_google(user_email, created["id"], connected, primary_calendar_id)
-                    except Exception as exc:
-                        st.warning(f"Saved locally, but Google sync failed: {exc}")
+                try:
+                    _sync_created_or_updated_activity_to_google(user_email, created["id"], connected, primary_calendar_id)
+                except Exception as exc:
+                    st.session_state["calendar.sync_status"] = "Failed"
+                    st.session_state["calendar.sync_error"] = str(exc)
+                    st.warning(f"Saved locally, but Google sync failed: {exc}")
                     draft["title"] = ""
                     draft["date"] = ""
                     draft["time"] = ""
@@ -727,7 +759,7 @@ def render_calendar_tab(ctx):
                 "slotMinTime": "00:00:00",
                 "slotMaxTime": "24:00:00",
                 "slotDuration": "00:30:00",
-                "height": 520,
+                "height": 480,
                 "headerToolbar": {
                     "left": "prev,next today",
                     "center": "title",
@@ -777,6 +809,8 @@ def render_calendar_tab(ctx):
                             try:
                                 _sync_created_or_updated_activity_to_google(user_email, created["id"], connected, primary_calendar_id)
                             except Exception as exc:
+                                st.session_state["calendar.sync_status"] = "Failed"
+                                st.session_state["calendar.sync_error"] = str(exc)
                                 st.warning(f"Saved locally, but Google sync failed: {exc}")
                             st.session_state["calendar.force_refresh"] = True
                             st.rerun()
@@ -797,6 +831,8 @@ def render_calendar_tab(ctx):
                             try:
                                 _sync_created_or_updated_activity_to_google(user_email, task_id, connected, primary_calendar_id)
                             except Exception as exc:
+                                st.session_state["calendar.sync_status"] = "Failed"
+                                st.session_state["calendar.sync_error"] = str(exc)
                                 st.warning(f"Saved locally, but Google sync failed: {exc}")
                             st.session_state["calendar.force_refresh"] = True
                             st.rerun()

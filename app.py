@@ -297,6 +297,7 @@ THEME_PRESETS = {
         "calendar_panel": "rgba(24, 20, 32, 0.55)",
         "calendar_panel_border": "rgba(91, 79, 112, 0.55)",
         "row_hover": "rgba(255, 255, 255, 0.04)",
+        "divider": "rgba(255,255,255,0.08)",
     },
     "light": {
         "bg_main": "#f7f3ed",
@@ -305,8 +306,8 @@ THEME_PRESETS = {
         "bg_card": "#fff9f1",
         "bg_panel": "#f6efe3",
         "border": "#c4b59f",
-        "text_main": "#2f2922",
-        "text_soft": "#6c6053",
+        "text_main": "#1b1b1b",
+        "text_soft": "#5d5d5d",
         "button": "#b29a7d",
         "button_hover": "#9f876b",
         "accent_purple": "#8f7aa9",
@@ -329,6 +330,7 @@ THEME_PRESETS = {
         "calendar_panel": "rgba(255, 248, 238, 0.88)",
         "calendar_panel_border": "rgba(196, 181, 159, 0.75)",
         "row_hover": "rgba(45, 36, 27, 0.06)",
+        "divider": "rgba(0,0,0,0.08)",
     },
 }
 
@@ -374,6 +376,7 @@ theme_vars_css = f"""
     --calendar-panel: {ACTIVE_THEME['calendar_panel']};
     --calendar-panel-border: {ACTIVE_THEME['calendar_panel_border']};
     --row-hover: {ACTIVE_THEME['row_hover']};
+    --divider: {ACTIVE_THEME['divider']};
     --atom-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='1.8'%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8'/%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8' transform='rotate(60 14 14)'/%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8' transform='rotate(-60 14 14)'/%3E%3C/g%3E%3Ccircle cx='14' cy='14' r='2.6' fill='%23000000' stroke='%23ffffff' stroke-width='1.1'/%3E%3C/svg%3E") 14 14, auto;
 }}
 """
@@ -406,7 +409,7 @@ h1, h2, h3, .page-title {
 }
 
 .section-title {
-    font-size: 20px;
+    font-size: 14px;
     font-weight: 600;
     margin: 0 0 8px 0;
 }
@@ -422,7 +425,7 @@ h1, h2, h3, .page-title {
 
 .small-label {
     color: var(--text-soft);
-    font-size: 13px;
+    font-size: 12px;
     letter-spacing: 0.2px;
 }
 
@@ -878,7 +881,7 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 }
 
 .calendar-compact [data-testid="stHorizontalBlock"] {
-    gap: 0.08rem;
+    gap: 0.35rem;
 }
 
 .calendar-compact .stMarkdown p {
@@ -907,14 +910,14 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 .calendar-compact .stTextInput > div > div input,
 .calendar-compact .stNumberInput input,
 .calendar-compact .stTimeInput input {
-    padding-top: 0.06rem;
-    padding-bottom: 0.06rem;
-    min-height: 26px;
+    padding-top: 0.12rem;
+    padding-bottom: 0.12rem;
+    min-height: 32px;
 }
 
 .calendar-compact .stButton > button {
-    padding: 0.12rem 0.3rem;
-    min-height: 26px;
+    padding: 0.18rem 0.35rem;
+    min-height: 32px;
 }
 
 .calendar-compact .stCaption {
@@ -942,24 +945,26 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 
 .calendar-compact .task-details {
     background: var(--bg-card);
-    border: 1px solid var(--border);
+    border: 1px solid var(--divider);
     border-radius: 10px;
-    padding: 0.3rem 0.45rem;
-    margin: 0.08rem 0 0.18rem 1.0rem;
+    padding: 0.35rem 0.55rem;
+    margin: 0.1rem 0 0.2rem 1.0rem;
     transition: all 140ms ease-out;
 }
 
 .calendar-card {
     background: var(--calendar-panel);
-    border: 1px solid var(--calendar-panel-border);
-    border-radius: 14px;
-    padding: 0.45rem 0.55rem;
+    border: 1px solid var(--divider);
+    border-radius: 12px;
+    padding: 0.4rem 0.5rem;
     backdrop-filter: blur(6px);
 }
 
 .task-list [data-testid="stHorizontalBlock"] {
-    padding: 0.06rem 0.08rem;
-    border-bottom: 1px solid var(--border);
+    padding: 0.12rem 0.2rem;
+    margin-bottom: 6px;
+    min-height: 34px;
+    border-bottom: 1px solid var(--divider);
     align-items: center;
 }
 
@@ -970,10 +975,10 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 
 .task-list .stButton > button {
     font-size: 0.75rem;
-    padding: 0.08rem 0.24rem;
-    min-height: 22px;
+    padding: 0.08rem 0.2rem;
+    min-height: 24px;
     background: transparent;
-    border: 1px solid var(--border);
+    border: 1px solid var(--divider);
     color: var(--text-main);
 }
 
@@ -984,7 +989,7 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 .subtask-list {
     margin-left: 0.9rem;
     padding-left: 0.6rem;
-    border-left: 1px solid var(--border);
+    border-left: 1px solid var(--divider);
 }
 
 .subtask-list [data-testid="stHorizontalBlock"] {
@@ -998,15 +1003,15 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 }
 
 .calendar-card .fc .fc-toolbar-title {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-weight: 600;
 }
 
 .calendar-card .fc .fc-button {
-    padding: 0.2rem 0.4rem;
-    font-size: 0.7rem;
+    padding: 0.12rem 0.3rem;
+    font-size: 0.68rem;
     border-radius: 8px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--divider);
     background: transparent;
     color: var(--text-main);
 }
@@ -1014,11 +1019,11 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 .calendar-card .fc .fc-scrollgrid,
 .calendar-card .fc .fc-scrollgrid-section,
 .calendar-card .fc .fc-timegrid-divider {
-    border-color: var(--border) !important;
+    border-color: var(--divider) !important;
 }
 
 .calendar-card .fc .fc-timegrid-slot {
-    height: 26px;
+    height: 28px;
 }
 
 .calendar-card .fc .fc-timegrid-axis {
@@ -1032,10 +1037,24 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 }
 
 .calendar-card .fc .fc-event {
-    border: 1px solid var(--border);
+    border: 1px solid var(--divider);
     border-radius: 6px;
     padding: 1px 4px;
     font-size: 11px;
+}
+
+.calendar-top [data-testid="stHorizontalBlock"] {
+    gap: 0.6rem;
+}
+
+.calendar-top .stSelectbox,
+.calendar-top .stDateInput,
+.calendar-top .stTextInput {
+    min-height: 32px;
+}
+
+.calendar-top label {
+    font-size: 0.72rem !important;
 }
 }
 
@@ -1207,7 +1226,7 @@ div[data-testid="stAppViewContainer"] [data-testid="stAppViewBlockContainer"] {{
 
 title_cols = st.columns([16, 1])
 with title_cols[0]:
-    st.markdown("<div class='page-title' style='font-size:30px;'>Personal Life Dashboard</div>", unsafe_allow_html=True)
+    st.markdown("<div class='page-title' style='font-size:22px; font-weight:600;'>Personal Life Dashboard</div>", unsafe_allow_html=True)
 with title_cols[1]:
     if st.button(THEME_TOGGLE_ICON, key="toggle_theme_mode", help=THEME_TOGGLE_HELP):
         st.session_state["ui_theme"] = "light" if ACTIVE_THEME_NAME == "dark" else "dark"
