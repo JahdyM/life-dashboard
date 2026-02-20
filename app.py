@@ -1225,6 +1225,36 @@ select:focus-visible {
     unsafe_allow_html=True,
 )
 
+st.markdown(
+    """
+<script>
+if (!window.__cursorTrailAdded) {
+  window.__cursorTrailAdded = true;
+  const container = document.createElement('div');
+  container.id = 'cursor-trail-container';
+  document.body.appendChild(container);
+  const maxDots = 18;
+  let last = 0;
+  document.addEventListener('mousemove', (e) => {
+    const now = Date.now();
+    if (now - last < 20) return;
+    last = now;
+    const dot = document.createElement('span');
+    dot.className = 'cursor-trail';
+    dot.style.left = e.clientX + 'px';
+    dot.style.top = e.clientY + 'px';
+    container.appendChild(dot);
+    setTimeout(() => dot.remove(), 600);
+    if (container.children.length > maxDots) {
+      container.children[0].remove();
+    }
+  });
+}
+</script>
+""",
+    unsafe_allow_html=True,
+)
+
 background_image_css_url = resolve_background_image_css_url()
 if background_image_css_url:
     safe_background_url = background_image_css_url.replace("'", "%27")
