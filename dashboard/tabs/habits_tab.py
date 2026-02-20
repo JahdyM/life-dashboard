@@ -14,7 +14,58 @@ def _get_selected_date():
     return st.session_state["habits.selected_date"]
 
 
+def _get_day_cache(day_iso: str):
+    cache = st.session_state.get("habits.day_cache", {})
+    entry = cache.get(day_iso)
+    if not entry:
+        return None
+    if time.time() - entry.get("ts", 0) > 8:
+        return None
+    return entry.get("data", {})
+
+
+def _set_day_cache(day_iso: str, payload: dict):
+    cache = st.session_state.get("habits.day_cache", {})
+    cache[day_iso] = {"data": payload or {}, "ts": time.time()}
+    st.session_state["habits.day_cache"] = cache
+
+
+def _get_custom_done_cache(day_iso: str):
+    cache = st.session_state.get("habits.custom_done_cache", {})
+    entry = cache.get(day_iso)
+    if not entry:
+        return None
+    if time.time() - entry.get("ts", 0) > 10:
+        return None
+    return entry.get("data", {})
+
+
+def _set_custom_done_cache(day_iso: str, payload: dict):
+    cache = st.session_state.get("habits.custom_done_cache", {})
+    cache[day_iso] = {"data": payload or {}, "ts": time.time()}
+    st.session_state["habits.custom_done_cache"] = cache
+
+
+def _apply_local_header_update(habit_key: str, done_value: bool):
+    snapshot = st.session_state.get("header.shared_snapshot")
+    if not snapshot:
+        return
+    habits = snapshot.get("habits", [])
+    for item in habits:
+        if item.get("habit_key") == habit_key:
+            item["user_a_today_done"] = int(bool(done_value))
+            item["user_a_today_expected"] = 1
+            break
+    snapshot["habits"] = habits
+    st.session_state["header.shared_snapshot"] = snapshot
+
+
 def _save_fixed_habit(user_email, selected_day, habit_key, widget_key):
+    day_iso = selected_day.isoformat()
+    cached = _get_day_cache(day_iso) or {}
+    cached[habit_key] = int(bool(st.session_state.get(widget_key, False)))
+    _set_day_cache(day_iso, cached)
+    _apply_local_header_update(habit_key, st.session_state.get(widget_key, False))
     try:
         repositories.save_habit_toggle(
             user_email,
@@ -33,26 +84,34 @@ def _save_fixed_habit(user_email, selected_day, habit_key, widget_key):
             st.session_state.get(widget_key, False),
             sync=False,
         )
-    st.session_state["header.bump"] = time.time()
+    last_bump = float(st.session_state.get("header.bump", 0) or 0)
+    now = time.time()
+    if now - last_bump > 5:
+        st.session_state["header.bump"] = now
 
 
 def _save_metrics(user_email, selected_day):
-    repositories.save_entry_fields(
-        user_email,
-        selected_day,
-        {
-            "sleep_hours": float(st.session_state.get("habits.sleep_hours", 0) or 0),
-            "anxiety_level": int(st.session_state.get("habits.anxiety_level", 1) or 1),
-            "work_hours": float(st.session_state.get("habits.work_hours", 0) or 0),
-            "boredom_minutes": int(st.session_state.get("habits.boredom_minutes", 0) or 0),
-            "mood_category": st.session_state.get("habits.mood_category", "Neutro"),
-            "priority_label": (st.session_state.get("habits.priority_label") or "").strip(),
-            "priority_done": int(bool(st.session_state.get("habits.priority_done", False))),
-        },
-    )
+    payload = {
+        "sleep_hours": float(st.session_state.get("habits.sleep_hours", 0) or 0),
+        "anxiety_level": int(st.session_state.get("habits.anxiety_level", 1) or 1),
+        "work_hours": float(st.session_state.get("habits.work_hours", 0) or 0),
+        "boredom_minutes": int(st.session_state.get("habits.boredom_minutes", 0) or 0),
+        "mood_category": st.session_state.get("habits.mood_category", "Neutro"),
+        "priority_label": (st.session_state.get("habits.priority_label") or "").strip(),
+        "priority_done": int(bool(st.session_state.get("habits.priority_done", False))),
+    }
+    day_iso = selected_day.isoformat()
+    cached = _get_day_cache(day_iso) or {}
+    cached.update(payload)
+    _set_day_cache(day_iso, cached)
+    repositories.save_entry_fields(user_email, selected_day, payload)
 
 
 def _save_daily_text(user_email, selected_day):
+    day_iso = selected_day.isoformat()
+    cached = _get_day_cache(day_iso) or {}
+    cached["daily_text"] = st.session_state.get("habits.daily_text", "")
+    _set_day_cache(day_iso, cached)
     repositories.set_daily_text(user_email, selected_day, st.session_state.get("habits.daily_text", ""))
 
 
@@ -63,8 +122,8 @@ def _save_custom_done(user_email, selected_day, custom_habits):
             continue
         key = f"habits.custom_done.{habit['id']}"
         payload[habit["id"]] = int(bool(st.session_state.get(key, False)))
+    _set_custom_done_cache(selected_day.isoformat(), payload)
     repositories.set_custom_habit_done(user_email, selected_day, payload)
-    st.session_state["header.bump"] = time.time()
 
 
 def _save_meeting_days(user_email, day_to_index):
@@ -105,8 +164,12 @@ def render_habits_tab(ctx):
     st.markdown("<div class='section-title'>Daily Habits</div>", unsafe_allow_html=True)
 
     selected_day = st.session_state.get("habits.selected_date", date.today())
+    day_iso = selected_day.isoformat()
     if repositories.api_enabled():
-        row_payload = repositories.get_day_entry(user_email, selected_day)
+        row_payload = _get_day_cache(day_iso)
+        if row_payload is None:
+            row_payload = repositories.get_day_entry(user_email, selected_day, timeout=4)
+            _set_day_cache(day_iso, row_payload)
     else:
         data = ctx["data"]
         row = data[data["date"] == selected_day]
@@ -193,7 +256,10 @@ def render_habits_tab(ctx):
         custom_habits = _get_custom_cache()
         custom_habits = _reconcile_pending(custom_habits)
         _set_custom_cache(custom_habits)
-        custom_done = repositories.get_custom_habit_done(user_email, selected_day)
+        custom_done = _get_custom_done_cache(day_iso)
+        if custom_done is None:
+            custom_done = repositories.get_custom_habit_done(user_email, selected_day)
+            _set_custom_done_cache(day_iso, custom_done)
 
         for habit in custom_habits:
             row_cols = st.columns([0.22, 6.1, 0.38, 0.38])

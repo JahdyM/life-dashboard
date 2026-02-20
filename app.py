@@ -4106,7 +4106,7 @@ if api_enabled:
     try:
         @st.cache_data(ttl=5)
         def _fetch_header_cached(user_email: str, api_base: str, bump: float):
-            return api_client.request("GET", "/v1/header")
+            return api_client.request("GET", "/v1/header", timeout=3)
 
         header_payload = _fetch_header_cached(
             current_user_email,

@@ -198,11 +198,11 @@ def save_entry_fields(user_email, day, fields):
     _entry_patch_for_date(user_email, day, clean)
 
 
-def get_day_entry(user_email, day):
+def get_day_entry(user_email, day, timeout: int = 8):
     day_iso = day if isinstance(day, str) else day.isoformat()
     if api_client.is_enabled():
         try:
-            payload = api_client.request("GET", f"/v1/day/{day_iso}")
+            payload = api_client.request("GET", f"/v1/day/{day_iso}", timeout=timeout)
             return payload.get("data") or {}
         except Exception:
             return {}
