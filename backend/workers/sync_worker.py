@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from backend import repositories
 from backend.settings import get_settings
@@ -15,14 +16,17 @@ def _build_event_payload(task: dict, timezone_name: str) -> dict:
     scheduled_time = task.get("scheduled_time")
     estimated = int(task.get("estimated_minutes") or 30)
     if scheduled_date and scheduled_time:
-        start_dt = f"{scheduled_date}T{scheduled_time}:00"
-        end_dt = (
-            datetime.fromisoformat(start_dt) + timedelta(minutes=estimated)
-        ).strftime("%Y-%m-%dT%H:%M:%S")
+        base_dt = datetime.fromisoformat(f"{scheduled_date}T{scheduled_time}:00")
+        try:
+            tzinfo = ZoneInfo(timezone_name)
+            start_dt = base_dt.replace(tzinfo=tzinfo)
+        except Exception:
+            start_dt = base_dt
+        end_dt = start_dt + timedelta(minutes=estimated)
         return {
             "summary": title,
-            "start": {"dateTime": start_dt, "timeZone": timezone_name},
-            "end": {"dateTime": end_dt, "timeZone": timezone_name},
+            "start": {"dateTime": start_dt.isoformat(), "timeZone": timezone_name},
+            "end": {"dateTime": end_dt.isoformat(), "timeZone": timezone_name},
         }
     if scheduled_date:
         next_day = (datetime.fromisoformat(scheduled_date) + timedelta(days=1)).strftime("%Y-%m-%d")
@@ -47,10 +51,7 @@ async def _handle_task_outbox(row: dict) -> None:
             return
         if task.get("google_event_id"):
             return
-        try:
-            tz_name = await google_calendar_service.get_calendar_timezone(user_email, calendar_id)
-        except Exception:
-            tz_name = get_settings().calendar_timezone
+        tz_name = await google_calendar_service.resolve_calendar_timezone(user_email, calendar_id)
         event = await google_calendar_service.create_event(
             user_email,
             calendar_id,
@@ -71,10 +72,7 @@ async def _handle_task_outbox(row: dict) -> None:
             return
         if not task.get("scheduled_date"):
             return
-        try:
-            tz_name = await google_calendar_service.get_calendar_timezone(user_email, calendar_id)
-        except Exception:
-            tz_name = get_settings().calendar_timezone
+        tz_name = await google_calendar_service.resolve_calendar_timezone(user_email, calendar_id)
         await google_calendar_service.update_event(
             user_email,
             calendar_id,

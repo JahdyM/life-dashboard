@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     backend_session_secret: str = Field(..., alias="BACKEND_SESSION_SECRET")
 
     calendar_timezone: str = Field("America/Sao_Paulo", alias="CALENDAR_TIMEZONE")
+    jahdy_timezone_raw: str = Field("", alias="JAHDY_TIMEZONE")
+    guilherme_timezone_raw: str = Field("", alias="GUILHERME_TIMEZONE")
 
     allowed_emails_raw: str = Field("", alias="ALLOWED_EMAILS")
     jahdy_allowed_calendars_raw: str = Field("", alias="JAHDY_GOOGLE_ALLOWED_CALENDAR_IDS")
@@ -46,6 +48,16 @@ class Settings(BaseSettings):
             seen.add(item)
             dedup.append(item)
         return dedup
+
+    def user_timezone(self, user_email: str) -> str | None:
+        if user_email.lower().startswith("jahdy"):
+            tz = self.jahdy_timezone_raw
+        elif user_email.lower().startswith("guilherme"):
+            tz = self.guilherme_timezone_raw
+        else:
+            tz = ""
+        tz = str(tz or "").strip()
+        return tz or None
 
 
 _settings: Settings | None = None

@@ -219,3 +219,14 @@ async def get_calendar_timezone(user_email: str, calendar_id: str) -> str:
     if tz:
         return str(tz)
     return get_settings().calendar_timezone
+
+
+async def resolve_calendar_timezone(user_email: str, calendar_id: str) -> str:
+    settings = get_settings()
+    user_tz = settings.user_timezone(user_email)
+    if user_tz:
+        return user_tz
+    try:
+        return await get_calendar_timezone(user_email, calendar_id)
+    except Exception:
+        return settings.calendar_timezone
