@@ -200,3 +200,22 @@ async def delete_event(user_email: str, calendar_id: str, event_id: str) -> None
         response = await client.delete(endpoint, headers=headers)
     if response.status_code not in {200, 204}:
         response.raise_for_status()
+
+
+async def get_calendar_timezone(user_email: str, calendar_id: str) -> str:
+    headers = await _google_headers(user_email)
+    endpoint = f"{CALENDAR_API}/calendars/{quote(calendar_id, safe='')}"
+    async with httpx.AsyncClient(timeout=15) as client:
+        response = await client.get(endpoint, headers=headers)
+    if response.status_code >= 400:
+        try:
+            payload_err = response.json()
+            message = payload_err.get("error", {}).get("message") or payload_err.get("message") or response.text
+        except Exception:
+            message = response.text
+        raise RuntimeError(f"Google calendar fetch failed ({response.status_code}): {message}")
+    payload = response.json()
+    tz = payload.get("timeZone")
+    if tz:
+        return str(tz)
+    return get_settings().calendar_timezone
