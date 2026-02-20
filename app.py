@@ -1644,6 +1644,8 @@ def init_db():
     ensure_column(ENTRIES_TABLE, "mood_media_url", "TEXT")
     ensure_column(ENTRIES_TABLE, "mood_tags_json", "TEXT")
     ensure_column(ENTRIES_TABLE, "updated_at", "TEXT")
+    for habit_key, _ in HABITS:
+        ensure_column(ENTRIES_TABLE, habit_key, "INTEGER DEFAULT 0")
     ensure_index(
         f"CREATE INDEX IF NOT EXISTS idx_{TASKS_TABLE}_user_external_date "
         f"ON {TASKS_TABLE} (user_email, external_event_key, scheduled_date)"
@@ -2215,6 +2217,8 @@ def normalize_entries_df(df):
         df["updated_at"] = ""
     df["date"] = pd.to_datetime(df["date"]).dt.date
     for key, _ in HABITS:
+        if key not in df.columns:
+            df[key] = 0
         df[key] = df[key].fillna(0).astype(int)
     df["priority_done"] = df["priority_done"].fillna(0).astype(int)
     df["priority_label"] = df["priority_label"].fillna("").astype(str)
@@ -3609,6 +3613,11 @@ if "meeting_days" not in st.session_state:
     st.session_state["meeting_days"] = meeting_days
 meeting_days = st.session_state["meeting_days"]
 
+family_worship_day = get_family_worship_day()
+if "family_worship_day" not in st.session_state:
+    st.session_state["family_worship_day"] = family_worship_day
+family_worship_day = st.session_state["family_worship_day"]
+
 active_tab = st.session_state.get("ui.active_tab", "Daily Habits")
 tabs_needing_data = {"Daily Habits", "Statistics & Charts", "Mood Board"}
 data = load_data() if active_tab in tabs_needing_data else pd.DataFrame(columns=ENTRY_COLUMNS)
@@ -3621,6 +3630,7 @@ if active_tab == "Statistics & Charts" and not data.empty:
         lambda row: compute_habits_metrics(
             row,
             meeting_days,
+            family_worship_day,
             custom_done_by_date,
             custom_habit_ids,
         ),
@@ -3647,7 +3657,15 @@ repositories.set_google_delete_callback(google_calendar.delete_event)
 
 today_activities = load_today_activities_cached(current_user_email, date.today().isoformat())
 pending_tasks = sum(1 for row in today_activities if int(row.get("is_done", 0) or 0) == 0)
-shared_habit_keys = ["bible_reading", "meeting_attended", "prepare_meeting", "workout", "shower"]
+shared_habit_keys = [
+    "bible_reading",
+    "meeting_attended",
+    "prepare_meeting",
+    "workout",
+    "shower",
+    "daily_text",
+    "family_worship",
+]
 shared_snapshot = {}
 if partner_email:
     try:
@@ -3676,6 +3694,7 @@ context = {
     "partner_name": partner_name,
     "data": data,
     "meeting_days": meeting_days,
+    "family_worship_day": family_worship_day,
     "quick_indicators": {"pending_tasks": pending_tasks},
     "constants": {
         "DAY_LABELS": DAY_LABELS,
@@ -3683,6 +3702,7 @@ context = {
         "DEFAULT_HABIT_LABELS": DEFAULT_HABIT_LABELS,
         "FIXED_COUPLE_HABIT_KEYS": FIXED_COUPLE_HABIT_KEYS,
         "MEETING_HABIT_KEYS": MEETING_HABIT_KEYS,
+        "FAMILY_WORSHIP_HABIT_KEYS": FAMILY_WORSHIP_HABIT_KEYS,
         "MOODS": MOODS,
         "JAHDY_EMAIL": JAHDY_EMAIL,
         "GUILHERME_EMAIL": GUILHERME_EMAIL,
