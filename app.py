@@ -985,11 +985,19 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 }
 
 .task-list [data-testid="stHorizontalBlock"] {
-    padding: 0.12rem 0.2rem;
-    margin-bottom: 6px;
+    padding: 0.18rem 0.2rem;
+    margin-bottom: 4px;
     min-height: 34px;
     border-bottom: 1px solid var(--divider);
     align-items: center;
+}
+
+.task-list [data-testid="stHorizontalBlock"]:last-child {
+    border-bottom: none;
+}
+
+.task-list [data-testid="stCheckbox"] {
+    margin-top: 2px;
 }
 
 .task-list [data-testid="stHorizontalBlock"]:hover {
@@ -998,13 +1006,26 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 }
 
 .task-list .stButton > button {
-    font-size: 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 500;
     padding: 0 !important;
-    min-height: 22px;
+    min-height: 24px;
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
     color: var(--text-main) !important;
+}
+
+.task-list .task-title-btn button {
+    letter-spacing: 0.2px;
+}
+
+.task-time {
+    font-size: 0.74rem;
+    color: var(--text-soft);
+    text-align: right;
+    padding-right: 0.1rem;
+    min-width: 52px;
 }
 
 .task-list .stButton > button:hover {

@@ -389,7 +389,7 @@ def render_calendar_tab(ctx):
             if open_key not in st.session_state:
                 st.session_state[open_key] = False
 
-            row = st.columns([0.45, 7.2, 0.9])
+            row = st.columns([0.45, 7.6, 0.9])
             with row[0]:
                 checked = st.checkbox(
                     "",
