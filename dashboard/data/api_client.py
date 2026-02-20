@@ -2,9 +2,29 @@ import os
 from typing import Any
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 _SECRET_GETTER = None
 _USER_GETTER = None
+
+
+def _build_session():
+    session = requests.Session()
+    retry = Retry(
+        total=2,
+        backoff_factor=0.5,
+        status_forcelist=(502, 503, 504),
+        allowed_methods=("GET", "POST", "PUT", "PATCH", "DELETE"),
+        raise_on_status=False,
+    )
+    adapter = HTTPAdapter(max_retries=retry, pool_connections=10, pool_maxsize=10)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    return session
+
+
+_SESSION = _build_session()
 
 
 def configure(secret_getter, user_getter):
@@ -41,7 +61,7 @@ def is_enabled():
     return bool(api_base_url() and backend_token())
 
 
-def request(method: str, path: str, params: dict | None = None, json: dict | None = None, timeout: int = 20) -> Any:
+def request(method: str, path: str, params: dict | None = None, json: dict | None = None, timeout: int = 10) -> Any:
     base = api_base_url().rstrip("/")
     if not base:
         raise RuntimeError("API_BASE_URL not configured")
@@ -56,7 +76,7 @@ def request(method: str, path: str, params: dict | None = None, json: dict | Non
         "X-Backend-Token": token,
     }
     url = f"{base}{path}"
-    response = requests.request(method, url, params=params, json=json, headers=headers, timeout=timeout)
+    response = _SESSION.request(method, url, params=params, json=json, headers=headers, timeout=timeout)
     if not response.ok:
         try:
             detail = response.json()

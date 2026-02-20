@@ -6,6 +6,15 @@ import time
 import streamlit as st
 
 from dashboard.data import repositories
+from dashboard.constants import (
+    DAY_LABELS,
+    DAY_TO_INDEX,
+    FIXED_COUPLE_HABIT_KEYS,
+    MEETING_HABIT_KEYS,
+    FAMILY_WORSHIP_HABIT_KEYS,
+    DEFAULT_HABIT_LABELS,
+    MOODS,
+)
 
 
 def _get_selected_date():
@@ -84,10 +93,7 @@ def _save_fixed_habit(user_email, selected_day, habit_key, widget_key):
             st.session_state.get(widget_key, False),
             sync=False,
         )
-    last_bump = float(st.session_state.get("header.bump", 0) or 0)
-    now = time.time()
-    if now - last_bump > 5:
-        st.session_state["header.bump"] = now
+    st.session_state["header.invalidate"] = True
 
 
 def _save_metrics(user_email, selected_day):
@@ -146,13 +152,13 @@ def _save_family_worship_day(user_email, day_to_index):
 
 def render_habits_tab(ctx):
     user_email = ctx["current_user_email"]
-    day_labels = ctx["constants"]["DAY_LABELS"]
-    day_to_index = ctx["constants"]["DAY_TO_INDEX"]
-    fixed_habit_keys = ctx["constants"]["FIXED_COUPLE_HABIT_KEYS"]
-    meeting_habit_keys = ctx["constants"]["MEETING_HABIT_KEYS"]
-    family_worship_keys = ctx["constants"]["FAMILY_WORSHIP_HABIT_KEYS"]
-    default_habit_labels = ctx["constants"]["DEFAULT_HABIT_LABELS"]
-    moods = ctx["constants"]["MOODS"]
+    day_labels = DAY_LABELS
+    day_to_index = DAY_TO_INDEX
+    fixed_habit_keys = FIXED_COUPLE_HABIT_KEYS
+    meeting_habit_keys = MEETING_HABIT_KEYS
+    family_worship_keys = FAMILY_WORSHIP_HABIT_KEYS
+    default_habit_labels = DEFAULT_HABIT_LABELS
+    moods = MOODS
 
     meeting_days = ctx["meeting_days"]
     family_worship_day = ctx.get("family_worship_day", 6)
