@@ -98,20 +98,6 @@ def render_habits_tab(ctx):
     loaded_key = f"{user_email}:{selected_day.isoformat()}"
     is_meeting_day = selected_day.weekday() in selected_meeting_days
 
-    if st.session_state.get("habits.loaded_key") != loaded_key:
-        st.session_state["habits.daily_text"] = repositories.get_daily_text(user_email, selected_day)
-    st.markdown("<div class='reflection-panel'>", unsafe_allow_html=True)
-    st.markdown("<div class='small-label'>Daily reflection</div>", unsafe_allow_html=True)
-    st.text_area(
-        "Daily reflection",
-        key="habits.daily_text",
-        height=200,
-        label_visibility="collapsed",
-        on_change=_save_daily_text,
-        args=(user_email, selected_day),
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
-
     body_cols = st.columns([1.15, 0.85])
     with body_cols[0]:
         st.markdown("<div class='panel habits-compact'>", unsafe_allow_html=True)
