@@ -10,6 +10,7 @@ def render_global_header(ctx):
     partner_name = ctx.get("partner_name") or "Partner"
     habit_labels = ctx.get("habit_labels", {})
     shared_habit_keys = ctx.get("shared_habit_keys", [])
+    backend_ok = ctx.get("backend_ok", True)
 
     st.markdown(
         """
@@ -93,5 +94,7 @@ def render_global_header(ctx):
                 unsafe_allow_html=True,
             )
 
+    if not backend_ok:
+        st.warning("Backend warming up… data may take a moment to appear.")
     st.caption(summary)
     st.markdown("</div>", unsafe_allow_html=True)

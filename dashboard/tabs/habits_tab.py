@@ -259,7 +259,12 @@ def render_habits_tab(ctx):
                 st.session_state["habits.pending_futures"] = pending
             return updated
 
-        custom_habits = _get_custom_cache()
+        cached_snapshot = st.session_state.get("habits.custom_cache")
+        if not cached_snapshot or cached_snapshot.get("user") != user_email:
+            with st.spinner("Loading habits…"):
+                custom_habits = _get_custom_cache()
+        else:
+            custom_habits = _get_custom_cache()
         custom_habits = _reconcile_pending(custom_habits)
         _set_custom_cache(custom_habits)
         custom_done = _get_custom_done_cache(day_iso)

@@ -1205,6 +1205,22 @@ select:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
 }
+
+@media (max-width: 900px) {
+    .calendar-top [data-testid="stHorizontalBlock"] {
+        flex-wrap: wrap;
+    }
+    .calendar-top [data-testid="stHorizontalBlock"] > div {
+        flex: 1 1 48%;
+        min-width: 140px;
+    }
+    .calendar-hacker [data-testid="stHorizontalBlock"] {
+        flex-direction: column;
+    }
+    .calendar-card {
+        margin-top: 0.6rem;
+    }
+}
 </style>
 """,
         unsafe_allow_html=True,

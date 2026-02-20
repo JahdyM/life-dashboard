@@ -5,10 +5,12 @@ import streamlit as st
 from dashboard.visualizations import mood_heatmap, build_month_tracker_grid, build_year_tracker_grid
 
 def render_mood_tab(ctx):
-    data = ctx["data"]
+    data = ctx.get("data")
     st.markdown("<div class='section-title'>Mood Board</div>", unsafe_allow_html=True)
 
-    mood_map = {row["date"]: row["mood_category"] for _, row in data.iterrows() if row.get("mood_category")}
+    mood_map = {}
+    if data is not None and not getattr(data, "empty", True):
+        mood_map = {row["date"]: row["mood_category"] for _, row in data.iterrows() if row.get("mood_category")}
 
     month_col, year_col = st.columns(2)
     with month_col:

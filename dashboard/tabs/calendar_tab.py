@@ -3,7 +3,6 @@ import time
 from datetime import date, datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
 
-import pandas as pd
 import streamlit as st
 
 from dashboard.data import repositories
@@ -379,20 +378,22 @@ def render_calendar_tab(ctx):
         range_tasks = cached.get("items", [])
         subtasks = cached.get("subtasks", {})
     else:
-        if api_client.is_enabled():
-            try:
-                range_tasks, subtasks = _fetch_tasks_range_cached(
-                    user_email,
-                    start_day.isoformat(),
-                    end_day.isoformat(),
-                    api_client.api_base_url(),
-                )
-            except Exception:
+        with st.spinner("Loading tasks…"):
+            if api_client.is_enabled():
+                try:
+                    range_tasks, subtasks = _fetch_tasks_range_cached(
+                        user_email,
+                        start_day.isoformat(),
+                        end_day.isoformat(),
+                        api_client.api_base_url(),
+                    )
+                except Exception as exc:
+                    logger.warning("Task fetch failed, falling back to local: %s", exc)
+                    range_tasks = repositories.list_activities_for_range(user_email, start_day, end_day)
+                    subtasks = repositories.list_todo_subtasks([item["id"] for item in range_tasks], user_email=user_email)
+            else:
                 range_tasks = repositories.list_activities_for_range(user_email, start_day, end_day)
                 subtasks = repositories.list_todo_subtasks([item["id"] for item in range_tasks], user_email=user_email)
-        else:
-            range_tasks = repositories.list_activities_for_range(user_email, start_day, end_day)
-            subtasks = repositories.list_todo_subtasks([item["id"] for item in range_tasks], user_email=user_email)
         st.session_state["calendar.range_cache"] = {"key": cache_key, "items": range_tasks, "subtasks": subtasks}
         st.session_state["calendar.force_refresh"] = False
 
@@ -968,6 +969,7 @@ def render_calendar_tab(ctx):
 
             if view_mode in {"Week", "Month"}:
                 with st.expander("Secondary calendar view", expanded=False):
+                    import pandas as pd
                     if view_mode == "Week":
                         week_hour_rows = _build_week_hour_board(range_tasks, start_day)
                         st.dataframe(pd.DataFrame(week_hour_rows), use_container_width=True, hide_index=True, height=300)

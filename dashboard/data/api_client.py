@@ -61,7 +61,7 @@ def is_enabled():
     return bool(api_base_url() and backend_token())
 
 
-def request(method: str, path: str, params: dict | None = None, json: dict | None = None, timeout: int = 10) -> Any:
+def request(method: str, path: str, params: dict | None = None, json: dict | None = None, timeout: int = 8) -> Any:
     base = api_base_url().rstrip("/")
     if not base:
         raise RuntimeError("API_BASE_URL not configured")

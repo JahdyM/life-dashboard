@@ -5,9 +5,9 @@ import logging
 from datetime import date, datetime, timedelta
 from uuid import uuid4
 
-import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as st_components
+import requests
 from sqlalchemy import bindparam, create_engine, inspect, text as sql_text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -939,11 +939,22 @@ def invalidate_by_domain(domain=None):
         "tasks": invalidate_tasks_cache,
         "header": invalidate_header_cache,
         "calendar": invalidate_tasks_cache,
-        "prompts": invalidate_entries_cache,
     }
     handler = mapping.get(domain)
     if handler:
         handler()
+
+
+@st.cache_data(ttl=30, show_spinner=False)
+def check_backend_health(api_base: str) -> bool:
+    if not api_base:
+        return False
+    try:
+        response = requests.get(f"{api_base.rstrip('/')}/health", timeout=3)
+        return bool(response.ok)
+    except Exception as exc:
+        logger.warning("Backend health check failed: %s", exc)
+        return False
 
 
 def new_id():
@@ -1691,6 +1702,9 @@ google_calendar.configure(get_secret)
 
 api_enabled = repositories.api_enabled()
 enforce_persistent_storage_on_cloud(api_enabled=api_enabled)
+backend_ok = True
+if api_enabled:
+    backend_ok = check_backend_health(api_client.api_base_url())
 if not api_enabled:
     if not st.session_state.get("_db_bootstrap_done"):
         try:
@@ -1744,9 +1758,9 @@ if active_tab in tabs_needing_data:
         range_start, range_end = _default_entries_range(window_days=30)
     data = load_data(range_start, range_end)
 else:
-    data = pd.DataFrame(columns=ENTRY_COLUMNS)
+    data = None
 
-if active_tab == "Statistics & Charts" and not data.empty:
+if active_tab == "Statistics & Charts" and data is not None and not data.empty:
     custom_habits = (
         repositories.get_custom_habits(current_user_email, active_only=True)
         if api_enabled
@@ -1826,6 +1840,7 @@ render_global_header(
         "partner_name": partner_name,
         "habit_labels": DEFAULT_HABIT_LABELS,
         "shared_habit_keys": shared_habit_keys,
+        "backend_ok": backend_ok,
     }
 )
 _perf_mark("header_ms", _t0)

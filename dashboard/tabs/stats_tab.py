@@ -5,11 +5,11 @@ import streamlit as st
 from dashboard.visualizations import dot_chart
 
 def render_stats_tab(ctx):
-    data = ctx["data"]
+    data = ctx.get("data")
 
     st.markdown("<div class='section-title'>Statistics & Charts</div>", unsafe_allow_html=True)
 
-    if data.empty:
+    if data is None or getattr(data, "empty", True):
         st.info("No persisted data yet.")
         return
 
