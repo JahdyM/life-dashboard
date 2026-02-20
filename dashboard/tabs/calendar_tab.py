@@ -429,7 +429,7 @@ def render_calendar_tab(ctx):
             row = st.columns([0.45, 7.6, 0.9])
             with row[0]:
                 checked = st.checkbox(
-                    "",
+                    "Mark done",
                     value=bool(task.get("is_done", 0)),
                     key=f"calendar.task.done.{task_key}",
                     label_visibility="collapsed",
@@ -545,7 +545,7 @@ def render_calendar_tab(ctx):
                         sub_row = st.columns([0.6, 7.2, 0.8])
                         with sub_row[0]:
                             s_done = st.checkbox(
-                                "",
+                                "Mark done",
                                 value=bool(sub.get("is_done", 0)),
                                 key=f"calendar.sub.done.{sub_key}",
                                 label_visibility="collapsed",

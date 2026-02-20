@@ -274,7 +274,7 @@ def render_habits_tab(ctx):
                 st.session_state[done_key] = bool(custom_done.get(habit["id"], 0))
             with row_cols[0]:
                 st.checkbox(
-                    "",
+                    "Mark done",
                     key=done_key,
                     label_visibility="collapsed",
                     on_change=_save_custom_done,

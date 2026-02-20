@@ -1684,7 +1684,7 @@ repositories.configure(
     get_engine,
     get_database_url,
     get_current_user_email,
-    invalidate_callback=invalidate_all_caches,
+    invalidate_callback=invalidate_by_domain,
     secret_getter=get_secret,
 )
 google_calendar.configure(get_secret)
