@@ -316,7 +316,7 @@ def render_calendar_tab(ctx):
             disabled=view_mode != "Month",
         )
     with top[4]:
-        if st.button("Sync now", key="calendar.sync_now", use_container_width=True):
+        if st.button("Sync now", key="calendar.sync_now", use_container_width=True, type="primary"):
             st.session_state["calendar.force_sync"] = True
         st.caption(f"Status: {sync_status}")
     with top[5]:
@@ -596,7 +596,7 @@ def render_calendar_tab(ctx):
                     label_visibility="collapsed",
                 )
             with add_cols[5]:
-                confirm_add = st.form_submit_button("Add", use_container_width=True)
+                confirm_add = st.form_submit_button("Add", use_container_width=True, type="primary")
 
         if confirm_add:
             draft["title"] = st.session_state.get(add_title_key, "")

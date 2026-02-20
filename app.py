@@ -15,6 +15,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import requests
 import streamlit as st
+import streamlit.components.v1 as st_components
 from sqlalchemy import bindparam, create_engine, inspect, text as sql_text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -442,15 +443,27 @@ h1, h2, h3, .page-title {
 }
 
 .stButton>button {
-    background: var(--button);
-    color: #f6f0ff;
-    border: 1px solid #7d6a98;
+    background: transparent;
+    color: var(--text-main);
+    border: 1px solid var(--divider);
     border-radius: 10px;
-    padding: 8px 14px;
+    padding: 8px 12px;
     font-weight: 600;
+    box-shadow: none;
 }
 
 .stButton>button:hover {
+    background: var(--row-hover);
+    border-color: var(--divider);
+}
+
+.stButton>button[kind="primary"] {
+    background: var(--button);
+    color: #f6f0ff;
+    border: 1px solid #7d6a98;
+}
+
+.stButton>button[kind="primary"]:hover {
     background: var(--button-hover);
     border-color: #9583b1;
 }
@@ -1244,7 +1257,7 @@ select:focus-visible {
     unsafe_allow_html=True,
 )
 
-st.markdown(
+st_components.html(
     """
 <script>
 if (!window.__cursorTrailAdded) {
@@ -1271,7 +1284,7 @@ if (!window.__cursorTrailAdded) {
 }
 </script>
 """,
-    unsafe_allow_html=True,
+    height=0,
 )
 
 background_image_css_url = resolve_background_image_css_url()
