@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends
 
 from backend.auth import require_user_email
 from backend import repositories
+from backend.settings import get_settings
 
 router = APIRouter()
 
@@ -23,7 +25,12 @@ SHARED_HABITS = [
 
 @router.get("/v1/header")
 async def header_snapshot(user_email: str = Depends(require_user_email)):
-    today = date.today()
+    settings = get_settings()
+    tz_name = settings.user_timezone(user_email) or settings.calendar_timezone
+    try:
+        today = datetime.now(ZoneInfo(tz_name)).date()
+    except Exception:
+        today = date.today()
     pending_tasks = await repositories.count_pending_tasks(user_email, today.isoformat())
     partner = repositories.get_partner_email(user_email)
     shared_snapshot = {
