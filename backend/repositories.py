@@ -110,7 +110,11 @@ async def list_entries_range(user_email: str, start_iso: str, end_iso: str) -> l
 
 
 async def patch_day_entry(user_email: str, day_iso: str, patch: dict) -> None:
-    payload_info = _entry_patch_payload(user_email, day_iso, patch)
+    normalized = dict(patch or {})
+    for key, value in list(normalized.items()):
+        if isinstance(value, bool):
+            normalized[key] = int(value)
+    payload_info = _entry_patch_payload(user_email, day_iso, normalized)
     session_factory = get_sessionmaker()
     async with session_factory() as session:
         await session.execute(

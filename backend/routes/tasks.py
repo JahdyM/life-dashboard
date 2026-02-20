@@ -11,6 +11,21 @@ from backend import repositories
 router = APIRouter()
 
 
+def _normalize_task_patch(patch: dict) -> dict:
+    clean = dict(patch or {})
+    value = clean.get("scheduled_date")
+    if value is not None and hasattr(value, "isoformat"):
+        clean["scheduled_date"] = value.isoformat()
+    value = clean.get("scheduled_time")
+    if value is not None:
+        if hasattr(value, "strftime"):
+            clean["scheduled_time"] = value.strftime("%H:%M")
+        else:
+            value_str = str(value).strip()
+            clean["scheduled_time"] = value_str[:5] if value_str else None
+    return clean
+
+
 @router.get("/v1/tasks")
 async def list_tasks(
     start: date = Query(...),
@@ -52,7 +67,7 @@ async def create_task(payload: TaskCreate, user_email: str = Depends(require_use
 @router.patch("/v1/tasks/{task_id}")
 async def patch_task(task_id: str, payload: TaskPatch, user_email: str = Depends(require_user_email)):
     try:
-        patch = payload.model_dump(exclude_unset=True)
+        patch = _normalize_task_patch(payload.model_dump(exclude_unset=True))
         record = await repositories.update_task(user_email, task_id, patch)
         await repositories.enqueue_outbox(user_email, "task", task_id, "update", patch)
         return record
@@ -63,7 +78,7 @@ async def patch_task(task_id: str, payload: TaskPatch, user_email: str = Depends
 @router.patch("/v1/tasks/{task_id}/schedule")
 async def schedule_task(task_id: str, payload: TaskSchedule, user_email: str = Depends(require_user_email)):
     try:
-        patch = payload.model_dump(exclude_unset=True)
+        patch = _normalize_task_patch(payload.model_dump(exclude_unset=True))
         record = await repositories.update_task(user_email, task_id, patch)
         await repositories.enqueue_outbox(user_email, "task", task_id, "update", patch)
         return record

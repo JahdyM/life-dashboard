@@ -1,6 +1,7 @@
 from datetime import date
 from concurrent.futures import ThreadPoolExecutor
 import uuid
+import time
 
 import streamlit as st
 
@@ -20,6 +21,7 @@ def _save_fixed_habit(user_email, selected_day, habit_key, widget_key):
         habit_key,
         st.session_state.get(widget_key, False),
     )
+    st.session_state["header.bump"] = time.time()
 
 
 def _save_metrics(user_email, selected_day):
@@ -50,6 +52,7 @@ def _save_custom_done(user_email, selected_day, custom_habits):
         key = f"habits.custom_done.{habit['id']}"
         payload[habit["id"]] = int(bool(st.session_state.get(key, False)))
     repositories.set_custom_habit_done(user_email, selected_day, payload)
+    st.session_state["header.bump"] = time.time()
 
 
 def _save_meeting_days(user_email, day_to_index):

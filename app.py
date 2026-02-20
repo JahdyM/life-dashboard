@@ -4101,10 +4101,14 @@ shared_snapshot = {"today": date.today().isoformat(), "habits": [], "summary": "
 if api_enabled:
     try:
         @st.cache_data(ttl=5)
-        def _fetch_header_cached(user_email: str, api_base: str):
+        def _fetch_header_cached(user_email: str, api_base: str, bump: float):
             return api_client.request("GET", "/v1/header")
 
-        header_payload = _fetch_header_cached(current_user_email, api_client.api_base_url())
+        header_payload = _fetch_header_cached(
+            current_user_email,
+            api_client.api_base_url(),
+            float(st.session_state.get("header.bump", 0.0) or 0.0),
+        )
         pending_tasks = int(header_payload.get("pending_tasks", 0) or 0)
         shared_snapshot = header_payload.get("shared_snapshot") or shared_snapshot
     except Exception:

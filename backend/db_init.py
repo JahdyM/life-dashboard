@@ -32,8 +32,10 @@ async def init_db():
                     workout INTEGER DEFAULT 0,
                     general_reading INTEGER DEFAULT 0,
                     shower INTEGER DEFAULT 0,
+                    daily_text INTEGER DEFAULT 0,
                     meeting_attended INTEGER DEFAULT 0,
                     prepare_meeting INTEGER DEFAULT 0,
+                    family_worship INTEGER DEFAULT 0,
                     writing INTEGER DEFAULT 0,
                     scientific_writing INTEGER DEFAULT 0,
                     sleep_hours REAL,
@@ -202,6 +204,8 @@ async def init_db():
     await ensure_column(TASKS_TABLE, "updated_at", "TEXT")
     await ensure_column(SUBTASKS_TABLE, "version", "INTEGER DEFAULT 1")
     await ensure_column(SUBTASKS_TABLE, "updated_at", "TEXT")
+    await ensure_column(ENTRIES_TABLE, "daily_text", "INTEGER DEFAULT 0")
+    await ensure_column(ENTRIES_TABLE, "family_worship", "INTEGER DEFAULT 0")
 
     await ensure_index(
         f"CREATE INDEX IF NOT EXISTS idx_{TASKS_TABLE}_user_date_updated "
