@@ -1281,28 +1281,45 @@ select:focus-visible {
 st_components.html(
     """
 <script>
-if (!window.__cursorTrailAdded) {
-  window.__cursorTrailAdded = true;
-  const container = document.createElement('div');
+(function () {
+  const parentDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+  const parentWin = (window.parent) ? window.parent : window;
+  if (parentDoc.getElementById('cursor-trail-container')) return;
+
+  if (!parentDoc.getElementById('cursor-trail-style')) {
+    const style = parentDoc.createElement('style');
+    style.id = 'cursor-trail-style';
+    style.textContent = `
+      #cursor-trail-container { position: fixed; inset: 0; pointer-events: none; z-index: 9999; }
+      .cursor-trail { position: absolute; width: 6px; height: 6px; border-radius: 50%;
+        background: rgba(255,255,255,0.7); box-shadow: 0 0 10px rgba(255,255,255,0.55);
+        animation: trailFade 0.6s ease-out forwards; }
+      @keyframes trailFade { 0% {opacity:.8; transform:scale(1);} 100% {opacity:0; transform:scale(.2);} }
+    `;
+    parentDoc.head.appendChild(style);
+  }
+
+  const container = parentDoc.createElement('div');
   container.id = 'cursor-trail-container';
-  document.body.appendChild(container);
+  parentDoc.body.appendChild(container);
   const maxDots = 18;
   let last = 0;
-  document.addEventListener('mousemove', (e) => {
+
+  parentDoc.addEventListener('mousemove', (e) => {
     const now = Date.now();
-    if (now - last < 20) return;
+    if (now - last < 18) return;
     last = now;
-    const dot = document.createElement('span');
+    const dot = parentDoc.createElement('span');
     dot.className = 'cursor-trail';
     dot.style.left = e.clientX + 'px';
     dot.style.top = e.clientY + 'px';
     container.appendChild(dot);
-    setTimeout(() => dot.remove(), 600);
+    parentWin.setTimeout(() => dot.remove(), 600);
     if (container.children.length > maxDots) {
       container.children[0].remove();
     }
   });
-}
+})();
 </script>
 """,
     height=0,
