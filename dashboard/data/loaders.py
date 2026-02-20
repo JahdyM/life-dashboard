@@ -282,7 +282,7 @@ def load_data_for_email_cached(user_email, database_url, api_enabled, api_base, 
         pd = _pd()
         df = pd.read_sql(
             sql_text(
-                f"SELECT * FROM {ENTRIES_TABLE} "
+                f"SELECT {', '.join(ENTRY_COLUMNS)} FROM {ENTRIES_TABLE} "
                 "WHERE user_email = :user_email AND date BETWEEN :start_date AND :end_date "
                 "ORDER BY date"
             ),
