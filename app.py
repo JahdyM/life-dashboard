@@ -1005,19 +1005,30 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
     border-radius: 0;
 }
 
-.task-list .stButton > button {
-    font-size: 0.9rem;
-    font-weight: 500;
-    padding: 0 !important;
-    min-height: 24px;
+.task-list [data-testid="stButton"] {
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
-    color: var(--text-main) !important;
 }
 
-.task-list .task-title-btn button {
+.task-list [data-testid="stButton"] > button {
+    all: unset;
+    display: block;
+    width: 100%;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-main) !important;
     letter-spacing: 0.2px;
+}
+
+.task-list [data-testid="stButton"] > button:hover {
+    text-decoration: none;
+}
+
+.task-list [data-testid="stButton"] > button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 .task-time {
@@ -1029,7 +1040,7 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 }
 
 .task-list .stButton > button:hover {
-    background: var(--row-hover);
+    background: transparent;
 }
 
 .subtask-list {
