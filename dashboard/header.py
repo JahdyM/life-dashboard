@@ -60,6 +60,9 @@ def render_global_header(ctx):
 
     if not habits and shared_habit_keys:
         habits = [{"habit_key": key, "user_a_days": 0, "user_b_days": 0} for key in shared_habit_keys]
+        if "unavailable" in summary.lower():
+            total = len(shared_habit_keys)
+            summary = f"Today both completed 0/{total} shared habits. At least one of you completed 0/{total}."
 
     cols = st.columns(5)
     for idx, item in enumerate(habits):
