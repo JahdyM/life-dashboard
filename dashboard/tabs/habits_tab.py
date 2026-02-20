@@ -77,6 +77,13 @@ def render_habits_tab(ctx):
     row_payload = row.iloc[0].to_dict() if not row.empty else {}
     loaded_key = f"{user_email}:{selected_day.isoformat()}"
 
+    selected_meeting_days = st.session_state.get(
+        "habits.meeting_days_values",
+        [day_to_index[label] for label in st.session_state.get("habits.meeting_days_labels", [])],
+    )
+    ctx["meeting_days"] = selected_meeting_days
+    is_meeting_day = selected_day.weekday() in selected_meeting_days
+
     top_cols = st.columns([1.15, 0.85])
     with top_cols[0]:
         st.markdown("<div class='habits-tight'>", unsafe_allow_html=True)
@@ -242,15 +249,6 @@ def render_habits_tab(ctx):
             args=(user_email, day_to_index),
         )
 
-    selected_meeting_days = st.session_state.get(
-        "habits.meeting_days_values",
-        [day_to_index[label] for label in st.session_state.get("habits.meeting_days_labels", [])],
-    )
-    ctx["meeting_days"] = selected_meeting_days
-
-    row = data[data["date"] == selected_day]
-    row_payload = row.iloc[0].to_dict() if not row.empty else {}
-    loaded_key = f"{user_email}:{selected_day.isoformat()}"
-    is_meeting_day = selected_day.weekday() in selected_meeting_days
+    # (moved above) selected_meeting_days / is_meeting_day already computed
 
     # removed extra body columns to keep habits directly below date
