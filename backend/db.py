@@ -19,10 +19,24 @@ def _normalize_database_url(database_url: str) -> str:
         url = "postgresql+asyncpg://" + url[len("postgresql+psycopg2://") :]
     try:
         parsed = urlparse(url)
-        if "channel_binding=" in (parsed.query or ""):
-            query_items = [(k, v) for k, v in parse_qsl(parsed.query, keep_blank_values=True) if k != "channel_binding"]
-            parsed = parsed._replace(query=urlencode(query_items))
-            url = urlunparse(parsed)
+        query_items = [(k, v) for k, v in parse_qsl(parsed.query, keep_blank_values=True)]
+        clean = []
+        has_ssl = False
+        for key, value in query_items:
+            if key == "channel_binding":
+                continue
+            if key == "sslmode":
+                # asyncpg does not accept sslmode; convert to ssl=true
+                has_ssl = True
+                continue
+            if key == "ssl":
+                has_ssl = True
+            clean.append((key, value))
+        if has_ssl:
+            clean = [(k, v) for k, v in clean if k != "ssl"]
+            clean.append(("ssl", "true"))
+        parsed = parsed._replace(query=urlencode(clean))
+        url = urlunparse(parsed)
     except Exception:
         return url
     return url
