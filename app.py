@@ -4084,7 +4084,11 @@ pending_tasks = 0
 shared_snapshot = {"today": date.today().isoformat(), "habits": [], "summary": "Shared summary unavailable."}
 if api_enabled:
     try:
-        header_payload = api_client.request("GET", "/v1/header")
+        @st.cache_data(ttl=5)
+        def _fetch_header_cached(user_email: str, api_base: str):
+            return api_client.request("GET", "/v1/header")
+
+        header_payload = _fetch_header_cached(current_user_email, api_client.api_base_url())
         pending_tasks = int(header_payload.get("pending_tasks", 0) or 0)
         shared_snapshot = header_payload.get("shared_snapshot") or shared_snapshot
     except Exception:
@@ -4110,6 +4114,7 @@ render_global_header(
         "current_user_name": current_user_name,
         "partner_name": partner_name,
         "habit_labels": DEFAULT_HABIT_LABELS,
+        "shared_habit_keys": shared_habit_keys,
     }
 )
 _perf_mark("header_ms", _t0)
