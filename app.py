@@ -989,12 +989,17 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 }
 
 .task-list [data-testid="stHorizontalBlock"] {
-    padding: 0.1rem 0.05rem;
-    margin-bottom: 2px;
+    padding: 0.06rem 0.04rem;
+    margin-bottom: 0;
     min-height: 32px;
     border-bottom: 1px solid var(--divider);
     align-items: center;
     gap: 6px;
+}
+
+.task-list [data-testid="stHorizontalBlock"] > div {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
 }
 
 
@@ -1017,8 +1022,9 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
     box-shadow: none !important;
 }
 
-.task-list [data-testid="stButton"] > button {
-    all: unset;
+.task-list [data-testid="stButton"] > button,
+.task-list button {
+    all: unset !important;
     display: block;
     width: 100%;
     cursor: pointer;
