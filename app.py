@@ -911,7 +911,8 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 .calendar-compact .task-title-btn button {
     width: 100%;
     text-align: left;
-    background: var(--bg-panel);
+    background: var(--accent-soft);
+    color: var(--text-strong);
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 0.2rem 0.5rem;
@@ -919,7 +920,7 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 }
 
 .calendar-compact .task-title-btn button:hover {
-    border-color: var(--accent-soft);
+    border-color: var(--accent);
 }
 
 .calendar-compact .task-details {
