@@ -932,8 +932,8 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
     color: var(--text-main);
     border: none;
     border-radius: 6px;
-    padding: 0.12rem 0.3rem;
-    min-height: 24px;
+    padding: 0;
+    min-height: 22px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -994,6 +994,41 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 
 .subtask-list [data-testid="stHorizontalBlock"] {
     padding: 0.06rem 0.08rem;
+}
+
+.task-details .stButton > button {
+    border: none !important;
+    background: transparent !important;
+    color: var(--text-soft) !important;
+    padding: 0 !important;
+    min-height: 20px !important;
+}
+
+.task-details .stButton > button:hover {
+    text-decoration: underline;
+    background: transparent !important;
+}
+
+#cursor-trail-container {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+}
+
+.cursor-trail {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.55);
+    animation: trailFade 0.6s ease-out forwards;
+}
+
+@keyframes trailFade {
+    0% { opacity: 0.8; transform: scale(1); }
+    100% { opacity: 0; transform: scale(0.2); }
 }
 
 .calendar-card .fc {
