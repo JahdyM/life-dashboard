@@ -3408,7 +3408,7 @@ def zero_boredom_streak(data, today):
     return count
 
 
-def compute_habits_metrics(row, meeting_days, custom_done_by_date, custom_habit_ids):
+def compute_habits_metrics(row, meeting_days, family_worship_day, custom_done_by_date, custom_habit_ids):
     total = 0
     completed = 0
     weekday = row["date"].weekday()
@@ -3417,7 +3417,7 @@ def compute_habits_metrics(row, meeting_days, custom_done_by_date, custom_habit_
             continue
         if key in MEETING_HABIT_KEYS and weekday not in meeting_days:
             continue
-        if key in FAMILY_WORSHIP_HABIT_KEYS and weekday != st.session_state.get("family_worship_day", 6):
+        if key in FAMILY_WORSHIP_HABIT_KEYS and weekday != family_worship_day:
             continue
         total += 1
         completed += int(row.get(key, 0) or 0)
