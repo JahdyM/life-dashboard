@@ -289,6 +289,9 @@ THEME_PRESETS = {
         "calendar_score_empty_bg": "rgba(36, 30, 48, 0.4)",
         "today_border": "#d9c979",
         "today_bg": "rgba(217, 201, 121, 0.12)",
+        "calendar_panel": "rgba(24, 20, 32, 0.55)",
+        "calendar_panel_border": "rgba(91, 79, 112, 0.55)",
+        "row_hover": "rgba(255, 255, 255, 0.04)",
     },
     "light": {
         "bg_main": "#f7f3ed",
@@ -318,6 +321,9 @@ THEME_PRESETS = {
         "calendar_score_empty_bg": "rgba(233, 223, 210, 0.65)",
         "today_border": "#9b845f",
         "today_bg": "rgba(203, 184, 154, 0.32)",
+        "calendar_panel": "rgba(255, 248, 238, 0.88)",
+        "calendar_panel_border": "rgba(196, 181, 159, 0.75)",
+        "row_hover": "rgba(45, 36, 27, 0.06)",
     },
 }
 
@@ -360,6 +366,9 @@ theme_vars_css = f"""
     --calendar-score-empty-bg: {ACTIVE_THEME['calendar_score_empty_bg']};
     --today-border: {ACTIVE_THEME['today_border']};
     --today-bg: {ACTIVE_THEME['today_bg']};
+    --calendar-panel: {ACTIVE_THEME['calendar_panel']};
+    --calendar-panel-border: {ACTIVE_THEME['calendar_panel_border']};
+    --row-hover: {ACTIVE_THEME['row_hover']};
     --atom-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='1.8'%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8'/%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8' transform='rotate(60 14 14)'/%3E%3Cellipse cx='14' cy='14' rx='10' ry='4.8' transform='rotate(-60 14 14)'/%3E%3C/g%3E%3Ccircle cx='14' cy='14' r='2.6' fill='%23000000' stroke='%23ffffff' stroke-width='1.1'/%3E%3C/svg%3E") 14 14, auto;
 }}
 """
