@@ -71,18 +71,23 @@ HABITS = [
     ("workout", "Workout"),
     ("general_reading", "General reading (books)"),
     ("shower", "Shower"),
+    ("daily_text", "Texto Diario"),
     ("meeting_attended", "Meeting attended"),
     ("prepare_meeting", "Prepare meeting"),
+    ("family_worship", "Adoracao em familia"),
     ("writing", "Writing"),
     ("scientific_writing", "Scientific Writing"),
 ]
 MEETING_HABIT_KEYS = {"meeting_attended", "prepare_meeting"}
+FAMILY_WORSHIP_HABIT_KEYS = {"family_worship"}
 FIXED_COUPLE_HABIT_KEYS = {
     "bible_reading",
     "meeting_attended",
     "prepare_meeting",
     "workout",
     "shower",
+    "daily_text",
+    "family_worship",
 }
 DEFAULT_HABIT_LABELS = {key: label for key, label in HABITS}
 CUSTOMIZABLE_HABIT_KEYS = [
