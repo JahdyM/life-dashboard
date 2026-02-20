@@ -106,9 +106,14 @@ async def process_outbox_once(limit: int = 25) -> int:
 
 
 async def run_forever() -> None:
+    sleep_for = 5
     while True:
-        await process_outbox_once(limit=25)
-        await asyncio.sleep(5)
+        processed = await process_outbox_once(limit=25)
+        if processed == 0:
+            sleep_for = min(60, sleep_for * 2)
+        else:
+            sleep_for = 5
+        await asyncio.sleep(sleep_for)
 
 
 if __name__ == "__main__":
