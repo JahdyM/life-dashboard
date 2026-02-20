@@ -173,17 +173,20 @@ def render_habits_tab(ctx):
                     repositories.delete_habit(user_email, habit["id"])
                     st.rerun()
 
-        add_cols = st.columns([6.1, 0.6])
-        with add_cols[0]:
-            st.text_input("New habit", key="habits.new_habit", placeholder="Add a personal habit...")
-        with add_cols[1]:
-            if st.button("+", key="habits.add_habit", type="tertiary"):
-                try:
-                    repositories.add_habit(user_email, st.session_state.get("habits.new_habit", ""))
-                    st.session_state["habits.new_habit"] = ""
-                    st.rerun()
-                except Exception as exc:
-                    st.warning(str(exc))
+        with st.form(key="habits.add_form", clear_on_submit=True):
+            add_cols = st.columns([6.1, 0.6])
+            with add_cols[0]:
+                st.text_input("New habit", key="habits.new_habit", placeholder="Add a personal habit...")
+            with add_cols[1]:
+                submit_add = st.form_submit_button("+", use_container_width=True)
+
+        if submit_add:
+            try:
+                repositories.add_habit(user_email, st.session_state.get("habits.new_habit", ""))
+                st.session_state["habits.new_habit"] = ""
+                st.rerun()
+            except Exception as exc:
+                st.warning(str(exc))
 
         st.markdown("</div>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
