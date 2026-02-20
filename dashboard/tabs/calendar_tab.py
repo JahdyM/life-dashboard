@@ -370,6 +370,11 @@ def render_calendar_tab(ctx):
     cache_key = f"{user_email}:{start_day.isoformat()}:{end_day.isoformat()}"
     force_refresh = bool(st.session_state.get("calendar.force_refresh", False))
     cached = st.session_state.get("calendar.range_cache", {})
+    if force_refresh and api_client.is_enabled():
+        try:
+            _fetch_tasks_range_cached.clear()
+        except Exception as exc:
+            logger.debug("Failed to clear task cache: %s", exc)
     if (not force_refresh) and cached.get("key") == cache_key:
         range_tasks = cached.get("items", [])
         subtasks = cached.get("subtasks", {})
