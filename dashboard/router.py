@@ -26,19 +26,40 @@ def render_router(ctx):
     )
 
     if active == "Daily Habits":
-        render_habits_tab(ctx)
-        return
+        return _render_habits(ctx)
 
     if active == "Calendar & Activities":
-        render_calendar_tab(ctx)
-        return
+        return _render_calendar(ctx)
 
     if active == "Statistics & Charts":
-        render_stats_tab(ctx)
-        return
+        return _render_stats(ctx)
 
     if active == "Mood Board":
-        render_mood_tab(ctx)
-        return
+        return _render_mood(ctx)
 
+    return _render_couple(ctx)
+
+
+@st.fragment
+def _render_habits(ctx):
+    render_habits_tab(ctx)
+
+
+@st.fragment
+def _render_calendar(ctx):
+    render_calendar_tab(ctx)
+
+
+@st.fragment
+def _render_stats(ctx):
+    render_stats_tab(ctx)
+
+
+@st.fragment
+def _render_mood(ctx):
+    render_mood_tab(ctx)
+
+
+@st.fragment
+def _render_couple(ctx):
     render_couple_tab(ctx)

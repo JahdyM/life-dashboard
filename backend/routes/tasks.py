@@ -31,50 +31,64 @@ async def list_unscheduled_tasks(user_email: str = Depends(require_user_email)):
 
 @router.post("/v1/tasks")
 async def create_task(payload: TaskCreate, user_email: str = Depends(require_user_email)):
-    record = await repositories.create_task(
-        user_email,
-        {
-            "title": payload.title,
-            "scheduled_date": payload.scheduled_date.isoformat() if payload.scheduled_date else None,
-            "scheduled_time": payload.scheduled_time,
-            "priority_tag": payload.priority_tag,
-            "estimated_minutes": payload.estimated_minutes,
-            "source": payload.source,
-        },
-    )
-    await repositories.enqueue_outbox(user_email, "task", record["id"], "create", record)
-    return record
+    try:
+        record = await repositories.create_task(
+            user_email,
+            {
+                "title": payload.title,
+                "scheduled_date": payload.scheduled_date.isoformat() if payload.scheduled_date else None,
+                "scheduled_time": payload.scheduled_time,
+                "priority_tag": payload.priority_tag,
+                "estimated_minutes": payload.estimated_minutes,
+                "source": payload.source,
+            },
+        )
+        await repositories.enqueue_outbox(user_email, "task", record["id"], "create", record)
+        return record
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.patch("/v1/tasks/{task_id}")
 async def patch_task(task_id: str, payload: TaskPatch, user_email: str = Depends(require_user_email)):
-    record = await repositories.update_task(user_email, task_id, payload.model_dump(exclude_unset=True))
-    await repositories.enqueue_outbox(user_email, "task", task_id, "update", payload.model_dump(exclude_unset=True))
-    return record
+    try:
+        patch = payload.model_dump(exclude_unset=True)
+        record = await repositories.update_task(user_email, task_id, patch)
+        await repositories.enqueue_outbox(user_email, "task", task_id, "update", patch)
+        return record
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.patch("/v1/tasks/{task_id}/schedule")
 async def schedule_task(task_id: str, payload: TaskSchedule, user_email: str = Depends(require_user_email)):
-    record = await repositories.update_task(user_email, task_id, payload.model_dump(exclude_unset=True))
-    await repositories.enqueue_outbox(user_email, "task", task_id, "update", payload.model_dump(exclude_unset=True))
-    return record
+    try:
+        patch = payload.model_dump(exclude_unset=True)
+        record = await repositories.update_task(user_email, task_id, patch)
+        await repositories.enqueue_outbox(user_email, "task", task_id, "update", patch)
+        return record
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.delete("/v1/tasks/{task_id}")
 async def delete_task(task_id: str, user_email: str = Depends(require_user_email)):
-    record = await repositories.get_task(user_email, task_id)
-    await repositories.delete_task(user_email, task_id)
-    await repositories.enqueue_outbox(
-        user_email,
-        "task",
-        task_id,
-        "delete",
-        {
-            "google_calendar_id": record.get("google_calendar_id"),
-            "google_event_id": record.get("google_event_id"),
-        },
-    )
-    return {"ok": True}
+    try:
+        record = await repositories.get_task(user_email, task_id)
+        await repositories.delete_task(user_email, task_id)
+        await repositories.enqueue_outbox(
+            user_email,
+            "task",
+            task_id,
+            "delete",
+            {
+                "google_calendar_id": record.get("google_calendar_id"),
+                "google_event_id": record.get("google_event_id"),
+            },
+        )
+        return {"ok": True}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.post("/v1/subtasks")

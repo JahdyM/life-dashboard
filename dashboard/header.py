@@ -3,6 +3,7 @@ from datetime import date
 import streamlit as st
 
 
+@st.fragment
 def render_global_header(ctx):
     shared_snapshot = ctx.get("shared_snapshot") or {}
     current_name = ctx.get("current_user_name") or "You"

@@ -2536,9 +2536,9 @@ def load_custom_habit_done_by_date_cached(user_email, database_url, start_iso, e
     return done_by_date
 
 
-def _default_entries_range():
+def _default_entries_range(window_days: int = 365):
     end_date = date.today()
-    start_date = end_date - timedelta(days=365 * 4)
+    start_date = end_date - timedelta(days=window_days)
     return start_date, end_date
 
 
@@ -2606,14 +2606,13 @@ def normalize_entries_df(df):
 
 
 @st.cache_data(ttl=120, show_spinner=False)
-def load_data_for_email_cached(user_email, database_url, api_enabled, api_base):
+def load_data_for_email_cached(user_email, database_url, api_enabled, api_base, start_iso, end_iso):
     if api_enabled:
-        start_date, end_date = _default_entries_range()
         try:
             payload = api_client.request(
                 "GET",
                 "/v1/entries",
-                params={"start": start_date.isoformat(), "end": end_date.isoformat()},
+                params={"start": start_iso, "end": end_iso},
             )
             df = pd.DataFrame(payload.get("items", []))
             return normalize_entries_df(df) if not df.empty else pd.DataFrame(columns=ENTRY_COLUMNS)
@@ -2624,25 +2623,28 @@ def load_data_for_email_cached(user_email, database_url, api_enabled, api_base):
         df = pd.read_sql(
             sql_text(
                 f"SELECT * FROM {ENTRIES_TABLE} "
-                "WHERE user_email = :user_email ORDER BY date"
+                "WHERE user_email = :user_email AND date BETWEEN :start_date AND :end_date "
+                "ORDER BY date"
             ),
             conn,
-            params={"user_email": user_email},
+            params={"user_email": user_email, "start_date": start_iso, "end_date": end_iso},
         )
     return normalize_entries_df(df)
 
 
-def load_data_for_email(user_email):
+def load_data_for_email(user_email, start_date, end_date):
     return load_data_for_email_cached(
         user_email,
         get_database_url(),
         repositories.api_enabled(),
         api_client.api_base_url(),
+        start_date.isoformat(),
+        end_date.isoformat(),
     )
 
 
-def load_data():
-    return load_data_for_email(get_current_user_email())
+def load_data(start_date, end_date):
+    return load_data_for_email(get_current_user_email(), start_date, end_date)
 
 
 @st.cache_data(ttl=30, show_spinner=False)
@@ -4040,7 +4042,16 @@ family_worship_day = st.session_state["family_worship_day"]
 
 active_tab = st.session_state.get("ui.active_tab", "Daily Habits")
 tabs_needing_data = {"Statistics & Charts", "Mood Board"} if api_enabled else {"Daily Habits", "Statistics & Charts", "Mood Board"}
-data = load_data() if active_tab in tabs_needing_data else pd.DataFrame(columns=ENTRY_COLUMNS)
+if active_tab in tabs_needing_data:
+    if active_tab == "Statistics & Charts":
+        range_start, range_end = _default_entries_range(window_days=180)
+    elif active_tab == "Mood Board":
+        range_start, range_end = _default_entries_range(window_days=400)
+    else:
+        range_start, range_end = _default_entries_range(window_days=30)
+    data = load_data(range_start, range_end)
+else:
+    data = pd.DataFrame(columns=ENTRY_COLUMNS)
 
 if active_tab == "Statistics & Charts" and not data.empty:
     custom_habits = (
