@@ -1033,6 +1033,10 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
     font-weight: 500;
     color: var(--text-main) !important;
     letter-spacing: 0.2px;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
 }
 
 .task-list .task-title-btn,
@@ -1041,6 +1045,7 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
     border: none !important;
     box-shadow: none !important;
     border-radius: 0 !important;
+    padding: 0 !important;
 }
 
 .task-list button,
