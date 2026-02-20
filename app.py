@@ -2,7 +2,6 @@ import os
 import json
 import time
 from datetime import date, datetime, timedelta
-import calendar
 from uuid import uuid4
 
 import pandas as pd
