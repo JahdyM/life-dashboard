@@ -72,13 +72,31 @@ def _render_diagnostics(connected):
 
 
 def _range_from_view(selected_day, view_mode, week_ref, month_ref, month_last_day):
-    if view_mode == "Week":
+    if view_mode == "Day":
+        start_day = selected_day
+        end_day = selected_day
+    elif view_mode == "Week":
         start_day = week_ref - timedelta(days=week_ref.weekday())
         end_day = start_day + timedelta(days=6)
     else:
         start_day = month_ref.replace(day=1)
         end_day = month_last_day(start_day)
     return start_day, end_day
+
+
+def _build_day_hour_board(day_tasks):
+    index = {f"{hour:02d}": [] for hour in range(0, 24)}
+    for item in day_tasks:
+        item_time = item.get("scheduled_time")
+        if not item_time:
+            continue
+        hour_key = str(item_time)[:2]
+        index.setdefault(hour_key, []).append(f"{item_time} • {item.get('title')}")
+    rows = []
+    for hour in range(0, 24):
+        hour_key = f"{hour:02d}"
+        rows.append((f"{hour_key}:00", " | ".join(index.get(hour_key, []))))
+    return rows
 
 
 def _day_draft(selected_day):
@@ -181,24 +199,39 @@ def render_calendar_tab(ctx):
 
     st.markdown("<div class='section-title'>Calendar & Activities</div>", unsafe_allow_html=True)
 
-    top = st.columns([2.2, 1.2, 2.2, 1.4])
+    st.markdown("<div class='calendar-top'>", unsafe_allow_html=True)
+    top = st.columns([1.4, 0.9, 1.1, 1.1, 1.1])
     with top[0]:
-        selected_day = st.date_input("Selected day", key="calendar.selected_day", value=date.today())
+        selected_day = st.date_input("Day", key="calendar.selected_day", value=date.today())
     with top[1]:
-        view_mode = st.selectbox("View", ["Week", "Month"], index=0, key="calendar.view_mode")
+        view_mode = st.selectbox("View", ["Day", "Week", "Month"], index=0, key="calendar.view_mode")
     with top[2]:
-        week_ref = st.date_input("Week reference", value=selected_day, key="calendar.week_ref")
-        month_ref = st.date_input("Month reference", value=selected_day.replace(day=1), key="calendar.month_ref")
+        week_ref = st.date_input(
+            "Week ref",
+            value=selected_day,
+            key="calendar.week_ref",
+            label_visibility="visible",
+            disabled=view_mode != "Week",
+        )
     with top[3]:
+        month_ref = st.date_input(
+            "Month ref",
+            value=selected_day.replace(day=1),
+            key="calendar.month_ref",
+            label_visibility="visible",
+            disabled=view_mode != "Month",
+        )
+    with top[4]:
         connect_url = ""
         try:
             connect_url, _ = google_calendar.build_connect_url(user_email)
         except Exception:
             connect_url = ""
         if connect_url:
-            st.link_button("Connect Calendar", connect_url, use_container_width=True)
+            st.link_button("Connect", connect_url, use_container_width=True)
         else:
             st.caption("Calendar OAuth is not configured in backend secrets.")
+    st.markdown("</div>", unsafe_allow_html=True)
 
     start_day, end_day = _range_from_view(selected_day, view_mode, week_ref, month_ref, month_last_day)
 
@@ -231,32 +264,47 @@ def render_calendar_tab(ctx):
 
     day_tasks = [item for item in range_tasks if item.get("scheduled_date") == selected_day.isoformat()]
 
-    st.markdown("<div class='small-label'>Open calendar view</div>", unsafe_allow_html=True)
-    if view_mode == "Week":
-        week_hour_rows = _build_week_hour_board(range_tasks, start_day)
-        st.caption("Hourly schedule")
-        st.dataframe(pd.DataFrame(week_hour_rows), use_container_width=True, hide_index=True)
-    else:
-        month_rows = []
-        day = start_day
-        while day <= end_day:
-            day_items = [item for item in range_tasks if item.get("scheduled_date") == day.isoformat()]
-            month_rows.append(
-                {
-                    "Date": day.strftime("%d/%m/%Y"),
-                    "Tasks": len(day_items),
-                    "Preview": " | ".join(
-                        [
-                            f"{(item.get('scheduled_time') or 'All day')} • {item.get('title')}"
-                            for item in day_items[:4]
-                        ]
-                    ),
-                }
-            )
-            day += timedelta(days=1)
-        st.dataframe(pd.DataFrame(month_rows), use_container_width=True, hide_index=True)
+    st.markdown("<div class='calendar-section-title'>Day Schedule</div>", unsafe_allow_html=True)
+    all_day = [t for t in day_tasks if not t.get("scheduled_time")]
+    if all_day:
+        st.caption("All‑day / no‑time")
+        for item in all_day:
+            st.caption(f"• {item.get('title')}")
+    day_rows = _build_day_hour_board(day_tasks)
+    grid_html = "<div class='day-grid'>" + "".join(
+        [
+            f\"<div class='day-row'><div class='day-hour'>{hour}</div><div class='day-slot'>{slot or ''}</div></div>\"
+            for hour, slot in day_rows
+        ]
+    ) + "</div>"
+    st.markdown(grid_html, unsafe_allow_html=True)
 
-    st.markdown("<div class='small-label'>Add activity</div>", unsafe_allow_html=True)
+    if view_mode in {"Week", "Month"}:
+        with st.expander("Secondary calendar view", expanded=False):
+            if view_mode == "Week":
+                week_hour_rows = _build_week_hour_board(range_tasks, start_day)
+                st.dataframe(pd.DataFrame(week_hour_rows), use_container_width=True, hide_index=True, height=300)
+            else:
+                month_rows = []
+                day = start_day
+                while day <= end_day:
+                    day_items = [item for item in range_tasks if item.get("scheduled_date") == day.isoformat()]
+                    month_rows.append(
+                        {
+                            "Date": day.strftime("%d/%m/%Y"),
+                            "Tasks": len(day_items),
+                            "Preview": " | ".join(
+                                [
+                                    f\"{(item.get('scheduled_time') or 'All day')} • {item.get('title')}\"
+                                    for item in day_items[:3]
+                                ]
+                            ),
+                        }
+                    )
+                    day += timedelta(days=1)
+                st.dataframe(pd.DataFrame(month_rows), use_container_width=True, hide_index=True, height=300)
+
+    st.markdown("<div class='calendar-section-title'>Add activity</div>", unsafe_allow_html=True)
     draft = _day_draft(selected_day)
     add_prefix = selected_day.isoformat()
     add_title_key = f"calendar.add.title.{add_prefix}"
@@ -276,19 +324,19 @@ def render_calendar_tab(ctx):
         st.session_state[add_time_key] = draft["time"]
 
     with st.form(key=f"calendar.add.form.{add_prefix}", clear_on_submit=True):
-        add_cols = st.columns([3.2, 1.3, 1.1, 1.0, 1.1, 1.3])
+        add_cols = st.columns([3.4, 1.0, 1.0, 0.8, 1.0, 1.0])
         with add_cols[0]:
-            st.text_input("Title", key=add_title_key)
+            st.text_input("Title", key=add_title_key, placeholder="Task title", label_visibility="collapsed")
         with add_cols[1]:
-            st.selectbox("Priority", PRIORITY_TAGS, key=add_priority_key)
+            st.selectbox("Priority", PRIORITY_TAGS, key=add_priority_key, label_visibility="collapsed")
         with add_cols[2]:
-            st.number_input("Est", min_value=5, max_value=600, step=5, key=add_est_key)
+            st.number_input("Est", min_value=5, max_value=600, step=5, key=add_est_key, label_visibility="collapsed")
         with add_cols[3]:
             st.checkbox("Time", key=add_has_time_key)
         with add_cols[4]:
-            st.time_input("Start", key=add_time_key, disabled=not bool(st.session_state.get(add_has_time_key)))
+            st.time_input("Start", key=add_time_key, disabled=not bool(st.session_state.get(add_has_time_key)), label_visibility="collapsed")
         with add_cols[5]:
-            confirm_add = st.form_submit_button("Confirm task", use_container_width=True)
+            confirm_add = st.form_submit_button("Add", use_container_width=True)
 
     if confirm_add:
         draft["title"] = st.session_state.get(add_title_key, "")
@@ -319,17 +367,17 @@ def render_calendar_tab(ctx):
             st.session_state["calendar.force_refresh"] = True
             st.rerun()
 
-    st.markdown("<div class='small-label' style='margin-top:8px;'>Remembered tasks (to decide)</div>", unsafe_allow_html=True)
-    with st.form(key="calendar.remembered.form", clear_on_submit=False):
-        rem_cols = st.columns([3.2, 1.3, 1.1, 1.3])
-        with rem_cols[0]:
-            st.text_input("Remembered task", key="calendar.remembered.title", placeholder="Something to do later")
-        with rem_cols[1]:
-            st.selectbox("Priority", PRIORITY_TAGS, key="calendar.remembered.priority")
-        with rem_cols[2]:
-            st.number_input("Est", min_value=5, max_value=600, step=5, value=20, key="calendar.remembered.est")
-        with rem_cols[3]:
-            confirm_remembered = st.form_submit_button("Confirm remembered", use_container_width=True)
+    with st.expander("Remembered tasks (to decide)", expanded=False):
+        with st.form(key="calendar.remembered.form", clear_on_submit=False):
+            rem_cols = st.columns([3.0, 1.0, 1.0, 1.0])
+            with rem_cols[0]:
+                st.text_input("Remembered task", key="calendar.remembered.title", placeholder="Something to do later")
+            with rem_cols[1]:
+                st.selectbox("Priority", PRIORITY_TAGS, key="calendar.remembered.priority")
+            with rem_cols[2]:
+                st.number_input("Est", min_value=5, max_value=600, step=5, value=20, key="calendar.remembered.est")
+            with rem_cols[3]:
+                confirm_remembered = st.form_submit_button("Add", use_container_width=True)
 
     if confirm_remembered:
         title = (st.session_state.get("calendar.remembered.title") or "").strip()
@@ -409,7 +457,7 @@ def render_calendar_tab(ctx):
             st.divider()
 
     st.markdown("<div class='calendar-compact'>", unsafe_allow_html=True)
-    st.markdown("<div class='small-label' style='margin-top:8px;'>Daily tasks list</div>", unsafe_allow_html=True)
+    st.markdown("<div class='calendar-section-title'>Daily tasks list</div>", unsafe_allow_html=True)
     if not day_tasks:
         st.caption("No local tasks for this day.")
 
