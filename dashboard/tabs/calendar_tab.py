@@ -413,7 +413,7 @@ def render_calendar_tab(ctx):
     if not day_tasks:
         st.caption("No local tasks for this day.")
 
-    for task in day_tasks:
+    for task_idx, task in enumerate(day_tasks, start=1):
         task_id = task["id"]
         task_key = task_id.replace("-", "_")
         time_current = task.get("scheduled_time")
@@ -444,7 +444,7 @@ def render_calendar_tab(ctx):
         with row[3]:
             delete_task = st.button("✕", key=f"calendar.task.delete.{task_key}")
 
-        with st.expander("Details", expanded=False):
+        with st.expander(f"Details · {task_idx}", expanded=False):
             with st.form(key=f"calendar.task.form.{task_key}", clear_on_submit=False):
                 edit_cols = st.columns([1.2, 1.1, 1.1, 1.2, 1.4])
                 with edit_cols[0]:
@@ -518,7 +518,7 @@ def render_calendar_tab(ctx):
                 st.rerun()
 
             sub_items = subtasks.get(task_id, [])
-            for sub in sub_items:
+            for sub_idx, sub in enumerate(sub_items, start=1):
                 sub_key = sub["id"].replace("-", "_")
                 sub_row = st.columns([0.6, 6.2, 1.0, 0.8])
                 with sub_row[0]:
@@ -529,7 +529,7 @@ def render_calendar_tab(ctx):
                         label_visibility="collapsed",
                     )
                 with sub_row[1]:
-                    st.caption(sub.get("title") or "")
+                    st.caption(f"{task_idx}.{sub_idx} · {sub.get('title') or ''}")
                 with sub_row[2]:
                     s_actual = int(sub.get("actual_minutes") or 0)
                     s_actual_new = st.number_input(
