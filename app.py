@@ -4097,7 +4097,11 @@ shared_habit_keys = [
     "family_worship",
 ]
 pending_tasks = 0
-shared_snapshot = {"today": date.today().isoformat(), "habits": [], "summary": "Shared summary unavailable."}
+shared_snapshot = st.session_state.get(
+    "header.shared_snapshot",
+    {"today": date.today().isoformat(), "habits": [], "summary": "Shared summary unavailable."},
+)
+pending_tasks = int(st.session_state.get("header.pending_tasks", 0) or 0)
 if api_enabled:
     try:
         @st.cache_data(ttl=5)
@@ -4111,6 +4115,8 @@ if api_enabled:
         )
         pending_tasks = int(header_payload.get("pending_tasks", 0) or 0)
         shared_snapshot = header_payload.get("shared_snapshot") or shared_snapshot
+        st.session_state["header.pending_tasks"] = pending_tasks
+        st.session_state["header.shared_snapshot"] = shared_snapshot
     except Exception:
         pass
 else:

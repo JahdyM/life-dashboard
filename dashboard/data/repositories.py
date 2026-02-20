@@ -159,8 +159,12 @@ def save_habit_toggle(user_email, day, habit_key, value, sync: bool = False):
         day_iso = day if isinstance(day, str) else day.isoformat()
         payload = {habit_key: bool(value)}
         if sync:
-            api_client.request("PATCH", f"/v1/day/{day_iso}", json=payload)
-            return
+            try:
+                api_client.request("PATCH", f"/v1/day/{day_iso}", json=payload, timeout=5)
+                return
+            except Exception:
+                _fire_and_forget_api("PATCH", f"/v1/day/{day_iso}", json_payload=payload)
+                return
         _fire_and_forget_api(
             "PATCH",
             f"/v1/day/{day_iso}",
