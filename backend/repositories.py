@@ -17,6 +17,38 @@ GOOGLE_TOKENS_TABLE = "google_calendar_tokens"
 SYNC_OUTBOX_TABLE = "sync_outbox"
 SYNC_CURSOR_TABLE = "google_sync_cursor"
 
+HABIT_KEYS = [
+    "bible_reading",
+    "bible_study",
+    "dissertation_work",
+    "workout",
+    "general_reading",
+    "shower",
+    "daily_text",
+    "meeting_attended",
+    "prepare_meeting",
+    "family_worship",
+    "writing",
+    "scientific_writing",
+]
+
+ENTRY_SELECT_COLUMNS = [
+    "user_email",
+    "date",
+    *HABIT_KEYS,
+    "sleep_hours",
+    "anxiety_level",
+    "work_hours",
+    "boredom_minutes",
+    "mood_category",
+    "priority_label",
+    "priority_done",
+    "mood_note",
+    "mood_media_url",
+    "mood_tags_json",
+    "updated_at",
+]
+
 
 def _new_id() -> str:
     return uuid4().hex
@@ -45,6 +77,23 @@ def _normalize_priority(value):
     if value in {"High", "Medium", "Low"}:
         return value
     return "Medium"
+
+
+def _normalize_task_row(row: dict) -> dict:
+    if not row:
+        return {}
+    payload = dict(row)
+    scheduled_date = payload.get("scheduled_date")
+    if isinstance(scheduled_date, date):
+        payload["scheduled_date"] = scheduled_date.isoformat()
+    scheduled_time = payload.get("scheduled_time")
+    if scheduled_time is not None and hasattr(scheduled_time, "strftime"):
+        payload["scheduled_time"] = scheduled_time.strftime("%H:%M")
+    for key in ("created_at", "updated_at"):
+        value = payload.get(key)
+        if value is not None and hasattr(value, "isoformat"):
+            payload[key] = value.isoformat()
+    return payload
 
 
 def get_partner_email(user_email: str) -> str | None:
@@ -80,7 +129,8 @@ async def get_day_entry(user_email: str, day_iso: str) -> dict:
     async with session_factory() as session:
         row = (await session.execute(
             sql_text(
-                f"SELECT * FROM {ENTRIES_TABLE} WHERE user_email = :user_email AND date = :date"
+                f"SELECT {', '.join(ENTRY_SELECT_COLUMNS)} FROM {ENTRIES_TABLE} "
+                "WHERE user_email = :user_email AND date = :date"
             ),
             {"user_email": user_email, "date": day_iso},
         )).mappings().fetchone()
@@ -93,7 +143,7 @@ async def list_entries_range(user_email: str, start_iso: str, end_iso: str) -> l
         rows = (await session.execute(
             sql_text(
                 f"""
-                SELECT *
+                SELECT {', '.join(ENTRY_SELECT_COLUMNS)}
                 FROM {ENTRIES_TABLE}
                 WHERE user_email = :user_email
                   AND date BETWEEN :start_date AND :end_date
@@ -308,7 +358,7 @@ async def list_tasks(user_email: str, start_iso: str, end_iso: str) -> list[dict
             ),
             {"user_email": user_email, "start_date": start_iso, "end_date": end_iso},
         )).mappings().all()
-    return [dict(row) for row in rows]
+    return [_normalize_task_row(row) for row in rows]
 
 
 async def count_pending_tasks(user_email: str, day_iso: str) -> int:
@@ -348,7 +398,7 @@ async def list_unscheduled_tasks(user_email: str, source: str | None = None) -> 
             ),
             {"user_email": user_email, "source": filter_source},
         )).mappings().all()
-    return [dict(row) for row in rows]
+    return [_normalize_task_row(row) for row in rows]
 
 
 async def get_task_by_google_ids(user_email: str, calendar_id: str, event_id: str) -> dict | None:
@@ -370,7 +420,7 @@ async def get_task_by_google_ids(user_email: str, calendar_id: str, event_id: st
             ),
             {"user_email": user_email, "calendar_id": calendar_id, "event_id": event_id},
         )).mappings().fetchone()
-    return dict(row) if row else None
+    return _normalize_task_row(row) if row else None
 
 
 async def delete_task_by_google_ids(user_email: str, calendar_id: str, event_id: str) -> None:
@@ -536,7 +586,7 @@ async def get_task(user_email: str, task_id: str) -> dict:
             ),
             {"id": task_id, "user_email": user_email},
         )).mappings().fetchone()
-    return dict(row) if row else {}
+    return _normalize_task_row(row) if row else {}
 
 
 async def delete_task(user_email: str, task_id: str) -> None:

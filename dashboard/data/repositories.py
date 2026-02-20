@@ -218,7 +218,8 @@ def get_day_entry(user_email, day, timeout: int = 8):
     with engine.connect() as conn:
         row = conn.execute(
             sql_text(
-                f"SELECT * FROM {ENTRIES_TABLE} WHERE user_email = :user_email AND date = :date"
+                f"SELECT {', '.join(ENTRY_COLUMNS)} FROM {ENTRIES_TABLE} "
+                "WHERE user_email = :user_email AND date = :date"
             ),
             {"user_email": user_email, "date": day_iso},
         ).mappings().fetchone()
@@ -239,7 +240,7 @@ def list_entries_range(user_email, start_day, end_day):
         rows = conn.execute(
             sql_text(
                 f"""
-                SELECT *
+                SELECT {', '.join(ENTRY_COLUMNS)}
                 FROM {ENTRIES_TABLE}
                 WHERE user_email = :user_email
                   AND date BETWEEN :start_date AND :end_date

@@ -16,6 +16,29 @@ def get_value(slice_name, name, default=None):
     return payload.get(name, default)
 
 
+def get_int(slice_name, name, default=0):
+    value = get_value(slice_name, name, default)
+    try:
+        return int(value)
+    except Exception:
+        return int(default or 0)
+
+
+def get_float(slice_name, name, default=0.0):
+    value = get_value(slice_name, name, default)
+    try:
+        return float(value)
+    except Exception:
+        return float(default or 0.0)
+
+
+def get_str(slice_name, name, default=""):
+    value = get_value(slice_name, name, default)
+    if value is None:
+        return str(default or "")
+    return str(value)
+
+
 def set_value(slice_name, name, value):
     payload = get_slice(slice_name)
     payload[name] = value

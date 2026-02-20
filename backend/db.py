@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncEngine
 
 from backend.settings import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 def _normalize_database_url(database_url: str) -> str:
@@ -21,10 +24,16 @@ def _normalize_database_url(database_url: str) -> str:
         parsed = urlparse(url)
         query_items = [(k, v) for k, v in parse_qsl(parsed.query, keep_blank_values=True)]
         clean = []
+        ssl_requested = False
         for key, value in query_items:
-            if key in {"sslmode", "channel_binding", "ssl"}:
+            if key == "sslmode":
+                ssl_requested = True
+                continue
+            if key in {"channel_binding", "ssl"}:
                 continue
             clean.append((key, value))
+        if ssl_requested:
+            clean.append(("ssl", "true"))
         parsed = parsed._replace(query=urlencode(clean))
         url = urlunparse(parsed)
     except Exception:
@@ -48,7 +57,7 @@ def get_engine() -> AsyncEngine:
             if host and host not in {"localhost", "127.0.0.1"}:
                 connect_args["ssl"] = True
         except Exception:
-            pass
+            logger.debug("Failed to parse database URL for SSL hint.")
         if connect_args:
             _engine = create_async_engine(db_url, pool_pre_ping=True, future=True, connect_args=connect_args)
         else:

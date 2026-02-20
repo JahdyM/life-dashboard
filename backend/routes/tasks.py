@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -7,6 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from backend.auth import require_user_email
 from backend.schemas import TaskCreate, TaskPatch, TaskSchedule, SubtaskCreate, SubtaskPatch
 from backend import repositories
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -47,21 +50,23 @@ async def list_unscheduled_tasks(user_email: str = Depends(require_user_email)):
 @router.post("/v1/tasks")
 async def create_task(payload: TaskCreate, user_email: str = Depends(require_user_email)):
     try:
+        clean = _normalize_task_patch(payload.model_dump(exclude_unset=True))
         record = await repositories.create_task(
             user_email,
             {
-                "title": payload.title,
-                "scheduled_date": payload.scheduled_date.isoformat() if payload.scheduled_date else None,
-                "scheduled_time": payload.scheduled_time,
-                "priority_tag": payload.priority_tag,
-                "estimated_minutes": payload.estimated_minutes,
-                "source": payload.source,
+                "title": clean.get("title") or payload.title,
+                "scheduled_date": clean.get("scheduled_date"),
+                "scheduled_time": clean.get("scheduled_time"),
+                "priority_tag": clean.get("priority_tag") or payload.priority_tag,
+                "estimated_minutes": clean.get("estimated_minutes") or payload.estimated_minutes,
+                "source": clean.get("source") or payload.source,
             },
         )
         await repositories.enqueue_outbox(user_email, "task", record["id"], "create", record)
         return record
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.exception("Failed to create task: %s", exc)
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.patch("/v1/tasks/{task_id}")
@@ -72,7 +77,8 @@ async def patch_task(task_id: str, payload: TaskPatch, user_email: str = Depends
         await repositories.enqueue_outbox(user_email, "task", task_id, "update", patch)
         return record
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.exception("Failed to update task: %s", exc)
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.patch("/v1/tasks/{task_id}/schedule")
@@ -83,7 +89,8 @@ async def schedule_task(task_id: str, payload: TaskSchedule, user_email: str = D
         await repositories.enqueue_outbox(user_email, "task", task_id, "update", patch)
         return record
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.exception("Failed to schedule task: %s", exc)
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.delete("/v1/tasks/{task_id}")
@@ -103,7 +110,8 @@ async def delete_task(task_id: str, user_email: str = Depends(require_user_email
         )
         return {"ok": True}
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        logger.exception("Failed to delete task: %s", exc)
+        raise HTTPException(status_code=500, detail="Internal error")
 
 
 @router.post("/v1/subtasks")
