@@ -4,6 +4,8 @@ from datetime import date, timedelta
 import streamlit as st
 
 from dashboard.data import repositories, api_client
+from dashboard.constants import JAHDY_EMAIL, GUILHERME_EMAIL, MOODS, MOOD_TO_INT, DEFAULT_HABIT_LABELS
+from dashboard.visualizations import mood_heatmap
 
 
 SHARED_HABITS = [
@@ -18,11 +20,9 @@ SHARED_HABITS = [
 
 
 def render_couple_tab(ctx):
-    user_a = ctx["constants"]["JAHDY_EMAIL"]
-    user_b = ctx["constants"]["GUILHERME_EMAIL"]
-    mood_heatmap = ctx["helpers"]["mood_heatmap"]
-    moods = ctx["constants"]["MOODS"]
-    mood_to_int = {mood: idx for idx, mood in enumerate(moods)}
+    user_a = JAHDY_EMAIL
+    user_b = GUILHERME_EMAIL
+    mood_to_int = MOOD_TO_INT
 
     st.markdown("<div class='section-title'>Couple</div>", unsafe_allow_html=True)
 
@@ -38,7 +38,7 @@ def render_couple_tab(ctx):
     st.markdown("<div class='small-label'>Comparative shared-habits streak</div>", unsafe_allow_html=True)
     for item in streak_snapshot.get("habits", []):
         key = item.get("habit_key")
-        label = ctx["constants"]["DEFAULT_HABIT_LABELS"].get(key, key)
+        label = DEFAULT_HABIT_LABELS.get(key, key)
         cols = st.columns(3)
         cols[0].markdown(f"🔥 **{label}**")
         cols[1].caption(f"{item.get('user_a_days', 0)} days | Jahdy")
