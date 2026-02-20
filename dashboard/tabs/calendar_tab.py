@@ -24,6 +24,16 @@ PRIORITY_COLORS = {
 }
 
 
+@st.cache_data(ttl=5, show_spinner=False)
+def _fetch_tasks_range_cached(user_email: str, start_iso: str, end_iso: str, api_base: str):
+    payload = api_client.request(
+        "GET",
+        "/v1/tasks",
+        params={"start": start_iso, "end": end_iso},
+    )
+    return payload.get("items", []), payload.get("subtasks", {})
+
+
 def _get_calendar_ids(ctx, user_email):
     primary = "primary"
     secret_getter = ctx["helpers"]["get_secret"]
@@ -357,13 +367,12 @@ def render_calendar_tab(ctx):
     else:
         if api_client.is_enabled():
             try:
-                payload = api_client.request(
-                    "GET",
-                    "/v1/tasks",
-                    params={"start": start_day.isoformat(), "end": end_day.isoformat()},
+                range_tasks, subtasks = _fetch_tasks_range_cached(
+                    user_email,
+                    start_day.isoformat(),
+                    end_day.isoformat(),
+                    api_client.api_base_url(),
                 )
-                range_tasks = payload.get("items", [])
-                subtasks = payload.get("subtasks", {})
             except Exception:
                 range_tasks = repositories.list_activities_for_range(user_email, start_day, end_day)
                 subtasks = repositories.list_todo_subtasks([item["id"] for item in range_tasks], user_email=user_email)
@@ -429,7 +438,7 @@ def render_calendar_tab(ctx):
             if last_snapshot is not None and last_snapshot != current_snapshot:
                 patch = {"id": task_id, "is_done": int(bool(checked))}
                 try:
-                    repositories.save_activity(patch)
+                    repositories.save_activity_async(patch)
                     st.session_state["calendar.force_refresh"] = True
                 except Exception as exc:
                     st.session_state["calendar.sync_status"] = "Failed"

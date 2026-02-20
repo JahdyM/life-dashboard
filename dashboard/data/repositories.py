@@ -583,6 +583,26 @@ def save_activity(activity_patch):
     return payload
 
 
+def save_activity_async(activity_patch):
+    user_email = activity_patch.get("user_email") or _current_user()
+    task_id = activity_patch.get("id")
+    if api_client.is_enabled():
+        payload = dict(activity_patch)
+        payload.pop("user_email", None)
+        if task_id:
+            payload.pop("id", None)
+        if "scheduled_date" in payload and isinstance(payload.get("scheduled_date"), date):
+            payload["scheduled_date"] = payload["scheduled_date"].isoformat()
+        if "scheduled_time" in payload:
+            payload["scheduled_time"] = _normalize_time_value(payload.get("scheduled_time"))
+        if task_id:
+            _fire_and_forget_api("PATCH", f"/v1/tasks/{task_id}", json_payload=payload)
+            return
+        _fire_and_forget_api("POST", "/v1/tasks", json_payload=payload)
+        return
+    save_activity(activity_patch)
+
+
 def get_activity_by_id(task_id, user_email=None):
     target_user = user_email or _current_user()
     engine = _engine()
