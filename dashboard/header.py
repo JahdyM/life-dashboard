@@ -10,6 +10,7 @@ def render_global_header(ctx):
     partner_name = ctx.get("partner_name") or "Partner"
     habit_labels = ctx.get("habit_labels", {})
     shared_habit_keys = ctx.get("shared_habit_keys", [])
+    header_bump = ctx.get("header_bump")
 
     st.markdown(
         """
@@ -57,6 +58,8 @@ def render_global_header(ctx):
     today_iso = shared_snapshot.get("today") or date.today().isoformat()
 
     st.markdown("<div class='sticky-header-wrap'>", unsafe_allow_html=True)
+    if header_bump:
+        st.markdown(f"<!-- header-bump:{header_bump} -->", unsafe_allow_html=True)
     st.markdown(f"<div class='small-label'>Shared Habits Streak • {today_iso}</div>", unsafe_allow_html=True)
 
     if not habits and shared_habit_keys:

@@ -4135,6 +4135,7 @@ render_global_header(
         "partner_name": partner_name,
         "habit_labels": DEFAULT_HABIT_LABELS,
         "shared_habit_keys": shared_habit_keys,
+        "header_bump": float(st.session_state.get("header.bump", 0.0) or 0.0),
     }
 )
 _perf_mark("header_ms", _t0)
