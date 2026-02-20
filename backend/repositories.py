@@ -658,7 +658,7 @@ async def enqueue_outbox(user_email: str, entity_type: str, entity_id: str, acti
         "entity_type": entity_type,
         "entity_id": entity_id,
         "action": action,
-        "payload_json": json.dumps(payload or {}, ensure_ascii=False),
+        "payload_json": json.dumps(payload or {}, ensure_ascii=False, default=str),
         "status": "pending",
         "attempts": 0,
         "next_retry_at": None,

@@ -20,6 +20,7 @@ def _save_fixed_habit(user_email, selected_day, habit_key, widget_key):
         selected_day,
         habit_key,
         st.session_state.get(widget_key, False),
+        sync=True,
     )
     st.session_state["header.bump"] = time.time()
 
