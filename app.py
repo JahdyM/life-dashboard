@@ -1307,10 +1307,11 @@ st_components.html(
     style.id = 'cursor-trail-style';
     style.textContent = `
       #cursor-trail-container { position: fixed; inset: 0; pointer-events: none; z-index: 9999; }
-      .cursor-trail { position: absolute; width: 12px; height: 12px; border-radius: 50%;
-        background: rgba(255,255,255,0.7); box-shadow: 0 0 14px rgba(255,255,255,0.55);
-        animation: trailFade 0.6s ease-out forwards; }
-      @keyframes trailFade { 0% {opacity:.85; transform:scale(1);} 100% {opacity:0; transform:scale(.2);} }
+      .cursor-trail { position: absolute; width: 18px; height: 18px; border-radius: 50%;
+        background: rgba(255,255,255,0.9); box-shadow: 0 0 22px rgba(255,255,255,0.75);
+        mix-blend-mode: screen;
+        animation: trailFade 0.9s ease-out forwards; }
+      @keyframes trailFade { 0% {opacity:.95; transform:scale(1.15);} 100% {opacity:0; transform:scale(.1);} }
     `;
     parentDoc.head.appendChild(style);
   }
