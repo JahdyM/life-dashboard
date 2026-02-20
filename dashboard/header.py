@@ -8,6 +8,7 @@ def render_global_header(ctx):
     current_name = ctx.get("current_user_name") or "You"
     partner_name = ctx.get("partner_name") or "Partner"
     habit_labels = ctx.get("habit_labels", {})
+    shared_habit_keys = ctx.get("shared_habit_keys", [])
 
     st.markdown(
         """
@@ -57,26 +58,26 @@ def render_global_header(ctx):
     st.markdown("<div class='sticky-header-wrap'>", unsafe_allow_html=True)
     st.markdown(f"<div class='small-label'>Shared Habits Streak • {today_iso}</div>", unsafe_allow_html=True)
 
-    if not habits:
-        st.caption("No shared streak data available yet.")
-    else:
-        cols = st.columns(5)
-        for idx, item in enumerate(habits):
-            habit_key = item.get("habit_key")
-            label = habit_labels.get(habit_key, habit_key.replace("_", " ").title())
-            a_days = int(item.get("user_a_days", 0) or 0)
-            b_days = int(item.get("user_b_days", 0) or 0)
-            with cols[idx % 5]:
-                st.markdown(
-                    (
-                        "<div class='streak-row'>"
-                        f"<div class='streak-title'><span class='streak-emoji'>🔥</span>{label}</div>"
-                        f"<div class='streak-line'>{a_days} days | {current_name}</div>"
-                        f"<div class='streak-line'>{b_days} days | {partner_name}</div>"
-                        "</div>"
-                    ),
-                    unsafe_allow_html=True,
-                )
+    if not habits and shared_habit_keys:
+        habits = [{"habit_key": key, "user_a_days": 0, "user_b_days": 0} for key in shared_habit_keys]
+
+    cols = st.columns(5)
+    for idx, item in enumerate(habits):
+        habit_key = item.get("habit_key")
+        label = habit_labels.get(habit_key, habit_key.replace("_", " ").title())
+        a_days = int(item.get("user_a_days", 0) or 0)
+        b_days = int(item.get("user_b_days", 0) or 0)
+        with cols[idx % 5]:
+            st.markdown(
+                (
+                    "<div class='streak-row'>"
+                    f"<div class='streak-title'><span class='streak-emoji'>🔥</span>{label}</div>"
+                    f"<div class='streak-line'>{a_days} days | {current_name}</div>"
+                    f"<div class='streak-line'>{b_days} days | {partner_name}</div>"
+                    "</div>"
+                ),
+                unsafe_allow_html=True,
+            )
 
     st.caption(summary)
     st.markdown("</div>", unsafe_allow_html=True)
