@@ -81,6 +81,86 @@ def render_habits_tab(ctx):
     with top_cols[0]:
         st.markdown("<div class='habits-tight'>", unsafe_allow_html=True)
         selected_day = st.date_input("Date", key="habits.selected_date", value=selected_day)
+        st.markdown("<div class='panel habits-compact'>", unsafe_allow_html=True)
+        st.markdown("<div class='small-label'>Fixed shared habits</div>", unsafe_allow_html=True)
+        fixed_cols = st.columns(2)
+        idx = 0
+        for habit_key in fixed_habit_keys:
+            if habit_key in meeting_habit_keys and not is_meeting_day:
+                continue
+            widget_key = f"habits.fixed.{habit_key}"
+            if st.session_state.get("habits.loaded_key") != loaded_key:
+                st.session_state[widget_key] = bool(row_payload.get(habit_key, 0))
+            with fixed_cols[idx % 2]:
+                st.checkbox(
+                    default_habit_labels.get(habit_key, habit_key),
+                    key=widget_key,
+                    on_change=_save_fixed_habit,
+                    args=(user_email, selected_day, habit_key, widget_key),
+                )
+            idx += 1
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        st.markdown("<div class='panel habits-compact'>", unsafe_allow_html=True)
+        st.markdown("<div class='small-label'>Personal habits</div>", unsafe_allow_html=True)
+        custom_habits = repositories.get_custom_habits(user_email, active_only=True)
+        custom_done = repositories.get_custom_habit_done(user_email, selected_day)
+
+        for habit in custom_habits:
+            row_cols = st.columns([0.22, 6.1, 0.38, 0.38])
+            done_key = f"habits.custom_done.{habit['id']}"
+            if st.session_state.get("habits.loaded_key") != loaded_key:
+                st.session_state[done_key] = bool(custom_done.get(habit["id"], 0))
+            with row_cols[0]:
+                st.checkbox(
+                    "",
+                    key=done_key,
+                    label_visibility="collapsed",
+                    on_change=_save_custom_done,
+                    args=(user_email, selected_day, custom_habits),
+                )
+            with row_cols[1]:
+                edit_key = f"habits.editing.{habit['id']}"
+                name_key = f"habits.edit_name.{habit['id']}"
+                if st.session_state.get(edit_key, False):
+                    st.text_input("Edit", key=name_key, label_visibility="collapsed")
+                else:
+                    st.markdown(habit["name"])
+
+            with row_cols[2]:
+                edit_key = f"habits.editing.{habit['id']}"
+                name_key = f"habits.edit_name.{habit['id']}"
+                if st.session_state.get(edit_key, False):
+                    if st.button("✔", key=f"habits.save.{habit['id']}", type="tertiary"):
+                        try:
+                            repositories.save_habit_label_edit(user_email, habit["id"], st.session_state.get(name_key, ""))
+                            st.session_state[edit_key] = False
+                            st.rerun()
+                        except Exception as exc:
+                            st.warning(str(exc))
+                else:
+                    if st.button("✎", key=f"habits.edit.{habit['id']}", type="tertiary"):
+                        st.session_state[edit_key] = True
+                        st.session_state[name_key] = habit["name"]
+                        st.rerun()
+            with row_cols[3]:
+                if st.button("✕", key=f"habits.delete.{habit['id']}", type="tertiary"):
+                    repositories.delete_habit(user_email, habit["id"])
+                    st.rerun()
+
+        add_cols = st.columns([6.1, 0.6])
+        with add_cols[0]:
+            st.text_input("New habit", key="habits.new_habit", placeholder="Add a personal habit...")
+        with add_cols[1]:
+            if st.button("+", key="habits.add_habit", type="tertiary"):
+                try:
+                    repositories.add_habit(user_email, st.session_state.get("habits.new_habit", ""))
+                    st.session_state["habits.new_habit"] = ""
+                    st.rerun()
+                except Exception as exc:
+                    st.warning(str(exc))
+
+        st.markdown("</div>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
     with top_cols[1]:
         st.markdown("<div class='panel'>", unsafe_allow_html=True)
@@ -173,90 +253,4 @@ def render_habits_tab(ctx):
     loaded_key = f"{user_email}:{selected_day.isoformat()}"
     is_meeting_day = selected_day.weekday() in selected_meeting_days
 
-    body_cols = st.columns([1.15, 0.85])
-    with body_cols[0]:
-        st.markdown("<div class='habits-tight'>", unsafe_allow_html=True)
-        st.markdown("<div class='panel habits-compact'>", unsafe_allow_html=True)
-        st.markdown("<div class='small-label'>Fixed shared habits</div>", unsafe_allow_html=True)
-        fixed_cols = st.columns(2)
-        idx = 0
-        for habit_key in fixed_habit_keys:
-            if habit_key in meeting_habit_keys and not is_meeting_day:
-                continue
-            widget_key = f"habits.fixed.{habit_key}"
-            if st.session_state.get("habits.loaded_key") != loaded_key:
-                st.session_state[widget_key] = bool(row_payload.get(habit_key, 0))
-            with fixed_cols[idx % 2]:
-                st.checkbox(
-                    default_habit_labels.get(habit_key, habit_key),
-                    key=widget_key,
-                    on_change=_save_fixed_habit,
-                    args=(user_email, selected_day, habit_key, widget_key),
-                )
-            idx += 1
-        st.markdown("</div>", unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        st.markdown("<div class='panel habits-compact'>", unsafe_allow_html=True)
-        st.markdown("<div class='small-label'>Personal habits</div>", unsafe_allow_html=True)
-        custom_habits = repositories.get_custom_habits(user_email, active_only=True)
-        custom_done = repositories.get_custom_habit_done(user_email, selected_day)
-
-        for habit in custom_habits:
-            row_cols = st.columns([0.22, 6.1, 0.38, 0.38])
-            done_key = f"habits.custom_done.{habit['id']}"
-            if st.session_state.get("habits.loaded_key") != loaded_key:
-                st.session_state[done_key] = bool(custom_done.get(habit["id"], 0))
-            with row_cols[0]:
-                st.checkbox(
-                    "",
-                    key=done_key,
-                    label_visibility="collapsed",
-                    on_change=_save_custom_done,
-                    args=(user_email, selected_day, custom_habits),
-                )
-            with row_cols[1]:
-                edit_key = f"habits.editing.{habit['id']}"
-                name_key = f"habits.edit_name.{habit['id']}"
-                if st.session_state.get(edit_key, False):
-                    st.text_input("Edit", key=name_key, label_visibility="collapsed")
-                else:
-                    st.markdown(habit["name"])
-
-            with row_cols[2]:
-                edit_key = f"habits.editing.{habit['id']}"
-                name_key = f"habits.edit_name.{habit['id']}"
-                if st.session_state.get(edit_key, False):
-                    if st.button("✔", key=f"habits.save.{habit['id']}", type="tertiary"):
-                        try:
-                            repositories.save_habit_label_edit(user_email, habit["id"], st.session_state.get(name_key, ""))
-                            st.session_state[edit_key] = False
-                            st.rerun()
-                        except Exception as exc:
-                            st.warning(str(exc))
-                else:
-                    if st.button("✎", key=f"habits.edit.{habit['id']}", type="tertiary"):
-                        st.session_state[edit_key] = True
-                        st.session_state[name_key] = habit["name"]
-                        st.rerun()
-            with row_cols[3]:
-                if st.button("✕", key=f"habits.delete.{habit['id']}", type="tertiary"):
-                    repositories.delete_habit(user_email, habit["id"])
-                    st.rerun()
-
-        add_cols = st.columns([6.1, 0.6])
-        with add_cols[0]:
-            st.text_input("New habit", key="habits.new_habit", placeholder="Add a personal habit...")
-        with add_cols[1]:
-            if st.button("+", key="habits.add_habit", type="tertiary"):
-                try:
-                    repositories.add_habit(user_email, st.session_state.get("habits.new_habit", ""))
-                    st.session_state["habits.new_habit"] = ""
-                    st.rerun()
-                except Exception as exc:
-                    st.warning(str(exc))
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    with body_cols[1]:
-        st.empty()
+    # removed extra body columns to keep habits directly below date
