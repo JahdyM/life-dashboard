@@ -14,28 +14,29 @@ def render_global_header(ctx):
         <style>
         .sticky-header-wrap {
             position: sticky;
-            top: 0.25rem;
+            top: 0.2rem;
             z-index: 999;
-            padding: 0.6rem 0.8rem;
-            border-radius: 14px;
+            padding: 0.45rem 0.6rem;
+            border-radius: 12px;
             border: 1px solid var(--border);
-            backdrop-filter: blur(8px);
-            background: var(--bg-panel);
-            margin-bottom: 0.8rem;
+            backdrop-filter: blur(6px);
+            background: rgba(18, 14, 26, 0.65);
+            margin-bottom: 0.6rem;
         }
         .streak-row {
             border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 0.35rem 0.55rem;
-            background: var(--bg-card);
-            margin-bottom: 0.35rem;
+            border-radius: 9px;
+            padding: 0.25rem 0.45rem;
+            background: rgba(22, 18, 32, 0.6);
+            margin-bottom: 0.25rem;
         }
         .streak-title {
             font-weight: 600;
-            margin-bottom: 0.15rem;
+            font-size: 0.78rem;
+            margin-bottom: 0.1rem;
         }
         .streak-line {
-            font-size: 0.86rem;
+            font-size: 0.74rem;
         }
         </style>
         """,

@@ -66,11 +66,6 @@ def render_habits_tab(ctx):
 
     data = ctx["data"]
 
-    selected_day = st.date_input("Date", key="habits.selected_date")
-    row = data[data["date"] == selected_day]
-    row_payload = row.iloc[0].to_dict() if not row.empty else {}
-    loaded_key = f"{user_email}:{selected_day.isoformat()}"
-
     meeting_days = ctx["meeting_days"]
     if "habits.meeting_days_labels" not in st.session_state:
         st.session_state["habits.meeting_days_labels"] = [day_labels[i] for i in meeting_days]
@@ -78,175 +73,196 @@ def render_habits_tab(ctx):
     st.markdown("<div class='section-title'>Daily Habits</div>", unsafe_allow_html=True)
     st.caption("Each interaction auto-saves only this tab's fields.")
 
-    st.multiselect(
-        "Weekly meeting days",
-        options=day_labels,
-        key="habits.meeting_days_labels",
-        on_change=_save_meeting_days,
-        args=(user_email, day_to_index),
-    )
+    top_cols = st.columns([1.4, 1.0])
+    with top_cols[0]:
+        selected_day = st.date_input("Date", key="habits.selected_date")
+        st.multiselect(
+            "Weekly meeting days",
+            options=day_labels,
+            key="habits.meeting_days_labels",
+            on_change=_save_meeting_days,
+            args=(user_email, day_to_index),
+        )
+    with top_cols[1]:
+        st.markdown("<div class='small-label'>Quick note</div>", unsafe_allow_html=True)
+        st.caption("Reflection is the anchor for this day.")
+
     selected_meeting_days = st.session_state.get(
         "habits.meeting_days_values",
         [day_to_index[label] for label in st.session_state.get("habits.meeting_days_labels", [])],
     )
     ctx["meeting_days"] = selected_meeting_days
 
+    row = data[data["date"] == selected_day]
+    row_payload = row.iloc[0].to_dict() if not row.empty else {}
+    loaded_key = f"{user_email}:{selected_day.isoformat()}"
     is_meeting_day = selected_day.weekday() in selected_meeting_days
-
-    st.markdown("<div class='habits-compact'>", unsafe_allow_html=True)
-    st.markdown("<div class='small-label'>Fixed shared habits</div>", unsafe_allow_html=True)
-    fixed_cols = st.columns(2)
-    idx = 0
-    for habit_key in fixed_habit_keys:
-        if habit_key in meeting_habit_keys and not is_meeting_day:
-            continue
-        widget_key = f"habits.fixed.{habit_key}"
-        if st.session_state.get("habits.loaded_key") != loaded_key:
-            st.session_state[widget_key] = bool(row_payload.get(habit_key, 0))
-        with fixed_cols[idx % 2]:
-            st.checkbox(
-                default_habit_labels.get(habit_key, habit_key),
-                key=widget_key,
-                on_change=_save_fixed_habit,
-                args=(user_email, selected_day, habit_key, widget_key),
-            )
-        idx += 1
 
     if st.session_state.get("habits.loaded_key") != loaded_key:
         st.session_state["habits.daily_text"] = repositories.get_daily_text(user_email, selected_day)
-    st.text_input(
-        "Texto diário",
+    st.markdown("<div class='reflection-panel'>", unsafe_allow_html=True)
+    st.markdown("<div class='small-label'>Daily reflection</div>", unsafe_allow_html=True)
+    st.text_area(
+        "Daily reflection",
         key="habits.daily_text",
+        height=200,
+        label_visibility="collapsed",
         on_change=_save_daily_text,
         args=(user_email, selected_day),
     )
-
-    st.markdown("<div class='small-label'>Personal habits</div>", unsafe_allow_html=True)
-    custom_habits = repositories.get_custom_habits(user_email, active_only=True)
-    custom_done = repositories.get_custom_habit_done(user_email, selected_day)
-
-    for habit in custom_habits:
-        row_cols = st.columns([0.25, 5.9, 0.45, 0.45])
-        done_key = f"habits.custom_done.{habit['id']}"
-        if st.session_state.get("habits.loaded_key") != loaded_key:
-            st.session_state[done_key] = bool(custom_done.get(habit["id"], 0))
-        with row_cols[0]:
-            st.checkbox(
-                "",
-                key=done_key,
-                label_visibility="collapsed",
-                on_change=_save_custom_done,
-                args=(user_email, selected_day, custom_habits),
-            )
-        with row_cols[1]:
-            edit_key = f"habits.editing.{habit['id']}"
-            name_key = f"habits.edit_name.{habit['id']}"
-            if st.session_state.get(edit_key, False):
-                st.text_input("Edit", key=name_key, label_visibility="collapsed")
-            else:
-                st.markdown(habit["name"])
-
-        with row_cols[2]:
-            edit_key = f"habits.editing.{habit['id']}"
-            name_key = f"habits.edit_name.{habit['id']}"
-            if st.session_state.get(edit_key, False):
-                if st.button("✔", key=f"habits.save.{habit['id']}", type="tertiary"):
-                    try:
-                        repositories.save_habit_label_edit(user_email, habit["id"], st.session_state.get(name_key, ""))
-                        st.session_state[edit_key] = False
-                        st.rerun()
-                    except Exception as exc:
-                        st.warning(str(exc))
-            else:
-                if st.button("✎", key=f"habits.edit.{habit['id']}", type="tertiary"):
-                    st.session_state[edit_key] = True
-                    st.session_state[name_key] = habit["name"]
-                    st.rerun()
-        with row_cols[3]:
-            if st.button("✕", key=f"habits.delete.{habit['id']}", type="tertiary"):
-                repositories.delete_habit(user_email, habit["id"])
-                st.rerun()
-
-    add_cols = st.columns([5.6, 0.8])
-    with add_cols[0]:
-        st.text_input("New habit", key="habits.new_habit", placeholder="Add a personal habit...")
-    with add_cols[1]:
-        if st.button("+", key="habits.add_habit", type="tertiary"):
-            try:
-                repositories.add_habit(user_email, st.session_state.get("habits.new_habit", ""))
-                st.session_state["habits.new_habit"] = ""
-                st.rerun()
-            except Exception as exc:
-                st.warning(str(exc))
-
     st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown("<div class='small-label'>Daily metrics</div>", unsafe_allow_html=True)
-    if st.session_state.get("habits.loaded_key") != loaded_key:
-        st.session_state["habits.sleep_hours"] = float(row_payload.get("sleep_hours", 0) or 0)
-        st.session_state["habits.anxiety_level"] = int(row_payload.get("anxiety_level", 1) or 1)
-        st.session_state["habits.work_hours"] = float(row_payload.get("work_hours", 0) or 0)
-        st.session_state["habits.boredom_minutes"] = int(row_payload.get("boredom_minutes", 0) or 0)
-        st.session_state["habits.mood_category"] = (row_payload.get("mood_category") or "Neutro")
-        st.session_state["habits.priority_label"] = row_payload.get("priority_label") or ""
-        st.session_state["habits.priority_done"] = bool(row_payload.get("priority_done", 0))
-        st.session_state["habits.loaded_key"] = loaded_key
+    body_cols = st.columns([1.15, 0.85])
+    with body_cols[0]:
+        st.markdown("<div class='panel habits-compact'>", unsafe_allow_html=True)
+        st.markdown("<div class='small-label'>Fixed shared habits</div>", unsafe_allow_html=True)
+        fixed_cols = st.columns(2)
+        idx = 0
+        for habit_key in fixed_habit_keys:
+            if habit_key in meeting_habit_keys and not is_meeting_day:
+                continue
+            widget_key = f"habits.fixed.{habit_key}"
+            if st.session_state.get("habits.loaded_key") != loaded_key:
+                st.session_state[widget_key] = bool(row_payload.get(habit_key, 0))
+            with fixed_cols[idx % 2]:
+                st.checkbox(
+                    default_habit_labels.get(habit_key, habit_key),
+                    key=widget_key,
+                    on_change=_save_fixed_habit,
+                    args=(user_email, selected_day, habit_key, widget_key),
+                )
+            idx += 1
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    metrics_cols = st.columns(2)
-    with metrics_cols[0]:
-        st.number_input(
-            "Sleep hours",
-            min_value=0.0,
-            max_value=12.0,
-            step=0.5,
-            key="habits.sleep_hours",
-            on_change=_save_metrics,
-            args=(user_email, selected_day),
-        )
-        st.number_input(
-            "Anxiety level",
-            min_value=1,
-            max_value=10,
-            step=1,
-            key="habits.anxiety_level",
-            on_change=_save_metrics,
-            args=(user_email, selected_day),
-        )
-        st.number_input(
-            "Work/study hours",
-            min_value=0.0,
-            max_value=16.0,
-            step=0.5,
-            key="habits.work_hours",
-            on_change=_save_metrics,
-            args=(user_email, selected_day),
-        )
-    with metrics_cols[1]:
-        st.number_input(
-            "Boredom minutes",
-            min_value=0,
-            max_value=60,
-            step=5,
-            key="habits.boredom_minutes",
-            on_change=_save_metrics,
-            args=(user_email, selected_day),
-        )
-        st.selectbox(
-            "Mood",
-            moods,
-            key="habits.mood_category",
-            on_change=_save_metrics,
-            args=(user_email, selected_day),
-        )
-        st.text_input(
-            "Priority focus",
-            key="habits.priority_label",
-            on_change=_save_metrics,
-            args=(user_email, selected_day),
-        )
-        st.checkbox(
-            "Priority done",
-            key="habits.priority_done",
-            on_change=_save_metrics,
-            args=(user_email, selected_day),
-        )
+        st.markdown("<div class='panel habits-compact'>", unsafe_allow_html=True)
+        st.markdown("<div class='small-label'>Personal habits</div>", unsafe_allow_html=True)
+        custom_habits = repositories.get_custom_habits(user_email, active_only=True)
+        custom_done = repositories.get_custom_habit_done(user_email, selected_day)
+
+        for habit in custom_habits:
+            row_cols = st.columns([0.22, 6.1, 0.38, 0.38])
+            done_key = f"habits.custom_done.{habit['id']}"
+            if st.session_state.get("habits.loaded_key") != loaded_key:
+                st.session_state[done_key] = bool(custom_done.get(habit["id"], 0))
+            with row_cols[0]:
+                st.checkbox(
+                    "",
+                    key=done_key,
+                    label_visibility="collapsed",
+                    on_change=_save_custom_done,
+                    args=(user_email, selected_day, custom_habits),
+                )
+            with row_cols[1]:
+                edit_key = f"habits.editing.{habit['id']}"
+                name_key = f"habits.edit_name.{habit['id']}"
+                if st.session_state.get(edit_key, False):
+                    st.text_input("Edit", key=name_key, label_visibility="collapsed")
+                else:
+                    st.markdown(habit["name"])
+
+            with row_cols[2]:
+                edit_key = f"habits.editing.{habit['id']}"
+                name_key = f"habits.edit_name.{habit['id']}"
+                if st.session_state.get(edit_key, False):
+                    if st.button("✔", key=f"habits.save.{habit['id']}", type="tertiary"):
+                        try:
+                            repositories.save_habit_label_edit(user_email, habit["id"], st.session_state.get(name_key, ""))
+                            st.session_state[edit_key] = False
+                            st.rerun()
+                        except Exception as exc:
+                            st.warning(str(exc))
+                else:
+                    if st.button("✎", key=f"habits.edit.{habit['id']}", type="tertiary"):
+                        st.session_state[edit_key] = True
+                        st.session_state[name_key] = habit["name"]
+                        st.rerun()
+            with row_cols[3]:
+                if st.button("✕", key=f"habits.delete.{habit['id']}", type="tertiary"):
+                    repositories.delete_habit(user_email, habit["id"])
+                    st.rerun()
+
+        add_cols = st.columns([6.1, 0.6])
+        with add_cols[0]:
+            st.text_input("New habit", key="habits.new_habit", placeholder="Add a personal habit...")
+        with add_cols[1]:
+            if st.button("+", key="habits.add_habit", type="tertiary"):
+                try:
+                    repositories.add_habit(user_email, st.session_state.get("habits.new_habit", ""))
+                    st.session_state["habits.new_habit"] = ""
+                    st.rerun()
+                except Exception as exc:
+                    st.warning(str(exc))
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with body_cols[1]:
+        st.markdown("<div class='panel'>", unsafe_allow_html=True)
+        if st.session_state.get("habits.loaded_key") != loaded_key:
+            st.session_state["habits.sleep_hours"] = float(row_payload.get("sleep_hours", 0) or 0)
+            st.session_state["habits.anxiety_level"] = int(row_payload.get("anxiety_level", 1) or 1)
+            st.session_state["habits.work_hours"] = float(row_payload.get("work_hours", 0) or 0)
+            st.session_state["habits.boredom_minutes"] = int(row_payload.get("boredom_minutes", 0) or 0)
+            st.session_state["habits.mood_category"] = (row_payload.get("mood_category") or "Neutro")
+            st.session_state["habits.priority_label"] = row_payload.get("priority_label") or ""
+            st.session_state["habits.priority_done"] = bool(row_payload.get("priority_done", 0))
+            st.session_state["habits.loaded_key"] = loaded_key
+
+        metrics_cols = st.columns(2)
+        with metrics_cols[0]:
+            st.number_input(
+                "Sleep hours",
+                min_value=0.0,
+                max_value=12.0,
+                step=0.5,
+                key="habits.sleep_hours",
+                on_change=_save_metrics,
+                args=(user_email, selected_day),
+            )
+            st.number_input(
+                "Anxiety level",
+                min_value=1,
+                max_value=10,
+                step=1,
+                key="habits.anxiety_level",
+                on_change=_save_metrics,
+                args=(user_email, selected_day),
+            )
+            st.number_input(
+                "Work/study hours",
+                min_value=0.0,
+                max_value=16.0,
+                step=0.5,
+                key="habits.work_hours",
+                on_change=_save_metrics,
+                args=(user_email, selected_day),
+            )
+        with metrics_cols[1]:
+            st.number_input(
+                "Boredom minutes",
+                min_value=0,
+                max_value=60,
+                step=5,
+                key="habits.boredom_minutes",
+                on_change=_save_metrics,
+                args=(user_email, selected_day),
+            )
+            st.selectbox(
+                "Mood",
+                moods,
+                key="habits.mood_category",
+                on_change=_save_metrics,
+                args=(user_email, selected_day),
+            )
+            st.text_input(
+                "Priority focus",
+                key="habits.priority_label",
+                on_change=_save_metrics,
+                args=(user_email, selected_day),
+            )
+            st.checkbox(
+                "Priority done",
+                key="habits.priority_done",
+                on_change=_save_metrics,
+                args=(user_email, selected_day),
+            )
+        st.markdown("</div>", unsafe_allow_html=True)

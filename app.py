@@ -942,6 +942,55 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 .habits-compact [data-testid="stCheckbox"] {
     margin-top: -2px;
 }
+
+.habits-compact .stButton > button {
+    font-size: 0.75rem;
+    padding: 0.1rem 0.25rem;
+    min-height: 24px;
+}
+
+.panel {
+    background: rgba(18, 14, 26, 0.7);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.6rem 0.8rem;
+    margin-bottom: 0.6rem;
+}
+
+.reflection-panel {
+    background: rgba(22, 18, 32, 0.8);
+    border: 1px solid var(--accent-soft);
+    border-radius: 14px;
+    padding: 0.9rem 1rem;
+    margin: 0.6rem 0 0.8rem 0;
+}
+
+.reflection-panel textarea {
+    font-size: 16px !important;
+    line-height: 1.55 !important;
+    min-height: 190px !important;
+}
+
+div[data-testid="stSegmentedControl"] button {
+    font-size: 0.78rem;
+    padding: 0.2rem 0.5rem;
+    border: 1px solid var(--border) !important;
+}
+
+div[data-testid="stSegmentedControl"] button[aria-pressed="true"] {
+    background: var(--bg-card) !important;
+    border-color: var(--accent) !important;
+    color: var(--text-strong) !important;
+    font-weight: 600;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
 </style>
 """,
     unsafe_allow_html=True,
