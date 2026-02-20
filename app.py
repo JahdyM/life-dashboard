@@ -899,41 +899,6 @@ def load_custom_habits_into_state(entry_date, custom_habits, custom_done_by_date
     st.session_state["loaded_custom_entry_key"] = loaded_key
 
 
-def normalize_entries_df(df):
-    if df.empty:
-        return df
-    if "priority_label" not in df.columns:
-        df["priority_label"] = ""
-    if "priority_done" not in df.columns:
-        df["priority_done"] = 0
-    if "mood_note" not in df.columns:
-        df["mood_note"] = ""
-    if "mood_media_url" not in df.columns:
-        df["mood_media_url"] = ""
-    if "mood_tags_json" not in df.columns:
-        df["mood_tags_json"] = ""
-    if "updated_at" not in df.columns:
-        df["updated_at"] = ""
-    df["date"] = pd.to_datetime(df["date"]).dt.date
-    for key, _ in HABITS:
-        if key not in df.columns:
-            df[key] = 0
-        df[key] = df[key].fillna(0).astype(int)
-    df["priority_done"] = df["priority_done"].fillna(0).astype(int)
-    df["priority_label"] = df["priority_label"].fillna("").astype(str)
-    mood_map_legacy = {
-        "Anger": "Raiva",
-        "Anxiety": "Ansiedade",
-        "Sadness": "Medo",
-        "Joy": "Felicidade",
-        "Calm": "Paz",
-        "Neutral": "Neutro",
-    }
-    df["mood_category"] = df["mood_category"].replace(mood_map_legacy)
-    df = df.sort_values("date")
-    return df
-
-
 def invalidate_entries_cache():
     load_data_for_email_cached.clear()
 
