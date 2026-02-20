@@ -864,7 +864,7 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 }
 
 .calendar-compact [data-testid="stHorizontalBlock"] {
-    gap: 0.2rem;
+    gap: 0.1rem;
 }
 
 .calendar-compact .stMarkdown p {
@@ -915,8 +915,11 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
     color: var(--text-strong);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 0.2rem 0.5rem;
+    padding: 0.18rem 0.5rem;
     min-height: 28px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .calendar-compact .task-title-btn button:hover {
