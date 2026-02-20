@@ -251,12 +251,15 @@ def _sync_created_or_updated_activity_to_google(user_email, activity_id, connect
     if not connected:
         return
     if api_client.is_enabled():
-        def _fire_outbox():
-            try:
-                api_client.request("POST", "/v1/sync/run")
-            except Exception:
-                pass
-        threading.Thread(target=_fire_outbox, daemon=True).start()
+        try:
+            st.session_state["calendar.sync_status"] = "Syncing"
+            st.session_state["calendar.sync_error"] = ""
+            api_client.request("POST", "/v1/sync/run")
+            st.session_state["calendar.sync_status"] = "Idle"
+        except Exception as exc:
+            st.session_state["calendar.sync_status"] = "Failed"
+            st.session_state["calendar.sync_error"] = str(exc)
+            raise
         return
     activity = repositories.get_activity_by_id(activity_id, user_email=user_email)
     if not activity:
