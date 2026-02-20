@@ -108,8 +108,8 @@ def _day_draft(selected_day):
             "title": "",
             "priority": "Medium",
             "estimated": 30,
-            "has_time": False,
-            "time": datetime.now().replace(second=0, microsecond=0).time(),
+            "date": "",
+            "time": "",
         }
     return drafts[day_key]
 
@@ -458,7 +458,7 @@ def render_calendar_tab(ctx):
         add_title_key = f"calendar.add.title.{add_prefix}"
         add_priority_key = f"calendar.add.priority.{add_prefix}"
         add_est_key = f"calendar.add.est.{add_prefix}"
-        add_has_time_key = f"calendar.add.has_time.{add_prefix}"
+        add_date_key = f"calendar.add.date.{add_prefix}"
         add_time_key = f"calendar.add.time.{add_prefix}"
         if add_title_key not in st.session_state:
             st.session_state[add_title_key] = draft["title"]
@@ -466,13 +466,13 @@ def render_calendar_tab(ctx):
             st.session_state[add_priority_key] = draft["priority"]
         if add_est_key not in st.session_state:
             st.session_state[add_est_key] = int(draft["estimated"])
-        if add_has_time_key not in st.session_state:
-            st.session_state[add_has_time_key] = bool(draft["has_time"])
+        if add_date_key not in st.session_state:
+            st.session_state[add_date_key] = draft.get("date", "")
         if add_time_key not in st.session_state:
-            st.session_state[add_time_key] = draft["time"]
+            st.session_state[add_time_key] = draft.get("time", "")
 
         with st.form(key=f"calendar.add.form.{add_prefix}", clear_on_submit=True):
-            add_cols = st.columns([3.4, 1.0, 1.0, 0.8, 1.0, 1.0])
+            add_cols = st.columns([3.2, 1.0, 1.0, 1.3, 1.1, 1.0])
             with add_cols[0]:
                 st.text_input("Title", key=add_title_key, placeholder="Task title", label_visibility="collapsed")
             with add_cols[1]:
@@ -480,9 +480,19 @@ def render_calendar_tab(ctx):
             with add_cols[2]:
                 st.number_input("Est", min_value=5, max_value=600, step=5, key=add_est_key, label_visibility="collapsed")
             with add_cols[3]:
-                st.checkbox("Time", key=add_has_time_key)
+                st.text_input(
+                    "Date",
+                    key=add_date_key,
+                    placeholder=selected_day.isoformat(),
+                    label_visibility="collapsed",
+                )
             with add_cols[4]:
-                st.time_input("Start", key=add_time_key, disabled=not bool(st.session_state.get(add_has_time_key)), label_visibility="collapsed")
+                st.text_input(
+                    "Start",
+                    key=add_time_key,
+                    placeholder="HH:MM",
+                    label_visibility="collapsed",
+                )
             with add_cols[5]:
                 confirm_add = st.form_submit_button("Add", use_container_width=True)
 
@@ -490,19 +500,37 @@ def render_calendar_tab(ctx):
             draft["title"] = st.session_state.get(add_title_key, "")
             draft["priority"] = st.session_state.get(add_priority_key, "Medium")
             draft["estimated"] = int(st.session_state.get(add_est_key, 30) or 30)
-            draft["has_time"] = bool(st.session_state.get(add_has_time_key, False))
-            draft["time"] = st.session_state.get(add_time_key, datetime.now().replace(second=0, microsecond=0).time())
+            draft["date"] = (st.session_state.get(add_date_key, "") or "").strip()
+            draft["time"] = (st.session_state.get(add_time_key, "") or "").strip()
 
             if not (draft["title"] or "").strip():
                 st.warning("Task title is required.")
             else:
+                if draft["date"]:
+                    try:
+                        scheduled_date = datetime.strptime(draft["date"], "%Y-%m-%d").date()
+                    except ValueError:
+                        st.warning("Date must be in YYYY-MM-DD format.")
+                        return
+                else:
+                    scheduled_date = selected_day
+
+                if draft["time"]:
+                    try:
+                        scheduled_time = datetime.strptime(draft["time"], "%H:%M").time()
+                    except ValueError:
+                        st.warning("Time must be in HH:MM format.")
+                        return
+                else:
+                    scheduled_time = None
+
                 created = repositories.save_activity(
                     {
                         "user_email": user_email,
                         "title": draft["title"],
                         "source": "manual",
-                        "scheduled_date": selected_day,
-                        "scheduled_time": draft["time"] if draft["has_time"] else None,
+                        "scheduled_date": scheduled_date,
+                        "scheduled_time": scheduled_time,
                         "priority_tag": draft["priority"],
                         "estimated_minutes": draft["estimated"],
                     }
@@ -512,6 +540,10 @@ def render_calendar_tab(ctx):
                 except Exception as exc:
                     st.warning(f"Saved locally, but Google sync failed: {exc}")
                 draft["title"] = ""
+                draft["date"] = ""
+                draft["time"] = ""
+                st.session_state[add_date_key] = ""
+                st.session_state[add_time_key] = ""
                 st.session_state["calendar.force_refresh"] = True
                 st.rerun()
 
