@@ -1409,8 +1409,8 @@ st_components.html(
     style.id = 'cursor-trail-style';
     style.textContent = `
       #cursor-trail-container { position: fixed; inset: 0; pointer-events: none; z-index: 9999; }
-      .cursor-trail { position: absolute; width: 18px; height: 18px; border-radius: 50%;
-        background: rgba(255,255,255,0.9); box-shadow: 0 0 22px rgba(255,255,255,0.75);
+      .cursor-trail { position: absolute; width: 24px; height: 24px; border-radius: 50%;
+        background: rgba(255,255,255,1); box-shadow: 0 0 28px rgba(255,255,255,0.85);
         mix-blend-mode: screen;
         animation: trailFade 0.9s ease-out forwards; }
       @keyframes trailFade { 0% {opacity:.95; transform:scale(1.15);} 100% {opacity:0; transform:scale(.1);} }
