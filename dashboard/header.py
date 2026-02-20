@@ -34,9 +34,16 @@ def render_global_header(ctx):
             font-weight: 600;
             font-size: 0.78rem;
             margin-bottom: 0.1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
         }
         .streak-line {
             font-size: 0.74rem;
+        }
+        .streak-emoji {
+            font-size: 1.2rem;
+            line-height: 1;
         }
         </style>
         """,
@@ -63,7 +70,7 @@ def render_global_header(ctx):
                 st.markdown(
                     (
                         "<div class='streak-row'>"
-                        f"<div class='streak-title'>🔥 {label}</div>"
+                        f"<div class='streak-title'><span class='streak-emoji'>🔥</span>{label}</div>"
                         f"<div class='streak-line'>{a_days} days | {current_name}</div>"
                         f"<div class='streak-line'>{b_days} days | {partner_name}</div>"
                         "</div>"

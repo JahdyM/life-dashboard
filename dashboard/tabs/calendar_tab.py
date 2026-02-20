@@ -336,10 +336,10 @@ def render_calendar_tab(ctx):
 
     day_tasks = [item for item in range_tasks if item.get("scheduled_date") == selected_day.isoformat()]
 
-    layout = st.columns([1.45, 0.9], gap="large")
+    layout = st.columns([1.6, 0.8], gap="large")
 
     with layout[0]:
-        st.markdown("<div class='calendar-compact'>", unsafe_allow_html=True)
+        st.markdown("<div class='calendar-compact task-list'>", unsafe_allow_html=True)
         st.markdown("<div class='calendar-section-title'>Daily tasks list</div>", unsafe_allow_html=True)
         if not day_tasks:
             st.caption("No local tasks for this day.")
@@ -462,6 +462,7 @@ def render_calendar_tab(ctx):
                         st.session_state["calendar.force_refresh"] = True
                         st.rerun()
 
+                    st.markdown("<div class='subtask-list'>", unsafe_allow_html=True)
                     sub_items = subtasks.get(task_id, [])
                     for sub_idx, sub in enumerate(sub_items, start=1):
                         sub_key = sub["id"].replace("-", "_")
@@ -485,6 +486,7 @@ def render_calendar_tab(ctx):
                             repositories.delete_subtask(sub["id"])
                             st.session_state["calendar.force_refresh"] = True
                             st.rerun()
+                    st.markdown("</div>", unsafe_allow_html=True)
 
                     add_sub_key = f"calendar.sub.new.{task_key}"
                     sub_cols = st.columns([7.2, 0.8])
@@ -517,6 +519,7 @@ def render_calendar_tab(ctx):
 
         st.markdown("</div>", unsafe_allow_html=True)
 
+        st.markdown("<div class='calendar-compact'>", unsafe_allow_html=True)
         st.markdown("<div class='calendar-section-title'>Add activity</div>", unsafe_allow_html=True)
         draft = _day_draft(selected_day)
         add_prefix = selected_day.isoformat()
@@ -707,8 +710,10 @@ def render_calendar_tab(ctx):
                     st.session_state["calendar.force_refresh"] = True
                     st.rerun()
                 st.divider()
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with layout[1]:
+        st.markdown("<div class='calendar-card'>", unsafe_allow_html=True)
         st.markdown("<div class='calendar-section-title'>Day Schedule</div>", unsafe_allow_html=True)
         if st_calendar:
             view_map = {"Day": "timeGridDay", "Week": "timeGridWeek", "Month": "dayGridMonth"}
@@ -724,7 +729,7 @@ def render_calendar_tab(ctx):
                 "slotMinTime": "00:00:00",
                 "slotMaxTime": "24:00:00",
                 "slotDuration": "00:30:00",
-                "height": 680,
+                "height": 520,
                 "headerToolbar": {
                     "left": "prev,next today",
                     "center": "title",
@@ -804,7 +809,7 @@ def render_calendar_tab(ctx):
                     f"<div class='day-row'><div class='day-hour'>{hour}</div><div class='day-slot'>{slot or ''}</div></div>"
                     for hour, slot in day_rows
                 ]
-            ) + "</div>"
+                    ) + "</div>"
             st.markdown(grid_html, unsafe_allow_html=True)
 
             if view_mode in {"Week", "Month"}:
@@ -831,6 +836,7 @@ def render_calendar_tab(ctx):
                             )
                             day += timedelta(days=1)
                         st.dataframe(pd.DataFrame(month_rows), use_container_width=True, hide_index=True, height=300)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
     st.divider()

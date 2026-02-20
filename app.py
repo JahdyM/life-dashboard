@@ -868,12 +868,12 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 }
 
 .calendar-compact [data-testid="stVerticalBlock"] > div {
-    padding-top: 0.1rem;
-    padding-bottom: 0.1rem;
+    padding-top: 0.08rem;
+    padding-bottom: 0.08rem;
 }
 
 .calendar-compact [data-testid="stHorizontalBlock"] {
-    gap: 0.1rem;
+    gap: 0.08rem;
 }
 
 .calendar-compact .stMarkdown p {
@@ -881,7 +881,7 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 }
 
 .calendar-compact hr {
-    margin: 0.2rem 0;
+    margin: 0.12rem 0;
 }
 
 .calendar-compact .stExpander {
@@ -902,42 +902,89 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 .calendar-compact .stTextInput > div > div input,
 .calendar-compact .stNumberInput input,
 .calendar-compact .stTimeInput input {
-    padding-top: 0.1rem;
-    padding-bottom: 0.1rem;
-    min-height: 28px;
+    padding-top: 0.06rem;
+    padding-bottom: 0.06rem;
+    min-height: 26px;
 }
 
 .calendar-compact .stButton > button {
-    padding: 0.15rem 0.35rem;
-    min-height: 28px;
+    padding: 0.12rem 0.3rem;
+    min-height: 26px;
 }
 
 .calendar-compact .stCaption {
-    margin-top: 0.05rem;
-    margin-bottom: 0.05rem;
+    margin-top: 0.02rem;
+    margin-bottom: 0.02rem;
 }
 
 .calendar-compact .task-title-btn button {
     width: 100%;
     text-align: left;
-    background: var(--accent-soft);
-    color: var(--text-strong);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 0.18rem 0.5rem;
-    min-height: 28px;
+    background: transparent;
+    color: var(--text-main);
+    border: none;
+    border-radius: 6px;
+    padding: 0.12rem 0.3rem;
+    min-height: 24px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .calendar-compact .task-title-btn button:hover {
-    border-color: var(--accent);
+    background: var(--row-hover);
 }
 
 .calendar-compact .task-details {
-    margin-left: 0.1rem;
-    margin-bottom: 0.2rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.35rem 0.5rem;
+    margin: 0.15rem 0 0.25rem 1.1rem;
+    transition: all 140ms ease-out;
+}
+
+.calendar-card {
+    background: var(--calendar-panel);
+    border: 1px solid var(--calendar-panel-border);
+    border-radius: 14px;
+    padding: 0.55rem 0.65rem;
+    backdrop-filter: blur(6px);
+}
+
+.task-list [data-testid="stHorizontalBlock"] {
+    padding: 0.1rem 0.1rem;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+}
+
+.task-list [data-testid="stHorizontalBlock"]:hover {
+    background: var(--row-hover);
+    border-radius: 6px;
+}
+
+.task-list .stButton > button {
+    font-size: 0.75rem;
+    padding: 0.08rem 0.24rem;
+    min-height: 22px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-main);
+}
+
+.task-list .stButton > button:hover {
+    background: var(--row-hover);
+}
+
+.subtask-list {
+    margin-left: 0.9rem;
+    padding-left: 0.6rem;
+    border-left: 1px solid var(--border);
+}
+
+.subtask-list [data-testid="stHorizontalBlock"] {
+    padding: 0.06rem 0.08rem;
+}
 }
 
 .calendar-top [data-testid="stHorizontalBlock"] {
