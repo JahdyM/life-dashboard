@@ -536,6 +536,11 @@ def render_calendar_tab(ctx):
                             st.session_state["calendar.force_refresh"] = True
                             st.rerun()
 
+                    if st.button("Delete task", key=f"calendar.task.delete.{task_key}", type="tertiary"):
+                        repositories.delete_activity(task_id, delete_remote_google=True)
+                        st.session_state["calendar.force_refresh"] = True
+                        st.rerun()
+
                     st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown("</div>", unsafe_allow_html=True)
