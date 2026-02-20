@@ -282,12 +282,11 @@ def _sync_created_or_updated_activity_to_google(user_email, activity_id, connect
 
 def render_calendar_tab(ctx):
     user_email = ctx["current_user_email"]
-    month_last_day = ctx["helpers"]["month_last_day"]
 
     _handle_google_oauth_callback(user_email)
 
     connected = google_calendar.is_connected(user_email)
-    calendar_ids = _get_calendar_ids(ctx, user_email)
+    calendar_ids = _get_calendar_ids(user_email)
     primary_calendar_id = calendar_ids[0]
 
     st.markdown("<div class='section-title'>Calendar & Activities</div>", unsafe_allow_html=True)
