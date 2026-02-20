@@ -25,24 +25,24 @@ def render_global_header(ctx):
         }
         .streak-row {
             border: 1px solid var(--border);
-            border-radius: 9px;
-            padding: 0.25rem 0.45rem;
-            background: rgba(22, 18, 32, 0.6);
-            margin-bottom: 0.25rem;
+            border-radius: 12px;
+            padding: 0.45rem 0.65rem;
+            background: rgba(22, 18, 32, 0.7);
+            margin-bottom: 0.35rem;
         }
         .streak-title {
             font-weight: 600;
-            font-size: 0.78rem;
-            margin-bottom: 0.1rem;
+            font-size: 0.95rem;
+            margin-bottom: 0.18rem;
             display: flex;
             align-items: center;
             gap: 0.35rem;
         }
         .streak-line {
-            font-size: 0.74rem;
+            font-size: 0.84rem;
         }
         .streak-emoji {
-            font-size: 1.2rem;
+            font-size: 1.45rem;
             line-height: 1;
         }
         </style>

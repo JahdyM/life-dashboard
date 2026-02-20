@@ -876,6 +876,16 @@ def _meeting_days_for_user(user_email):
         return {1, 3}
 
 
+def _family_worship_day_for_user(user_email):
+    raw = get_setting(user_email, "family_worship_day")
+    if not raw:
+        return 6
+    try:
+        return int(str(raw).strip())
+    except Exception:
+        return 6
+
+
 def get_shared_habit_comparison(today, user_a, user_b, habit_keys):
     engine = _engine()
     with engine.connect() as conn:
@@ -904,6 +914,10 @@ def get_shared_habit_comparison(today, user_a, user_b, habit_keys):
         user_a: _meeting_days_for_user(user_a),
         user_b: _meeting_days_for_user(user_b),
     }
+    family_day = {
+        user_a: _family_worship_day_for_user(user_a),
+        user_b: _family_worship_day_for_user(user_b),
+    }
 
     habits = []
     for habit_key in habit_keys:
@@ -911,17 +925,23 @@ def get_shared_habit_comparison(today, user_a, user_b, habit_keys):
         if habit_key in {"meeting_attended", "prepare_meeting"}:
             # Keep per-user logic with their own meeting days.
             valid_weekdays = "meeting"
+        elif habit_key == "family_worship":
+            valid_weekdays = "family"
         a_streak = _habit_streak(
             by_user.get(user_a, {}),
             habit_key,
             today,
-            valid_weekdays=meeting_days[user_a] if valid_weekdays == "meeting" else None,
+            valid_weekdays=meeting_days[user_a]
+            if valid_weekdays == "meeting"
+            else ({family_day[user_a]} if valid_weekdays == "family" else None),
         )
         b_streak = _habit_streak(
             by_user.get(user_b, {}),
             habit_key,
             today,
-            valid_weekdays=meeting_days[user_b] if valid_weekdays == "meeting" else None,
+            valid_weekdays=meeting_days[user_b]
+            if valid_weekdays == "meeting"
+            else ({family_day[user_b]} if valid_weekdays == "family" else None),
         )
         habits.append({"habit_key": habit_key, "user_a_days": a_streak, "user_b_days": b_streak})
 
@@ -932,10 +952,17 @@ def get_shared_habit_comparison(today, user_a, user_b, habit_keys):
     today_b = by_user.get(user_b, {}).get(today, {})
     user_a_meeting_today = today.weekday() in meeting_days[user_a]
     user_b_meeting_today = today.weekday() in meeting_days[user_b]
+    user_a_family_today = today.weekday() == family_day[user_a]
+    user_b_family_today = today.weekday() == family_day[user_b]
     for habit_key in habit_keys:
         if habit_key in {"meeting_attended", "prepare_meeting"}:
             expected_a = user_a_meeting_today
             expected_b = user_b_meeting_today
+            if not expected_a and not expected_b:
+                continue
+        elif habit_key == "family_worship":
+            expected_a = user_a_family_today
+            expected_b = user_b_family_today
             if not expected_a and not expected_b:
                 continue
         else:
@@ -957,6 +984,8 @@ def get_shared_habit_comparison(today, user_a, user_b, habit_keys):
     )
     if user_a_meeting_today != user_b_meeting_today:
         summary = f"{summary} Meeting-day habits are pending for one partner."
+    if user_a_family_today != user_b_family_today:
+        summary = f"{summary} Family worship day differs between partners."
 
     return {
         "today": today.isoformat(),
