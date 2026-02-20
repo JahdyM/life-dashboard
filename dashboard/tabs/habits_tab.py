@@ -107,12 +107,13 @@ def render_habits_tab(ctx):
             )
         idx += 1
 
+    st.markdown("<div class='habits-compact'>", unsafe_allow_html=True)
     st.markdown("<div class='small-label'>Personal habits</div>", unsafe_allow_html=True)
     custom_habits = repositories.get_custom_habits(user_email, active_only=True)
     custom_done = repositories.get_custom_habit_done(user_email, selected_day)
 
     for habit in custom_habits:
-        row_cols = st.columns([0.8, 4.8, 0.7, 0.7])
+        row_cols = st.columns([0.4, 5.6, 0.5, 0.5])
         done_key = f"habits.custom_done.{habit['id']}"
         if st.session_state.get("habits.loaded_key") != loaded_key:
             st.session_state[done_key] = bool(custom_done.get(habit["id"], 0))
@@ -153,7 +154,7 @@ def render_habits_tab(ctx):
                 repositories.delete_habit(user_email, habit["id"])
                 st.rerun()
 
-    add_cols = st.columns([5, 1])
+    add_cols = st.columns([5.6, 0.8])
     with add_cols[0]:
         st.text_input("New habit", key="habits.new_habit", placeholder="Add a personal habit...")
     with add_cols[1]:
@@ -164,6 +165,8 @@ def render_habits_tab(ctx):
                 st.rerun()
             except Exception as exc:
                 st.warning(str(exc))
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("<div class='small-label'>Daily metrics</div>", unsafe_allow_html=True)
     if st.session_state.get("habits.loaded_key") != loaded_key:

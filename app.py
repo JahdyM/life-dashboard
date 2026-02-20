@@ -907,6 +907,14 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
     margin-top: 0.05rem;
     margin-bottom: 0.05rem;
 }
+
+.habits-compact [data-testid="stHorizontalBlock"] {
+    gap: 0.2rem;
+}
+
+.habits-compact .stMarkdown p {
+    margin: 0.05rem 0;
+}
 </style>
 """,
     unsafe_allow_html=True,

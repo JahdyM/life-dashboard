@@ -444,6 +444,21 @@ def render_calendar_tab(ctx):
         with row[3]:
             delete_task = st.button("✕", key=f"calendar.task.delete.{task_key}")
 
+        # Auto-save for main task (minimal fields only)
+        auto_key = f"calendar.task.autosave.{task_key}"
+        current_snapshot = (bool(checked), (new_title or "").strip(), time_badge)
+        last_snapshot = st.session_state.get(auto_key)
+        if last_snapshot is not None and last_snapshot != current_snapshot:
+            final_title = (new_title or "").strip() or (task.get("title") or "Untitled task")
+            patch = {
+                "id": task_id,
+                "is_done": int(bool(checked)),
+                "title": final_title,
+            }
+            repositories.save_activity(patch)
+            st.session_state["calendar.force_refresh"] = True
+        st.session_state[auto_key] = current_snapshot
+
         with st.expander(f"Details · {task_idx}", expanded=False):
             # Subtasks only (compact list)
             sub_items = subtasks.get(task_id, [])
