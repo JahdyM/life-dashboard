@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import logging
 from datetime import date, datetime, timedelta
 from uuid import uuid4
 
@@ -29,6 +30,7 @@ from dashboard.data.loaders import (
 )
 from dashboard.services import google_calendar
 from dashboard import theme
+from dashboard.logging_config import configure_logging
 from dashboard.auth import (
     DB_PATH,
     load_local_env,
@@ -89,6 +91,8 @@ st.set_page_config(page_title="Personal Life Dashboard", layout="wide")
 
 load_local_env()
 bootstrap_local_secrets_from_env()
+configure_logging()
+logger = logging.getLogger(__name__)
 
 
 theme_info = theme.inject_theme_css()
@@ -329,14 +333,14 @@ def init_db():
                     sql_text(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_ddl}")
                 )
         except Exception:
-            pass
+            logger.debug("Column already exists or failed to add: %s.%s", table_name, column_name)
 
     def ensure_index(index_sql):
         try:
             with engine.begin() as conn:
                 conn.execute(sql_text(index_sql))
         except Exception:
-            pass
+            logger.debug("Index already exists or failed to add: %s", index_sql)
 
     ensure_column(TASKS_TABLE, "priority_tag", "TEXT DEFAULT 'Medium'")
     ensure_column(TASKS_TABLE, "estimated_minutes", "INTEGER")

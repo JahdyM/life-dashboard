@@ -1,9 +1,11 @@
 import json
-import threading
+import logging
 from datetime import date, datetime, timedelta
 from uuid import uuid4
 
 from sqlalchemy import bindparam, text as sql_text
+import streamlit as st
+from concurrent.futures import ThreadPoolExecutor
 
 from dashboard.data import api_client
 
@@ -23,6 +25,12 @@ _CURRENT_USER_GETTER = None
 _GOOGLE_DELETE_CALLBACK = None
 _INVALIDATE_CALLBACK = None
 _SECRET_GETTER = None
+logger = logging.getLogger(__name__)
+
+
+@st.cache_resource
+def _executor():
+    return ThreadPoolExecutor(max_workers=3)
 
 
 def configure(engine_getter, database_url_getter, current_user_getter, invalidate_callback=None, secret_getter=None):
@@ -61,17 +69,17 @@ def _invalidate():
         return
     try:
         _INVALIDATE_CALLBACK()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Cache invalidation failed: %s", exc)
 
 
 def _fire_and_forget_api(method, path, params=None, json_payload=None):
     def _call():
         try:
             api_client.request(method, path, params=params, json=json_payload, timeout=8)
-        except Exception:
-            pass
-    threading.Thread(target=_call, daemon=True).start()
+        except Exception as exc:
+            logger.warning("Background API call failed: %s %s (%s)", method, path, exc)
+    _executor().submit(_call)
 
 
 def _scoped_setting_key(user_email, key):
