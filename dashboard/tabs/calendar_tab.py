@@ -376,14 +376,16 @@ def render_calendar_tab(ctx):
     with layout[0]:
         st.markdown("<div class='calendar-compact task-list calendar-hacker'>", unsafe_allow_html=True)
         st.markdown("<div class='calendar-section-title'>Daily tasks list</div>", unsafe_allow_html=True)
+        pending_tasks = [item for item in day_tasks if int(item.get("is_done", 0) or 0) == 0]
+        done_tasks = [item for item in day_tasks if int(item.get("is_done", 0) or 0) == 1]
         planned_count = len(day_tasks)
-        done_count = sum(1 for item in day_tasks if int(item.get("is_done", 0) or 0) == 1)
+        done_count = len(done_tasks)
         percent_done = round((done_count / planned_count) * 100) if planned_count else 0
         st.caption(f"{done_count}/{planned_count} done • {percent_done}% completed")
-        if not day_tasks:
+        if not pending_tasks:
             st.caption("No local tasks for this day.")
 
-        for task_idx, task in enumerate(day_tasks, start=1):
+        for task_idx, task in enumerate(pending_tasks, start=1):
             task_id = task["id"]
             task_key = task_id.replace("-", "_")
             time_current = task.get("scheduled_time")
@@ -407,8 +409,7 @@ def render_calendar_tab(ctx):
                 )
             with row[1]:
                 task_title = (task.get("title") or "Untitled task").strip()
-                title_class = "task-title-btn completed" if checked else "task-title-btn"
-                st.markdown(f"<div class='{title_class}'>", unsafe_allow_html=True)
+                st.markdown("<div class='task-title-btn'>", unsafe_allow_html=True)
                 if st.button(task_title, key=f"calendar.task.openbtn.{task_key}"):
                     st.session_state[open_key] = not st.session_state[open_key]
                 st.markdown("</div>", unsafe_allow_html=True)
@@ -555,6 +556,30 @@ def render_calendar_tab(ctx):
                         st.rerun()
 
                     st.markdown("</div>", unsafe_allow_html=True)
+
+        if done_tasks:
+            st.markdown("<div class='calendar-section-title' style='margin-top:0.4rem;'>Completed</div>", unsafe_allow_html=True)
+            for task_idx, task in enumerate(done_tasks, start=1):
+                task_id = task["id"]
+                task_key = task_id.replace("-", "_")
+                row = st.columns([0.45, 7.6, 0.9])
+                with row[0]:
+                    checked = st.checkbox(
+                        "",
+                        value=True,
+                        key=f"calendar.task.done.done.{task_key}",
+                        label_visibility="collapsed",
+                    )
+                with row[1]:
+                    task_title = (task.get("title") or "Untitled task").strip()
+                    st.markdown("<div class='task-title-btn'>", unsafe_allow_html=True)
+                    if st.button(task_title, key=f"calendar.task.openbtn.done.{task_key}"):
+                        st.session_state[open_key] = not st.session_state.get(open_key, False)
+                    st.markdown("</div>", unsafe_allow_html=True)
+                with row[2]:
+                    time_badge = task.get("scheduled_time") or ""
+                    if time_badge:
+                        st.markdown(f"<div class='task-time'>{time_badge}</div>", unsafe_allow_html=True)
 
         st.markdown("</div>", unsafe_allow_html=True)
 
