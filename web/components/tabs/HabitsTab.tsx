@@ -233,9 +233,9 @@ export default function HabitsTab({ userEmail }: { userEmail: string }) {
           </div>
         </div>
         <div className="section">
-          <h3>Personal habits</h3>
+          <h3>Personal habits (custom)</h3>
           <div className="habit-list">
-            {customHabits.map((habit) => (
+            {uniqueCustomHabits.map((habit) => (
               <div key={habit.id} className="habit-row">
                 <input
                   type="checkbox"
@@ -394,3 +394,15 @@ export default function HabitsTab({ userEmail }: { userEmail: string }) {
     </div>
   );
 }
+  const uniqueCustomHabits = useMemo(() => {
+    const seen = new Map<string, typeof customHabits[number]>();
+    customHabits.forEach((habit) => {
+      const name = String(habit.name || "").trim();
+      if (!name) return;
+      const key = name.toLowerCase();
+      if (!seen.has(key)) {
+        seen.set(key, habit);
+      }
+    });
+    return Array.from(seen.values());
+  }, [customHabits]);
