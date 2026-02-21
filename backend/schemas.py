@@ -138,6 +138,7 @@ class CoupleMoodboardResponse(BaseModel):
     y_labels: List[str]
     z: List[List[float]]
     hover_text: List[List[str]]
+    warning: Optional[str] = None
 
 
 class MeetingDaysPayload(BaseModel):

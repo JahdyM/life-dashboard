@@ -53,13 +53,28 @@ def render_couple_tab(ctx):
     month_last = calendar.monthrange(month_start.year, month_start.month)[1]
     month_end = month_start.replace(day=month_last)
 
+    def _empty_grid():
+        z_empty = [[float("nan") for _ in range(month_last)] for _ in range(2)]
+        hover_empty = [["" for _ in range(month_last)] for _ in range(2)]
+        x_empty = [str(day) for day in range(1, month_last + 1)]
+        y_empty = [row_meta[0][2], row_meta[1][2]]
+        return z_empty, hover_empty, x_empty, y_empty
+
     if repositories.api_enabled():
         month_key = month_choice.strftime("%Y-%m")
-        payload = api_client.request("GET", "/v1/couple/moodboard", params={"range": "month", "month": month_key})
-        z = payload.get("z", [])
-        hover_text = payload.get("hover_text", [])
-        x_labels = payload.get("x_labels", [])
-        y_labels = payload.get("y_labels", [])
+        try:
+            payload = api_client.request("GET", "/v1/couple/moodboard", params={"range": "month", "month": month_key})
+            if payload.get("warning"):
+                st.warning(payload.get("warning"))
+            z = payload.get("z", [])
+            hover_text = payload.get("hover_text", [])
+            x_labels = payload.get("x_labels", [])
+            y_labels = payload.get("y_labels", [])
+            if not x_labels:
+                z, hover_text, x_labels, y_labels = _empty_grid()
+        except Exception as exc:
+            st.warning("Could not load moodboard. Showing empty board.")
+            z, hover_text, x_labels, y_labels = _empty_grid()
     else:
         feed = repositories.get_couple_mood_feed(user_a, user_b, month_start, month_end)
         by_key = {}
@@ -98,6 +113,8 @@ def render_couple_tab(ctx):
     year_end = date(year_choice, 12, 31)
     if repositories.api_enabled():
         payload_year = api_client.request("GET", "/v1/couple/moodboard", params={"range": "year", "year": year_choice})
+        if payload_year.get("warning"):
+            st.warning(payload_year.get("warning"))
         z_year = payload_year.get("z", [])
         hover_year = payload_year.get("hover_text", [])
         x_year = payload_year.get("x_labels", [])
