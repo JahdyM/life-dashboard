@@ -48,19 +48,30 @@ function getRange(range: RangeKey) {
 }
 
 type SeriesPoint = { label: string; value: number };
+const LINE_STEP = 30;
+
+function formatMetricTick(value: number) {
+  if (!Number.isFinite(value)) return "0";
+  const rounded = Number(value.toFixed(1));
+  return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+}
 
 function LineChart({
   points,
   color,
+  step,
 }: {
   points: SeriesPoint[];
   color: string;
+  step: number;
 }) {
   const max = Math.max(1, ...points.map((p) => p.value));
-  const step = 28;
-  const height = Math.max(1, points.length) * step;
+  const rows = Math.max(1, points.length);
+  const height = rows * step;
   const width = 360;
-  const padX = 10;
+  const padX = 12;
+
+  const tickValues = [0, 0.25, 0.5, 0.75, 1].map((ratio) => max * ratio);
 
   const coords = points.map((p, idx) => {
     const x = padX + (p.value / max) * (width - padX * 2);
@@ -75,17 +86,30 @@ function LineChart({
   return (
     <div className="line-plot">
       <div className="line-x-scale">
-        <span>0</span>
-        <span>{Math.round(max * 0.25)}</span>
-        <span>{Math.round(max * 0.5)}</span>
-        <span>{Math.round(max * 0.75)}</span>
-        <span>{Math.round(max)}</span>
+        {tickValues.map((value, idx) => (
+          <span key={idx}>{formatMetricTick(value)}</span>
+        ))}
       </div>
       <svg
         className="line-chart"
         viewBox={`0 0 ${width} ${height}`}
         preserveAspectRatio="none"
+        style={{ height: `${height}px` }}
       >
+        {tickValues.map((value, idx) => {
+          const x = padX + (value / max) * (width - padX * 2);
+          return (
+            <line
+              key={`x-grid-${idx}`}
+              x1={x}
+              y1={0}
+              x2={x}
+              y2={height}
+              stroke="rgba(255,255,255,0.08)"
+              strokeWidth="1"
+            />
+          );
+        })}
         {coords.map((p, idx) => (
           <line
             key={`grid-${idx}`}
@@ -181,7 +205,12 @@ export default function StatsTab({ userEmail }: { userEmail: string }) {
           <div key={metric.key} className="chart-card line">
             <h3>{metric.title}</h3>
             <div className="line-grid">
-              <div className="line-y">
+              <div
+                className="line-y"
+                style={{
+                  gridTemplateRows: `repeat(${series[metric.key as keyof typeof series].length || 1}, ${LINE_STEP}px)`,
+                }}
+              >
                 {series[metric.key as keyof typeof series].map((item) => (
                   <div key={item.label} className="line-label">
                     {item.label}
@@ -191,6 +220,7 @@ export default function StatsTab({ userEmail }: { userEmail: string }) {
               <LineChart
                 points={series[metric.key as keyof typeof series]}
                 color={metric.color}
+                step={LINE_STEP}
               />
             </div>
           </div>

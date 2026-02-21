@@ -465,45 +465,73 @@ button.link.danger {
 .chart-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  margin-top: 16px;
+  gap: 14px;
+  margin-top: 14px;
 }
 
 .chart-card h3 {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
 }
 
 .chart-card.line {
-  padding: 12px;
+  padding: 10px 12px 12px;
   border: 1px solid var(--border-soft);
   border-radius: 12px;
+  background: rgba(7, 9, 15, 0.24);
 }
 
 .line-grid {
   display: grid;
-  grid-template-columns: 56px 1fr;
-  gap: 10px;
+  grid-template-columns: 62px minmax(0, 1fr);
+  gap: 8px;
   align-items: start;
 }
 
 .line-y {
   display: grid;
-  gap: 8px;
-  padding-top: 2px;
+  align-content: start;
+  min-width: 0;
 }
 
 .line-label {
+  display: flex;
+  align-items: center;
   font-size: 11px;
   color: var(--text-muted);
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.line-plot {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.line-x-scale {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  padding: 0 12px;
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+  letter-spacing: 0.02em;
 }
 
 .line-chart {
   width: 100%;
-  height: auto;
+  min-height: 120px;
+  display: block;
+  border-radius: 10px;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03), transparent 65%),
+    rgba(2, 4, 10, 0.35);
 }
 
 .mood-grid {
@@ -580,5 +608,8 @@ button.link.danger {
   }
   .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .chart-grid {
+    grid-template-columns: 1fr;
   }
 }
