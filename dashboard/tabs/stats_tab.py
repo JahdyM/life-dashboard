@@ -24,7 +24,9 @@ def render_stats_tab(ctx):
 
     custom_habits = repositories.get_custom_habits(ctx.get("current_user_email"), active_only=True)
     custom_habit_ids = [habit["id"] for habit in custom_habits]
-    custom_done_by_date = load_custom_habit_done_by_date()
+    start_bound = data["date"].min() if not data.empty else today
+    end_bound = data["date"].max() if not data.empty else today
+    custom_done_by_date = load_custom_habit_done_by_date(start_bound, end_bound)
     metrics = data.apply(
         lambda row: compute_habits_metrics(
             row,
