@@ -142,6 +142,29 @@ export default function HabitsTab({ userEmail }: { userEmail: string }) {
   };
 
   const [newHabit, setNewHabit] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+
+  const updateHabit = useMutation({
+    mutationFn: (payload: { id: string; name: string }) =>
+      fetchJson(`/api/habits/custom/${payload.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name: payload.name }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["custom-habits"] });
+      setEditingId(null);
+      setEditingName("");
+    },
+  });
+
+  const deleteHabit = useMutation({
+    mutationFn: (id: string) =>
+      fetchJson(`/api/habits/custom/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["custom-habits"] });
+    },
+  });
 
   return (
     <div className="tab-grid">
@@ -174,7 +197,7 @@ export default function HabitsTab({ userEmail }: { userEmail: string }) {
           </div>
         </div>
         <div className="form-row">
-          <label>Family worship day</label>
+          <label>Adoração em família (dia)</label>
           <select
             value={familyDay}
             onChange={(event) => updateFamilyDay.mutate(Number(event.target.value))}
@@ -223,14 +246,62 @@ export default function HabitsTab({ userEmail }: { userEmail: string }) {
               </label>
             ))}
             {customHabits.map((habit) => (
-              <label key={habit.id} className="habit-row">
+              <div key={habit.id} className="habit-row">
                 <input
                   type="checkbox"
                   checked={Boolean(customDone[habit.id])}
                   onChange={(event) => handleCustomToggle(habit.id, event.target.checked)}
                 />
-                <span>{habit.name}</span>
-              </label>
+                {editingId === habit.id ? (
+                  <>
+                    <input
+                      className="inline-input"
+                      value={editingName}
+                      onChange={(event) => setEditingName(event.target.value)}
+                    />
+                    <button
+                      className="icon-btn"
+                      onClick={() =>
+                        updateHabit.mutate({ id: habit.id, name: editingName })
+                      }
+                    >
+                      ✓
+                    </button>
+                    <button
+                      className="icon-btn"
+                      onClick={() => {
+                        setEditingId(null);
+                        setEditingName("");
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span>{habit.name}</span>
+                    <button
+                      className="icon-btn"
+                      onClick={() => {
+                        setEditingId(habit.id);
+                        setEditingName(habit.name);
+                      }}
+                    >
+                      ✎
+                    </button>
+                    <button
+                      className="icon-btn"
+                      onClick={() => {
+                        if (confirm("Excluir este hábito?")) {
+                          deleteHabit.mutate(habit.id);
+                        }
+                      }}
+                    >
+                      🗑
+                    </button>
+                  </>
+                )}
+              </div>
             ))}
           </div>
           <div className="form-row add-row">
@@ -239,6 +310,12 @@ export default function HabitsTab({ userEmail }: { userEmail: string }) {
               placeholder="Add habit"
               value={newHabit}
               onChange={(event) => setNewHabit(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && newHabit.trim()) {
+                  addHabit.mutate(newHabit.trim());
+                  setNewHabit("");
+                }
+              }}
             />
             <button
               className="secondary"
