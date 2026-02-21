@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/client/api";
 import { MOOD_PALETTE } from "@/lib/constants";
@@ -18,14 +18,45 @@ export default function CoupleTab({ userEmail }: { userEmail: string }) {
     queryFn: () => fetchJson<any>("/api/couple/streaks"),
   });
 
-  const moodColor = (key?: string | null) => {
-    if (!key) return "#2E2A26";
-    return MOOD_PALETTE.find((mood) => mood.key === key)?.color || "#2E2A26";
+  const moodMeta = (key?: string | null) => {
+    if (!key) return null;
+    return MOOD_PALETTE.find((mood) => mood.key === key) || null;
+  };
+
+  const getLatestMood = (row: Array<string | null> | undefined) => {
+    if (!row) return null;
+    for (let i = row.length - 1; i >= 0; i -= 1) {
+      if (row[i]) return row[i] as string;
+    }
+    return null;
+  };
+
+  const supportSuggestion = (moodKey: string | null, partnerName: string) => {
+    switch (moodKey) {
+      case "fear":
+        return `Medo: abrace ${partnerName} com mais presença, traga segurança e escuta sem julgamento.`;
+      case "anger":
+        return `Raiva: dê espaço curto, valide o que ${partnerName} sente e retomem a conversa com calma.`;
+      case "anxiety":
+        return `Ansiedade: fale devagar com ${partnerName}, simplifiquem o dia e priorizem uma coisa por vez.`;
+      case "joy":
+        return `Felicidade: celebre com ${partnerName} e reforcem juntos o que funcionou hoje.`;
+      case "peace":
+        return `Paz: mantenha com ${partnerName} um ritmo leve, carinho prático e gratidão no fim do dia.`;
+      case "neutral":
+        return `Neutro: faça um check-in breve com ${partnerName} e ofereça apoio em algo concreto.`;
+      default:
+        return `Sem registro recente de humor para ${partnerName}. Faça um check-in carinhoso hoje.`;
+    }
   };
 
   const xLabels = moodQuery.data?.x_labels || [];
   const yLabels = moodQuery.data?.y_labels || [];
   const z = moodQuery.data?.z || [];
+  const userName = yLabels[0] || userEmail.split("@")[0];
+  const partnerName = yLabels[1] || "Partner";
+  const latestUserMood = getLatestMood(z?.[0]);
+  const latestPartnerMood = getLatestMood(z?.[1]);
 
   return (
     <div className="card">
@@ -41,21 +72,58 @@ export default function CoupleTab({ userEmail }: { userEmail: string }) {
       {moodQuery.data?.warning && (
         <div className="warning">{moodQuery.data.warning}</div>
       )}
+      <div className="mood-legend">
+        {MOOD_PALETTE.map((mood) => (
+          <div key={mood.key} className="mood-legend-item">
+            <span className="mood-legend-color" style={{ background: mood.color }}>
+              {mood.emoji}
+            </span>
+            <span>{mood.label}</span>
+          </div>
+        ))}
+      </div>
       <div className="mood-board">
         {yLabels.map((label: string, rowIndex: number) => (
           <div key={label} className="mood-row">
             <div className="mood-row-label">{label}</div>
             <div className="mood-row-cells">
-              {xLabels.map((day: string, colIndex: number) => (
-                <div
-                  key={`${label}-${day}`}
-                  className="mood-cell"
-                  style={{ background: moodColor(z?.[rowIndex]?.[colIndex]) }}
-                />
-              ))}
+              {xLabels.map((day: string, colIndex: number) => {
+                const mood = moodMeta(z?.[rowIndex]?.[colIndex]);
+                return (
+                  <div
+                    key={`${label}-${day}`}
+                    className="mood-cell"
+                    style={{ background: mood?.color || "#2E2A26" }}
+                    title={mood ? `Dia ${day}: ${mood.label}` : `Dia ${day}: sem registro`}
+                  >
+                    {mood?.emoji ? <span className="mood-cell-emoji">{mood.emoji}</span> : null}
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))}
+      </div>
+      <div className="section">
+        <h3>Partner care suggestions</h3>
+        <div className="suggestion-grid">
+          <div className="suggestion-card">
+            <div className="suggestion-title">
+              Para {userName} cuidar de {partnerName}
+            </div>
+            <div className="suggestion-body">
+              {supportSuggestion(latestPartnerMood, partnerName)}
+            </div>
+          </div>
+          <div className="suggestion-card">
+            <div className="suggestion-title">
+              Para {partnerName} cuidar de {userName}
+            </div>
+            <div className="suggestion-body">
+              {supportSuggestion(latestUserMood, userName)}
+            </div>
+          </div>
+        </div>
       </div>
       <div className="section">
         <h3>Shared streaks</h3>

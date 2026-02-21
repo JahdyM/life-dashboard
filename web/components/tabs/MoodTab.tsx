@@ -6,7 +6,7 @@ import { fetchJson } from "@/lib/client/api";
 import { MOOD_PALETTE } from "@/lib/constants";
 import { format } from "date-fns";
 
-export default function MoodTab({ userEmail }: { userEmail: string }) {
+export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }) {
   const [monthKey, setMonthKey] = useState(() => format(new Date(), "yyyy-MM"));
   const [yearKey] = useState(() => format(new Date(), "yyyy"));
   const start = `${monthKey}-01`;
@@ -48,9 +48,9 @@ export default function MoodTab({ userEmail }: { userEmail: string }) {
   }, [yearQuery.data]);
 
   const daysInMonth = endDate.getDate();
-  const moodColor = (key?: string | null) => {
-    if (!key) return "#2E2A26";
-    return MOOD_PALETTE.find((mood) => mood.key === key)?.color || "#2E2A26";
+  const moodMeta = (key?: string | null) => {
+    if (!key) return null;
+    return MOOD_PALETTE.find((mood) => mood.key === key) || null;
   };
 
   return (
@@ -67,15 +67,28 @@ export default function MoodTab({ userEmail }: { userEmail: string }) {
         {Array.from({ length: daysInMonth }, (_, idx) => {
           const day = idx + 1;
           const dayKey = `${monthKey}-${String(day).padStart(2, "0")}`;
+          const mood = moodMeta(moodByDay.get(dayKey));
           return (
             <div
               key={dayKey}
               className="mood-cell"
-              style={{ background: moodColor(moodByDay.get(dayKey)) }}
-              title={dayKey}
-            />
+              style={{ background: mood?.color || "#2E2A26" }}
+              title={mood ? `${dayKey} • ${mood.label}` : `${dayKey} • sem registro`}
+            >
+              {mood?.emoji ? <span className="mood-cell-emoji">{mood.emoji}</span> : null}
+            </div>
           );
         })}
+      </div>
+      <div className="mood-legend">
+        {MOOD_PALETTE.map((mood) => (
+          <div key={mood.key} className="mood-legend-item">
+            <span className="mood-legend-color" style={{ background: mood.color }}>
+              {mood.emoji}
+            </span>
+            <span>{mood.label}</span>
+          </div>
+        ))}
       </div>
       <div className="section">
         <h3>Year mood</h3>
@@ -88,12 +101,16 @@ export default function MoodTab({ userEmail }: { userEmail: string }) {
             const date = new Date(`${yearKey}-01-01`);
             date.setDate(date.getDate() + idx);
             const key = format(date, "yyyy-MM-dd");
+            const mood = moodMeta(moodByDayYear.get(key));
             return (
               <div
                 key={key}
                 className="mood-cell"
-                style={{ background: moodColor(moodByDayYear.get(key)) }}
-              />
+                style={{ background: mood?.color || "#2E2A26" }}
+                title={mood ? `${key} • ${mood.label}` : `${key} • sem registro`}
+              >
+                {mood?.emoji ? <span className="mood-cell-emoji">{mood.emoji}</span> : null}
+              </div>
             );
           })}
         </div>
