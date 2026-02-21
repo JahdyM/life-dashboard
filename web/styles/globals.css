@@ -477,31 +477,33 @@ button.link.danger {
   color: var(--text-muted);
 }
 
-.bar-chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 6px;
-  height: 140px;
-  border-bottom: 1px solid var(--border-soft);
-  padding-bottom: 8px;
+.chart-card.line {
+  padding: 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
 }
 
-.bar {
-  flex: 1;
-  background: var(--accent-soft);
-  border: 1px solid var(--accent);
-  border-radius: 6px 6px 0 0;
-  position: relative;
-  min-height: 6px;
+.line-grid {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 10px;
+  align-items: start;
 }
 
-.bar-label {
-  position: absolute;
-  bottom: -18px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 10px;
+.line-y {
+  display: grid;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.line-label {
+  font-size: 11px;
   color: var(--text-muted);
+}
+
+.line-chart {
+  width: 100%;
+  height: auto;
 }
 
 .mood-grid {

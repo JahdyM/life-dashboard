@@ -47,6 +47,45 @@ function getRange(range: RangeKey) {
   };
 }
 
+type SeriesPoint = { label: string; value: number };
+
+function LineChart({
+  points,
+  color,
+}: {
+  points: SeriesPoint[];
+  color: string;
+}) {
+  const max = Math.max(1, ...points.map((p) => p.value));
+  const step = 22;
+  const height = Math.max(1, points.length - 1) * step + 2;
+  const width = 220;
+  const padLeft = 8;
+
+  const coords = points.map((p, idx) => {
+    const x = padLeft + (p.value / max) * (width - padLeft - 6);
+    const y = idx * step + 1;
+    return { x, y };
+  });
+
+  const path = coords
+    .map((p, idx) => `${idx === 0 ? "M" : "L"}${p.x},${p.y}`)
+    .join(" ");
+
+  return (
+    <svg
+      className="line-chart"
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="xMinYMin meet"
+    >
+      <path d={path} fill="none" stroke={color} strokeWidth="2" />
+      {coords.map((p, idx) => (
+        <circle key={idx} cx={p.x} cy={p.y} r="3.5" fill={color} />
+      ))}
+    </svg>
+  );
+}
+
 export default function StatsTab({ userEmail }: { userEmail: string }) {
   const [rangeKey, setRangeKey] = useState<RangeKey>("week");
   const range = useMemo(() => getRange(rangeKey), [rangeKey]);
@@ -64,7 +103,7 @@ export default function StatsTab({ userEmail }: { userEmail: string }) {
       const iso = format(date, "yyyy-MM-dd");
       return {
         iso,
-        label: format(date, "dd"),
+        label: format(date, "dd/MM"),
       };
     });
   }, [range]);
@@ -77,22 +116,17 @@ export default function StatsTab({ userEmail }: { userEmail: string }) {
     return map;
   }, [entriesQuery.data]);
 
-  const metrics = useMemo(() => {
-    const buildSeries = (key: keyof Entry) => {
-      const values = days.map((day) => {
+  const series = useMemo(() => {
+    const build = (key: keyof Entry) =>
+      days.map((day) => {
         const entry = entryByDate.get(day.iso);
-        const value = Number(entry?.[key] || 0);
-        return { label: day.label, value };
+        return { label: day.label, value: Number(entry?.[key] || 0) };
       });
-      const max = Math.max(1, ...values.map((item) => item.value));
-      return { values, max };
-    };
-
     return {
-      sleep: buildSeries("sleepHours"),
-      work: buildSeries("workHours"),
-      anxiety: buildSeries("anxietyLevel"),
-      boredom: buildSeries("boredomMinutes"),
+      sleep: build("sleepHours"),
+      anxiety: build("anxietyLevel"),
+      work: build("workHours"),
+      boredom: build("boredomMinutes"),
     };
   }, [days, entryByDate]);
 
@@ -115,46 +149,29 @@ export default function StatsTab({ userEmail }: { userEmail: string }) {
       </div>
 
       <div className="chart-grid">
-        <div className="chart-card">
-          <h3>Sleep hours</h3>
-          <div className="bar-chart">
-            {metrics.sleep.values.map((item, idx) => (
-              <div key={`sleep-${idx}`} className="bar" style={{ height: `${(item.value / metrics.sleep.max) * 100}%` }}>
-                <span className="bar-label">{item.label}</span>
+        {[
+          { title: "Sleep hours", key: "sleep", color: "#8f7bb3" },
+          { title: "Anxiety level", key: "anxiety", color: "#D6D979" },
+          { title: "Work/study hours", key: "work", color: "#7fd3a5" },
+          { title: "Boredom minutes", key: "boredom", color: "#a8b3d9" },
+        ].map((metric) => (
+          <div key={metric.key} className="chart-card line">
+            <h3>{metric.title}</h3>
+            <div className="line-grid">
+              <div className="line-y">
+                {series[metric.key as keyof typeof series].map((item) => (
+                  <div key={item.label} className="line-label">
+                    {item.label}
+                  </div>
+                ))}
               </div>
-            ))}
+              <LineChart
+                points={series[metric.key as keyof typeof series]}
+                color={metric.color}
+              />
+            </div>
           </div>
-        </div>
-        <div className="chart-card">
-          <h3>Anxiety level</h3>
-          <div className="bar-chart">
-            {metrics.anxiety.values.map((item, idx) => (
-              <div key={`anx-${idx}`} className="bar" style={{ height: `${(item.value / metrics.anxiety.max) * 100}%` }}>
-                <span className="bar-label">{item.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="chart-card">
-          <h3>Work/study hours</h3>
-          <div className="bar-chart">
-            {metrics.work.values.map((item, idx) => (
-              <div key={`work-${idx}`} className="bar" style={{ height: `${(item.value / metrics.work.max) * 100}%` }}>
-                <span className="bar-label">{item.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="chart-card">
-          <h3>Boredom minutes</h3>
-          <div className="bar-chart">
-            {metrics.boredom.values.map((item, idx) => (
-              <div key={`bored-${idx}`} className="bar" style={{ height: `${(item.value / metrics.boredom.max) * 100}%` }}>
-                <span className="bar-label">{item.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );
