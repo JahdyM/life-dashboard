@@ -212,7 +212,7 @@ export default function CalendarTab({ userEmail }: { userEmail: string }) {
                   onClick={() =>
                     updateTask.mutate({
                       id: task.id,
-                      data: { scheduled_date: format(selectedDate, \"yyyy-MM-dd\") },
+                      data: { scheduled_date: format(selectedDate, "yyyy-MM-dd") },
                     })
                   }
                 >
