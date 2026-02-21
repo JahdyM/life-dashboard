@@ -62,7 +62,14 @@ export async function getCustomHabits(userEmail: string) {
   try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
-      return parsed.filter((item) => typeof item === "object" && item?.active !== false);
+      const filtered = parsed.filter(
+        (item) => typeof item === "object" && item?.active !== false
+      );
+      const normalized = normalizeCustomHabits(filtered);
+      if (normalized.length !== filtered.length) {
+        await saveCustomHabits(userEmail, normalized);
+      }
+      return normalized;
     }
   } catch (_err) {
     return [];
@@ -74,7 +81,8 @@ export async function saveCustomHabits(
   userEmail: string,
   habits: Array<{ id: string; name: string; active?: boolean }>
 ) {
-  await setSetting(userEmail, "custom_habits", JSON.stringify(habits));
+  const normalized = normalizeCustomHabits(habits);
+  await setSetting(userEmail, "custom_habits", JSON.stringify(normalized));
 }
 
 const DEFAULT_CUSTOM_HABITS = [
@@ -90,6 +98,27 @@ export async function ensureDefaultCustomHabits(userEmail: string) {
   if (current.length > 0) return current;
   await saveCustomHabits(userEmail, DEFAULT_CUSTOM_HABITS);
   return DEFAULT_CUSTOM_HABITS;
+}
+
+function normalizeCustomHabits(
+  habits: Array<{ id: string; name: string; active?: boolean }>
+) {
+  const seen = new Map<string, { id: string; name: string; active?: boolean }>();
+  habits.forEach((habit) => {
+    const name = String(habit?.name || "").trim();
+    if (!name) return;
+    const key = name.toLowerCase();
+    if (!seen.has(key)) {
+      seen.set(key, { ...habit, name });
+      return;
+    }
+    const existing = seen.get(key)!;
+    // Prefer active habit if duplicate exists
+    if (habit.active !== false && existing.active === false) {
+      seen.set(key, { ...habit, name });
+    }
+  });
+  return Array.from(seen.values());
 }
 
 export async function getCustomHabitDone(userEmail: string, dayIso: string) {
