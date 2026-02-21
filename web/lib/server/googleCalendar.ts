@@ -1,7 +1,7 @@
 import { prisma } from "../db/prisma";
 import { decryptToken } from "../encryption";
 import { DEFAULT_TIME_ZONE } from "../constants";
-import { zonedTimeToUtc, formatInTimeZone } from "date-fns-tz";
+import { fromZonedTime, formatInTimeZone } from "date-fns-tz";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const CAL_BASE = "https://www.googleapis.com/calendar/v3";
@@ -129,7 +129,7 @@ export async function createGoogleEvent(
   };
   if (payload.scheduledTime) {
     const startLocal = `${payload.scheduledDate} ${payload.scheduledTime}`;
-    const startUtc = zonedTimeToUtc(startLocal, timeZone);
+    const startUtc = fromZonedTime(startLocal, timeZone);
     const endUtc = payload.estimatedMinutes
       ? new Date(startUtc.getTime() + payload.estimatedMinutes * 60000)
       : new Date(startUtc.getTime() + 30 * 60000);
@@ -182,7 +182,7 @@ export async function updateGoogleEvent(
   if (payload.scheduledDate) {
     if (payload.scheduledTime) {
       const startLocal = `${payload.scheduledDate} ${payload.scheduledTime}`;
-      const startUtc = zonedTimeToUtc(startLocal, timeZone);
+      const startUtc = fromZonedTime(startLocal, timeZone);
       const endUtc = payload.estimatedMinutes
         ? new Date(startUtc.getTime() + payload.estimatedMinutes * 60000)
         : new Date(startUtc.getTime() + 30 * 60000);

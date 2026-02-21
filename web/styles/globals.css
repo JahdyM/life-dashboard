@@ -1,5 +1,5 @@
-@import "@fullcalendar/core/index.css";
-@import "@fullcalendar/timegrid/index.css";
+@import "@fullcalendar/core/main.css";
+@import "@fullcalendar/timegrid/main.css";
 
 :root {
   --bg: #151311;
