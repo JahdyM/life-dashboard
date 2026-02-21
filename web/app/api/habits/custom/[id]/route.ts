@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireUserEmail } from "@/lib/server/auth";
 import { handleAuthError, jsonError, jsonOk } from "@/lib/server/response";
-import { getCustomHabits, saveCustomHabits } from "@/lib/server/settings";
+import { canonicalHabitKey, getCustomHabits, saveCustomHabits } from "@/lib/server/settings";
 
 export async function PATCH(
   request: NextRequest,
@@ -13,6 +13,14 @@ export async function PATCH(
     const name = String(payload?.name || "").trim();
     if (!name) return jsonError("Habit name cannot be empty", 400);
     const habits = await getCustomHabits(userEmail);
+    const newKey = canonicalHabitKey(name);
+    if (
+      habits.some(
+        (habit) => habit.id !== context.params.id && canonicalHabitKey(habit.name) === newKey
+      )
+    ) {
+      return jsonError("Habit already exists", 400);
+    }
     let updated = false;
     const next = habits.map((habit) => {
       if (habit.id === context.params.id) {

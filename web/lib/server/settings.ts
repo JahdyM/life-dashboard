@@ -100,6 +100,15 @@ export async function ensureDefaultCustomHabits(userEmail: string) {
   return DEFAULT_CUSTOM_HABITS;
 }
 
+export function canonicalHabitKey(name: string) {
+  let key = String(name || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+  key = key.replace(/\s*\(books\)/g, "");
+  return key;
+}
+
 function normalizeCustomHabits(
   habits: Array<{ id: string; name: string; active?: boolean }>
 ) {
@@ -107,7 +116,7 @@ function normalizeCustomHabits(
   habits.forEach((habit) => {
     const name = String(habit?.name || "").trim();
     if (!name) return;
-    const key = name.toLowerCase();
+    const key = canonicalHabitKey(name);
     if (!seen.has(key)) {
       seen.set(key, { ...habit, name });
       return;
@@ -115,6 +124,11 @@ function normalizeCustomHabits(
     const existing = seen.get(key)!;
     // Prefer active habit if duplicate exists
     if (habit.active !== false && existing.active === false) {
+      seen.set(key, { ...habit, name });
+      return;
+    }
+    // Prefer longer, more descriptive name (e.g., with parentheses)
+    if (name.length > existing.name.length) {
       seen.set(key, { ...habit, name });
     }
   });
