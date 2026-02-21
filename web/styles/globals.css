@@ -1,0 +1,506 @@
+@import "@fullcalendar/core/index.css";
+@import "@fullcalendar/timegrid/index.css";
+
+:root {
+  --bg: #151311;
+  --bg-panel: rgba(22, 20, 18, 0.9);
+  --bg-soft: rgba(255, 255, 255, 0.06);
+  --text: #f5f1ea;
+  --text-muted: #c7c1b7;
+  --accent: #8f7bb3;
+  --accent-soft: rgba(143, 123, 179, 0.25);
+  --border: rgba(255, 255, 255, 0.12);
+  --border-soft: rgba(255, 255, 255, 0.06);
+  --success: #7fd3a5;
+  --warning: #f4c676;
+  --danger: #e08d8d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-body), system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100%;
+}
+
+.app-shell {
+  padding: 24px 32px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.header {
+  display: grid;
+  gap: 16px;
+}
+
+.header-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+}
+
+.header-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.header-metric {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 4px 0 0;
+}
+
+.header-metric span {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.header-streaks {
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+}
+
+.header-streaks-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.header-warning {
+  color: var(--warning);
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.streak-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.streak-card {
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--bg-soft);
+}
+
+.streak-icon {
+  font-size: 20px;
+}
+
+.streak-label {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 6px 0 4px;
+}
+
+.streak-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.streak-row .done {
+  color: var(--success);
+}
+
+.streak-row .pending {
+  color: var(--warning);
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.tab {
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  color: var(--text-muted);
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tab.active {
+  background: var(--accent-soft);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.tab-content {
+  display: grid;
+  gap: 16px;
+}
+
+.card {
+  padding: 20px;
+  border-radius: 16px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+}
+
+.card h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.section {
+  margin-top: 16px;
+}
+
+.section h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.tab-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.form-row {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.form-row label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+input,
+select,
+button {
+  font: inherit;
+}
+
+input,
+select {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  color: var(--text);
+  padding: 8px 10px;
+}
+
+button.primary {
+  background: var(--accent);
+  color: #1a1a1a;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+button.link {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+button.link.danger {
+  color: var(--danger);
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  border: 1px solid var(--border-soft);
+  background: transparent;
+  color: var(--text-muted);
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.chip.active {
+  background: var(--accent-soft);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.habit-list {
+  display: grid;
+  gap: 8px;
+}
+
+.habit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.habit-row.disabled {
+  opacity: 0.4;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.calendar-layout {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 16px;
+}
+
+.task-list {
+  display: grid;
+  gap: 16px;
+}
+
+.task-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.task-items {
+  display: grid;
+  gap: 8px;
+}
+
+.task-row {
+  border-bottom: 1px solid var(--border-soft);
+  padding-bottom: 6px;
+}
+
+.task-row summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.task-row summary::-webkit-details-marker {
+  display: none;
+}
+
+.task-title {
+  flex: 1;
+}
+
+.task-time {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.task-details {
+  display: grid;
+  gap: 8px;
+  padding: 10px 0 6px 26px;
+}
+
+.task-details label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.task-completed {
+  margin-top: 12px;
+}
+
+.task-completed .task-row {
+  opacity: 0.6;
+}
+
+.task-remembered {
+  margin-top: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.task-remembered h3 {
+  margin: 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.task-form {
+  display: grid;
+  gap: 10px;
+}
+
+.calendar-panel {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.fc {
+  --fc-border-color: rgba(255, 255, 255, 0.08);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: transparent;
+  --fc-neutral-text-color: var(--text-muted);
+  --fc-event-bg-color: rgba(143, 123, 179, 0.6);
+  --fc-event-border-color: rgba(143, 123, 179, 0.9);
+  color: var(--text);
+}
+
+.fc .fc-timegrid-slot {
+  height: 28px;
+}
+
+.fc .fc-timegrid-axis {
+  color: var(--text-muted);
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.sync-status {
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.sync-status.failed {
+  color: var(--danger);
+}
+
+.sync-status.syncing {
+  color: var(--warning);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stats-grid strong {
+  display: block;
+  font-size: 20px;
+  margin-top: 6px;
+}
+
+.mood-grid {
+  display: grid;
+  grid-template-columns: repeat(14, 1fr);
+  gap: 6px;
+}
+
+.mood-grid.yearly {
+  grid-template-columns: repeat(26, 1fr);
+  gap: 4px;
+}
+
+.mood-cell {
+  width: 100%;
+  padding-bottom: 100%;
+  border-radius: 4px;
+  border: 1px solid var(--border-soft);
+}
+
+.mood-board {
+  display: grid;
+  gap: 10px;
+}
+
+.mood-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.mood-row-cells {
+  display: grid;
+  grid-template-columns: repeat(31, 1fr);
+  gap: 4px;
+}
+
+.mood-row-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.warning {
+  color: var(--warning);
+  font-size: 13px;
+}
+
+.signin {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.signin-card {
+  background: var(--bg-panel);
+  padding: 32px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  display: grid;
+  gap: 12px;
+  max-width: 320px;
+  text-align: center;
+}
+
+@media (max-width: 980px) {
+  .tab-grid,
+  .calendar-layout {
+    grid-template-columns: 1fr;
+  }
+  .header-summary {
+    grid-template-columns: 1fr;
+  }
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

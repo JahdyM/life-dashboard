@@ -1,0 +1,148 @@
+// Prisma schema for the existing Neon database
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model DailyEntryUser {
+  userEmail         String  @map("user_email")
+  date              String  @map("date")
+  bibleReading      Int?    @map("bible_reading")
+  bibleStudy        Int?    @map("bible_study")
+  dissertationWork  Int?    @map("dissertation_work")
+  workout           Int?    @map("workout")
+  generalReading    Int?    @map("general_reading")
+  shower            Int?    @map("shower")
+  dailyText         Int?    @map("daily_text")
+  meetingAttended   Int?    @map("meeting_attended")
+  prepareMeeting    Int?    @map("prepare_meeting")
+  familyWorship     Int?    @map("family_worship")
+  writing           Int?    @map("writing")
+  scientificWriting Int?    @map("scientific_writing")
+  sleepHours        Float?  @map("sleep_hours")
+  anxietyLevel      Int?    @map("anxiety_level")
+  workHours         Float?  @map("work_hours")
+  boredomMinutes    Int?    @map("boredom_minutes")
+  moodCategory      String? @map("mood_category")
+  priorityLabel     String? @map("priority_label")
+  priorityDone      Int?    @map("priority_done")
+  moodNote          String? @map("mood_note")
+  moodMediaUrl      String? @map("mood_media_url")
+  moodTagsJson      String? @map("mood_tags_json")
+  updatedAt         String? @map("updated_at")
+
+  @@id([userEmail, date])
+  @@map("daily_entries_user")
+}
+
+model TodoTask {
+  id               String  @id
+  userEmail        String  @map("user_email")
+  title            String
+  source           String
+  externalEventKey String? @map("external_event_key")
+  scheduledDate    String? @map("scheduled_date")
+  scheduledTime    String? @map("scheduled_time")
+  priorityTag      String? @map("priority_tag")
+  estimatedMinutes Int?    @map("estimated_minutes")
+  actualMinutes    Int?    @map("actual_minutes")
+  isDone           Int?    @map("is_done")
+  googleCalendarId String? @map("google_calendar_id")
+  googleEventId    String? @map("google_event_id")
+  createdAt        String  @map("created_at")
+  updatedAt        String? @map("updated_at")
+  version          Int?    @map("version")
+
+  @@map("todo_tasks")
+}
+
+model TodoSubtask {
+  id               String  @id
+  taskId           String  @map("task_id")
+  userEmail        String  @map("user_email")
+  title            String
+  priorityTag      String? @map("priority_tag")
+  estimatedMinutes Int?    @map("estimated_minutes")
+  actualMinutes    Int?    @map("actual_minutes")
+  isDone           Int?    @map("is_done")
+  createdAt        String  @map("created_at")
+  updatedAt        String? @map("updated_at")
+  version          Int?    @map("version")
+
+  @@map("todo_subtasks")
+}
+
+model Setting {
+  key   String  @id
+  value String?
+
+  @@map("settings")
+}
+
+model GoogleCalendarToken {
+  userEmail       String  @id @map("user_email")
+  refreshTokenEnc String  @map("refresh_token_enc")
+  accessToken     String? @map("access_token")
+  expiresAt       String? @map("expires_at")
+  scope           String?
+  updatedAt       String  @map("updated_at")
+
+  @@map("google_calendar_tokens")
+}
+
+model GoogleSyncCursor {
+  userEmail    String @map("user_email")
+  calendarId   String @map("calendar_id")
+  syncToken    String? @map("sync_token")
+  lastSyncedAt String? @map("last_synced_at")
+  lastError    String? @map("last_error")
+
+  @@id([userEmail, calendarId])
+  @@map("google_sync_cursor")
+}
+
+model SyncOutbox {
+  id          String  @id
+  userEmail   String  @map("user_email")
+  entityType  String  @map("entity_type")
+  entityId    String  @map("entity_id")
+  action      String
+  payloadJson String? @map("payload_json")
+  status      String  @default("pending")
+  attempts    Int?    @default(0)
+  nextRetryAt String? @map("next_retry_at")
+  lastError   String? @map("last_error")
+  createdAt   String  @map("created_at")
+  updatedAt   String  @map("updated_at")
+
+  @@map("sync_outbox")
+}
+
+model SharedStreakCache {
+  coupleKey  String  @map("couple_key")
+  habitKey   String  @map("habit_key")
+  userEmail  String  @map("user_email")
+  streakDays Int?    @map("streak_days")
+  updatedAt  String? @map("updated_at")
+
+  @@id([coupleKey, habitKey, userEmail])
+  @@map("shared_streak_cache")
+}
+
+model DaySnapshotCache {
+  userEmail       String  @map("user_email")
+  date            String  @map("date")
+  habitsCompleted Int?    @map("habits_completed")
+  habitsTotal     Int?    @map("habits_total")
+  habitsPercent   Float?  @map("habits_percent")
+  lifeBalanceScore Float? @map("life_balance_score")
+  updatedAt       String? @map("updated_at")
+
+  @@id([userEmail, date])
+  @@map("day_snapshot_cache")
+}
