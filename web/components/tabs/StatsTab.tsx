@@ -57,14 +57,14 @@ function LineChart({
   color: string;
 }) {
   const max = Math.max(1, ...points.map((p) => p.value));
-  const step = 22;
-  const height = Math.max(1, points.length - 1) * step + 2;
-  const width = 220;
-  const padLeft = 8;
+  const step = 28;
+  const height = Math.max(1, points.length) * step;
+  const width = 360;
+  const padX = 10;
 
   const coords = points.map((p, idx) => {
-    const x = padLeft + (p.value / max) * (width - padLeft - 6);
-    const y = idx * step + 1;
+    const x = padX + (p.value / max) * (width - padX * 2);
+    const y = idx * step + step / 2;
     return { x, y };
   });
 
@@ -73,16 +73,39 @@ function LineChart({
     .join(" ");
 
   return (
-    <svg
-      className="line-chart"
-      viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio="xMinYMin meet"
-    >
-      <path d={path} fill="none" stroke={color} strokeWidth="2" />
-      {coords.map((p, idx) => (
-        <circle key={idx} cx={p.x} cy={p.y} r="3.5" fill={color} />
-      ))}
-    </svg>
+    <div className="line-plot">
+      <div className="line-x-scale">
+        <span>0</span>
+        <span>{Math.round(max * 0.25)}</span>
+        <span>{Math.round(max * 0.5)}</span>
+        <span>{Math.round(max * 0.75)}</span>
+        <span>{Math.round(max)}</span>
+      </div>
+      <svg
+        className="line-chart"
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="none"
+      >
+        {coords.map((p, idx) => (
+          <line
+            key={`grid-${idx}`}
+            x1={padX}
+            y1={p.y}
+            x2={width - padX}
+            y2={p.y}
+            stroke="rgba(255,255,255,0.10)"
+            strokeWidth="1"
+          />
+        ))}
+        <path d={path} fill="none" stroke={color} strokeWidth="2.5" />
+        {coords.map((p, idx) => (
+          <g key={idx}>
+            <circle cx={p.x} cy={p.y} r="4" fill={color} />
+            <title>{`${points[idx]?.label}: ${points[idx]?.value}`}</title>
+          </g>
+        ))}
+      </svg>
+    </div>
   );
 }
 
