@@ -11,6 +11,12 @@ export default function HabitsTab({ userEmail }: { userEmail: string }) {
   const [selectedDate, setSelectedDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
   const toCamel = (key: string) =>
     key.replace(/_([a-z])/g, (_match, char) => String(char).toUpperCase());
+  const canonicalHabitKey = (name: string) =>
+    String(name || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .replace(/\s*\(books\)/g, "");
   const dayQuery = useQuery({
     queryKey: ["day", selectedDate],
     queryFn: () => fetchJson<{ entry: any }>(`/api/day/${selectedDate}`),
@@ -37,6 +43,18 @@ export default function HabitsTab({ userEmail }: { userEmail: string }) {
   const customDone = customDoneQuery.data?.done || {};
   const meetingDays = meetingDaysQuery.data?.days || [];
   const familyDay = familyDayQuery.data?.day ?? 6;
+  const uniqueCustomHabits = useMemo(() => {
+    const seen = new Map<string, (typeof customHabits)[number]>();
+    customHabits.forEach((habit) => {
+      const name = String(habit?.name || "").trim();
+      if (!name) return;
+      const key = canonicalHabitKey(name);
+      if (!seen.has(key)) {
+        seen.set(key, habit);
+      }
+    });
+    return Array.from(seen.values());
+  }, [customHabits]);
 
   const isMeetingDay = useMemo(() => {
     const dayIndex = new Date(selectedDate).getDay();
@@ -394,15 +412,3 @@ export default function HabitsTab({ userEmail }: { userEmail: string }) {
     </div>
   );
 }
-  const uniqueCustomHabits = useMemo(() => {
-    const seen = new Map<string, typeof customHabits[number]>();
-    customHabits.forEach((habit) => {
-      const name = String(habit.name || "").trim();
-      if (!name) return;
-      const key = name.toLowerCase();
-      if (!seen.has(key)) {
-        seen.set(key, habit);
-      }
-    });
-    return Array.from(seen.values());
-  }, [customHabits]);
