@@ -22,12 +22,12 @@ export const PERSONAL_HABIT_KEYS = [
 ];
 
 export const MOOD_PALETTE = [
-  { key: "peace", label: "Paz", color: "#3772A6" },
-  { key: "joy", label: "Felicidade", color: "#8FB6D9" },
-  { key: "anxiety", label: "Ansiedade", color: "#D6D979" },
-  { key: "fear", label: "Medo", color: "#D9C979" },
-  { key: "anger", label: "Raiva", color: "#D95252" },
-  { key: "neutral", label: "Neutro", color: "#9AA0A6" },
+  { key: "peace", label: "Paz", color: "#3772A6", emoji: "🕊️" },
+  { key: "joy", label: "Felicidade", color: "#8FB6D9", emoji: "😊" },
+  { key: "anxiety", label: "Ansiedade", color: "#D6D979", emoji: "😰" },
+  { key: "fear", label: "Medo", color: "#D9C979", emoji: "😟" },
+  { key: "anger", label: "Raiva", color: "#D95252", emoji: "😠" },
+  { key: "neutral", label: "Neutro", color: "#9AA0A6", emoji: "😐" },
 ];
 
 export const TASK_PRIORITIES = ["Low", "Medium", "High", "Critical"] as const;
