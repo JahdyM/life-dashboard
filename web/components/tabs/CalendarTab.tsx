@@ -30,7 +30,7 @@ export default function CalendarTab({ userEmail }: { userEmail: string }) {
   const tasksQuery = useQuery({
     queryKey: ["tasks", range.start, range.end],
     queryFn: async () => {
-      const response = await fetchJson<{ items: any[] }>(
+      const response = await fetchJson<{ items: any[]; warning?: string | null }>(
         `/api/tasks?start=${range.start}&end=${range.end}&sync=${didSync ? 0 : 1}&include_unscheduled=1`
       );
       if (!didSync) setDidSync(true);
