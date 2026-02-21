@@ -133,7 +133,13 @@ function LineChart({
   );
 }
 
-export default function StatsTab({ userEmail }: { userEmail: string }) {
+function toMetricValue(raw: unknown): number | null {
+  if (raw === null || raw === undefined || raw === "") return null;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
+
+export default function StatsTab({ userEmail: _userEmail }: { userEmail: string }) {
   const [rangeKey, setRangeKey] = useState<RangeKey>("week");
   const range = useMemo(() => getRange(rangeKey), [rangeKey]);
 
@@ -167,7 +173,7 @@ export default function StatsTab({ userEmail }: { userEmail: string }) {
     const build = (key: keyof Entry) =>
       days.map((day) => {
         const entry = entryByDate.get(day.iso);
-        return { label: day.label, value: Number(entry?.[key] || 0) };
+        return { label: day.label, value: toMetricValue(entry?.[key]) };
       });
     return {
       sleep: build("sleepHours"),
@@ -204,25 +210,34 @@ export default function StatsTab({ userEmail }: { userEmail: string }) {
         ].map((metric) => (
           <div key={metric.key} className="chart-card line">
             <h3>{metric.title}</h3>
-            <div className="line-grid">
-              <div
-                className="line-y"
-                style={{
-                  gridTemplateRows: `repeat(${series[metric.key as keyof typeof series].length || 1}, ${LINE_STEP}px)`,
-                }}
-              >
-                {series[metric.key as keyof typeof series].map((item) => (
-                  <div key={item.label} className="line-label">
-                    {item.label}
+            {(() => {
+              const rawPoints = series[metric.key as keyof typeof series];
+              const points = rawPoints
+                .filter((item): item is { label: string; value: number } => item.value !== null)
+                .map((item) => ({ label: item.label, value: item.value }));
+
+              if (points.length === 0) {
+                return <div className="line-empty">No data recorded in this range.</div>;
+              }
+
+              return (
+                <div className="line-grid">
+                  <div
+                    className="line-y"
+                    style={{
+                      gridTemplateRows: `repeat(${points.length}, ${LINE_STEP}px)`,
+                    }}
+                  >
+                    {points.map((item) => (
+                      <div key={item.label} className="line-label">
+                        {item.label}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <LineChart
-                points={series[metric.key as keyof typeof series]}
-                color={metric.color}
-                step={LINE_STEP}
-              />
-            </div>
+                  <LineChart points={points} color={metric.color} step={LINE_STEP} />
+                </div>
+              );
+            })()}
           </div>
         ))}
       </div>
