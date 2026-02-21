@@ -1,13 +1,13 @@
 import { NextRequest } from "next/server";
 import { requireUserEmail } from "@/lib/server/auth";
 import { handleAuthError, jsonError, jsonOk } from "@/lib/server/response";
-import { getCustomHabits, saveCustomHabits } from "@/lib/server/settings";
+import { ensureDefaultCustomHabits, saveCustomHabits } from "@/lib/server/settings";
 import { randomUUID } from "crypto";
 
 export async function GET(_request: NextRequest) {
   try {
     const userEmail = await requireUserEmail();
-    const items = await getCustomHabits(userEmail);
+    const items = await ensureDefaultCustomHabits(userEmail);
     return jsonOk({ items });
   } catch (err) {
     const authError = handleAuthError(err);

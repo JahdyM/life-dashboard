@@ -77,6 +77,21 @@ export async function saveCustomHabits(
   await setSetting(userEmail, "custom_habits", JSON.stringify(habits));
 }
 
+const DEFAULT_CUSTOM_HABITS = [
+  { id: "default-bible-study", name: "Bible study", active: true },
+  { id: "default-dissertation-work", name: "Dissertation work", active: true },
+  { id: "default-general-reading", name: "General reading (books)", active: true },
+  { id: "default-writing", name: "Writing", active: true },
+  { id: "default-scientific-writing", name: "Scientific Writing", active: true },
+];
+
+export async function ensureDefaultCustomHabits(userEmail: string) {
+  const current = await getCustomHabits(userEmail);
+  if (current.length > 0) return current;
+  await saveCustomHabits(userEmail, DEFAULT_CUSTOM_HABITS);
+  return DEFAULT_CUSTOM_HABITS;
+}
+
 export async function getCustomHabitDone(userEmail: string, dayIso: string) {
   const raw = await getSetting(userEmail, `custom_habit_done::${dayIso}`);
   if (!raw) return {} as Record<string, number>;

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/client/api";
-import { FIXED_SHARED_HABITS, PERSONAL_HABIT_KEYS, MOOD_PALETTE, WEEKDAY_LABELS_PT } from "@/lib/constants";
+import { FIXED_SHARED_HABITS, MOOD_PALETTE, WEEKDAY_LABELS_PT } from "@/lib/constants";
 import { format } from "date-fns";
 
 export default function HabitsTab({ userEmail }: { userEmail: string }) {
@@ -235,16 +235,6 @@ export default function HabitsTab({ userEmail }: { userEmail: string }) {
         <div className="section">
           <h3>Personal habits</h3>
           <div className="habit-list">
-            {PERSONAL_HABIT_KEYS.map((habit) => (
-              <label key={habit.key} className="habit-row">
-                <input
-                  type="checkbox"
-                  checked={Boolean(dayEntry[toCamel(habit.key)])}
-                  onChange={(event) => handleToggleHabit(habit.key, event.target.checked)}
-                />
-                <span>{habit.label}</span>
-              </label>
-            ))}
             {customHabits.map((habit) => (
               <div key={habit.id} className="habit-row">
                 <input
