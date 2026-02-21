@@ -85,11 +85,6 @@ function LineChart({
 
   return (
     <div className="line-plot">
-      <div className="line-x-scale">
-        {tickValues.map((value, idx) => (
-          <span key={idx}>{formatMetricTick(value)}</span>
-        ))}
-      </div>
       <svg
         className="line-chart"
         viewBox={`0 0 ${width} ${height}`}
@@ -129,6 +124,11 @@ function LineChart({
           </g>
         ))}
       </svg>
+      <div className="line-x-scale">
+        {tickValues.map((value, idx) => (
+          <span key={idx}>{formatMetricTick(value)}</span>
+        ))}
+      </div>
     </div>
   );
 }
