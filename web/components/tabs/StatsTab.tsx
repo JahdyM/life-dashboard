@@ -67,14 +67,19 @@ function LineChart({
 }) {
   const max = Math.max(1, ...points.map((p) => p.value));
   const rows = Math.max(1, points.length);
-  const height = rows * step;
-  const width = 360;
-  const padX = 12;
+  const width = 420;
+  const labelWidth = 64;
+  const chartRightPad = 12;
+  const plotLeft = labelWidth + 8;
+  const plotRight = width - chartRightPad;
+  const plotHeight = rows * step;
+  const axisHeight = 18;
+  const totalHeight = plotHeight + axisHeight;
 
   const tickValues = [0, 0.25, 0.5, 0.75, 1].map((ratio) => max * ratio);
 
   const coords = points.map((p, idx) => {
-    const x = padX + (p.value / max) * (width - padX * 2);
+    const x = plotLeft + (p.value / max) * (plotRight - plotLeft);
     const y = idx * step + step / 2;
     return { x, y };
   });
@@ -87,35 +92,65 @@ function LineChart({
     <div className="line-plot">
       <svg
         className="line-chart"
-        viewBox={`0 0 ${width} ${height}`}
+        viewBox={`0 0 ${width} ${totalHeight}`}
         preserveAspectRatio="none"
-        style={{ height: `${height}px` }}
+        style={{ height: `${totalHeight}px` }}
       >
         {tickValues.map((value, idx) => {
-          const x = padX + (value / max) * (width - padX * 2);
+          const x = plotLeft + (value / max) * (plotRight - plotLeft);
           return (
             <line
               key={`x-grid-${idx}`}
               x1={x}
               y1={0}
               x2={x}
-              y2={height}
+              y2={plotHeight}
               stroke="rgba(255,255,255,0.08)"
               strokeWidth="1"
             />
           );
         })}
+        {tickValues.map((value, idx) => {
+          const x = plotLeft + (value / max) * (plotRight - plotLeft);
+          return (
+            <text
+              key={`x-tick-${idx}`}
+              x={x}
+              y={plotHeight + 12}
+              textAnchor="middle"
+              fill="rgba(255,255,255,0.66)"
+              fontSize="10"
+            >
+              {formatMetricTick(value)}
+            </text>
+          );
+        })}
         {coords.map((p, idx) => (
           <line
             key={`grid-${idx}`}
-            x1={padX}
+            x1={plotLeft}
             y1={p.y}
-            x2={width - padX}
+            x2={plotRight}
             y2={p.y}
             stroke="rgba(255,255,255,0.10)"
             strokeWidth="1"
           />
         ))}
+        {points.map((item, idx) => {
+          const y = idx * step + step / 2;
+          return (
+            <text
+              key={`y-label-${item.label}-${idx}`}
+              x={labelWidth}
+              y={y + 3.5}
+              textAnchor="end"
+              fill="rgba(255,255,255,0.70)"
+              fontSize="11"
+            >
+              {item.label}
+            </text>
+          );
+        })}
         <path d={path} fill="none" stroke={color} strokeWidth="2.5" />
         {coords.map((p, idx) => (
           <g key={idx}>
@@ -220,23 +255,7 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
                 return <div className="line-empty">No data recorded in this range.</div>;
               }
 
-              return (
-                <div className="line-grid">
-                  <div
-                    className="line-y"
-                    style={{
-                      gridTemplateRows: `repeat(${points.length}, ${LINE_STEP}px)`,
-                    }}
-                  >
-                    {points.map((item) => (
-                      <div key={item.label} className="line-label">
-                        {item.label}
-                      </div>
-                    ))}
-                  </div>
-                  <LineChart points={points} color={metric.color} step={LINE_STEP} />
-                </div>
-              );
+              return <LineChart points={points} color={metric.color} step={LINE_STEP} />;
             })()}
           </div>
         ))}
