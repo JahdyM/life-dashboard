@@ -1,6 +1,3 @@
-@import "@fullcalendar/core/main.css";
-@import "@fullcalendar/timegrid/main.css";
-
 :root {
   --bg: #151311;
   --bg-panel: rgba(22, 20, 18, 0.9);
