@@ -102,10 +102,10 @@ export async function getDailyEntry(userEmail: string, dateIso: string) {
 export async function updateDailyEntry(
   userEmail: string,
   dateIso: string,
-  payload: Record<string, any>
+  payload: Record<string, unknown>
 ) {
   const nowIso = new Date().toISOString();
-  const data: Record<string, any> = { updatedAt: nowIso };
+  const data: Record<string, unknown> = { updatedAt: nowIso };
   const metricMap: Record<string, string> = {
     sleep_hours: "sleepHours",
     anxiety_level: "anxietyLevel",
@@ -222,7 +222,9 @@ export async function computeSharedHabitStreaks(
       familyWorship: true,
     },
   });
-  const byDate = new Map(entries.map((entry) => [entry.date, entry as any]));
+  const byDate = new Map<string, (typeof entries)[number]>(
+    entries.map((entry) => [entry.date, entry])
+  );
   const results: Record<
     string,
     { streak: number; todayDone: boolean; todayApplicable: boolean; maxStreak: number }
