@@ -8,6 +8,7 @@ import {
 } from "@/lib/server/response";
 import { updateSubtask, deleteSubtask } from "@/lib/server/tasks";
 import { subtaskIdSchema, subtaskPatchSchema } from "@/lib/server/schemas";
+import { logServerEvent } from "@/lib/server/logger";
 
 export async function PATCH(
   request: NextRequest,
@@ -44,6 +45,11 @@ export async function PATCH(
     const subtask = await updateSubtask(userEmail, idParsed.data, nextPayload);
     return jsonOk({ subtask });
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "PATCH /api/subtasks/[id]",
+      message: "Unhandled error while updating subtask",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to update subtask", 500);
@@ -61,6 +67,11 @@ export async function DELETE(
     await deleteSubtask(userEmail, idParsed.data);
     return jsonOk({ ok: true });
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "DELETE /api/subtasks/[id]",
+      message: "Unhandled error while deleting subtask",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to delete subtask", 500);
