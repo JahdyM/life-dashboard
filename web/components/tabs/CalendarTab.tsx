@@ -7,12 +7,18 @@ import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { format, addDays, startOfWeek, endOfWeek } from "date-fns";
+import type { TodoTask } from "@/lib/types";
 
 type TaskDraft = {
   isDone?: boolean;
   priorityTag?: string;
   scheduledTime?: string;
   estimatedMinutes?: number;
+};
+
+type TaskListResponse = {
+  items: TodoTask[];
+  warning?: string | null;
 };
 
 function readErrorMessage(error: unknown, fallback: string) {
@@ -88,7 +94,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const tasksQuery = useQuery({
     queryKey: ["tasks", range.start, range.end],
     queryFn: () =>
-      fetchJson<{ items: any[]; warning?: string | null }>(
+      fetchJson<TaskListResponse>(
         `/api/tasks?start=${range.start}&end=${range.end}&sync=${didSync ? 0 : 1}&include_unscheduled=1`
       ),
   });
@@ -126,7 +132,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     });
   };
 
-  const readTaskDraft = (task: any) => {
+  const readTaskDraft = (task: TodoTask) => {
     const draft = taskDrafts[task.id] || {};
     return {
       isDone: draft.isDone ?? Boolean(task.isDone),
@@ -140,9 +146,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const pendingTasks = tasksForDay.filter((task) => !readTaskDraft(task).isDone);
   const completedTasks = tasksForDay.filter((task) => readTaskDraft(task).isDone);
 
-  const buildTaskPatch = (task: any, draft?: TaskDraft) => {
+  const buildTaskPatch = (task: TodoTask, draft?: TaskDraft) => {
     if (!draft) return {};
-    const patch: Record<string, any> = {};
+    const patch: Record<string, string | number | null> = {};
     if (typeof draft.isDone === "boolean" && draft.isDone !== Boolean(task.isDone)) {
       patch.is_done = draft.isDone ? 1 : 0;
     }
@@ -167,13 +173,16 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     return patch;
   };
 
-  const hasTaskChanges = (task: any) =>
+  const hasTaskChanges = (task: TodoTask) =>
     Object.keys(buildTaskPatch(task, taskDrafts[task.id])).length > 0;
 
-  const applyTaskPatchToCache = (taskId: string, patch: Record<string, any>) => {
+  const applyTaskPatchToCache = (
+    taskId: string,
+    patch: Record<string, string | number | null>
+  ) => {
     queryClient.setQueryData(
       ["tasks", range.start, range.end],
-      (previous: { items?: any[]; warning?: string | null } | undefined) => {
+      (previous: TaskListResponse | undefined) => {
         if (!previous?.items) return previous;
         return {
           ...previous,
@@ -293,7 +302,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       syncGoogle = true,
     }: {
       id: string;
-      data: any;
+      data: Record<string, string | number | null>;
       syncGoogle?: boolean;
     }) =>
       fetchJson(`/api/tasks/${id}`, {
@@ -357,7 +366,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     });
   };
 
-  const confirmTaskUpdate = (task: any) => {
+  const confirmTaskUpdate = (task: TodoTask) => {
     const patch = buildTaskPatch(task, taskDrafts[task.id]);
     if (!Object.keys(patch).length) return;
     setSavingTaskId(task.id);
@@ -383,7 +392,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     );
   };
 
-  const toggleTaskDoneNow = (task: any, checked: boolean) => {
+  const toggleTaskDoneNow = (task: TodoTask, checked: boolean) => {
     const cacheSnapshot = queryClient.getQueryData(["tasks", range.start, range.end]);
     const patch = { is_done: checked ? 1 : 0 };
     setTaskDraft(task.id, { isDone: checked });
