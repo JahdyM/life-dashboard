@@ -635,142 +635,38 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         {syncWarning && <div className="warning">{syncWarning}</div>}
         {taskSaveError && <div className="warning">{taskSaveError}</div>}
         <div className="task-items">
-          {pendingTasks.map((task) => (
-            <details key={task.id} className={`task-row ${hasTaskChanges(task) ? "dirty" : ""}`}>
-              <summary>
-                {(() => {
-                  const draft = readTaskDraft(task);
-                  const hasChanges = hasTaskChanges(task);
-                  const saving = savingTaskId === task.id;
-                  const saved = savedTaskId === task.id;
-                  return (
-                    <>
-                      <input
-                        type="checkbox"
-                        checked={draft.isDone}
-                        onChange={(event) =>
-                          toggleTaskDoneNow(task, event.target.checked)
-                        }
-                      />
-                      <span className="task-title">{task.title}</span>
-                      {task.scheduledTime && <span className="task-time">{task.scheduledTime}</span>}
-                      <button
-                        className={`task-confirm-btn ${hasChanges || saved ? "visible" : ""}`}
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          confirmTaskUpdate(task);
-                        }}
-                        disabled={!hasChanges || saving}
-                        title="Confirm task changes"
-                      >
-                        {saving ? "..." : saved ? "✓" : "ok"}
-                      </button>
-                    </>
-                  );
-                })()}
-              </summary>
-              <div className="task-details">
-                {(() => {
-                  const draft = readTaskDraft(task);
-                  return (
-                    <>
-                <label>
-                  Priority
-                  <select
-                    value={draft.priorityTag}
-                    onChange={(event) =>
-                      setTaskDraft(task.id, { priorityTag: event.target.value })
-                    }
-                  >
-                    <option value="Low">Low</option>
-                    <option value="Medium">Medium</option>
-                    <option value="High">High</option>
-                    <option value="Critical">Critical</option>
-                  </select>
-                </label>
-                <label>
-                  Start time
-                  <input
-                    type="time"
-                    value={draft.scheduledTime}
-                    onChange={(event) =>
-                      setTaskDraft(task.id, { scheduledTime: event.target.value })
-                    }
-                  />
-                </label>
-                <label>
-                  Est. minutes
-                  <input
-                    type="number"
-                    value={draft.estimatedMinutes}
-                    onChange={(event) =>
-                      setTaskDraft(task.id, {
-                        estimatedMinutes: Number(event.target.value || 0),
-                      })
-                    }
-                  />
-                </label>
-                <button
-                  className="task-confirm-inline"
-                  onClick={() => confirmTaskUpdate(task)}
-                  disabled={!hasTaskChanges(task) || savingTaskId === task.id}
-                >
-                  {savingTaskId === task.id ? "Saving..." : "Confirm changes"}
-                </button>
-                <button
-                  className="link danger"
-                  onClick={() => deleteTask.mutate(task.id)}
-                >
-                  Delete
-                </button>
-                    </>
-                  );
-                })()}
-              </div>
-            </details>
-          ))}
+          {pendingTasks.map((task) => {
+            const draft = readTaskDraft(task);
+            return (
+              <EditableTaskRow
+                key={task.id}
+                task={task}
+                draft={draft}
+                hasChanges={hasTaskChanges(task)}
+                saving={savingTaskId === task.id}
+                saved={savedTaskId === task.id}
+                onToggleDone={toggleTaskDoneNow}
+                onConfirm={confirmTaskUpdate}
+                onSetDraft={setTaskDraft}
+                onDelete={handleDeleteTask}
+              />
+            );
+          })}
         </div>
         {unscheduledTasks.length > 0 && (
           <div className="task-remembered">
             <h3>Remembered tasks</h3>
             {unscheduledTasks.map((task) => (
-              <div key={task.id} className="task-row">
-                {(() => {
-                  const draft = readTaskDraft(task);
-                  return (
-                    <>
-                <input
-                  type="checkbox"
-                  checked={draft.isDone}
-                  onChange={(event) =>
-                    toggleTaskDoneNow(task, event.target.checked)
-                  }
-                />
-                <span className="task-title">{task.title}</span>
-                <button
-                  className={`task-confirm-btn ${hasTaskChanges(task) ? "visible" : ""}`}
-                  onClick={() => confirmTaskUpdate(task)}
-                  disabled={!hasTaskChanges(task) || savingTaskId === task.id}
-                  title="Confirm task changes"
-                >
-                  {savingTaskId === task.id ? "..." : "ok"}
-                </button>
-                <button
-                  className="link"
-                  onClick={() =>
-                    updateTask.mutate({
-                      id: task.id,
-                      data: { scheduled_date: format(selectedDate, "yyyy-MM-dd") },
-                    })
-                  }
-                >
-                  Schedule today
-                </button>
-                    </>
-                  );
-                })()}
-              </div>
+              <SimpleTaskRow
+                key={task.id}
+                task={task}
+                draft={readTaskDraft(task)}
+                hasChanges={hasTaskChanges(task)}
+                saving={savingTaskId === task.id}
+                onToggleDone={toggleTaskDoneNow}
+                onConfirm={confirmTaskUpdate}
+                onScheduleToday={handleScheduleToday}
+              />
             ))}
           </div>
         )}
@@ -778,30 +674,16 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           <div className="task-completed">
             <h3>Completed</h3>
             {completedTasks.map((task) => (
-              <div key={task.id} className="task-row completed">
-                {(() => {
-                  const draft = readTaskDraft(task);
-                  return (
-                    <>
-                <input
-                  type="checkbox"
-                  checked={draft.isDone}
-                  onChange={(event) => toggleTaskDoneNow(task, event.target.checked)}
-                />
-                <span className="task-title">{task.title}</span>
-                {task.scheduledTime && <span className="task-time">{task.scheduledTime}</span>}
-                <button
-                  className={`task-confirm-btn ${hasTaskChanges(task) ? "visible" : ""}`}
-                  onClick={() => confirmTaskUpdate(task)}
-                  disabled={!hasTaskChanges(task) || savingTaskId === task.id}
-                  title="Confirm task changes"
-                >
-                  {savingTaskId === task.id ? "..." : "ok"}
-                </button>
-                    </>
-                  );
-                })()}
-              </div>
+              <SimpleTaskRow
+                key={task.id}
+                task={task}
+                draft={readTaskDraft(task)}
+                hasChanges={hasTaskChanges(task)}
+                saving={savingTaskId === task.id}
+                onToggleDone={toggleTaskDoneNow}
+                onConfirm={confirmTaskUpdate}
+                completed
+              />
             ))}
           </div>
         )}
