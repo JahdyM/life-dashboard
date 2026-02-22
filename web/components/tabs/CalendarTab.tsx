@@ -297,7 +297,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     });
   }, []);
 
-  const readTaskDraft = (task: TodoTask) => {
+  const readTaskDraft = useCallback((task: TodoTask) => {
     const draft = taskDrafts[task.id] || {};
     return {
       isDone: draft.isDone ?? Boolean(task.isDone),
@@ -306,12 +306,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       estimatedMinutes:
         draft.estimatedMinutes ?? Number(task.estimatedMinutes || 0),
     };
-  };
+  }, [taskDrafts]);
 
   const pendingTasks = tasksForDay.filter((task) => !readTaskDraft(task).isDone);
   const completedTasks = tasksForDay.filter((task) => readTaskDraft(task).isDone);
 
-  const buildTaskPatch = (task: TodoTask, draft?: TaskDraft) => {
+  const buildTaskPatch = useCallback((task: TodoTask, draft?: TaskDraft) => {
     if (!draft) return {};
     const patch: Record<string, string | number | null> = {};
     if (typeof draft.isDone === "boolean" && draft.isDone !== Boolean(task.isDone)) {
@@ -336,10 +336,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       patch.estimated_minutes = draft.estimatedMinutes;
     }
     return patch;
-  };
+  }, []);
 
-  const hasTaskChanges = (task: TodoTask) =>
-    Object.keys(buildTaskPatch(task, taskDrafts[task.id])).length > 0;
+  const hasTaskChanges = useCallback(
+    (task: TodoTask) =>
+      Object.keys(buildTaskPatch(task, taskDrafts[task.id])).length > 0,
+    [buildTaskPatch, taskDrafts]
+  );
 
   const applyTaskPatchToCache = (
     taskId: string,
