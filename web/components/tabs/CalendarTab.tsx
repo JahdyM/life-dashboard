@@ -376,6 +376,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 "estimated_minutes" in patch
                   ? patch.estimated_minutes
                   : item.estimatedMinutes,
+              actualMinutes:
+                "actual_minutes" in patch
+                  ? patch.actual_minutes
+                  : item.actualMinutes,
+              completedAt:
+                "completed_at" in patch ? patch.completed_at : item.completedAt,
             };
           }),
         };
@@ -568,9 +574,19 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     );
   }, [buildTaskPatch, taskDrafts, updateTask, clearTaskDraft]);
 
-  const toggleTaskDoneNow = useCallback((task: TodoTask, checked: boolean) => {
+  const toggleTaskDoneNow = useCallback((
+    task: TodoTask,
+    checked: boolean,
+    actualMinutes?: number | null
+  ) => {
     const cacheSnapshot = queryClient.getQueryData(["tasks", range.start, range.end]);
-    const patch = { is_done: checked ? 1 : 0 };
+    const patch: Record<string, string | number | null> = {
+      is_done: checked ? 1 : 0,
+      completed_at: checked ? new Date().toISOString() : null,
+    };
+    if (typeof actualMinutes === "number" && checked) {
+      patch.actual_minutes = actualMinutes;
+    }
     setTaskDraft(task.id, { isDone: checked });
     applyTaskPatchToCache(task.id, patch);
     setSavingTaskId(task.id);
@@ -581,6 +597,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           setTaskSaveError(null);
           clearDoneDraft(task.id);
           setSavingTaskId(null);
+          setCompletionPrompt(null);
           setSavedTaskId(task.id);
           window.setTimeout(() => {
             setSavedTaskId((prev) => (prev === task.id ? null : prev));
