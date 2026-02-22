@@ -109,7 +109,8 @@ function LineChart({
         style={{ height: `${totalHeight}px` }}
       >
         {tickValues.map((value, idx) => {
-          const x = plotLeft + (value / max) * (plotRight - plotLeft);
+          const x =
+            plotLeft + ((value - domainMin) / domainSpan) * (plotRight - plotLeft);
           return (
             <line
               key={`x-grid-${idx}`}
@@ -123,7 +124,8 @@ function LineChart({
           );
         })}
         {tickValues.map((value, idx) => {
-          const x = plotLeft + (value / max) * (plotRight - plotLeft);
+          const x =
+            plotLeft + ((value - domainMin) / domainSpan) * (plotRight - plotLeft);
           return (
             <text
               key={`x-tick-${idx}`}
@@ -290,6 +292,17 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
         )}
         <div className="stats-range">{range.label}</div>
       </div>
+      {entriesQuery.isPending && (
+        <div className="query-status">Loading chart data...</div>
+      )}
+      {entriesQuery.isError && (
+        <div className="query-status error">
+          <span>Could not load metrics for this period.</span>
+          <button className="secondary" onClick={() => entriesQuery.refetch()}>
+            Retry
+          </button>
+        </div>
+      )}
 
       <div className="chart-grid">
         {[

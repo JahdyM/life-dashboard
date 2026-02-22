@@ -17,6 +17,8 @@ export default function CoupleTab({ userEmail }: { userEmail: string }) {
     queryKey: ["couple-streaks"],
     queryFn: () => fetchJson<any>("/api/couple/streaks"),
   });
+  const queryLoading = moodQuery.isPending || streakQuery.isPending;
+  const queryError = moodQuery.isError || streakQuery.isError;
 
   const moodMeta = (key?: string | null) => {
     if (!key) return null;
@@ -69,6 +71,21 @@ export default function CoupleTab({ userEmail }: { userEmail: string }) {
           onChange={(event) => setMonthKey(event.target.value)}
         />
       </div>
+      {queryLoading && <div className="query-status">Loading couple data...</div>}
+      {queryError && (
+        <div className="query-status error">
+          <span>Could not load couple insights.</span>
+          <button
+            className="secondary"
+            onClick={() => {
+              moodQuery.refetch();
+              streakQuery.refetch();
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
       {moodQuery.data?.warning && (
         <div className="warning">{moodQuery.data.warning}</div>
       )}

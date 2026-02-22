@@ -23,6 +23,7 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
   const [selectedDay, setSelectedDay] = useState(initialSelectedDay);
   const [editorMood, setEditorMood] = useState("neutral");
   const [editorFeeling, setEditorFeeling] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const entriesQuery = useQuery({
     queryKey: ["mood", monthKey],
@@ -35,6 +36,9 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
     queryKey: ["mood-year", yearKey],
     queryFn: () => fetchJson<{ items: any[] }>(`/api/entries?start=${yearStart}&end=${yearEnd}`),
   });
+
+  const queryLoading = entriesQuery.isPending || yearQuery.isPending;
+  const queryError = entriesQuery.isError || yearQuery.isError;
 
   const moodByDay = useMemo(() => {
     const map = new Map<string, { moodCategory: string; moodNote: string }>();
@@ -82,9 +86,17 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
       });
     },
     onSuccess: (_result, variables) => {
+      setSaveError(null);
       queryClient.invalidateQueries({ queryKey: ["mood", monthKey] });
       queryClient.invalidateQueries({ queryKey: ["mood-year", yearKey] });
       queryClient.invalidateQueries({ queryKey: ["day", variables.dayIso] });
+    },
+    onError: (error) => {
+      if (error instanceof Error && error.message) {
+        setSaveError(`Could not save mood. ${error.message}`);
+        return;
+      }
+      setSaveError("Could not save mood.");
     },
   });
 
@@ -115,6 +127,22 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
           onChange={(event) => onMonthChange(event.target.value)}
         />
       </div>
+      {queryLoading && <div className="query-status">Loading mood data...</div>}
+      {queryError && (
+        <div className="query-status error">
+          <span>Could not load mood data.</span>
+          <button
+            className="secondary"
+            onClick={() => {
+              entriesQuery.refetch();
+              yearQuery.refetch();
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+      {saveError ? <div className="warning">{saveError}</div> : null}
       <div className="mood-grid">
         {Array.from({ length: daysInMonth }, (_, idx) => {
           const day = idx + 1;

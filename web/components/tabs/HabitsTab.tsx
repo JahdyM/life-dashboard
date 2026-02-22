@@ -6,9 +6,17 @@ import { fetchJson } from "@/lib/client/api";
 import { FIXED_SHARED_HABITS, MOOD_PALETTE, WEEKDAY_LABELS_PT } from "@/lib/constants";
 import { format } from "date-fns";
 
+function readMutationError(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) {
+    return `${fallback} ${error.message}`;
+  }
+  return fallback;
+}
+
 export default function HabitsTab({ userEmail }: { userEmail: string }) {
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
+  const [mutationError, setMutationError] = useState<string | null>(null);
   const toCamel = (key: string) =>
     key.replace(/_([a-z])/g, (_match, char) => String(char).toUpperCase());
   const canonicalHabitKey = (name: string) =>
@@ -45,6 +53,27 @@ export default function HabitsTab({ userEmail }: { userEmail: string }) {
     queryFn: () => fetchJson<{ day: number }>("/api/settings/family-worship-day"),
   });
 
+  const queryLoading =
+    dayQuery.isPending ||
+    customHabitsQuery.isPending ||
+    customDoneQuery.isPending ||
+    meetingDaysQuery.isPending ||
+    familyDayQuery.isPending;
+  const queryError =
+    dayQuery.isError ||
+    customHabitsQuery.isError ||
+    customDoneQuery.isError ||
+    meetingDaysQuery.isError ||
+    familyDayQuery.isError;
+
+  const retryAllQueries = () => {
+    dayQuery.refetch();
+    customHabitsQuery.refetch();
+    customDoneQuery.refetch();
+    meetingDaysQuery.refetch();
+    familyDayQuery.refetch();
+  };
+
   const dayEntry = dayQuery.data?.entry || {};
   const customHabits = customHabitsQuery.data?.items || [];
   const customDone = customDoneQuery.data?.done || {};
@@ -80,6 +109,7 @@ export default function HabitsTab({ userEmail }: { userEmail: string }) {
         body: JSON.stringify(payload),
       }),
     onMutate: async (payload) => {
+      setMutationError(null);
       await queryClient.cancelQueries({ queryKey: ["day", selectedDate] });
       const previous = queryClient.getQueryData<{ entry: any }>(["day", selectedDate]);
       queryClient.setQueryData(["day", selectedDate], (old: any) => ({
@@ -87,10 +117,13 @@ export default function HabitsTab({ userEmail }: { userEmail: string }) {
       }));
       return { previous };
     },
-    onError: (_err, _variables, context) => {
+    onError: (error, _variables, context) => {
       if (context?.previous) {
         queryClient.setQueryData(["day", selectedDate], context.previous);
       }
+      setMutationError(
+        readMutationError(error, "Could not update daily fields.")
+      );
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["day", selectedDate] });
@@ -106,6 +139,7 @@ export default function HabitsTab({ userEmail }: { userEmail: string }) {
         body: JSON.stringify({ done: payload }),
       }),
     onMutate: async (payload) => {
+      setMutationError(null);
       await queryClient.cancelQueries({ queryKey: ["custom-habits-done", selectedDate] });
       const previous = queryClient.getQueryData<{ done: Record<string, number> }>([
         "custom-habits-done",
@@ -114,10 +148,13 @@ export default function HabitsTab({ userEmail }: { userEmail: string }) {
       queryClient.setQueryData(["custom-habits-done", selectedDate], { done: payload });
       return { previous };
     },
-    onError: (_err, _variables, context) => {
+    onError: (error, _variables, context) => {
       if (context?.previous) {
         queryClient.setQueryData(["custom-habits-done", selectedDate], context.previous);
       }
+      setMutationError(
+        readMutationError(error, "Could not update custom habit state.")
+      );
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["custom-habits-done", selectedDate] });
@@ -131,7 +168,11 @@ export default function HabitsTab({ userEmail }: { userEmail: string }) {
         body: JSON.stringify({ name }),
       }),
     onSuccess: () => {
+      setMutationError(null);
       queryClient.invalidateQueries({ queryKey: ["custom-habits"] });
+    },
+    onError: (error) => {
+      setMutationError(readMutationError(error, "Could not add habit."));
     },
   });
 
@@ -142,7 +183,13 @@ export default function HabitsTab({ userEmail }: { userEmail: string }) {
         body: JSON.stringify({ days }),
       }),
     onSuccess: () => {
+      setMutationError(null);
       queryClient.invalidateQueries({ queryKey: ["meeting-days"] });
+    },
+    onError: (error) => {
+      setMutationError(
+        readMutationError(error, "Could not update meeting days.")
+      );
     },
   });
 
@@ -153,7 +200,13 @@ export default function HabitsTab({ userEmail }: { userEmail: string }) {
         body: JSON.stringify({ day }),
       }),
     onSuccess: () => {
+      setMutationError(null);
       queryClient.invalidateQueries({ queryKey: ["family-day"] });
+    },
+    onError: (error) => {
+      setMutationError(
+        readMutationError(error, "Could not update family worship day.")
+      );
     },
   });
 
@@ -177,9 +230,13 @@ export default function HabitsTab({ userEmail }: { userEmail: string }) {
         body: JSON.stringify({ name: payload.name }),
       }),
     onSuccess: () => {
+      setMutationError(null);
       queryClient.invalidateQueries({ queryKey: ["custom-habits"] });
       setEditingId(null);
       setEditingName("");
+    },
+    onError: (error) => {
+      setMutationError(readMutationError(error, "Could not rename habit."));
     },
   });
 
@@ -187,13 +244,41 @@ export default function HabitsTab({ userEmail }: { userEmail: string }) {
     mutationFn: (id: string) =>
       fetchJson(`/api/habits/custom/${id}`, { method: "DELETE" }),
     onSuccess: () => {
+      setMutationError(null);
       queryClient.invalidateQueries({ queryKey: ["custom-habits"] });
     },
+    onError: (error) => {
+      setMutationError(readMutationError(error, "Could not delete habit."));
+    },
   });
+
+  const mutationSaving =
+    updateDay.isPending ||
+    updateCustomDone.isPending ||
+    addHabit.isPending ||
+    updateMeetingDays.isPending ||
+    updateFamilyDay.isPending ||
+    updateHabit.isPending ||
+    deleteHabit.isPending;
 
   return (
     <div className="tab-grid">
       <div className="card">
+        {queryLoading && (
+          <div className="query-status">Loading habits data...</div>
+        )}
+        {queryError && (
+          <div className="query-status error">
+            <span>Could not load habits data.</span>
+            <button className="secondary" onClick={retryAllQueries}>
+              Retry
+            </button>
+          </div>
+        )}
+        {mutationSaving && (
+          <div className="query-status">Saving changes...</div>
+        )}
+        {mutationError ? <div className="warning">{mutationError}</div> : null}
         <div className="form-row">
           <label>Date</label>
           <input

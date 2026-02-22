@@ -23,21 +23,25 @@ type TabKey = (typeof TABS)[number]["key"];
 export default function Dashboard({ userEmail }: { userEmail: string }) {
   const [activeTab, setActiveTab] = useState<TabKey>("habits");
   const [timezoneSyncError, setTimezoneSyncError] = useState<string | null>(null);
+  const [timezoneSyncing, setTimezoneSyncing] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (timezone) {
+      setTimezoneSyncing(true);
       fetchJson("/api/settings/timezone", {
         method: "PUT",
         body: JSON.stringify({ timezone }),
       })
         .then(() => {
           if (!isMounted) return;
+          setTimezoneSyncing(false);
           setTimezoneSyncError(null);
         })
         .catch((error) => {
           if (!isMounted) return;
+          setTimezoneSyncing(false);
           const message =
             error instanceof Error && error.message
               ? error.message
@@ -92,6 +96,9 @@ export default function Dashboard({ userEmail }: { userEmail: string }) {
         <ErrorBoundary name="header">
           <Header />
         </ErrorBoundary>
+        {timezoneSyncing ? (
+          <div className="query-status">Syncing timezone preferences...</div>
+        ) : null}
         {timezoneSyncError ? (
           <div className="warning">
             Timezone sync failed. Data is still usable locally. ({timezoneSyncError})
