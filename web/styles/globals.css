@@ -463,6 +463,36 @@ button.link.danger {
   gap: 10px;
 }
 
+.completion-prompt {
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  display: grid;
+  gap: 8px;
+}
+
+.completion-prompt-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.completion-prompt-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.completion-prompt-row label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.completion-prompt-row input {
+  width: 92px;
+}
+
 .calendar-panel {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--border);
