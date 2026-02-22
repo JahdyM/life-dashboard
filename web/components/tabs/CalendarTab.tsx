@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/client/api";
 import FullCalendar from "@fullcalendar/react";
@@ -17,7 +17,9 @@ type TaskDraft = {
 
 export default function CalendarTab({ userEmail: _userEmail }: { userEmail: string }) {
   const queryClient = useQueryClient();
+  const calendarRef = useRef<FullCalendar | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
+  const [nowTick, setNowTick] = useState(() => Date.now());
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "failed">("idle");
   const [didSync, setDidSync] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -42,6 +44,25 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       end: format(end, "yyyy-MM-dd"),
     };
   }, [selectedDate]);
+
+  const scrollTime = useMemo(() => {
+    const now = new Date(nowTick);
+    const anchor = new Date(now.getTime() - 60 * 60 * 1000);
+    return format(anchor, "HH:mm:ss");
+  }, [nowTick]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setNowTick(Date.now());
+    }, 60_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    const api = calendarRef.current?.getApi();
+    if (!api) return;
+    api.scrollToTime(scrollTime);
+  }, [scrollTime, selectedDate]);
 
   const tasksQuery = useQuery({
     queryKey: ["tasks", range.start, range.end],
@@ -589,12 +610,15 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           <button onClick={() => setSelectedDate(addDays(selectedDate, 1))}>Next</button>
         </div>
         <FullCalendar
+          ref={calendarRef}
           plugins={[timeGridPlugin, interactionPlugin]}
           initialView="timeGridDay"
-          height="auto"
+          height={560}
           headerToolbar={false}
           allDaySlot={false}
           nowIndicator
+          scrollTime={scrollTime}
+          scrollTimeReset={false}
           slotDuration="00:30:00"
           selectable
           selectMirror

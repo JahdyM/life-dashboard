@@ -342,8 +342,9 @@ button.link.danger {
 
 .calendar-layout {
   display: grid;
-  grid-template-columns: 1.2fr 0.8fr;
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.55fr);
   gap: 16px;
+  align-items: start;
 }
 
 .task-list {
@@ -481,7 +482,9 @@ button.link.danger {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 16px;
+  padding: 12px;
+  max-width: 460px;
+  justify-self: end;
 }
 
 .calendar-quick-add {
@@ -527,7 +530,7 @@ button.link.danger {
 }
 
 .fc .fc-timegrid-slot {
-  height: 28px;
+  height: 26px;
 }
 
 .fc .fc-timegrid-axis {
@@ -541,6 +544,10 @@ button.link.danger {
 
 .fc .fc-timegrid-now-indicator-arrow {
   border-color: #ff2f2f;
+}
+
+.fc .fc-scroller {
+  scrollbar-width: thin;
 }
 
 .fc .task-done .fc-event-title {
