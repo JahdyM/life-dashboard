@@ -9,6 +9,7 @@ import {
 import { createSubtask } from "@/lib/server/tasks";
 import { subtaskCreateSchema } from "@/lib/server/schemas";
 import { prisma } from "@/lib/db/prisma";
+import { logServerEvent } from "@/lib/server/logger";
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,6 +30,11 @@ export async function POST(request: NextRequest) {
     const subtask = await createSubtask(userEmail, parsed.data.task_id, parsed.data.title);
     return jsonOk({ subtask }, 201);
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "POST /api/subtasks",
+      message: "Unhandled error while creating subtask",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to create subtask", 500);
