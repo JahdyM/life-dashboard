@@ -35,6 +35,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [taskDrafts, setTaskDrafts] = useState<Record<string, TaskDraft>>({});
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
   const [savedTaskId, setSavedTaskId] = useState<string | null>(null);
+  const [taskSaveError, setTaskSaveError] = useState<string | null>(null);
 
   const range = useMemo(() => {
     const start = startOfWeek(selectedDate, { weekStartsOn: 1 });
@@ -82,8 +83,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     (task) => task.scheduledDate === format(selectedDate, "yyyy-MM-dd")
   );
   const unscheduledTasks = tasks.filter((task) => !task.scheduledDate);
-  const pendingTasks = tasksForDay.filter((task) => !task.isDone);
-  const completedTasks = tasksForDay.filter((task) => task.isDone);
 
   const setTaskDraft = (taskId: string, patch: TaskDraft) => {
     setTaskDrafts((prev) => ({
@@ -114,6 +113,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         draft.estimatedMinutes ?? Number(task.estimatedMinutes || 0),
     };
   };
+
+  const pendingTasks = tasksForDay.filter((task) => !readTaskDraft(task).isDone);
+  const completedTasks = tasksForDay.filter((task) => readTaskDraft(task).isDone);
 
   const buildTaskPatch = (task: any, draft?: TaskDraft) => {
     if (!draft) return {};
@@ -321,6 +323,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       { id: task.id, data: patch },
       {
         onSuccess: () => {
+          setTaskSaveError(null);
           clearTaskDraft(task.id);
           setSavingTaskId(null);
           setSavedTaskId(task.id);
@@ -329,6 +332,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           }, 1400);
         },
         onError: () => {
+          setTaskSaveError("Could not save task changes. Please try again.");
           setSavingTaskId(null);
         },
       }
@@ -338,13 +342,15 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const toggleTaskDoneNow = (task: any, checked: boolean) => {
     const cacheSnapshot = queryClient.getQueryData(["tasks", range.start, range.end]);
     const patch = { is_done: checked ? 1 : 0 };
+    setTaskDraft(task.id, { isDone: checked });
     applyTaskPatchToCache(task.id, patch);
-    clearDoneDraft(task.id);
     setSavingTaskId(task.id);
     updateTask.mutate(
       { id: task.id, data: patch, syncGoogle: false },
       {
         onSuccess: () => {
+          setTaskSaveError(null);
+          clearDoneDraft(task.id);
           setSavingTaskId(null);
           setSavedTaskId(task.id);
           window.setTimeout(() => {
@@ -355,6 +361,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           if (cacheSnapshot) {
             queryClient.setQueryData(["tasks", range.start, range.end], cacheSnapshot);
           }
+          setTaskSaveError("Could not mark task. Please try again.");
+          clearDoneDraft(task.id);
           setSavingTaskId(null);
         },
       }
@@ -377,6 +385,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           <span className={`sync-status ${syncStatus}`}>{syncStatus}</span>
         </div>
         {syncWarning && <div className="warning">{syncWarning}</div>}
+        {taskSaveError && <div className="warning">{taskSaveError}</div>}
         <div className="task-items">
           {pendingTasks.map((task) => (
             <details key={task.id} className={`task-row ${hasTaskChanges(task) ? "dirty" : ""}`}>
