@@ -6,13 +6,14 @@ import {
   jsonOk,
   zodErrorMessage,
 } from "@/lib/server/response";
-import { createTask, listTasks, updateTask } from "@/lib/server/tasks";
+import { createTask, listTasks } from "@/lib/server/tasks";
 import { listGoogleEvents, googleEventToTask, createGoogleEvent } from "@/lib/server/googleCalendar";
 import { prisma } from "@/lib/db/prisma";
 import { getUserTimeZone } from "@/lib/server/settings";
 import { DEFAULT_TIME_ZONE } from "@/lib/constants";
 import { taskCreateSchema, taskListQuerySchema } from "@/lib/server/schemas";
 import { logServerEvent } from "@/lib/server/logger";
+import { randomUUID } from "crypto";
 
 async function syncGoogleTasks(userEmail: string, start: string, end: string) {
   const events = await listGoogleEvents(userEmail, start, end, "primary");
@@ -27,9 +28,10 @@ async function syncGoogleTasks(userEmail: string, start: string, end: string) {
   });
   const existingMap = new Map(existing.map((item) => [item.googleEventId, item]));
   const timezone = (await getUserTimeZone(userEmail)) || DEFAULT_TIME_ZONE;
+  const nowIso = new Date().toISOString();
   const operations = events
     .filter((event: any) => Boolean(event?.id))
-    .map(async (event: any) => {
+    .map((event: any) => {
       const mapped = googleEventToTask(event, timezone);
       const payload = {
         title: mapped.title,
@@ -40,18 +42,39 @@ async function syncGoogleTasks(userEmail: string, start: string, end: string) {
         googleEventId: event.id,
       };
       if (existingMap.has(event.id)) {
-        return updateTask(userEmail, existingMap.get(event.id)!.id, payload);
+        return prisma.todoTask.update({
+          where: { id: existingMap.get(event.id)!.id },
+          data: {
+            title: payload.title,
+            source: payload.source,
+            scheduledDate: payload.scheduledDate,
+            scheduledTime: payload.scheduledTime,
+            googleCalendarId: payload.googleCalendarId,
+            googleEventId: payload.googleEventId,
+            updatedAt: nowIso,
+          },
+        });
       }
-      return createTask(userEmail, {
-        title: payload.title,
-        source: payload.source,
-        scheduledDate: payload.scheduledDate || null,
-        scheduledTime: payload.scheduledTime || null,
-        googleCalendarId: payload.googleCalendarId,
-        googleEventId: payload.googleEventId,
+      return prisma.todoTask.create({
+        data: {
+          id: randomUUID(),
+          userEmail,
+          title: payload.title,
+          source: payload.source,
+          scheduledDate: payload.scheduledDate || null,
+          scheduledTime: payload.scheduledTime || null,
+          priorityTag: "Medium",
+          isDone: 0,
+          googleCalendarId: payload.googleCalendarId,
+          googleEventId: payload.googleEventId,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        },
       });
     });
-  await Promise.all(operations);
+  if (operations.length > 0) {
+    await prisma.$transaction(operations);
+  }
 }
 
 export async function GET(request: NextRequest) {

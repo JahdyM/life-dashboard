@@ -202,6 +202,7 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
     format(startOfMonth(new Date()), "yyyy-MM-dd")
   );
   const [customEnd, setCustomEnd] = useState(() => format(new Date(), "yyyy-MM-dd"));
+  const [estimationPeriod, setEstimationPeriod] = useState<"30d" | "90d" | "all">("90d");
 
   const range = useMemo(() => {
     if (rangeKey !== "custom") return getRange(rangeKey);
@@ -233,6 +234,14 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
     queryKey: ["entries", startIso, endIso],
     queryFn: () =>
       fetchJson<{ items: EntryMetric[] }>(`/api/entries?start=${startIso}&end=${endIso}`),
+  });
+
+  const estimationQuery = useQuery({
+    queryKey: ["stats-estimation", estimationPeriod],
+    queryFn: () =>
+      fetchJson<EstimationResponse>(
+        `/api/stats/estimation?period=${estimationPeriod}`
+      ),
   });
 
   const days = useMemo(() => {
@@ -312,6 +321,91 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
           </button>
         </div>
       )}
+      <div className="section">
+        <h3>Task estimation accuracy</h3>
+        <div className="stats-controls">
+          <button
+            className={estimationPeriod === "30d" ? "chip active" : "chip"}
+            onClick={() => setEstimationPeriod("30d")}
+          >
+            30d
+          </button>
+          <button
+            className={estimationPeriod === "90d" ? "chip active" : "chip"}
+            onClick={() => setEstimationPeriod("90d")}
+          >
+            90d
+          </button>
+          <button
+            className={estimationPeriod === "all" ? "chip active" : "chip"}
+            onClick={() => setEstimationPeriod("all")}
+          >
+            All
+          </button>
+        </div>
+        {estimationQuery.isPending ? (
+          <div className="query-status">Loading estimation analytics...</div>
+        ) : null}
+        {estimationQuery.isError ? (
+          <div className="query-status error">
+            <span>Could not load estimation analytics.</span>
+            <button className="secondary" onClick={() => estimationQuery.refetch()}>
+              Retry
+            </button>
+          </div>
+        ) : null}
+        {estimationQuery.data ? (
+          <div className="estimation-card">
+            <div className="estimation-main">
+              <div className="estimation-score">
+                {estimationQuery.data.summary.planningFallacyScore ?? "--"}
+              </div>
+              <div>
+                <div className="estimation-title">Planning fallacy score</div>
+                <div className="estimation-note">
+                  {estimationQuery.data.summary.recommendation}
+                </div>
+              </div>
+            </div>
+            <div className="estimation-metrics">
+              <span>
+                Samples: {estimationQuery.data.summary.totalSamples}
+              </span>
+              <span>
+                Ratio: {estimationQuery.data.summary.averageRatio ?? "--"}
+              </span>
+              <span>
+                Avg error: {estimationQuery.data.summary.averageErrorPercent ?? "--"}%
+              </span>
+              <span>
+                Tendency: {estimationQuery.data.summary.tendency}
+              </span>
+            </div>
+            <div className="estimation-breakdown">
+              <div>
+                <h4>By priority</h4>
+                {estimationQuery.data.byPriority.map((item: EstimationBucket) => (
+                  <div key={item.label} className="estimation-row">
+                    <span>{item.label}</span>
+                    <span>{item.averageRatio ?? "--"}x</span>
+                    <span>{item.count} tasks</span>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <h4>By duration</h4>
+                {estimationQuery.data.byDuration.map((item: EstimationBucket) => (
+                  <div key={item.label} className="estimation-row">
+                    <span>{item.label}</span>
+                    <span>{item.averageRatio ?? "--"}x</span>
+                    <span>{item.count} tasks</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
 
       <div className="chart-grid">
         {[
