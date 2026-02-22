@@ -8,6 +8,7 @@ import {
   zodErrorMessage,
 } from "@/lib/server/response";
 import { dateParamSchema, dayPatchSchema } from "@/lib/server/schemas";
+import { logServerEvent } from "@/lib/server/logger";
 
 export async function GET(
   _request: NextRequest,
@@ -21,6 +22,11 @@ export async function GET(
     const entry = await getDailyEntry(userEmail, dateIso);
     return jsonOk({ entry });
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "GET /api/day/[date]",
+      message: "Unhandled error while loading day entry",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to load entry", 500);
@@ -51,6 +57,11 @@ export async function PATCH(
     const entry = await updateDailyEntry(userEmail, dateIso, payload);
     return jsonOk({ entry });
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "PATCH /api/day/[date]",
+      message: "Unhandled error while updating day entry",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to update entry", 500);
