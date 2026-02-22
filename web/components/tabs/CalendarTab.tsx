@@ -714,7 +714,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 hasChanges={hasTaskChanges(task)}
                 saving={savingTaskId === task.id}
                 saved={savedTaskId === task.id}
-                onToggleDone={toggleTaskDoneNow}
+                onToggleDone={requestToggleTaskDone}
                 onConfirm={confirmTaskUpdate}
                 onSetDraft={setTaskDraft}
                 onDelete={handleDeleteTask}
@@ -732,7 +732,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 draft={readTaskDraft(task)}
                 hasChanges={hasTaskChanges(task)}
                 saving={savingTaskId === task.id}
-                onToggleDone={toggleTaskDoneNow}
+                onToggleDone={requestToggleTaskDone}
                 onConfirm={confirmTaskUpdate}
                 onScheduleToday={handleScheduleToday}
               />
@@ -749,7 +749,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 draft={readTaskDraft(task)}
                 hasChanges={hasTaskChanges(task)}
                 saving={savingTaskId === task.id}
-                onToggleDone={toggleTaskDoneNow}
+                onToggleDone={requestToggleTaskDone}
                 onConfirm={confirmTaskUpdate}
                 completed
               />
