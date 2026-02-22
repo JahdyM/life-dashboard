@@ -9,6 +9,7 @@ import {
   getUserTimeZone,
 } from "@/lib/server/settings";
 import { prisma } from "@/lib/db/prisma";
+import { logServerEvent } from "@/lib/server/logger";
 
 export async function GET(_request: NextRequest) {
   try {
@@ -35,6 +36,11 @@ export async function GET(_request: NextRequest) {
       timezone,
     });
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "GET /api/init",
+      message: "Unhandled error while loading init payload",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to load init", 500);

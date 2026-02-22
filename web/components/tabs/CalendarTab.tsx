@@ -21,6 +21,12 @@ type TaskListResponse = {
   warning?: string | null;
 };
 
+type CompletionPromptState = {
+  taskId: string;
+  title: string;
+  estimatedMinutes: number;
+};
+
 function readErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error && error.message) {
     return `${fallback} ${error.message}`;
@@ -214,6 +220,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
   const [savedTaskId, setSavedTaskId] = useState<string | null>(null);
   const [taskSaveError, setTaskSaveError] = useState<string | null>(null);
+  const [completionPrompt, setCompletionPrompt] = useState<CompletionPromptState | null>(null);
+  const [completionMinutes, setCompletionMinutes] = useState(0);
 
   const range = useMemo(() => {
     const start = startOfWeek(selectedDate, { weekStartsOn: 1 });

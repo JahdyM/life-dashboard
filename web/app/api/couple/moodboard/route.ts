@@ -8,6 +8,7 @@ import {
 } from "@/lib/server/response";
 import { getCoupleMoodboard } from "@/lib/server/couple";
 import { coupleMoodboardQuerySchema } from "@/lib/server/schemas";
+import { logServerEvent } from "@/lib/server/logger";
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,6 +23,11 @@ export async function GET(request: NextRequest) {
     const payload = await getCoupleMoodboard(userEmail, range, month);
     return jsonOk(payload);
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "GET /api/couple/moodboard",
+      message: "Unhandled error while loading couple moodboard",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to load moodboard", 500);
