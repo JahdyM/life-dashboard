@@ -124,6 +124,50 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const hasTaskChanges = (task: any) =>
     Object.keys(buildTaskPatch(task, taskDrafts[task.id])).length > 0;
 
+  const applyTaskPatchToCache = (taskId: string, patch: Record<string, any>) => {
+    queryClient.setQueryData(
+      ["tasks", range.start, range.end],
+      (previous: { items?: any[]; warning?: string | null } | undefined) => {
+        if (!previous?.items) return previous;
+        return {
+          ...previous,
+          items: previous.items.map((item) => {
+            if (item.id !== taskId) return item;
+            return {
+              ...item,
+              isDone: "is_done" in patch ? (patch.is_done ? 1 : 0) : item.isDone,
+              priorityTag: "priority_tag" in patch ? patch.priority_tag : item.priorityTag,
+              scheduledTime:
+                "scheduled_time" in patch
+                  ? patch.scheduled_time || null
+                  : item.scheduledTime,
+              estimatedMinutes:
+                "estimated_minutes" in patch
+                  ? patch.estimated_minutes
+                  : item.estimatedMinutes,
+            };
+          }),
+        };
+      }
+    );
+  };
+
+  const clearDoneDraft = (taskId: string) => {
+    setTaskDrafts((prev) => {
+      const current = prev[taskId];
+      if (!current || !("isDone" in current)) return prev;
+      const nextDraft = { ...current };
+      delete nextDraft.isDone;
+      const next = { ...prev };
+      if (Object.keys(nextDraft).length === 0) {
+        delete next[taskId];
+      } else {
+        next[taskId] = nextDraft;
+      }
+      return next;
+    });
+  };
+
   const events = tasksForDay
     .filter((task) => task.scheduledTime)
     .map((task) => {
@@ -187,10 +231,20 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   });
 
   const updateTask = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) =>
+    mutationFn: ({
+      id,
+      data,
+      syncGoogle = true,
+    }: {
+      id: string;
+      data: any;
+      syncGoogle?: boolean;
+    }) =>
       fetchJson(`/api/tasks/${id}`, {
         method: "PATCH",
-        body: JSON.stringify({ ...data, sync_google: true }),
+        body: JSON.stringify(
+          syncGoogle ? { ...data, sync_google: true } : { ...data }
+        ),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
@@ -260,6 +314,32 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     );
   };
 
+  const toggleTaskDoneNow = (task: any, checked: boolean) => {
+    const cacheSnapshot = queryClient.getQueryData(["tasks", range.start, range.end]);
+    const patch = { is_done: checked ? 1 : 0 };
+    applyTaskPatchToCache(task.id, patch);
+    clearDoneDraft(task.id);
+    setSavingTaskId(task.id);
+    updateTask.mutate(
+      { id: task.id, data: patch, syncGoogle: false },
+      {
+        onSuccess: () => {
+          setSavingTaskId(null);
+          setSavedTaskId(task.id);
+          window.setTimeout(() => {
+            setSavedTaskId((prev) => (prev === task.id ? null : prev));
+          }, 900);
+        },
+        onError: () => {
+          if (cacheSnapshot) {
+            queryClient.setQueryData(["tasks", range.start, range.end], cacheSnapshot);
+          }
+          setSavingTaskId(null);
+        },
+      }
+    );
+  };
+
   return (
     <div className="calendar-layout">
       <div className="task-list">
@@ -291,7 +371,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                         type="checkbox"
                         checked={draft.isDone}
                         onChange={(event) =>
-                          setTaskDraft(task.id, { isDone: event.target.checked })
+                          toggleTaskDoneNow(task, event.target.checked)
                         }
                       />
                       <span className="task-title">{task.title}</span>
@@ -386,7 +466,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   type="checkbox"
                   checked={draft.isDone}
                   onChange={(event) =>
-                    setTaskDraft(task.id, { isDone: event.target.checked })
+                    toggleTaskDoneNow(task, event.target.checked)
                   }
                 />
                 <span className="task-title">{task.title}</span>
@@ -428,7 +508,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 <input
                   type="checkbox"
                   checked={draft.isDone}
-                  onChange={(event) => setTaskDraft(task.id, { isDone: event.target.checked })}
+                  onChange={(event) => toggleTaskDoneNow(task, event.target.checked)}
                 />
                 <span className="task-title">{task.title}</span>
                 {task.scheduledTime && <span className="task-time">{task.scheduledTime}</span>}
