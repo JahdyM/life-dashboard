@@ -484,6 +484,38 @@ button.link.danger {
   padding: 16px;
 }
 
+.calendar-quick-add {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.calendar-quick-title {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.calendar-quick-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.calendar-quick-input {
+  min-width: 0;
+}
+
+.calendar-selection-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 .fc {
   --fc-border-color: rgba(255, 255, 255, 0.08);
   --fc-page-bg-color: transparent;
@@ -500,6 +532,23 @@ button.link.danger {
 
 .fc .fc-timegrid-axis {
   color: var(--text-muted);
+}
+
+.fc .fc-timegrid-now-indicator-line {
+  border-color: #ff2f2f;
+  border-width: 2px;
+}
+
+.fc .fc-timegrid-now-indicator-arrow {
+  border-color: #ff2f2f;
+}
+
+.fc .task-done .fc-event-title {
+  text-decoration: line-through;
+}
+
+.fc .task-done {
+  opacity: 0.88;
 }
 
 .calendar-header {
@@ -968,6 +1017,9 @@ button.link.danger {
     grid-template-columns: 1fr;
   }
   .mood-editor-row {
+    grid-template-columns: 1fr;
+  }
+  .calendar-quick-row {
     grid-template-columns: 1fr;
   }
 }

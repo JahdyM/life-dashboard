@@ -24,6 +24,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [newDate, setNewDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
   const [newTime, setNewTime] = useState("");
   const [newEst, setNewEst] = useState(30);
+  const [calendarDraftTitle, setCalendarDraftTitle] = useState("");
+  const [calendarSelection, setCalendarSelection] = useState<{
+    date: string;
+    time: string;
+    estimatedMinutes: number;
+  } | null>(null);
   const [taskDrafts, setTaskDrafts] = useState<Record<string, TaskDraft>>({});
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
   const [savedTaskId, setSavedTaskId] = useState<string | null>(null);
@@ -132,6 +138,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         title: task.title,
         start,
         end,
+        classNames: [task.isDone ? "task-done" : "task-pending"],
+        backgroundColor: task.isDone
+          ? "rgba(127, 211, 165, 0.76)"
+          : "rgba(143, 123, 179, 0.64)",
+        borderColor: task.isDone ? "rgba(127, 211, 165, 0.95)" : "rgba(143, 123, 179, 0.95)",
+        textColor: task.isDone ? "#102418" : "#F5F1EA",
       };
     });
 
@@ -150,6 +162,26 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     onSuccess: () => {
       setNewTitle("");
       setNewTime("");
+      queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
+    },
+  });
+
+  const createTaskFromCalendar = useMutation({
+    mutationFn: () => {
+      if (!calendarSelection) return Promise.resolve(null);
+      return fetchJson("/api/tasks", {
+        method: "POST",
+        body: JSON.stringify({
+          title: (calendarDraftTitle || newTitle || "New task").trim(),
+          scheduled_date: calendarSelection.date,
+          scheduled_time: calendarSelection.time || null,
+          estimated_minutes: calendarSelection.estimatedMinutes || newEst || 30,
+          sync_google: true,
+        }),
+      });
+    },
+    onSuccess: () => {
+      setCalendarDraftTitle("");
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
     },
   });
@@ -187,6 +219,23 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     } catch (_err) {
       setSyncStatus("failed");
     }
+  };
+
+  const applyCalendarSelection = (startDate: Date, endDate?: Date | null) => {
+    const nextDate = format(startDate, "yyyy-MM-dd");
+    const nextTime = format(startDate, "HH:mm");
+    const estimatedMinutes = endDate
+      ? Math.max(15, Math.round((endDate.getTime() - startDate.getTime()) / 60000))
+      : 30;
+    setSelectedDate(startDate);
+    setNewDate(nextDate);
+    setNewTime(nextTime);
+    setNewEst(estimatedMinutes);
+    setCalendarSelection({
+      date: nextDate,
+      time: nextTime,
+      estimatedMinutes,
+    });
   };
 
   const confirmTaskUpdate = (task: any) => {
@@ -427,6 +476,33 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       </div>
 
       <div className="calendar-panel">
+        <div className="calendar-quick-add">
+          <div className="calendar-quick-title">Add directly from calendar</div>
+          <div className="calendar-quick-row">
+            <input
+              className="calendar-quick-input"
+              placeholder="Task title from selected slot..."
+              value={calendarDraftTitle}
+              onChange={(event) => setCalendarDraftTitle(event.target.value)}
+            />
+            <button
+              className="secondary"
+              disabled={!calendarSelection || !calendarDraftTitle.trim()}
+              onClick={() => createTaskFromCalendar.mutate()}
+            >
+              {createTaskFromCalendar.isPending ? "Adding..." : "Add"}
+            </button>
+          </div>
+          {calendarSelection ? (
+            <div className="calendar-selection-meta">
+              Selected: {calendarSelection.date} {calendarSelection.time} ({calendarSelection.estimatedMinutes}m)
+            </div>
+          ) : (
+            <div className="calendar-selection-meta">
+              Click or drag a time slot to prefill task creation.
+            </div>
+          )}
+        </div>
         <div className="calendar-header">
           <button onClick={() => setSelectedDate(addDays(selectedDate, -1))}>Prev</button>
           <div>{format(selectedDate, "MMMM dd, yyyy")}</div>
@@ -438,9 +514,18 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           height="auto"
           headerToolbar={false}
           allDaySlot={false}
+          nowIndicator
           slotDuration="00:30:00"
+          selectable
+          selectMirror
           events={events}
           editable
+          dateClick={(info) => {
+            applyCalendarSelection(info.date, null);
+          }}
+          select={(info) => {
+            applyCalendarSelection(info.start, info.end);
+          }}
           eventDrop={(info) => {
             const date = info.event.start;
             if (!date) return;
