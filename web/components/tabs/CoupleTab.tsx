@@ -5,17 +5,18 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/client/api";
 import { MOOD_PALETTE } from "@/lib/constants";
 import { format } from "date-fns";
+import type { CoupleMoodboardData, StreakData } from "@/lib/types";
 
 export default function CoupleTab({ userEmail }: { userEmail: string }) {
   const [monthKey, setMonthKey] = useState(() => format(new Date(), "yyyy-MM"));
   const moodQuery = useQuery({
     queryKey: ["couple-mood", monthKey],
     queryFn: () =>
-      fetchJson<any>(`/api/couple/moodboard?range=month&month=${monthKey}`),
+      fetchJson<CoupleMoodboardData>(`/api/couple/moodboard?range=month&month=${monthKey}`),
   });
   const streakQuery = useQuery({
     queryKey: ["couple-streaks"],
-    queryFn: () => fetchJson<any>("/api/couple/streaks"),
+    queryFn: () => fetchJson<StreakData>("/api/couple/streaks"),
   });
   const queryLoading = moodQuery.isPending || streakQuery.isPending;
   const queryError = moodQuery.isError || streakQuery.isError;
@@ -145,7 +146,7 @@ export default function CoupleTab({ userEmail }: { userEmail: string }) {
       <div className="section">
         <h3>Shared streaks</h3>
         <div className="streak-grid">
-          {(streakQuery.data?.items || []).map((item: any) => (
+          {(streakQuery.data?.items || []).map((item) => (
             <div key={item.habit_key} className="streak-card">
               <div className="streak-icon">🔥</div>
               <div className="streak-label">{item.label}</div>

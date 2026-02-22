@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/client/api";
 import { MOOD_PALETTE } from "@/lib/constants";
 import { format } from "date-fns";
+import type { MoodEntry } from "@/lib/types";
 
 export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }) {
   const [monthKey, setMonthKey] = useState(() => format(new Date(), "yyyy-MM"));
@@ -27,14 +28,15 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
 
   const entriesQuery = useQuery({
     queryKey: ["mood", monthKey],
-    queryFn: () => fetchJson<{ items: any[] }>(`/api/entries?start=${start}&end=${end}`),
+    queryFn: () => fetchJson<{ items: MoodEntry[] }>(`/api/entries?start=${start}&end=${end}`),
   });
 
   const yearStart = `${yearKey}-01-01`;
   const yearEnd = `${yearKey}-12-31`;
   const yearQuery = useQuery({
     queryKey: ["mood-year", yearKey],
-    queryFn: () => fetchJson<{ items: any[] }>(`/api/entries?start=${yearStart}&end=${yearEnd}`),
+    queryFn: () =>
+      fetchJson<{ items: MoodEntry[] }>(`/api/entries?start=${yearStart}&end=${yearEnd}`),
   });
 
   const queryLoading = entriesQuery.isPending || yearQuery.isPending;
