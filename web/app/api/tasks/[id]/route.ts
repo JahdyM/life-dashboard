@@ -6,6 +6,8 @@ import { prisma } from "@/lib/db/prisma";
 import { updateGoogleEvent, deleteGoogleEvent } from "@/lib/server/googleCalendar";
 import { getUserTimeZone } from "@/lib/server/settings";
 import { DEFAULT_TIME_ZONE } from "@/lib/constants";
+import { taskIdSchema, taskPatchSchema } from "@/lib/server/schemas";
+import { zodErrorMessage } from "@/lib/server/response";
 
 export async function PATCH(
   request: NextRequest,
@@ -13,8 +15,18 @@ export async function PATCH(
 ) {
   try {
     const userEmail = await requireUserEmail();
-    const taskId = context.params.id;
-    const payload = await request.json();
+    const idParsed = taskIdSchema.safeParse(context.params.id);
+    if (!idParsed.success) return jsonError(zodErrorMessage(idParsed.error), 400);
+    const taskId = idParsed.data;
+    let rawPayload: unknown;
+    try {
+      rawPayload = await request.json();
+    } catch (_err) {
+      return jsonError("Invalid JSON body", 400);
+    }
+    const parsed = taskPatchSchema.safeParse(rawPayload);
+    if (!parsed.success) return jsonError(zodErrorMessage(parsed.error), 400);
+    const payload = parsed.data;
     const existing = await prisma.todoTask.findUnique({ where: { id: taskId } });
     if (!existing || existing.userEmail !== userEmail) return jsonError("Task not found", 404);
     const updatePayload: Record<string, any> = {};
@@ -52,7 +64,9 @@ export async function DELETE(
 ) {
   try {
     const userEmail = await requireUserEmail();
-    const taskId = context.params.id;
+    const idParsed = taskIdSchema.safeParse(context.params.id);
+    if (!idParsed.success) return jsonError(zodErrorMessage(idParsed.error), 400);
+    const taskId = idParsed.data;
     const existing = await prisma.todoTask.findUnique({ where: { id: taskId } });
     if (!existing || existing.userEmail !== userEmail) return jsonError("Task not found", 404);
     if (existing.googleEventId) {
