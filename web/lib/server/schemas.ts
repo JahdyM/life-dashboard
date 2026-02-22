@@ -55,6 +55,12 @@ export const coupleMoodboardQuerySchema = z.object({
     .optional(),
 });
 
+export const estimationStatsQuerySchema = z
+  .object({
+    period: z.enum(["30d", "90d", "all"]).default("90d"),
+  })
+  .strict();
+
 export const taskListQuerySchema = z
   .object({
     start: isoDateSchema,
