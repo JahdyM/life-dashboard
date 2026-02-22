@@ -6,6 +6,8 @@ import { listGoogleEvents, googleEventToTask, createGoogleEvent } from "@/lib/se
 import { prisma } from "@/lib/db/prisma";
 import { getUserTimeZone } from "@/lib/server/settings";
 import { DEFAULT_TIME_ZONE } from "@/lib/constants";
+import { taskCreateSchema, taskListQuerySchema } from "@/lib/server/schemas";
+import { zodErrorMessage } from "@/lib/server/response";
 
 async function syncGoogleTasks(userEmail: string, start: string, end: string) {
   const events = await listGoogleEvents(userEmail, start, end, "primary");
@@ -50,13 +52,20 @@ export async function GET(request: NextRequest) {
   try {
     const userEmail = await requireUserEmail();
     const { searchParams } = new URL(request.url);
-    const start = searchParams.get("start");
-    const end = searchParams.get("end");
-    const sync = searchParams.get("sync") === "1";
-    const includeUnscheduled = searchParams.get("include_unscheduled") === "1";
-    if (!start || !end) return jsonError("Missing start/end", 400);
+    const queryParsed = taskListQuerySchema.safeParse({
+      start: searchParams.get("start"),
+      end: searchParams.get("end"),
+      sync: searchParams.get("sync") || undefined,
+      include_unscheduled: searchParams.get("include_unscheduled") || undefined,
+    });
+    if (!queryParsed.success) {
+      return jsonError(zodErrorMessage(queryParsed.error), 400);
+    }
+    const { start, end, sync, include_unscheduled } = queryParsed.data;
+    const shouldSync = sync === "1";
+    const includeUnscheduled = include_unscheduled === "1";
     let syncWarning: string | null = null;
-    if (sync) {
+    if (shouldSync) {
       try {
         await syncGoogleTasks(userEmail, start, end);
       } catch (_err) {
@@ -75,9 +84,18 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const userEmail = await requireUserEmail();
-    const payload = await request.json();
-    const title = String(payload?.title || "").trim();
-    if (!title) return jsonError("Title cannot be empty", 400);
+    let rawPayload: unknown;
+    try {
+      rawPayload = await request.json();
+    } catch (_err) {
+      return jsonError("Invalid JSON body", 400);
+    }
+    const parsed = taskCreateSchema.safeParse(rawPayload);
+    if (!parsed.success) {
+      return jsonError(zodErrorMessage(parsed.error), 400);
+    }
+    const payload = parsed.data;
+    const title = payload.title;
     const timezone = (await getUserTimeZone(userEmail)) || DEFAULT_TIME_ZONE;
     let googleEventId: string | null = null;
     if (payload.sync_google) {
