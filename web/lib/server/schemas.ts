@@ -41,6 +41,14 @@ export const rangeQuerySchema = z
     path: ["end"],
   });
 
+export const coupleMoodboardQuerySchema = z.object({
+  range: z.enum(["month", "year"]).default("month"),
+  month: z
+    .string()
+    .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "month must be YYYY-MM")
+    .optional(),
+});
+
 export const taskListQuerySchema = z
   .object({
     start: isoDateSchema,

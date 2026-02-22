@@ -18,6 +18,9 @@ function isPublicPath(pathname: string): boolean {
   ) {
     return true;
   }
+  if (/\.[a-zA-Z0-9]+$/.test(pathname)) {
+    return true;
+  }
   return false;
 }
 

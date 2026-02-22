@@ -100,16 +100,9 @@ export async function updateTask(
   taskId: string,
   payload: Partial<TaskPayload>
 ) {
-  const ownedTask = await prisma.todoTask.findFirst({
-    where: { id: taskId, userEmail },
-    select: { id: true },
-  });
-  if (!ownedTask) {
-    throw new Error("RESOURCE_NOT_FOUND");
-  }
   const nowIso = new Date().toISOString();
-  const task = await prisma.todoTask.update({
-    where: { id: taskId },
+  const updateResult = await prisma.todoTask.updateMany({
+    where: { id: taskId, userEmail },
     data: {
       title: payload.title?.trim(),
       source: payload.source,
@@ -125,6 +118,15 @@ export async function updateTask(
       updatedAt: nowIso,
     },
   });
+  if (!updateResult.count) {
+    throw new Error("RESOURCE_NOT_FOUND");
+  }
+  const task = await prisma.todoTask.findFirst({
+    where: { id: taskId, userEmail },
+  });
+  if (!task) {
+    throw new Error("RESOURCE_NOT_FOUND");
+  }
   return task;
 }
 
@@ -174,16 +176,9 @@ export async function updateSubtask(
   subtaskId: string,
   data: Partial<{ title: string; priorityTag: string; estimatedMinutes: number | null; actualMinutes: number | null; isDone: number | null }>
 ) {
-  const ownedSubtask = await prisma.todoSubtask.findFirst({
-    where: { id: subtaskId, userEmail },
-    select: { id: true },
-  });
-  if (!ownedSubtask) {
-    throw new Error("RESOURCE_NOT_FOUND");
-  }
   const nowIso = new Date().toISOString();
-  return prisma.todoSubtask.update({
-    where: { id: subtaskId },
+  const updateResult = await prisma.todoSubtask.updateMany({
+    where: { id: subtaskId, userEmail },
     data: {
       title: data.title?.trim(),
       priorityTag: data.priorityTag,
@@ -193,6 +188,16 @@ export async function updateSubtask(
       updatedAt: nowIso,
     },
   });
+  if (!updateResult.count) {
+    throw new Error("RESOURCE_NOT_FOUND");
+  }
+  const subtask = await prisma.todoSubtask.findFirst({
+    where: { id: subtaskId, userEmail },
+  });
+  if (!subtask) {
+    throw new Error("RESOURCE_NOT_FOUND");
+  }
+  return subtask;
 }
 
 export async function deleteSubtask(userEmail: string, subtaskId: string) {
