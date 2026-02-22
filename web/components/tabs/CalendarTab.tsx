@@ -703,6 +703,33 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         )}
         {syncWarning && <div className="warning">{syncWarning}</div>}
         {taskSaveError && <div className="warning">{taskSaveError}</div>}
+        {completionPrompt ? (
+          <div className="completion-prompt">
+            <div className="completion-prompt-title">
+              Complete "{completionPrompt.title}"
+            </div>
+            <div className="completion-prompt-row">
+              <label>
+                Actual minutes (estimated {completionPrompt.estimatedMinutes})
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={completionMinutes}
+                onChange={(event) => setCompletionMinutes(Number(event.target.value || 0))}
+              />
+              <button className="secondary" onClick={confirmCompletionMinutes}>
+                Confirm
+              </button>
+              <button className="link" onClick={skipCompletionMinutes}>
+                Skip time
+              </button>
+              <button className="link danger" onClick={() => setCompletionPrompt(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : null}
         <div className="task-items">
           {pendingTasks.map((task) => {
             const draft = readTaskDraft(task);
