@@ -16,16 +16,9 @@ import {
   isValid,
   isAfter,
 } from "date-fns";
+import type { EntryMetric, EstimationBucket, EstimationResponse, EstimationSummary } from "@/lib/types";
 
 type RangeKey = "week" | "month" | "quarter" | "custom";
-
-type Entry = {
-  date: string;
-  sleepHours?: number | null;
-  workHours?: number | null;
-  anxietyLevel?: number | null;
-  boredomMinutes?: number | null;
-};
 
 function getRange(range: RangeKey) {
   const now = new Date();
