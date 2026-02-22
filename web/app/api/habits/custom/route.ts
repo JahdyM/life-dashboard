@@ -9,6 +9,7 @@ import {
 import { canonicalHabitKey, ensureDefaultCustomHabits, getCustomHabits, saveCustomHabits } from "@/lib/server/settings";
 import { randomUUID } from "crypto";
 import { customHabitSchema } from "@/lib/server/schemas";
+import { logServerEvent } from "@/lib/server/logger";
 
 export async function GET(_request: NextRequest) {
   try {
@@ -16,6 +17,11 @@ export async function GET(_request: NextRequest) {
     const items = await ensureDefaultCustomHabits(userEmail);
     return jsonOk({ items });
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "GET /api/habits/custom",
+      message: "Unhandled error while listing custom habits",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to list habits", 500);
@@ -43,6 +49,11 @@ export async function POST(request: NextRequest) {
     await saveCustomHabits(userEmail, [...current, habit]);
     return jsonOk({ habit }, 201);
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "POST /api/habits/custom",
+      message: "Unhandled error while creating custom habit",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to create habit", 500);
