@@ -12,9 +12,12 @@ import {
   startOfQuarter,
   endOfQuarter,
   eachDayOfInterval,
+  parseISO,
+  isValid,
+  isAfter,
 } from "date-fns";
 
-type RangeKey = "week" | "month" | "quarter";
+type RangeKey = "week" | "month" | "quarter" | "custom";
 
 type Entry = {
   date: string;
@@ -65,7 +68,14 @@ function LineChart({
   color: string;
   step: number;
 }) {
-  const max = Math.max(1, ...points.map((p) => p.value));
+  const values = points.map((p) => p.value);
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values);
+  const rawSpan = maxValue - minValue;
+  const padding = rawSpan === 0 ? Math.max(1, Math.abs(maxValue) * 0.1) : rawSpan * 0.12;
+  const domainMin = minValue - padding;
+  const domainMax = maxValue + padding;
+  const domainSpan = Math.max(1, domainMax - domainMin);
   const rows = Math.max(1, points.length);
   const width = 420;
   const labelWidth = 64;
@@ -76,10 +86,12 @@ function LineChart({
   const axisHeight = 18;
   const totalHeight = plotHeight + axisHeight;
 
-  const tickValues = [0, 0.25, 0.5, 0.75, 1].map((ratio) => max * ratio);
+  const tickValues = [0, 0.25, 0.5, 0.75, 1].map(
+    (ratio) => domainMin + domainSpan * ratio
+  );
 
   const coords = points.map((p, idx) => {
-    const x = plotLeft + (p.value / max) * (plotRight - plotLeft);
+    const x = plotLeft + ((p.value - domainMin) / domainSpan) * (plotRight - plotLeft);
     const y = idx * step + step / 2;
     return { x, y };
   });
@@ -176,7 +188,33 @@ function toMetricValue(raw: unknown): number | null {
 
 export default function StatsTab({ userEmail: _userEmail }: { userEmail: string }) {
   const [rangeKey, setRangeKey] = useState<RangeKey>("week");
-  const range = useMemo(() => getRange(rangeKey), [rangeKey]);
+  const [customStart, setCustomStart] = useState(() =>
+    format(startOfMonth(new Date()), "yyyy-MM-dd")
+  );
+  const [customEnd, setCustomEnd] = useState(() => format(new Date(), "yyyy-MM-dd"));
+
+  const range = useMemo(() => {
+    if (rangeKey !== "custom") return getRange(rangeKey);
+
+    const parsedStart = parseISO(customStart);
+    const parsedEnd = parseISO(customEnd);
+    const fallbackStart = startOfMonth(new Date());
+    const fallbackEnd = new Date();
+    const safeStart = isValid(parsedStart) ? parsedStart : fallbackStart;
+    const safeEnd = isValid(parsedEnd) ? parsedEnd : fallbackEnd;
+    const normalized = isAfter(safeStart, safeEnd)
+      ? { start: safeEnd, end: safeStart }
+      : { start: safeStart, end: safeEnd };
+
+    return {
+      start: normalized.start,
+      end: normalized.end,
+      label: `${format(normalized.start, "dd/MM/yyyy")} - ${format(
+        normalized.end,
+        "dd/MM/yyyy"
+      )}`,
+    };
+  }, [rangeKey, customStart, customEnd]);
 
   const startIso = format(range.start, "yyyy-MM-dd");
   const endIso = format(range.end, "yyyy-MM-dd");
@@ -232,7 +270,24 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
           <button className={rangeKey === "quarter" ? "chip active" : "chip"} onClick={() => setRangeKey("quarter")}>
             Quarter
           </button>
+          <button className={rangeKey === "custom" ? "chip active" : "chip"} onClick={() => setRangeKey("custom")}>
+            Custom
+          </button>
         </div>
+        {rangeKey === "custom" && (
+          <div className="stats-controls">
+            <input
+              type="date"
+              value={customStart}
+              onChange={(event) => setCustomStart(event.target.value)}
+            />
+            <input
+              type="date"
+              value={customEnd}
+              onChange={(event) => setCustomEnd(event.target.value)}
+            />
+          </div>
+        )}
         <div className="stats-range">{range.label}</div>
       </div>
 
