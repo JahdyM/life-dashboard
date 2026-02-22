@@ -26,13 +26,22 @@ export async function PATCH(
     const parsed = subtaskPatchSchema.safeParse(rawPayload);
     if (!parsed.success) return jsonError(zodErrorMessage(parsed.error), 400);
     const payload = parsed.data;
-    const subtask = await updateSubtask(userEmail, idParsed.data, {
-      title: payload.title,
-      priorityTag: payload.priority_tag,
-      estimatedMinutes: payload.estimated_minutes ?? null,
-      actualMinutes: payload.actual_minutes ?? null,
-      isDone: payload.is_done ? 1 : 0,
-    });
+    const nextPayload: Record<string, string | number | null> = {};
+    if ("title" in payload) nextPayload.title = payload.title;
+    if ("priority_tag" in payload) nextPayload.priorityTag = payload.priority_tag;
+    if ("estimated_minutes" in payload) {
+      nextPayload.estimatedMinutes = payload.estimated_minutes ?? null;
+    }
+    if ("actual_minutes" in payload) {
+      nextPayload.actualMinutes = payload.actual_minutes ?? null;
+    }
+    if ("is_done" in payload) {
+      nextPayload.isDone = payload.is_done ? 1 : 0;
+    }
+    if ("completed_at" in payload) {
+      nextPayload.completedAt = payload.completed_at ?? null;
+    }
+    const subtask = await updateSubtask(userEmail, idParsed.data, nextPayload);
     return jsonOk({ subtask });
   } catch (err) {
     const authError = handleAuthError(err);
