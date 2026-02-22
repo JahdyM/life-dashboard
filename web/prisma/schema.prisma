@@ -52,12 +52,17 @@ model TodoTask {
   estimatedMinutes Int?    @map("estimated_minutes")
   actualMinutes    Int?    @map("actual_minutes")
   isDone           Int?    @map("is_done")
+  completedAt      String? @map("completed_at")
   googleCalendarId String? @map("google_calendar_id")
   googleEventId    String? @map("google_event_id")
   createdAt        String  @map("created_at")
   updatedAt        String? @map("updated_at")
   version          Int?    @map("version")
+  subtasks         TodoSubtask[]
 
+  @@index([userEmail, scheduledDate])
+  @@index([userEmail, isDone])
+  @@index([googleEventId])
   @@map("todo_tasks")
 }
 
@@ -70,10 +75,13 @@ model TodoSubtask {
   estimatedMinutes Int?    @map("estimated_minutes")
   actualMinutes    Int?    @map("actual_minutes")
   isDone           Int?    @map("is_done")
+  completedAt      String? @map("completed_at")
   createdAt        String  @map("created_at")
   updatedAt        String? @map("updated_at")
   version          Int?    @map("version")
+  task             TodoTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
+  @@index([userEmail, taskId])
   @@map("todo_subtasks")
 }
 

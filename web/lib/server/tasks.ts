@@ -11,6 +11,7 @@ export type TaskPayload = {
   estimatedMinutes?: number | null;
   actualMinutes?: number | null;
   isDone?: number | null;
+  completedAt?: string | null;
   googleCalendarId?: string | null;
   googleEventId?: string | null;
 };
@@ -48,27 +49,13 @@ export async function listTasks(
       { scheduledTime: "asc" },
       { createdAt: "asc" },
     ],
-  });
-  if (tasks.length === 0) {
-    return [] as Array<any>;
-  }
-  const ids = tasks.map((task) => task.id);
-  const subtasks = await prisma.todoSubtask.findMany({
-    where: {
-      userEmail,
-      taskId: { in: ids },
+    include: {
+      subtasks: {
+        orderBy: { createdAt: "asc" },
+      },
     },
-    orderBy: { createdAt: "asc" },
   });
-  const grouped: Record<string, typeof subtasks> = {};
-  subtasks.forEach((subtask) => {
-    grouped[subtask.taskId] = grouped[subtask.taskId] || [];
-    grouped[subtask.taskId].push(subtask);
-  });
-  return tasks.map((task) => ({
-    ...task,
-    subtasks: grouped[task.id] || [],
-  }));
+  return tasks;
 }
 
 export async function createTask(userEmail: string, payload: TaskPayload) {
@@ -86,6 +73,10 @@ export async function createTask(userEmail: string, payload: TaskPayload) {
       estimatedMinutes: payload.estimatedMinutes ?? null,
       actualMinutes: payload.actualMinutes ?? null,
       isDone: payload.isDone ?? 0,
+      completedAt:
+        payload.isDone && payload.isDone > 0
+          ? payload.completedAt || nowIso
+          : null,
       googleCalendarId: payload.googleCalendarId || null,
       googleEventId: payload.googleEventId || null,
       createdAt: nowIso,
@@ -101,6 +92,25 @@ export async function updateTask(
   payload: Partial<TaskPayload>
 ) {
   const nowIso = new Date().toISOString();
+  const existing = await prisma.todoTask.findFirst({
+    where: { id: taskId, userEmail },
+    select: { id: true, isDone: true, completedAt: true },
+  });
+  if (!existing) {
+    throw new Error("RESOURCE_NOT_FOUND");
+  }
+
+  let completedAtPatch: string | null | undefined = undefined;
+  if (typeof payload.isDone === "number") {
+    if (payload.isDone > 0 && !existing.isDone) {
+      completedAtPatch = payload.completedAt || nowIso;
+    } else if (payload.isDone === 0) {
+      completedAtPatch = null;
+    }
+  } else if ("completedAt" in payload) {
+    completedAtPatch = payload.completedAt ?? null;
+  }
+
   const updateResult = await prisma.todoTask.updateMany({
     where: { id: taskId, userEmail },
     data: {
@@ -113,6 +123,7 @@ export async function updateTask(
       estimatedMinutes: payload.estimatedMinutes,
       actualMinutes: payload.actualMinutes,
       isDone: payload.isDone,
+      completedAt: completedAtPatch,
       googleCalendarId: payload.googleCalendarId,
       googleEventId: payload.googleEventId,
       updatedAt: nowIso,
@@ -174,9 +185,35 @@ export async function createSubtask(
 export async function updateSubtask(
   userEmail: string,
   subtaskId: string,
-  data: Partial<{ title: string; priorityTag: string; estimatedMinutes: number | null; actualMinutes: number | null; isDone: number | null }>
+  data: Partial<{
+    title: string;
+    priorityTag: string;
+    estimatedMinutes: number | null;
+    actualMinutes: number | null;
+    isDone: number | null;
+    completedAt: string | null;
+  }>
 ) {
   const nowIso = new Date().toISOString();
+  const existing = await prisma.todoSubtask.findFirst({
+    where: { id: subtaskId, userEmail },
+    select: { id: true, isDone: true },
+  });
+  if (!existing) {
+    throw new Error("RESOURCE_NOT_FOUND");
+  }
+
+  let completedAtPatch: string | null | undefined = undefined;
+  if (typeof data.isDone === "number") {
+    if (data.isDone > 0 && !existing.isDone) {
+      completedAtPatch = data.completedAt || nowIso;
+    } else if (data.isDone === 0) {
+      completedAtPatch = null;
+    }
+  } else if ("completedAt" in data) {
+    completedAtPatch = data.completedAt ?? null;
+  }
+
   const updateResult = await prisma.todoSubtask.updateMany({
     where: { id: subtaskId, userEmail },
     data: {
@@ -185,6 +222,7 @@ export async function updateSubtask(
       estimatedMinutes: data.estimatedMinutes,
       actualMinutes: data.actualMinutes,
       isDone: data.isDone,
+      completedAt: completedAtPatch,
       updatedAt: nowIso,
     },
   });
