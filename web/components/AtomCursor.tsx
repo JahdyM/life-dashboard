@@ -15,6 +15,8 @@ export default function AtomCursor() {
   );
   const rafId = useRef<number | null>(null);
   const isPressed = useRef(false);
+  const isMounted = useRef(false);
+  const isVisible = useRef(false);
 
   useEffect(() => {
     const canUseCustomCursor =
@@ -24,7 +26,8 @@ export default function AtomCursor() {
 
     if (!canUseCustomCursor) return;
 
-    let visible = false;
+    isMounted.current = true;
+    isVisible.current = false;
 
     const setCursorVisibility = (show: boolean) => {
       if (!cursorRef.current) return;
@@ -37,8 +40,8 @@ export default function AtomCursor() {
     const onMove = (event: MouseEvent) => {
       mouse.current.x = event.clientX;
       mouse.current.y = event.clientY;
-      if (!visible) {
-        visible = true;
+      if (!isVisible.current) {
+        isVisible.current = true;
         points.current.forEach((point) => {
           point.x = event.clientX;
           point.y = event.clientY;
@@ -56,11 +59,12 @@ export default function AtomCursor() {
     };
 
     const onLeave = () => {
-      visible = false;
+      isVisible.current = false;
       setCursorVisibility(false);
     };
 
     const animate = () => {
+      if (!isMounted.current) return;
       const cursor = cursorRef.current;
       const headLerp = 0.4;
       const tailLerp = 0.34;
@@ -84,7 +88,7 @@ export default function AtomCursor() {
         const opacity = Math.max(0.04, 0.34 - idx * 0.02);
         el.dataset.baseOpacity = opacity.toFixed(3);
         el.style.transform = `translate3d(${p.x}px, ${p.y}px, 0) translate(-50%, -50%) scale(${scale})`;
-        if (visible) el.style.opacity = opacity.toFixed(3);
+        if (isVisible.current) el.style.opacity = opacity.toFixed(3);
       });
 
       rafId.current = window.requestAnimationFrame(animate);
@@ -99,7 +103,12 @@ export default function AtomCursor() {
     rafId.current = window.requestAnimationFrame(animate);
 
     return () => {
-      if (rafId.current) window.cancelAnimationFrame(rafId.current);
+      isMounted.current = false;
+      isVisible.current = false;
+      if (rafId.current !== null) {
+        window.cancelAnimationFrame(rafId.current);
+        rafId.current = null;
+      }
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mousedown", onDown);
       window.removeEventListener("mouseup", onUp);
@@ -139,4 +148,3 @@ export default function AtomCursor() {
     </>
   );
 }
-

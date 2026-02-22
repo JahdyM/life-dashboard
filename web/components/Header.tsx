@@ -55,9 +55,27 @@ export default function Header() {
 
   const init = initQuery.data;
   const streaks = streakQuery.data;
+  const isLoading = initQuery.isPending || streakQuery.isPending;
+  const hasError = initQuery.isError || streakQuery.isError;
+
+  const retryHeaderData = () => {
+    initQuery.refetch();
+    streakQuery.refetch();
+  };
 
   return (
     <div className="header">
+      {isLoading ? (
+        <div className="query-status">Loading header data...</div>
+      ) : null}
+      {hasError ? (
+        <div className="query-status error">
+          <span>Could not refresh header data.</span>
+          <button className="secondary" onClick={retryHeaderData}>
+            Retry
+          </button>
+        </div>
+      ) : null}
       <div className="header-summary">
         <div>
           <p className="header-title">Welcome</p>

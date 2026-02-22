@@ -15,6 +15,13 @@ type TaskDraft = {
   estimatedMinutes?: number;
 };
 
+function readErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) {
+    return `${fallback} ${error.message}`;
+  }
+  return fallback;
+}
+
 export default function CalendarTab({ userEmail: _userEmail }: { userEmail: string }) {
   const queryClient = useQueryClient();
   const calendarRef = useRef<FullCalendar | null>(null);
@@ -54,9 +61,22 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
+      if (document.hidden) return;
       setNowTick(Date.now());
     }, 60_000);
-    return () => window.clearInterval(intervalId);
+
+    const onVisibilityChange = () => {
+      if (!document.hidden) {
+        setNowTick(Date.now());
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -67,14 +87,17 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   const tasksQuery = useQuery({
     queryKey: ["tasks", range.start, range.end],
-    queryFn: async () => {
-      const response = await fetchJson<{ items: any[]; warning?: string | null }>(
+    queryFn: () =>
+      fetchJson<{ items: any[]; warning?: string | null }>(
         `/api/tasks?start=${range.start}&end=${range.end}&sync=${didSync ? 0 : 1}&include_unscheduled=1`
-      );
-      if (!didSync) setDidSync(true);
-      return response;
-    },
+      ),
   });
+
+  useEffect(() => {
+    if (tasksQuery.data && !didSync) {
+      setDidSync(true);
+    }
+  }, [tasksQuery.data, didSync]);
 
   const tasks = tasksQuery.data?.items || [];
   const syncWarning = tasksQuery.data?.warning;
@@ -227,9 +250,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         }),
       }),
     onSuccess: () => {
+      setTaskSaveError(null);
       setNewTitle("");
       setNewTime("");
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
+    },
+    onError: (error) => {
+      setTaskSaveError(readErrorMessage(error, "Could not create task."));
     },
   });
 
@@ -248,8 +275,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       });
     },
     onSuccess: () => {
+      setTaskSaveError(null);
       setCalendarDraftTitle("");
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
+    },
+    onError: (error) => {
+      setTaskSaveError(
+        readErrorMessage(error, "Could not create task from calendar slot.")
+      );
     },
   });
 
@@ -270,7 +303,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         ),
       }),
     onSuccess: () => {
+      setTaskSaveError(null);
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
+    },
+    onError: (error) => {
+      setTaskSaveError(readErrorMessage(error, "Could not update task."));
     },
   });
 
@@ -280,7 +317,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         method: "DELETE",
       }),
     onSuccess: () => {
+      setTaskSaveError(null);
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
+    },
+    onError: (error) => {
+      setTaskSaveError(readErrorMessage(error, "Could not delete task."));
     },
   });
 
@@ -295,6 +336,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
     } catch (_err) {
       setSyncStatus("failed");
+      setTaskSaveError("Could not sync calendar now. Please retry.");
     }
   };
 
@@ -331,8 +373,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             setSavedTaskId((prev) => (prev === task.id ? null : prev));
           }, 1400);
         },
-        onError: () => {
-          setTaskSaveError("Could not save task changes. Please try again.");
+        onError: (error) => {
+          setTaskSaveError(
+            readErrorMessage(error, "Could not save task changes. Please try again.")
+          );
           setSavingTaskId(null);
         },
       }
@@ -357,11 +401,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             setSavedTaskId((prev) => (prev === task.id ? null : prev));
           }, 900);
         },
-        onError: () => {
+        onError: (error) => {
           if (cacheSnapshot) {
             queryClient.setQueryData(["tasks", range.start, range.end], cacheSnapshot);
           }
-          setTaskSaveError("Could not mark task. Please try again.");
+          setTaskSaveError(
+            readErrorMessage(error, "Could not mark task. Please try again.")
+          );
           clearDoneDraft(task.id);
           setSavingTaskId(null);
         },
@@ -384,6 +430,17 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           </button>
           <span className={`sync-status ${syncStatus}`}>{syncStatus}</span>
         </div>
+        {tasksQuery.isPending && (
+          <div className="query-status">Loading tasks...</div>
+        )}
+        {tasksQuery.isError && (
+          <div className="query-status error">
+            <span>Could not load tasks for this range.</span>
+            <button className="secondary" onClick={() => tasksQuery.refetch()}>
+              Retry
+            </button>
+          </div>
+        )}
         {syncWarning && <div className="warning">{syncWarning}</div>}
         {taskSaveError && <div className="warning">{taskSaveError}</div>}
         <div className="task-items">

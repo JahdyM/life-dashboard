@@ -8,6 +8,7 @@ import StatsTab from "./tabs/StatsTab";
 import MoodTab from "./tabs/MoodTab";
 import CoupleTab from "./tabs/CoupleTab";
 import { fetchJson } from "@/lib/client/api";
+import ErrorBoundary from "./ErrorBoundary";
 
 const TABS = [
   { key: "habits", label: "Habits" },
@@ -21,40 +22,94 @@ type TabKey = (typeof TABS)[number]["key"];
 
 export default function Dashboard({ userEmail }: { userEmail: string }) {
   const [activeTab, setActiveTab] = useState<TabKey>("habits");
+  const [timezoneSyncError, setTimezoneSyncError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     if (timezone) {
       fetchJson("/api/settings/timezone", {
         method: "PUT",
         body: JSON.stringify({ timezone }),
-      }).catch(() => {
-        return;
-      });
+      })
+        .then(() => {
+          if (!isMounted) return;
+          setTimezoneSyncError(null);
+        })
+        .catch((error) => {
+          if (!isMounted) return;
+          const message =
+            error instanceof Error && error.message
+              ? error.message
+              : "Could not sync timezone.";
+          setTimezoneSyncError(message);
+        });
     }
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
+  const renderTab = () => {
+    if (activeTab === "habits") {
+      return (
+        <ErrorBoundary name="Habits tab">
+          <HabitsTab userEmail={userEmail} />
+        </ErrorBoundary>
+      );
+    }
+    if (activeTab === "calendar") {
+      return (
+        <ErrorBoundary name="Calendar tab">
+          <CalendarTab userEmail={userEmail} />
+        </ErrorBoundary>
+      );
+    }
+    if (activeTab === "stats") {
+      return (
+        <ErrorBoundary name="Stats tab">
+          <StatsTab userEmail={userEmail} />
+        </ErrorBoundary>
+      );
+    }
+    if (activeTab === "mood") {
+      return (
+        <ErrorBoundary name="Mood tab">
+          <MoodTab userEmail={userEmail} />
+        </ErrorBoundary>
+      );
+    }
+    return (
+      <ErrorBoundary name="Couple tab">
+        <CoupleTab userEmail={userEmail} />
+      </ErrorBoundary>
+    );
+  };
+
   return (
-    <div className="app-shell">
-      <Header />
-      <div className="tabs">
-        {TABS.map((tab) => (
-          <button
-            key={tab.key}
-            className={`tab ${activeTab === tab.key ? "active" : ""}`}
-            onClick={() => setActiveTab(tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
+    <ErrorBoundary name="dashboard">
+      <div className="app-shell">
+        <ErrorBoundary name="header">
+          <Header />
+        </ErrorBoundary>
+        {timezoneSyncError ? (
+          <div className="warning">
+            Timezone sync failed. Data is still usable locally. ({timezoneSyncError})
+          </div>
+        ) : null}
+        <div className="tabs">
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              className={`tab ${activeTab === tab.key ? "active" : ""}`}
+              onClick={() => setActiveTab(tab.key)}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="tab-content">{renderTab()}</div>
       </div>
-      <div className="tab-content">
-        {activeTab === "habits" && <HabitsTab userEmail={userEmail} />}
-        {activeTab === "calendar" && <CalendarTab userEmail={userEmail} />}
-        {activeTab === "stats" && <StatsTab userEmail={userEmail} />}
-        {activeTab === "mood" && <MoodTab userEmail={userEmail} />}
-        {activeTab === "couple" && <CoupleTab userEmail={userEmail} />}
-      </div>
-    </div>
+    </ErrorBoundary>
   );
 }
