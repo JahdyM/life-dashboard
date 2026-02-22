@@ -3,41 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { signOut, useSession } from "next-auth/react";
 import { fetchJson } from "@/lib/client/api";
-
-type InitResponse = {
-  header: {
-    date: string;
-    habits_completed: number;
-    habits_total: number;
-    habits_percent: number;
-  };
-  meeting_days: number[];
-  family_worship_day: number;
-  pending_tasks: number;
-  timezone?: string | null;
-};
-
-type StreakResponse = {
-  items: Array<{
-    habit_key: string;
-    label: string;
-    user: {
-      email: string;
-      streak: number;
-      max_streak?: number;
-      today_done: boolean;
-      today_applicable?: boolean;
-    };
-    partner: {
-      email: string;
-      streak: number;
-      max_streak?: number;
-      today_done: boolean;
-      today_applicable?: boolean;
-    };
-  }>;
-  warning?: string;
-};
+import type { InitData, StreakData } from "@/lib/types";
 
 export default function Header() {
   const { data: session } = useSession();
@@ -46,11 +12,11 @@ export default function Header() {
     : "Welcome";
   const initQuery = useQuery({
     queryKey: ["init"],
-    queryFn: () => fetchJson<InitResponse>("/api/init"),
+    queryFn: () => fetchJson<InitData>("/api/init"),
   });
   const streakQuery = useQuery({
     queryKey: ["couple-streaks"],
-    queryFn: () => fetchJson<StreakResponse>("/api/couple/streaks"),
+    queryFn: () => fetchJson<StreakData>("/api/couple/streaks"),
   });
 
   const init = initQuery.data;

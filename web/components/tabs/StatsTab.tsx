@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/client/api";
 import {
@@ -68,6 +68,22 @@ function LineChart({
   color: string;
   step: number;
 }) {
+  const plotRef = useRef<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(420);
+
+  useEffect(() => {
+    const node = plotRef.current;
+    if (!node) return;
+    const updateWidth = () => {
+      const next = Math.max(260, Math.floor(node.clientWidth));
+      setWidth(next);
+    };
+    updateWidth();
+    const observer = new ResizeObserver(() => updateWidth());
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   const values = points.map((p) => p.value);
   const minValue = Math.min(...values);
   const maxValue = Math.max(...values);
@@ -77,7 +93,6 @@ function LineChart({
   const domainMax = maxValue + padding;
   const domainSpan = Math.max(1, domainMax - domainMin);
   const rows = Math.max(1, points.length);
-  const width = 420;
   const labelWidth = 64;
   const chartRightPad = 12;
   const plotLeft = labelWidth + 8;
@@ -101,7 +116,7 @@ function LineChart({
     .join(" ");
 
   return (
-    <div className="line-plot">
+    <div className="line-plot" ref={plotRef}>
       <svg
         className="line-chart"
         viewBox={`0 0 ${width} ${totalHeight}`}
