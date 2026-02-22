@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { requireUserEmail } from "@/lib/server/auth";
 import { handleAuthError, jsonError, jsonOk } from "@/lib/server/response";
 import { updateSubtask, deleteSubtask } from "@/lib/server/tasks";
+import { subtaskIdSchema, subtaskPatchSchema } from "@/lib/server/schemas";
+import { zodErrorMessage } from "@/lib/server/response";
 
 export async function PATCH(
   request: NextRequest,
@@ -9,7 +11,17 @@ export async function PATCH(
 ) {
   try {
     const userEmail = await requireUserEmail();
-    const payload = await request.json();
+    const idParsed = subtaskIdSchema.safeParse(context.params.id);
+    if (!idParsed.success) return jsonError(zodErrorMessage(idParsed.error), 400);
+    let rawPayload: unknown;
+    try {
+      rawPayload = await request.json();
+    } catch (_err) {
+      return jsonError("Invalid JSON body", 400);
+    }
+    const parsed = subtaskPatchSchema.safeParse(rawPayload);
+    if (!parsed.success) return jsonError(zodErrorMessage(parsed.error), 400);
+    const payload = parsed.data;
     const subtask = await updateSubtask(userEmail, context.params.id, {
       title: payload.title,
       priorityTag: payload.priority_tag,
@@ -31,6 +43,8 @@ export async function DELETE(
 ) {
   try {
     const userEmail = await requireUserEmail();
+    const idParsed = subtaskIdSchema.safeParse(context.params.id);
+    if (!idParsed.success) return jsonError(zodErrorMessage(idParsed.error), 400);
     await deleteSubtask(userEmail, context.params.id);
     return jsonOk({ ok: true });
   } catch (err) {
