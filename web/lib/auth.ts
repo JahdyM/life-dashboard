@@ -83,7 +83,10 @@ export const authOptions: NextAuthOptions = {
         session.user.email = String(token.email);
       }
       if (token?.accessToken) {
-        (session as any).accessToken = token.accessToken;
+        const sessionWithToken = session as typeof session & {
+          accessToken?: string;
+        };
+        sessionWithToken.accessToken = String(token.accessToken);
       }
       return session;
     },
