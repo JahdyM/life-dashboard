@@ -126,9 +126,7 @@ export async function updateDailyEntry(
     }
     if (metricMap[key]) {
       data[metricMap[key]] = value;
-      return;
     }
-    data[key] = value;
   });
   return prisma.dailyEntryUser.upsert({
     where: { userEmail_date: { userEmail, date: dateIso } },
