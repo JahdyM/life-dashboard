@@ -1,14 +1,11 @@
 import { prisma } from "../db/prisma";
 import { FIXED_SHARED_HABITS, MOOD_PALETTE } from "../constants";
 import { computeSharedHabitStreaks } from "./habits";
+import { allowedEmails } from "../env";
 
 function getPartnerEmail(userEmail: string) {
-  const allowed = (process.env.ALLOWED_EMAILS || "")
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
-  if (allowed.length < 2) return null;
-  return allowed.find((email) => email !== userEmail) || null;
+  if (allowedEmails.length < 2) return null;
+  return allowedEmails.find((email) => email !== userEmail) || null;
 }
 
 function buildEmptyMoodboard(days: number, labelA: string, labelB: string, warning?: string) {

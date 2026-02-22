@@ -1,6 +1,6 @@
 import crypto from "crypto";
-
-const RAW_KEY = process.env.GOOGLE_TOKEN_ENCRYPTION_KEY || "";
+import { env } from "./env";
+const RAW_KEY = env.GOOGLE_TOKEN_ENCRYPTION_KEY;
 
 function getKey(): Buffer {
   if (!RAW_KEY) {
