@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { requireUserEmail } from "@/lib/server/auth";
 import { handleAuthError, jsonError, jsonOk } from "@/lib/server/response";
 import { canonicalHabitKey, getCustomHabits, saveCustomHabits } from "@/lib/server/settings";
+import { customHabitSchema, taskIdSchema } from "@/lib/server/schemas";
+import { zodErrorMessage } from "@/lib/server/response";
 
 export async function PATCH(
   request: NextRequest,
@@ -9,9 +11,17 @@ export async function PATCH(
 ) {
   try {
     const userEmail = await requireUserEmail();
-    const payload = await request.json();
-    const name = String(payload?.name || "").trim();
-    if (!name) return jsonError("Habit name cannot be empty", 400);
+    const idParsed = taskIdSchema.safeParse(context.params.id);
+    if (!idParsed.success) return jsonError(zodErrorMessage(idParsed.error), 400);
+    let rawPayload: unknown;
+    try {
+      rawPayload = await request.json();
+    } catch (_err) {
+      return jsonError("Invalid JSON body", 400);
+    }
+    const parsed = customHabitSchema.safeParse(rawPayload);
+    if (!parsed.success) return jsonError(zodErrorMessage(parsed.error), 400);
+    const name = parsed.data.name;
     const habits = await getCustomHabits(userEmail);
     const newKey = canonicalHabitKey(name);
     if (
@@ -45,6 +55,8 @@ export async function DELETE(
 ) {
   try {
     const userEmail = await requireUserEmail();
+    const idParsed = taskIdSchema.safeParse(context.params.id);
+    if (!idParsed.success) return jsonError(zodErrorMessage(idParsed.error), 400);
     const habits = await getCustomHabits(userEmail);
     const next = habits.map((habit) =>
       habit.id === context.params.id ? { ...habit, active: false } : habit
