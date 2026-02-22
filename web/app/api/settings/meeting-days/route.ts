@@ -8,6 +8,7 @@ import {
 } from "@/lib/server/response";
 import { getMeetingDays, setMeetingDays } from "@/lib/server/settings";
 import { meetingDaysSchema } from "@/lib/server/schemas";
+import { logServerEvent } from "@/lib/server/logger";
 
 export async function GET(_request: NextRequest) {
   try {
@@ -15,6 +16,11 @@ export async function GET(_request: NextRequest) {
     const days = await getMeetingDays(userEmail);
     return jsonOk({ days });
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "GET /api/settings/meeting-days",
+      message: "Unhandled error while loading meeting days",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to load meeting days", 500);
@@ -35,6 +41,11 @@ export async function PUT(request: NextRequest) {
     await setMeetingDays(userEmail, parsed.data.days);
     return jsonOk({ ok: true });
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "PUT /api/settings/meeting-days",
+      message: "Unhandled error while updating meeting days",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to update meeting days", 500);

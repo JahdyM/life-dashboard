@@ -8,6 +8,7 @@ import {
 } from "@/lib/server/response";
 import { getFamilyWorshipDay, setFamilyWorshipDay } from "@/lib/server/settings";
 import { familyWorshipDaySchema } from "@/lib/server/schemas";
+import { logServerEvent } from "@/lib/server/logger";
 
 export async function GET(_request: NextRequest) {
   try {
@@ -15,6 +16,11 @@ export async function GET(_request: NextRequest) {
     const day = await getFamilyWorshipDay(userEmail);
     return jsonOk({ day });
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "GET /api/settings/family-worship-day",
+      message: "Unhandled error while loading family worship day",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to load family worship day", 500);
@@ -35,6 +41,11 @@ export async function PUT(request: NextRequest) {
     await setFamilyWorshipDay(userEmail, parsed.data.day);
     return jsonOk({ ok: true });
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "PUT /api/settings/family-worship-day",
+      message: "Unhandled error while updating family worship day",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to update family worship day", 500);

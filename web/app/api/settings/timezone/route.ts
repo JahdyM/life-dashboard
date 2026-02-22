@@ -8,6 +8,7 @@ import {
 } from "@/lib/server/response";
 import { getUserTimeZone, setUserTimeZone } from "@/lib/server/settings";
 import { timezoneSchema } from "@/lib/server/schemas";
+import { logServerEvent } from "@/lib/server/logger";
 
 export async function GET(_request: NextRequest) {
   try {
@@ -15,6 +16,11 @@ export async function GET(_request: NextRequest) {
     const timezone = await getUserTimeZone(userEmail);
     return jsonOk({ timezone });
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "GET /api/settings/timezone",
+      message: "Unhandled error while loading timezone",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to load timezone", 500);
@@ -35,6 +41,11 @@ export async function PUT(request: NextRequest) {
     await setUserTimeZone(userEmail, parsed.data.timezone);
     return jsonOk({ ok: true });
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "PUT /api/settings/timezone",
+      message: "Unhandled error while updating timezone",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to update timezone", 500);
