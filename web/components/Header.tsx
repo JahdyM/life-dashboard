@@ -21,8 +21,20 @@ type StreakResponse = {
   items: Array<{
     habit_key: string;
     label: string;
-    user: { email: string; streak: number; today_done: boolean; today_applicable?: boolean };
-    partner: { email: string; streak: number; today_done: boolean; today_applicable?: boolean };
+    user: {
+      email: string;
+      streak: number;
+      max_streak?: number;
+      today_done: boolean;
+      today_applicable?: boolean;
+    };
+    partner: {
+      email: string;
+      streak: number;
+      max_streak?: number;
+      today_done: boolean;
+      today_applicable?: boolean;
+    };
   }>;
   warning?: string;
 };
@@ -114,6 +126,10 @@ export default function Header() {
                   >
                     {item.partner.email.split("@")[0]}
                   </span>
+                </div>
+                <div className="streak-max">
+                  Max: {item.user.email.split("@")[0]} {item.user.max_streak || 0} ·{" "}
+                  {item.partner.email.split("@")[0]} {item.partner.max_streak || 0}
                 </div>
               </div>
             ))

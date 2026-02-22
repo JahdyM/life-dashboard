@@ -140,6 +140,10 @@ export default function CoupleTab({ userEmail }: { userEmail: string }) {
                 <span>{item.partner.streak} days</span>
                 <span>{item.partner.email.split("@")[0]}</span>
               </div>
+              <div className="streak-max">
+                Max: {item.user.email.split("@")[0]} {item.user.max_streak || 0} ·{" "}
+                {item.partner.email.split("@")[0]} {item.partner.max_streak || 0}
+              </div>
             </div>
           ))}
         </div>

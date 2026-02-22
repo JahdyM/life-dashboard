@@ -17,23 +17,25 @@ export async function PATCH(
     const payload = await request.json();
     const existing = await prisma.todoTask.findUnique({ where: { id: taskId } });
     if (!existing || existing.userEmail !== userEmail) return jsonError("Task not found", 404);
-    const updated = await updateTask(userEmail, taskId, {
-      title: payload.title,
-      scheduledDate: payload.scheduled_date,
-      scheduledTime: payload.scheduled_time,
-      priorityTag: payload.priority_tag,
-      estimatedMinutes: payload.estimated_minutes,
-      actualMinutes: payload.actual_minutes,
-      isDone: payload.is_done ? 1 : 0,
-    });
+    const updatePayload: Record<string, any> = {};
+    if ("title" in payload) updatePayload.title = payload.title;
+    if ("scheduled_date" in payload) updatePayload.scheduledDate = payload.scheduled_date;
+    if ("scheduled_time" in payload) updatePayload.scheduledTime = payload.scheduled_time;
+    if ("priority_tag" in payload) updatePayload.priorityTag = payload.priority_tag;
+    if ("estimated_minutes" in payload) updatePayload.estimatedMinutes = payload.estimated_minutes;
+    if ("actual_minutes" in payload) updatePayload.actualMinutes = payload.actual_minutes;
+    if ("is_done" in payload) updatePayload.isDone = payload.is_done ? 1 : 0;
+
+    const updated = await updateTask(userEmail, taskId, updatePayload);
     if (payload.sync_google && existing.googleEventId) {
       const timezone = (await getUserTimeZone(userEmail)) || DEFAULT_TIME_ZONE;
+      const googlePatch: Record<string, any> = { timeZone: timezone };
+      if ("title" in payload) googlePatch.title = payload.title;
+      if ("scheduled_date" in payload) googlePatch.scheduledDate = payload.scheduled_date;
+      if ("scheduled_time" in payload) googlePatch.scheduledTime = payload.scheduled_time;
+      if ("estimated_minutes" in payload) googlePatch.estimatedMinutes = payload.estimated_minutes;
       await updateGoogleEvent(userEmail, existing.googleCalendarId || "primary", existing.googleEventId, {
-        title: payload.title,
-        scheduledDate: payload.scheduled_date,
-        scheduledTime: payload.scheduled_time,
-        estimatedMinutes: payload.estimated_minutes,
-        timeZone: timezone,
+        ...googlePatch,
       });
     }
     return jsonOk({ task: updated });

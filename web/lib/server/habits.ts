@@ -36,8 +36,6 @@ export function habitKeyToField(key: string) {
   return habitFieldMap[key];
 }
 
-const STREAK_LOOKBACK_DAYS = 730;
-
 function parseIsoDateUtc(iso: string): Date | null {
   const [year, month, day] = String(iso || "")
     .split("-")
@@ -180,18 +178,34 @@ export async function computeSharedHabitStreaks(
   const todayDateUtc = parseIsoDateUtc(todayIso);
   if (!todayDateUtc) {
     return FIXED_SHARED_HABITS.reduce((acc, habit) => {
-      acc[habit.key] = { streak: 0, todayDone: false, todayApplicable: false };
+      acc[habit.key] = {
+        streak: 0,
+        todayDone: false,
+        todayApplicable: false,
+        maxStreak: 0,
+      };
       return acc;
-    }, {} as Record<string, { streak: number; todayDone: boolean; todayApplicable: boolean }>);
+    }, {} as Record<string, { streak: number; todayDone: boolean; todayApplicable: boolean; maxStreak: number }>);
   }
 
-  const allDays: string[] = [];
-  for (let i = 0; i < STREAK_LOOKBACK_DAYS; i += 1) {
-    const date = new Date(todayDateUtc);
-    date.setUTCDate(todayDateUtc.getUTCDate() - i);
-    allDays.push(formatIsoDateUtc(date));
+  const firstEntry = await prisma.dailyEntryUser.findFirst({
+    where: {
+      userEmail,
+      date: { lte: todayIso },
+    },
+    orderBy: { date: "asc" },
+    select: { date: true },
+  });
+  const earliestDateUtc = parseIsoDateUtc(firstEntry?.date || todayIso) || todayDateUtc;
+
+  const allDaysAsc: string[] = [];
+  const cursor = new Date(earliestDateUtc);
+  while (cursor <= todayDateUtc) {
+    allDaysAsc.push(formatIsoDateUtc(cursor));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
-  const earliestIso = allDays[allDays.length - 1] || todayIso;
+  const allDaysDesc = [...allDaysAsc].reverse();
+  const earliestIso = allDaysAsc[0] || todayIso;
 
   const entries = await prisma.dailyEntryUser.findMany({
     where: {
@@ -211,12 +225,20 @@ export async function computeSharedHabitStreaks(
     },
   });
   const byDate = new Map(entries.map((entry) => [entry.date, entry as any]));
-  const results: Record<string, { streak: number; todayDone: boolean; todayApplicable: boolean }> = {};
+  const results: Record<
+    string,
+    { streak: number; todayDone: boolean; todayApplicable: boolean; maxStreak: number }
+  > = {};
 
   FIXED_SHARED_HABITS.forEach((habit) => {
     const field = habitKeyToField(habit.key);
     if (!field) {
-      results[habit.key] = { streak: 0, todayDone: false, todayApplicable: false };
+      results[habit.key] = {
+        streak: 0,
+        todayDone: false,
+        todayApplicable: false,
+        maxStreak: 0,
+      };
       return;
     }
 
@@ -231,7 +253,7 @@ export async function computeSharedHabitStreaks(
       : false;
 
     let streak = 0;
-    for (const dayIso of allDays) {
+    for (const dayIso of allDaysDesc) {
       const applicable = isHabitScheduledOnDate(
         habit.key,
         dayIso,
@@ -244,7 +266,26 @@ export async function computeSharedHabitStreaks(
       streak += 1;
     }
 
-    results[habit.key] = { streak, todayDone, todayApplicable };
+    let maxStreak = 0;
+    let running = 0;
+    for (const dayIso of allDaysAsc) {
+      const applicable = isHabitScheduledOnDate(
+        habit.key,
+        dayIso,
+        meetingDays,
+        familyWorshipDay
+      );
+      if (!applicable) continue;
+      const done = Boolean(byDate.get(dayIso)?.[field]);
+      if (done) {
+        running += 1;
+        if (running > maxStreak) maxStreak = running;
+      } else {
+        running = 0;
+      }
+    }
+
+    results[habit.key] = { streak, todayDone, todayApplicable, maxStreak };
   });
 
   return results;

@@ -116,6 +116,7 @@ export async function getSharedStreaks(userEmail: string, todayIso: string) {
     user: {
       email: userEmail,
       streak: userStreaks[habit.key]?.streak || 0,
+      max_streak: userStreaks[habit.key]?.maxStreak || 0,
       today_done:
         userStreaks[habit.key]?.todayApplicable === false
           ? true
@@ -125,6 +126,7 @@ export async function getSharedStreaks(userEmail: string, todayIso: string) {
     partner: {
       email: partnerEmail,
       streak: partnerStreaks[habit.key]?.streak || 0,
+      max_streak: partnerStreaks[habit.key]?.maxStreak || 0,
       today_done:
         partnerStreaks[habit.key]?.todayApplicable === false
           ? true

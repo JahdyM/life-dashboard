@@ -8,7 +8,14 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { format, addDays, startOfWeek, endOfWeek } from "date-fns";
 
-export default function CalendarTab({ userEmail }: { userEmail: string }) {
+type TaskDraft = {
+  isDone?: boolean;
+  priorityTag?: string;
+  scheduledTime?: string;
+  estimatedMinutes?: number;
+};
+
+export default function CalendarTab({ userEmail: _userEmail }: { userEmail: string }) {
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "failed">("idle");
@@ -17,6 +24,9 @@ export default function CalendarTab({ userEmail }: { userEmail: string }) {
   const [newDate, setNewDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
   const [newTime, setNewTime] = useState("");
   const [newEst, setNewEst] = useState(30);
+  const [taskDrafts, setTaskDrafts] = useState<Record<string, TaskDraft>>({});
+  const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
+  const [savedTaskId, setSavedTaskId] = useState<string | null>(null);
 
   const range = useMemo(() => {
     const start = startOfWeek(selectedDate, { weekStartsOn: 1 });
@@ -47,6 +57,66 @@ export default function CalendarTab({ userEmail }: { userEmail: string }) {
   const unscheduledTasks = tasks.filter((task) => !task.scheduledDate);
   const pendingTasks = tasksForDay.filter((task) => !task.isDone);
   const completedTasks = tasksForDay.filter((task) => task.isDone);
+
+  const setTaskDraft = (taskId: string, patch: TaskDraft) => {
+    setTaskDrafts((prev) => ({
+      ...prev,
+      [taskId]: {
+        ...(prev[taskId] || {}),
+        ...patch,
+      },
+    }));
+  };
+
+  const clearTaskDraft = (taskId: string) => {
+    setTaskDrafts((prev) => {
+      if (!prev[taskId]) return prev;
+      const next = { ...prev };
+      delete next[taskId];
+      return next;
+    });
+  };
+
+  const readTaskDraft = (task: any) => {
+    const draft = taskDrafts[task.id] || {};
+    return {
+      isDone: draft.isDone ?? Boolean(task.isDone),
+      priorityTag: draft.priorityTag ?? (task.priorityTag || "Medium"),
+      scheduledTime: draft.scheduledTime ?? (task.scheduledTime || ""),
+      estimatedMinutes:
+        draft.estimatedMinutes ?? Number(task.estimatedMinutes || 0),
+    };
+  };
+
+  const buildTaskPatch = (task: any, draft?: TaskDraft) => {
+    if (!draft) return {};
+    const patch: Record<string, any> = {};
+    if (typeof draft.isDone === "boolean" && draft.isDone !== Boolean(task.isDone)) {
+      patch.is_done = draft.isDone ? 1 : 0;
+    }
+    if (
+      typeof draft.priorityTag === "string" &&
+      draft.priorityTag !== (task.priorityTag || "Medium")
+    ) {
+      patch.priority_tag = draft.priorityTag;
+    }
+    if (
+      typeof draft.scheduledTime === "string" &&
+      draft.scheduledTime !== (task.scheduledTime || "")
+    ) {
+      patch.scheduled_time = draft.scheduledTime || null;
+    }
+    if (
+      typeof draft.estimatedMinutes === "number" &&
+      draft.estimatedMinutes !== Number(task.estimatedMinutes || 0)
+    ) {
+      patch.estimated_minutes = draft.estimatedMinutes;
+    }
+    return patch;
+  };
+
+  const hasTaskChanges = (task: any) =>
+    Object.keys(buildTaskPatch(task, taskDrafts[task.id])).length > 0;
 
   const events = tasksForDay
     .filter((task) => task.scheduledTime)
@@ -119,6 +189,28 @@ export default function CalendarTab({ userEmail }: { userEmail: string }) {
     }
   };
 
+  const confirmTaskUpdate = (task: any) => {
+    const patch = buildTaskPatch(task, taskDrafts[task.id]);
+    if (!Object.keys(patch).length) return;
+    setSavingTaskId(task.id);
+    updateTask.mutate(
+      { id: task.id, data: patch },
+      {
+        onSuccess: () => {
+          clearTaskDraft(task.id);
+          setSavingTaskId(null);
+          setSavedTaskId(task.id);
+          window.setTimeout(() => {
+            setSavedTaskId((prev) => (prev === task.id ? null : prev));
+          }, 1400);
+        },
+        onError: () => {
+          setSavingTaskId(null);
+        },
+      }
+    );
+  };
+
   return (
     <div className="calendar-layout">
       <div className="task-list">
@@ -137,25 +229,51 @@ export default function CalendarTab({ userEmail }: { userEmail: string }) {
         {syncWarning && <div className="warning">{syncWarning}</div>}
         <div className="task-items">
           {pendingTasks.map((task) => (
-            <details key={task.id} className="task-row">
+            <details key={task.id} className={`task-row ${hasTaskChanges(task) ? "dirty" : ""}`}>
               <summary>
-                <input
-                  type="checkbox"
-                  checked={Boolean(task.isDone)}
-                  onChange={(event) =>
-                    updateTask.mutate({ id: task.id, data: { is_done: event.target.checked ? 1 : 0 } })
-                  }
-                />
-                <span className="task-title">{task.title}</span>
-                {task.scheduledTime && <span className="task-time">{task.scheduledTime}</span>}
+                {(() => {
+                  const draft = readTaskDraft(task);
+                  const hasChanges = hasTaskChanges(task);
+                  const saving = savingTaskId === task.id;
+                  const saved = savedTaskId === task.id;
+                  return (
+                    <>
+                      <input
+                        type="checkbox"
+                        checked={draft.isDone}
+                        onChange={(event) =>
+                          setTaskDraft(task.id, { isDone: event.target.checked })
+                        }
+                      />
+                      <span className="task-title">{task.title}</span>
+                      {task.scheduledTime && <span className="task-time">{task.scheduledTime}</span>}
+                      <button
+                        className={`task-confirm-btn ${hasChanges || saved ? "visible" : ""}`}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          confirmTaskUpdate(task);
+                        }}
+                        disabled={!hasChanges || saving}
+                        title="Confirm task changes"
+                      >
+                        {saving ? "..." : saved ? "✓" : "ok"}
+                      </button>
+                    </>
+                  );
+                })()}
               </summary>
               <div className="task-details">
+                {(() => {
+                  const draft = readTaskDraft(task);
+                  return (
+                    <>
                 <label>
                   Priority
                   <select
-                    value={task.priorityTag || "Medium"}
+                    value={draft.priorityTag}
                     onChange={(event) =>
-                      updateTask.mutate({ id: task.id, data: { priority_tag: event.target.value } })
+                      setTaskDraft(task.id, { priorityTag: event.target.value })
                     }
                   >
                     <option value="Low">Low</option>
@@ -168,9 +286,9 @@ export default function CalendarTab({ userEmail }: { userEmail: string }) {
                   Start time
                   <input
                     type="time"
-                    value={task.scheduledTime || ""}
+                    value={draft.scheduledTime}
                     onChange={(event) =>
-                      updateTask.mutate({ id: task.id, data: { scheduled_time: event.target.value } })
+                      setTaskDraft(task.id, { scheduledTime: event.target.value })
                     }
                   />
                 </label>
@@ -178,18 +296,30 @@ export default function CalendarTab({ userEmail }: { userEmail: string }) {
                   Est. minutes
                   <input
                     type="number"
-                    value={task.estimatedMinutes || 0}
+                    value={draft.estimatedMinutes}
                     onChange={(event) =>
-                      updateTask.mutate({ id: task.id, data: { estimated_minutes: Number(event.target.value) } })
+                      setTaskDraft(task.id, {
+                        estimatedMinutes: Number(event.target.value || 0),
+                      })
                     }
                   />
                 </label>
+                <button
+                  className="task-confirm-inline"
+                  onClick={() => confirmTaskUpdate(task)}
+                  disabled={!hasTaskChanges(task) || savingTaskId === task.id}
+                >
+                  {savingTaskId === task.id ? "Saving..." : "Confirm changes"}
+                </button>
                 <button
                   className="link danger"
                   onClick={() => deleteTask.mutate(task.id)}
                 >
                   Delete
                 </button>
+                    </>
+                  );
+                })()}
               </div>
             </details>
           ))}
@@ -199,14 +329,26 @@ export default function CalendarTab({ userEmail }: { userEmail: string }) {
             <h3>Remembered tasks</h3>
             {unscheduledTasks.map((task) => (
               <div key={task.id} className="task-row">
+                {(() => {
+                  const draft = readTaskDraft(task);
+                  return (
+                    <>
                 <input
                   type="checkbox"
-                  checked={Boolean(task.isDone)}
+                  checked={draft.isDone}
                   onChange={(event) =>
-                    updateTask.mutate({ id: task.id, data: { is_done: event.target.checked ? 1 : 0 } })
+                    setTaskDraft(task.id, { isDone: event.target.checked })
                   }
                 />
                 <span className="task-title">{task.title}</span>
+                <button
+                  className={`task-confirm-btn ${hasTaskChanges(task) ? "visible" : ""}`}
+                  onClick={() => confirmTaskUpdate(task)}
+                  disabled={!hasTaskChanges(task) || savingTaskId === task.id}
+                  title="Confirm task changes"
+                >
+                  {savingTaskId === task.id ? "..." : "ok"}
+                </button>
                 <button
                   className="link"
                   onClick={() =>
@@ -218,6 +360,9 @@ export default function CalendarTab({ userEmail }: { userEmail: string }) {
                 >
                   Schedule today
                 </button>
+                    </>
+                  );
+                })()}
               </div>
             ))}
           </div>
@@ -227,15 +372,28 @@ export default function CalendarTab({ userEmail }: { userEmail: string }) {
             <h3>Completed</h3>
             {completedTasks.map((task) => (
               <div key={task.id} className="task-row completed">
+                {(() => {
+                  const draft = readTaskDraft(task);
+                  return (
+                    <>
                 <input
                   type="checkbox"
-                  checked
-                  onChange={() =>
-                    updateTask.mutate({ id: task.id, data: { is_done: 0 } })
-                  }
+                  checked={draft.isDone}
+                  onChange={(event) => setTaskDraft(task.id, { isDone: event.target.checked })}
                 />
                 <span className="task-title">{task.title}</span>
                 {task.scheduledTime && <span className="task-time">{task.scheduledTime}</span>}
+                <button
+                  className={`task-confirm-btn ${hasTaskChanges(task) ? "visible" : ""}`}
+                  onClick={() => confirmTaskUpdate(task)}
+                  disabled={!hasTaskChanges(task) || savingTaskId === task.id}
+                  title="Confirm task changes"
+                >
+                  {savingTaskId === task.id ? "..." : "ok"}
+                </button>
+                    </>
+                  );
+                })()}
               </div>
             ))}
           </div>
