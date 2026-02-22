@@ -7,6 +7,18 @@ const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const CAL_BASE = "https://www.googleapis.com/calendar/v3";
 const refreshLocks = new Map<string, Promise<string>>();
 
+type GoogleEventDateTime = {
+  date?: string;
+  dateTime?: string;
+};
+
+export type GoogleCalendarEvent = {
+  id?: string;
+  summary?: string;
+  start?: GoogleEventDateTime;
+  end?: GoogleEventDateTime;
+};
+
 function isGoogleAuthExpired(status: number, bodyText: string) {
   if (status === 401 || status === 403) return true;
   return /invalid_grant|invalid_credentials|autherror/i.test(bodyText);
@@ -110,7 +122,7 @@ export async function listGoogleEvents(
   const accessToken = await getAccessToken(userEmail);
   const timeMin = `${startIso}T00:00:00Z`;
   const timeMax = `${endIso}T23:59:59Z`;
-  const items: any[] = [];
+  const items: GoogleCalendarEvent[] = [];
   let pageToken: string | null = null;
 
   do {
@@ -136,14 +148,14 @@ export async function listGoogleEvents(
       throw new Error(text || "Google events fetch failed");
     }
     const payload = await response.json();
-    items.push(...(payload.items || []));
+    items.push(...((payload.items || []) as GoogleCalendarEvent[]));
     pageToken = payload.nextPageToken || null;
   } while (pageToken);
 
   return items;
 }
 
-export function googleEventToTask(event: any, timeZone: string) {
+export function googleEventToTask(event: GoogleCalendarEvent, timeZone: string) {
   const start = event.start || {};
   const end = event.end || {};
   if (start.date) {
@@ -187,7 +199,7 @@ export async function createGoogleEvent(
 ) {
   const accessToken = await getAccessToken(userEmail);
   const timeZone = payload.timeZone || DEFAULT_TIME_ZONE;
-  const event: any = {
+  const event: Record<string, unknown> = {
     summary: payload.title,
   };
   if (payload.scheduledTime) {
@@ -244,7 +256,7 @@ export async function updateGoogleEvent(
 ) {
   const accessToken = await getAccessToken(userEmail);
   const timeZone = payload.timeZone || DEFAULT_TIME_ZONE;
-  const event: any = {};
+  const event: Record<string, unknown> = {};
   if (payload.title) event.summary = payload.title;
   if (payload.scheduledDate) {
     if (payload.scheduledTime) {
