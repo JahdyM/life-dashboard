@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { fetchJson } from "@/lib/client/api";
 
 type InitResponse = {
@@ -50,6 +50,12 @@ export default function Header() {
         <div>
           <p className="header-title">Welcome</p>
           <p className="header-metric">{displayName}</p>
+          <button
+            className="header-logout"
+            onClick={() => signOut({ callbackUrl: "/signin" })}
+          >
+            Log out
+          </button>
         </div>
         <div>
           <p className="header-title">Daily Summary</p>

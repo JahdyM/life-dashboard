@@ -80,6 +80,22 @@ body {
   color: var(--text-muted);
 }
 
+.header-logout {
+  margin-top: 10px;
+  border: 1px solid var(--border-soft);
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 8px;
+  padding: 5px 9px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.header-logout:hover {
+  border-color: var(--border);
+  color: var(--text);
+}
+
 .header-streaks {
   padding: 16px;
   border-radius: 16px;
