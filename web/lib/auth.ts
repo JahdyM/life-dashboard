@@ -94,6 +94,20 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) {
+        return url === "/signin" ? `${baseUrl}/` : `${baseUrl}${url}`;
+      }
+      try {
+        const parsed = new URL(url);
+        if (parsed.origin === baseUrl) {
+          return parsed.pathname === "/signin" ? `${baseUrl}/` : url;
+        }
+      } catch (_err) {
+        return baseUrl;
+      }
+      return baseUrl;
+    },
   },
   pages: {
     signIn: "/signin",
