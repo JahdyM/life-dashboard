@@ -5,6 +5,18 @@ import { fromZonedTime, formatInTimeZone } from "date-fns-tz";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const CAL_BASE = "https://www.googleapis.com/calendar/v3";
+const refreshLocks = new Map<string, Promise<string>>();
+
+function isGoogleAuthExpired(status: number, bodyText: string) {
+  if (status === 401 || status === 403) return true;
+  return /invalid_grant|invalid_credentials|autherror/i.test(bodyText);
+}
+
+async function clearGoogleToken(userEmail: string) {
+  await prisma.googleCalendarToken
+    .delete({ where: { userEmail } })
+    .catch(() => null);
+}
 
 async function refreshAccessToken(refreshToken: string) {
   const body = new URLSearchParams({
@@ -19,6 +31,10 @@ async function refreshAccessToken(refreshToken: string) {
     body,
   });
   if (!response.ok) {
+    const text = await response.text();
+    if (isGoogleAuthExpired(response.status, text)) {
+      throw new Error("GOOGLE_REAUTH_REQUIRED");
+    }
     throw new Error("Failed to refresh Google token");
   }
   const payload = await response.json();
@@ -40,18 +56,49 @@ async function getAccessToken(userEmail: string) {
   if (tokenRow.accessToken && expiresAt - now > 60_000) {
     return tokenRow.accessToken;
   }
-  const refreshToken = decryptToken(tokenRow.refreshTokenEnc);
-  const refreshed = await refreshAccessToken(refreshToken);
-  const newExpires = new Date(Date.now() + refreshed.expires_in * 1000).toISOString();
-  await prisma.googleCalendarToken.update({
-    where: { userEmail },
-    data: {
-      accessToken: refreshed.access_token,
-      expiresAt: newExpires,
-      updatedAt: new Date().toISOString(),
-    },
-  });
-  return refreshed.access_token;
+
+  const existingLock = refreshLocks.get(userEmail);
+  if (existingLock) {
+    return existingLock;
+  }
+
+  const refreshPromise = (async () => {
+    let refreshToken: string;
+    try {
+      refreshToken = decryptToken(tokenRow.refreshTokenEnc);
+    } catch (_error) {
+      await clearGoogleToken(userEmail);
+      throw new Error("Google calendar token is invalid. Reconnect your account.");
+    }
+
+    try {
+      const refreshed = await refreshAccessToken(refreshToken);
+      const newExpires = new Date(Date.now() + refreshed.expires_in * 1000).toISOString();
+      await prisma.googleCalendarToken.update({
+        where: { userEmail },
+        data: {
+          accessToken: refreshed.access_token,
+          expiresAt: newExpires,
+          updatedAt: new Date().toISOString(),
+        },
+      });
+      return refreshed.access_token;
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === "GOOGLE_REAUTH_REQUIRED"
+      ) {
+        await clearGoogleToken(userEmail);
+        throw new Error("Google authorization expired. Please reconnect calendar.");
+      }
+      throw error;
+    } finally {
+      refreshLocks.delete(userEmail);
+    }
+  })();
+
+  refreshLocks.set(userEmail, refreshPromise);
+  return refreshPromise;
 }
 
 export async function listGoogleEvents(
@@ -63,21 +110,37 @@ export async function listGoogleEvents(
   const accessToken = await getAccessToken(userEmail);
   const timeMin = `${startIso}T00:00:00Z`;
   const timeMax = `${endIso}T23:59:59Z`;
-  const url = new URL(`${CAL_BASE}/calendars/${encodeURIComponent(calendarId)}/events`);
-  url.searchParams.set("timeMin", timeMin);
-  url.searchParams.set("timeMax", timeMax);
-  url.searchParams.set("singleEvents", "true");
-  url.searchParams.set("orderBy", "startTime");
-  url.searchParams.set("maxResults", "250");
-  const response = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || "Google events fetch failed");
-  }
-  const payload = await response.json();
-  return payload.items || [];
+  const items: any[] = [];
+  let pageToken: string | null = null;
+
+  do {
+    const url = new URL(`${CAL_BASE}/calendars/${encodeURIComponent(calendarId)}/events`);
+    url.searchParams.set("timeMin", timeMin);
+    url.searchParams.set("timeMax", timeMax);
+    url.searchParams.set("singleEvents", "true");
+    url.searchParams.set("orderBy", "startTime");
+    url.searchParams.set("maxResults", "250");
+    if (pageToken) {
+      url.searchParams.set("pageToken", pageToken);
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      if (isGoogleAuthExpired(response.status, text)) {
+        await clearGoogleToken(userEmail);
+        throw new Error("Google authorization expired. Please reconnect calendar.");
+      }
+      throw new Error(text || "Google events fetch failed");
+    }
+    const payload = await response.json();
+    items.push(...(payload.items || []));
+    pageToken = payload.nextPageToken || null;
+  } while (pageToken);
+
+  return items;
 }
 
 export function googleEventToTask(event: any, timeZone: string) {
@@ -158,6 +221,10 @@ export async function createGoogleEvent(
   );
   if (!response.ok) {
     const text = await response.text();
+    if (isGoogleAuthExpired(response.status, text)) {
+      await clearGoogleToken(userEmail);
+      throw new Error("Google authorization expired. Please reconnect calendar.");
+    }
     throw new Error(text || "Google event create failed");
   }
   return response.json();
@@ -206,6 +273,10 @@ export async function updateGoogleEvent(
   );
   if (!response.ok) {
     const text = await response.text();
+    if (isGoogleAuthExpired(response.status, text)) {
+      await clearGoogleToken(userEmail);
+      throw new Error("Google authorization expired. Please reconnect calendar.");
+    }
     throw new Error(text || "Google event update failed");
   }
   return response.json();
@@ -228,6 +299,10 @@ export async function deleteGoogleEvent(
   );
   if (!response.ok) {
     const text = await response.text();
+    if (isGoogleAuthExpired(response.status, text)) {
+      await clearGoogleToken(userEmail);
+      throw new Error("Google authorization expired. Please reconnect calendar.");
+    }
     throw new Error(text || "Google event delete failed");
   }
   return true;

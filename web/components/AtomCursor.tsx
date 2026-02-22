@@ -28,6 +28,7 @@ export default function AtomCursor() {
 
     isMounted.current = true;
     isVisible.current = false;
+    document.body.setAttribute("data-custom-cursor", "ready");
 
     const setCursorVisibility = (show: boolean) => {
       if (!cursorRef.current) return;
@@ -109,6 +110,7 @@ export default function AtomCursor() {
         window.cancelAnimationFrame(rafId.current);
         rafId.current = null;
       }
+      document.body.removeAttribute("data-custom-cursor");
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mousedown", onDown);
       window.removeEventListener("mouseup", onUp);

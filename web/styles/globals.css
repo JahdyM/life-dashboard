@@ -28,16 +28,20 @@ body {
 }
 
 @media (pointer: fine) {
-  html,
-  body,
-  a,
-  button,
-  input,
-  select,
-  textarea,
-  [role="button"] {
-    cursor: none !important;
+  body[data-custom-cursor="ready"],
+  body[data-custom-cursor="ready"] a,
+  body[data-custom-cursor="ready"] button,
+  body[data-custom-cursor="ready"] input,
+  body[data-custom-cursor="ready"] select,
+  body[data-custom-cursor="ready"] textarea,
+  body[data-custom-cursor="ready"] [role="button"] {
+    cursor: none;
   }
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .app-shell {
@@ -70,7 +74,7 @@ body {
 }
 
 .header-metric {
-  font-size: 22px;
+  font-size: clamp(1.05rem, 2.1vw, 1.375rem);
   font-weight: 600;
   margin: 4px 0 0;
 }
@@ -89,11 +93,6 @@ body {
   padding: 5px 9px;
   font-size: 12px;
   cursor: pointer;
-}
-
-.header-logout:hover {
-  border-color: var(--border);
-  color: var(--text);
 }
 
 .header-streaks {
@@ -326,10 +325,6 @@ button.link.danger {
   padding: 2px 4px;
 }
 
-.icon-btn:hover {
-  color: var(--text);
-}
-
 .habit-row.disabled {
   opacity: 0.4;
 }
@@ -418,11 +413,6 @@ button.link.danger {
   pointer-events: none;
 }
 
-.task-confirm-btn:hover {
-  border-color: var(--accent);
-  color: var(--text);
-}
-
 .task-details {
   display: grid;
   gap: 8px;
@@ -444,11 +434,6 @@ button.link.danger {
   border-radius: 8px;
   padding: 6px 10px;
   font-size: 12px;
-}
-
-.task-confirm-inline:hover {
-  border-color: var(--accent);
-  color: var(--text);
 }
 
 .task-completed {
@@ -714,11 +699,6 @@ button.link.danger {
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.mood-cell:hover {
-  transform: translateY(-1px);
-  border-color: rgba(255, 255, 255, 0.28);
 }
 
 .mood-cell.selected {
@@ -1058,5 +1038,105 @@ button.link.danger {
   }
   .calendar-quick-row {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (hover: hover) {
+  .header-logout:hover {
+    border-color: var(--border);
+    color: var(--text);
+  }
+
+  .icon-btn:hover {
+    color: var(--text);
+  }
+
+  .task-confirm-btn:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+
+  .task-confirm-inline:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+
+  .mood-cell:hover {
+    transform: translateY(-1px);
+    border-color: rgba(255, 255, 255, 0.28);
+  }
+}
+
+@media (max-width: 768px) {
+  .app-shell {
+    padding: 18px 16px 28px;
+    gap: 14px;
+  }
+
+  .header-summary {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .header-title {
+    font-size: 11px;
+  }
+
+  .header-metric {
+    font-size: clamp(0.95rem, 4vw, 1.2rem);
+  }
+
+  .tabs {
+    flex-wrap: wrap;
+  }
+
+  .tab {
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+
+  .card {
+    padding: 14px;
+  }
+
+  input,
+  select,
+  button {
+    min-height: 44px;
+  }
+
+  .calendar-panel {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 600px) {
+  .app-shell {
+    padding: 12px 10px 22px;
+  }
+
+  .header-streaks-title {
+    font-size: clamp(0.9rem, 4.2vw, 1rem);
+  }
+
+  .streak-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .task-header {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .calendar-layout {
+    gap: 10px;
+  }
+
+  .task-row summary {
+    gap: 8px;
+  }
+
+  .task-time {
+    font-size: 11px;
   }
 }
