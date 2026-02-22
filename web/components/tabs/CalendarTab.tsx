@@ -617,6 +617,47 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     );
   }, [queryClient, range.start, range.end, setTaskDraft, updateTask]);
 
+  const requestToggleTaskDone = useCallback(
+    (task: TodoTask, checked: boolean) => {
+      if (checked) {
+        const estimated = Number(task.estimatedMinutes || 0);
+        if (estimated > 0) {
+          setCompletionPrompt({
+            taskId: task.id,
+            title: task.title,
+            estimatedMinutes: estimated,
+          });
+          setCompletionMinutes(estimated);
+          return;
+        }
+      }
+      setCompletionPrompt(null);
+      toggleTaskDoneNow(task, checked);
+    },
+    [toggleTaskDoneNow]
+  );
+
+  const confirmCompletionMinutes = useCallback(() => {
+    if (!completionPrompt) return;
+    const task = tasks.find((item) => item.id === completionPrompt.taskId);
+    if (!task) {
+      setCompletionPrompt(null);
+      return;
+    }
+    const minutes = Math.max(0, Number(completionMinutes || 0));
+    toggleTaskDoneNow(task, true, minutes);
+  }, [completionPrompt, completionMinutes, tasks, toggleTaskDoneNow]);
+
+  const skipCompletionMinutes = useCallback(() => {
+    if (!completionPrompt) return;
+    const task = tasks.find((item) => item.id === completionPrompt.taskId);
+    if (!task) {
+      setCompletionPrompt(null);
+      return;
+    }
+    toggleTaskDoneNow(task, true);
+  }, [completionPrompt, tasks, toggleTaskDoneNow]);
+
   const handleDeleteTask = useCallback(
     (taskId: string) => {
       deleteTask.mutate(taskId);
