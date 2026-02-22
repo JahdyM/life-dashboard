@@ -7,7 +7,12 @@ import {
   zodErrorMessage,
 } from "@/lib/server/response";
 import { createTask, listTasks } from "@/lib/server/tasks";
-import { listGoogleEvents, googleEventToTask, createGoogleEvent } from "@/lib/server/googleCalendar";
+import {
+  listGoogleEvents,
+  googleEventToTask,
+  createGoogleEvent,
+  type GoogleCalendarEvent,
+} from "@/lib/server/googleCalendar";
 import { prisma } from "@/lib/db/prisma";
 import { getUserTimeZone } from "@/lib/server/settings";
 import { DEFAULT_TIME_ZONE } from "@/lib/constants";
@@ -18,7 +23,9 @@ import { randomUUID } from "crypto";
 async function syncGoogleTasks(userEmail: string, start: string, end: string) {
   const events = await listGoogleEvents(userEmail, start, end, "primary");
   if (!events.length) return;
-  const eventIds = events.map((event: any) => event.id).filter(Boolean);
+  const eventIds = events
+    .map((event: GoogleCalendarEvent) => event.id)
+    .filter((value): value is string => Boolean(value));
   if (!eventIds.length) return;
   const existing = await prisma.todoTask.findMany({
     where: {
@@ -30,8 +37,8 @@ async function syncGoogleTasks(userEmail: string, start: string, end: string) {
   const timezone = (await getUserTimeZone(userEmail)) || DEFAULT_TIME_ZONE;
   const nowIso = new Date().toISOString();
   const operations = events
-    .filter((event: any) => Boolean(event?.id))
-    .map((event: any) => {
+    .filter((event: GoogleCalendarEvent) => Boolean(event?.id))
+    .map((event: GoogleCalendarEvent) => {
       const mapped = googleEventToTask(event, timezone);
       const payload = {
         title: mapped.title,
