@@ -1,8 +1,3 @@
-export const ALLOWED_EMAILS_DEFAULT = [
-  "jahdy.moreno@gmail.com",
-  "guilherme.m.rods@gmail.com",
-];
-
 export const FIXED_SHARED_HABITS = [
   { key: "bible_reading", label: "Bible reading" },
   { key: "meeting_attended", label: "Meeting attended" },
