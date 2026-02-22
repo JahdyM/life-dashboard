@@ -231,7 +231,8 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
 
   const entriesQuery = useQuery({
     queryKey: ["entries", startIso, endIso],
-    queryFn: () => fetchJson<{ items: Entry[] }>(`/api/entries?start=${startIso}&end=${endIso}`),
+    queryFn: () =>
+      fetchJson<{ items: EntryMetric[] }>(`/api/entries?start=${startIso}&end=${endIso}`),
   });
 
   const days = useMemo(() => {
@@ -245,7 +246,7 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
   }, [range]);
 
   const entryByDate = useMemo(() => {
-    const map = new Map<string, Entry>();
+    const map = new Map<string, EntryMetric>();
     (entriesQuery.data?.items || []).forEach((entry) => {
       map.set(entry.date, entry);
     });
