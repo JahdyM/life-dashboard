@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { requireUserEmail } from "@/lib/server/auth";
 import { handleAuthError, jsonError, jsonOk } from "@/lib/server/response";
 import { getUserTimeZone, setUserTimeZone } from "@/lib/server/settings";
+import { timezoneSchema } from "@/lib/server/schemas";
+import { zodErrorMessage } from "@/lib/server/response";
 
 export async function GET(_request: NextRequest) {
   try {
@@ -18,10 +20,15 @@ export async function GET(_request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const userEmail = await requireUserEmail();
-    const payload = await request.json();
-    const timezone = String(payload?.timezone || "").trim();
-    if (!timezone) return jsonError("Missing timezone", 400);
-    await setUserTimeZone(userEmail, timezone);
+    let rawPayload: unknown;
+    try {
+      rawPayload = await request.json();
+    } catch (_err) {
+      return jsonError("Invalid JSON body", 400);
+    }
+    const parsed = timezoneSchema.safeParse(rawPayload);
+    if (!parsed.success) return jsonError(zodErrorMessage(parsed.error), 400);
+    await setUserTimeZone(userEmail, parsed.data.timezone);
     return jsonOk({ ok: true });
   } catch (err) {
     const authError = handleAuthError(err);
