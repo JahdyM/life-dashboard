@@ -28,6 +28,171 @@ function readErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
+type EditableTaskRowProps = {
+  task: TodoTask;
+  draft: {
+    isDone: boolean;
+    priorityTag: string;
+    scheduledTime: string;
+    estimatedMinutes: number;
+  };
+  hasChanges: boolean;
+  saving: boolean;
+  saved: boolean;
+  onToggleDone: (task: TodoTask, checked: boolean) => void;
+  onConfirm: (task: TodoTask) => void;
+  onSetDraft: (taskId: string, patch: TaskDraft) => void;
+  onDelete: (taskId: string) => void;
+};
+
+const EditableTaskRow = memo(function EditableTaskRow({
+  task,
+  draft,
+  hasChanges,
+  saving,
+  saved,
+  onToggleDone,
+  onConfirm,
+  onSetDraft,
+  onDelete,
+}: EditableTaskRowProps) {
+  const handleToggle = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      onToggleDone(task, event.target.checked),
+    [onToggleDone, task]
+  );
+  const handleConfirm = useCallback(
+    (event?: React.MouseEvent) => {
+      event?.preventDefault();
+      event?.stopPropagation();
+      onConfirm(task);
+    },
+    [onConfirm, task]
+  );
+  const handlePriority = useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) =>
+      onSetDraft(task.id, { priorityTag: event.target.value }),
+    [onSetDraft, task.id]
+  );
+  const handleTime = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      onSetDraft(task.id, { scheduledTime: event.target.value }),
+    [onSetDraft, task.id]
+  );
+  const handleEstimate = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      onSetDraft(task.id, { estimatedMinutes: Number(event.target.value || 0) }),
+    [onSetDraft, task.id]
+  );
+  const handleDelete = useCallback(() => onDelete(task.id), [onDelete, task.id]);
+
+  return (
+    <details className={`task-row ${hasChanges ? "dirty" : ""}`}>
+      <summary>
+        <input type="checkbox" checked={draft.isDone} onChange={handleToggle} />
+        <span className="task-title">{task.title}</span>
+        {task.scheduledTime ? <span className="task-time">{task.scheduledTime}</span> : null}
+        <button
+          className={`task-confirm-btn ${hasChanges || saved ? "visible" : ""}`}
+          onClick={handleConfirm}
+          disabled={!hasChanges || saving}
+          title="Confirm task changes"
+        >
+          {saving ? "..." : saved ? "✓" : "ok"}
+        </button>
+      </summary>
+      <div className="task-details">
+        <label>
+          Priority
+          <select value={draft.priorityTag} onChange={handlePriority}>
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+            <option value="Critical">Critical</option>
+          </select>
+        </label>
+        <label>
+          Start time
+          <input type="time" value={draft.scheduledTime} onChange={handleTime} />
+        </label>
+        <label>
+          Est. minutes
+          <input type="number" value={draft.estimatedMinutes} onChange={handleEstimate} />
+        </label>
+        <button
+          className="task-confirm-inline"
+          onClick={() => onConfirm(task)}
+          disabled={!hasChanges || saving}
+        >
+          {saving ? "Saving..." : "Confirm changes"}
+        </button>
+        <button className="link danger" onClick={handleDelete}>
+          Delete
+        </button>
+      </div>
+    </details>
+  );
+});
+
+type SimpleTaskRowProps = {
+  task: TodoTask;
+  draft: {
+    isDone: boolean;
+    priorityTag: string;
+    scheduledTime: string;
+    estimatedMinutes: number;
+  };
+  hasChanges: boolean;
+  saving: boolean;
+  onToggleDone: (task: TodoTask, checked: boolean) => void;
+  onConfirm: (task: TodoTask) => void;
+  onScheduleToday?: (taskId: string) => void;
+  completed?: boolean;
+};
+
+const SimpleTaskRow = memo(function SimpleTaskRow({
+  task,
+  draft,
+  hasChanges,
+  saving,
+  onToggleDone,
+  onConfirm,
+  onScheduleToday,
+  completed = false,
+}: SimpleTaskRowProps) {
+  const handleToggle = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      onToggleDone(task, event.target.checked),
+    [onToggleDone, task]
+  );
+  const handleConfirm = useCallback(() => onConfirm(task), [onConfirm, task]);
+  const handleSchedule = useCallback(() => {
+    if (!onScheduleToday) return;
+    onScheduleToday(task.id);
+  }, [onScheduleToday, task.id]);
+
+  return (
+    <div className={`task-row ${completed ? "completed" : ""}`}>
+      <input type="checkbox" checked={draft.isDone} onChange={handleToggle} />
+      <span className="task-title">{task.title}</span>
+      {task.scheduledTime ? <span className="task-time">{task.scheduledTime}</span> : null}
+      <button
+        className={`task-confirm-btn ${hasChanges ? "visible" : ""}`}
+        onClick={handleConfirm}
+        disabled={!hasChanges || saving}
+        title="Confirm task changes"
+      >
+        {saving ? "..." : "ok"}
+      </button>
+      {onScheduleToday ? (
+        <button className="link" onClick={handleSchedule}>
+          Schedule today
+        </button>
+      ) : null}
+    </div>
+  );
+});
+
 export default function CalendarTab({ userEmail: _userEmail }: { userEmail: string }) {
   const queryClient = useQueryClient();
   const calendarRef = useRef<FullCalendar | null>(null);
