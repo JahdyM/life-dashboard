@@ -1,13 +1,24 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { signIn, useSession } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+
+function resolveSignInErrorMessage(error: string | null): string {
+  if (!error) return "";
+  if (error === "AccessDenied") {
+    return "This Google account is not allowed. Use Jahdy or Guilherme account.";
+  }
+  if (error === "OAuthAccountNotLinked") {
+    return "This email is linked with a different login method. Use Google for this account.";
+  }
+  return "Login failed. Please try again.";
+}
 
 export default function SignInPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { status } = useSession();
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -15,17 +26,11 @@ export default function SignInPage() {
     }
   }, [status, router]);
 
-  const errorMessage = useMemo(() => {
-    const error = searchParams.get("error");
-    if (!error) return "";
-    if (error === "AccessDenied") {
-      return "This Google account is not allowed. Use Jahdy or Guilherme account.";
-    }
-    if (error === "OAuthAccountNotLinked") {
-      return "This email is linked with a different login method. Use Google for this account.";
-    }
-    return "Login failed. Please try again.";
-  }, [searchParams]);
+  useEffect(() => {
+    const search = typeof window !== "undefined" ? window.location.search : "";
+    const params = new URLSearchParams(search);
+    setErrorMessage(resolveSignInErrorMessage(params.get("error")));
+  }, []);
 
   const loading = status === "loading" || status === "authenticated";
 
