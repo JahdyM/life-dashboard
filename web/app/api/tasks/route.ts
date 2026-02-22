@@ -12,6 +12,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getUserTimeZone } from "@/lib/server/settings";
 import { DEFAULT_TIME_ZONE } from "@/lib/constants";
 import { taskCreateSchema, taskListQuerySchema } from "@/lib/server/schemas";
+import { logServerEvent } from "@/lib/server/logger";
 
 async function syncGoogleTasks(userEmail: string, start: string, end: string) {
   const events = await listGoogleEvents(userEmail, start, end, "primary");
@@ -73,13 +74,25 @@ export async function GET(request: NextRequest) {
     if (shouldSync) {
       try {
         await syncGoogleTasks(userEmail, start, end);
-      } catch (_err) {
+      } catch (error) {
+        logServerEvent("warn", {
+          endpoint: "GET /api/tasks",
+          userEmail,
+          message: "Google sync failed while listing tasks",
+          error,
+          meta: { start, end },
+        });
         syncWarning = "Google sync failed";
       }
     }
     const tasks = await listTasks(userEmail, start, end, includeUnscheduled);
     return jsonOk({ items: tasks, warning: syncWarning });
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "GET /api/tasks",
+      message: "Unhandled error while listing tasks",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to list tasks", 500);
@@ -128,6 +141,11 @@ export async function POST(request: NextRequest) {
     });
     return jsonOk({ task }, 201);
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "POST /api/tasks",
+      message: "Unhandled error while creating task",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to create task", 500);

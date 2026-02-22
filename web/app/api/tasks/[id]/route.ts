@@ -12,6 +12,7 @@ import { updateGoogleEvent, deleteGoogleEvent } from "@/lib/server/googleCalenda
 import { getUserTimeZone } from "@/lib/server/settings";
 import { DEFAULT_TIME_ZONE } from "@/lib/constants";
 import { taskIdSchema, taskPatchSchema } from "@/lib/server/schemas";
+import { logServerEvent } from "@/lib/server/logger";
 
 export async function PATCH(
   request: NextRequest,
@@ -57,6 +58,11 @@ export async function PATCH(
     }
     return jsonOk({ task: updated });
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "PATCH /api/tasks/[id]",
+      message: "Unhandled error while updating task",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to update task", 500);
@@ -80,6 +86,11 @@ export async function DELETE(
     await deleteTask(userEmail, taskId);
     return jsonOk({ ok: true });
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "DELETE /api/tasks/[id]",
+      message: "Unhandled error while deleting task",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to delete task", 500);
