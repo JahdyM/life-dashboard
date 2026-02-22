@@ -622,7 +622,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           ref={calendarRef}
           plugins={[timeGridPlugin, interactionPlugin]}
           initialView="timeGridDay"
-          height={560}
+          height={500}
           headerToolbar={false}
           allDaySlot={false}
           nowIndicator

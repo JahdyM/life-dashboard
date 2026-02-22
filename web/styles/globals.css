@@ -342,7 +342,7 @@ button.link.danger {
 
 .calendar-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.55fr);
+  grid-template-columns: minmax(0, 1.3fr) minmax(340px, 0.7fr);
   gap: 16px;
   align-items: start;
 }
@@ -483,7 +483,8 @@ button.link.danger {
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 12px;
-  max-width: 460px;
+  width: 100%;
+  max-width: 560px;
   justify-self: end;
 }
 
