@@ -61,6 +61,44 @@ export const estimationStatsQuerySchema = z
   })
   .strict();
 
+export const statsPeriodQuerySchema = z
+  .object({
+    period: z.enum(["30d", "90d", "all"]).default("90d"),
+  })
+  .strict();
+
+export const anxietyTrendQuerySchema = z
+  .object({
+    days: z.enum(["30", "90"]).default("90"),
+  })
+  .strict();
+
+export const weeklyReportQuerySchema = z
+  .object({
+    week: z
+      .string()
+      .regex(/^\d{4}-W\d{2}$/, "week must be YYYY-Wnn")
+      .optional(),
+  })
+  .strict();
+
+export const exportQuerySchema = z
+  .object({
+    format: z.enum(["csv", "json"]).default("csv"),
+    start: isoDateSchema,
+    end: isoDateSchema,
+  })
+  .refine((value) => validRange(value.start, value.end), {
+    message: "start must be before or equal to end",
+    path: ["end"],
+  });
+
+export const coupleAnalyticsQuerySchema = z
+  .object({
+    days: z.coerce.number().int().min(7).max(180).default(30),
+  })
+  .strict();
+
 export const taskListQuerySchema = z
   .object({
     start: isoDateSchema,

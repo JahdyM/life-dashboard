@@ -16,9 +16,20 @@ import {
   isValid,
   isAfter,
 } from "date-fns";
-import type { EntryMetric, EstimationBucket, EstimationResponse, EstimationSummary } from "@/lib/types";
+import type {
+  AnxietyTrendResponse,
+  EntryMetric,
+  EstimationBucket,
+  EstimationResponse,
+  LifeBalanceResponse,
+  MoodCorrelationResponse,
+  ProductivityHeatmapResponse,
+  SleepScoreResponse,
+  WeeklyReportResponse,
+} from "@/lib/types";
 
 type RangeKey = "week" | "month" | "quarter" | "custom";
+type PeriodKey = "30d" | "90d" | "all";
 
 function getRange(range: RangeKey) {
   const now = new Date();
@@ -44,12 +55,23 @@ function getRange(range: RangeKey) {
 }
 
 type SeriesPoint = { label: string; value: number };
-const LINE_STEP = 30;
+const LINE_STEP = 28;
 
 function formatMetricTick(value: number) {
   if (!Number.isFinite(value)) return "0";
   const rounded = Number(value.toFixed(1));
   return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+}
+
+function toMetricValue(raw: unknown): number | null {
+  if (raw === null || raw === undefined || raw === "") return null;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
+
+function readErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) return `${fallback} ${error.message}`;
+  return fallback;
 }
 
 function LineChart({
@@ -72,7 +94,7 @@ function LineChart({
       setWidth(next);
     };
     updateWidth();
-    const observer = new ResizeObserver(() => updateWidth());
+    const observer = new ResizeObserver(updateWidth);
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
@@ -190,10 +212,14 @@ function LineChart({
   );
 }
 
-function toMetricValue(raw: unknown): number | null {
-  if (raw === null || raw === undefined || raw === "") return null;
-  const value = Number(raw);
-  return Number.isFinite(value) ? value : null;
+function renderBucketRows(rows: EstimationBucket[]) {
+  return rows.map((item) => (
+    <div key={item.label} className="estimation-row">
+      <span>{item.label}</span>
+      <span>{item.averageRatio ?? "--"}x</span>
+      <span>{item.count} tasks</span>
+    </div>
+  ));
 }
 
 export default function StatsTab({ userEmail: _userEmail }: { userEmail: string }) {
@@ -202,7 +228,10 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
     format(startOfMonth(new Date()), "yyyy-MM-dd")
   );
   const [customEnd, setCustomEnd] = useState(() => format(new Date(), "yyyy-MM-dd"));
-  const [estimationPeriod, setEstimationPeriod] = useState<"30d" | "90d" | "all">("90d");
+  const [periodKey, setPeriodKey] = useState<PeriodKey>("90d");
+  const [anxietyDays, setAnxietyDays] = useState<30 | 90>(90);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const range = useMemo(() => {
     if (rangeKey !== "custom") return getRange(rangeKey);
@@ -237,11 +266,44 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
   });
 
   const estimationQuery = useQuery({
-    queryKey: ["stats-estimation", estimationPeriod],
+    queryKey: ["stats-estimation", periodKey],
     queryFn: () =>
-      fetchJson<EstimationResponse>(
-        `/api/stats/estimation?period=${estimationPeriod}`
+      fetchJson<EstimationResponse>(`/api/stats/estimation?period=${periodKey}`),
+  });
+
+  const correlationsQuery = useQuery({
+    queryKey: ["stats-correlations", periodKey],
+    queryFn: () =>
+      fetchJson<MoodCorrelationResponse>(`/api/stats/correlations?period=${periodKey}`),
+  });
+
+  const anxietyQuery = useQuery({
+    queryKey: ["stats-anxiety", anxietyDays],
+    queryFn: () =>
+      fetchJson<AnxietyTrendResponse>(`/api/stats/anxiety-trend?days=${anxietyDays}`),
+  });
+
+  const sleepQuery = useQuery({
+    queryKey: ["stats-sleep-score"],
+    queryFn: () => fetchJson<SleepScoreResponse>("/api/stats/sleep-score"),
+  });
+
+  const weeklyQuery = useQuery({
+    queryKey: ["stats-weekly-report"],
+    queryFn: () => fetchJson<WeeklyReportResponse>("/api/stats/weekly-report"),
+  });
+
+  const heatmapQuery = useQuery({
+    queryKey: ["stats-heatmap", periodKey],
+    queryFn: () =>
+      fetchJson<ProductivityHeatmapResponse>(
+        `/api/stats/productivity-heatmap?period=${periodKey}`
       ),
+  });
+
+  const lifeBalanceQuery = useQuery({
+    queryKey: ["stats-life-balance"],
+    queryFn: () => fetchJson<LifeBalanceResponse>("/api/stats/life-balance"),
   });
 
   const days = useMemo(() => {
@@ -263,7 +325,7 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
   }, [entriesQuery.data]);
 
   const series = useMemo(() => {
-    const build = (key: keyof Entry) =>
+    const build = (key: keyof EntryMetric) =>
       days.map((day) => {
         const entry = entryByDate.get(day.iso);
         return { label: day.label, value: toMetricValue(entry?.[key]) };
@@ -276,10 +338,58 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
     };
   }, [days, entryByDate]);
 
+  const handleExport = async (formatKey: "csv" | "json") => {
+    setExporting(true);
+    setExportError(null);
+    try {
+      const response = await fetch(
+        `/api/export?format=${formatKey}&start=${startIso}&end=${endIso}`
+      );
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.error || "Export failed.");
+      }
+      const blob = await response.blob();
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.href = url;
+      link.download = `life-dashboard-${startIso}-to-${endIso}.${formatKey}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setExportError(readErrorMessage(error, "Could not export data."));
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const anxietySeries = useMemo(() => {
+    return (anxietyQuery.data?.points || []).map((point) => ({
+      label: format(parseISO(point.date), "dd/MM"),
+      value: point.anxiety,
+    }));
+  }, [anxietyQuery.data]);
+
+  const lifeBalanceSeries = useMemo(() => {
+    return (lifeBalanceQuery.data?.trend || []).map((point) => ({
+      label: format(parseISO(point.date), "dd/MM"),
+      value: point.score,
+    }));
+  }, [lifeBalanceQuery.data]);
+
+  const sleepSeries = useMemo(() => {
+    return (sleepQuery.data?.trend14 || []).map((point) => ({
+      label: format(parseISO(point.date), "dd/MM"),
+      value: point.score,
+    }));
+  }, [sleepQuery.data]);
+
   return (
     <div className="card">
       <div className="stats-header">
-        <h2>Charts</h2>
+        <h2>Charts & Behavioral analytics</h2>
         <div className="stats-controls">
           <button className={rangeKey === "week" ? "chip active" : "chip"} onClick={() => setRangeKey("week")}>
             Week
@@ -310,9 +420,8 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
         )}
         <div className="stats-range">{range.label}</div>
       </div>
-      {entriesQuery.isPending && (
-        <div className="query-status">Loading chart data...</div>
-      )}
+
+      {entriesQuery.isPending && <div className="query-status">Loading chart data...</div>}
       {entriesQuery.isError && (
         <div className="query-status error">
           <span>Could not load metrics for this period.</span>
@@ -321,91 +430,6 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
           </button>
         </div>
       )}
-      <div className="section">
-        <h3>Task estimation accuracy</h3>
-        <div className="stats-controls">
-          <button
-            className={estimationPeriod === "30d" ? "chip active" : "chip"}
-            onClick={() => setEstimationPeriod("30d")}
-          >
-            30d
-          </button>
-          <button
-            className={estimationPeriod === "90d" ? "chip active" : "chip"}
-            onClick={() => setEstimationPeriod("90d")}
-          >
-            90d
-          </button>
-          <button
-            className={estimationPeriod === "all" ? "chip active" : "chip"}
-            onClick={() => setEstimationPeriod("all")}
-          >
-            All
-          </button>
-        </div>
-        {estimationQuery.isPending ? (
-          <div className="query-status">Loading estimation analytics...</div>
-        ) : null}
-        {estimationQuery.isError ? (
-          <div className="query-status error">
-            <span>Could not load estimation analytics.</span>
-            <button className="secondary" onClick={() => estimationQuery.refetch()}>
-              Retry
-            </button>
-          </div>
-        ) : null}
-        {estimationQuery.data ? (
-          <div className="estimation-card">
-            <div className="estimation-main">
-              <div className="estimation-score">
-                {estimationQuery.data.summary.planningFallacyScore ?? "--"}
-              </div>
-              <div>
-                <div className="estimation-title">Planning fallacy score</div>
-                <div className="estimation-note">
-                  {estimationQuery.data.summary.recommendation}
-                </div>
-              </div>
-            </div>
-            <div className="estimation-metrics">
-              <span>
-                Samples: {estimationQuery.data.summary.totalSamples}
-              </span>
-              <span>
-                Ratio: {estimationQuery.data.summary.averageRatio ?? "--"}
-              </span>
-              <span>
-                Avg error: {estimationQuery.data.summary.averageErrorPercent ?? "--"}%
-              </span>
-              <span>
-                Tendency: {estimationQuery.data.summary.tendency}
-              </span>
-            </div>
-            <div className="estimation-breakdown">
-              <div>
-                <h4>By priority</h4>
-                {estimationQuery.data.byPriority.map((item: EstimationBucket) => (
-                  <div key={item.label} className="estimation-row">
-                    <span>{item.label}</span>
-                    <span>{item.averageRatio ?? "--"}x</span>
-                    <span>{item.count} tasks</span>
-                  </div>
-                ))}
-              </div>
-              <div>
-                <h4>By duration</h4>
-                {estimationQuery.data.byDuration.map((item: EstimationBucket) => (
-                  <div key={item.label} className="estimation-row">
-                    <span>{item.label}</span>
-                    <span>{item.averageRatio ?? "--"}x</span>
-                    <span>{item.count} tasks</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </div>
 
       <div className="chart-grid">
         {[
@@ -421,15 +445,356 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
               const points = rawPoints
                 .filter((item): item is { label: string; value: number } => item.value !== null)
                 .map((item) => ({ label: item.label, value: item.value }));
-
               if (points.length === 0) {
                 return <div className="line-empty">No data recorded in this range.</div>;
               }
-
               return <LineChart points={points} color={metric.color} step={LINE_STEP} />;
             })()}
           </div>
         ))}
+      </div>
+
+      <div className="section">
+        <h3>Task estimation accuracy</h3>
+        <div className="stats-controls">
+          <button
+            className={periodKey === "30d" ? "chip active" : "chip"}
+            onClick={() => setPeriodKey("30d")}
+          >
+            30d
+          </button>
+          <button
+            className={periodKey === "90d" ? "chip active" : "chip"}
+            onClick={() => setPeriodKey("90d")}
+          >
+            90d
+          </button>
+          <button
+            className={periodKey === "all" ? "chip active" : "chip"}
+            onClick={() => setPeriodKey("all")}
+          >
+            All
+          </button>
+        </div>
+        {estimationQuery.isPending && (
+          <div className="query-status">Loading estimation analytics...</div>
+        )}
+        {estimationQuery.isError && (
+          <div className="query-status error">
+            <span>Could not load estimation analytics.</span>
+            <button className="secondary" onClick={() => estimationQuery.refetch()}>
+              Retry
+            </button>
+          </div>
+        )}
+        {estimationQuery.data ? (
+          <div className="estimation-card">
+            <div className="estimation-main">
+              <div className="estimation-score">
+                {estimationQuery.data.summary.planningFallacyScore ?? "--"}
+              </div>
+              <div>
+                <div className="estimation-title">Planning fallacy score</div>
+                <div className="estimation-note">
+                  {estimationQuery.data.summary.recommendation}
+                </div>
+              </div>
+            </div>
+            <div className="estimation-metrics">
+              <span>Samples: {estimationQuery.data.summary.totalSamples}</span>
+              <span>Ratio: {estimationQuery.data.summary.averageRatio ?? "--"}</span>
+              <span>Avg error: {estimationQuery.data.summary.averageErrorPercent ?? "--"}%</span>
+              <span>Tendency: {estimationQuery.data.summary.tendency}</span>
+            </div>
+            {estimationQuery.data.trend ? (
+              <div className="estimation-note">
+                Trend: {estimationQuery.data.trend.message}
+              </div>
+            ) : null}
+            <div className="estimation-breakdown">
+              <div>
+                <h4>By priority</h4>
+                {renderBucketRows(estimationQuery.data.byPriority)}
+              </div>
+              <div>
+                <h4>By duration</h4>
+                {renderBucketRows(estimationQuery.data.byDuration)}
+              </div>
+            </div>
+            {estimationQuery.data.byWeekday?.length ? (
+              <div>
+                <h4>By weekday</h4>
+                {renderBucketRows(estimationQuery.data.byWeekday)}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="section">
+        <h3>Mood × habits correlation</h3>
+        {correlationsQuery.isPending ? (
+          <div className="query-status">Loading correlation insights...</div>
+        ) : null}
+        {correlationsQuery.isError ? (
+          <div className="query-status error">
+            <span>Could not load mood correlation.</span>
+            <button className="secondary" onClick={() => correlationsQuery.refetch()}>
+              Retry
+            </button>
+          </div>
+        ) : null}
+        {correlationsQuery.data ? (
+          <div className="estimation-card">
+            <div className="estimation-note">{correlationsQuery.data.insight}</div>
+            <div className="estimation-breakdown">
+              <div>
+                <h4>Habit</h4>
+                {correlationsQuery.data.rows.map((row) => (
+                  <div key={row.key} className="estimation-row">
+                    <span>{row.label}</span>
+                    <span>{row.withHabitRate ?? "--"}%</span>
+                    <span>{row.impact ?? "--"} pp</span>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <h4>Meaning</h4>
+                {correlationsQuery.data.rows.map((row) => (
+                  <div key={`${row.key}-meta`} className="estimation-row">
+                    <span>With: {row.withHabitDays}d</span>
+                    <span>Without: {row.withoutHabitDays}d</span>
+                    <span>{row.withoutHabitRate ?? "--"}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="section">
+        <h3>Anxiety trend</h3>
+        <div className="stats-controls">
+          <button
+            className={anxietyDays === 30 ? "chip active" : "chip"}
+            onClick={() => setAnxietyDays(30)}
+          >
+            30d
+          </button>
+          <button
+            className={anxietyDays === 90 ? "chip active" : "chip"}
+            onClick={() => setAnxietyDays(90)}
+          >
+            90d
+          </button>
+        </div>
+        {anxietyQuery.isPending ? <div className="query-status">Loading anxiety trend...</div> : null}
+        {anxietyQuery.isError ? (
+          <div className="query-status error">
+            <span>Could not load anxiety trend.</span>
+            <button className="secondary" onClick={() => anxietyQuery.refetch()}>
+              Retry
+            </button>
+          </div>
+        ) : null}
+        {anxietyQuery.data ? (
+          <div className="estimation-card">
+            {anxietyQuery.data.alert ? <div className="warning">{anxietyQuery.data.alert}</div> : null}
+            <div className="estimation-metrics">
+              <span>Current high streak: {anxietyQuery.data.highAnxietyCurrentStreak} days</span>
+              <span>Max high streak: {anxietyQuery.data.highAnxietyMaxStreak} days</span>
+              <span>
+                Sleep &lt; 6h avg anxiety:{" "}
+                {anxietyQuery.data.sleepCorrelation.lowSleepAverage ?? "--"}
+              </span>
+            </div>
+            {anxietySeries.length ? (
+              <LineChart points={anxietySeries} color="#D6D979" step={22} />
+            ) : (
+              <div className="line-empty">No anxiety values in this period.</div>
+            )}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="section">
+        <h3>Sleep quality score</h3>
+        {sleepQuery.isPending ? <div className="query-status">Loading sleep score...</div> : null}
+        {sleepQuery.isError ? (
+          <div className="query-status error">
+            <span>Could not load sleep score.</span>
+            <button className="secondary" onClick={() => sleepQuery.refetch()}>
+              Retry
+            </button>
+          </div>
+        ) : null}
+        {sleepQuery.data ? (
+          <div className="estimation-card">
+            <div className="estimation-main">
+              <div className="estimation-score">{sleepQuery.data.score}</div>
+              <div>
+                <div className="estimation-title">Sleep quality (0-100)</div>
+                <div className="estimation-note">{sleepQuery.data.insight}</div>
+              </div>
+            </div>
+            <div className="estimation-metrics">
+              <span>Duration: {sleepQuery.data.components.duration}</span>
+              <span>Consistency: {sleepQuery.data.components.consistency}</span>
+              <span>Impact: {sleepQuery.data.components.impact}</span>
+            </div>
+            {sleepSeries.length ? (
+              <LineChart points={sleepSeries} color="#8f7bb3" step={18} />
+            ) : (
+              <div className="line-empty">No sleep records in the last 14 samples.</div>
+            )}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="section">
+        <h3>Weekly behavior report</h3>
+        {weeklyQuery.isPending ? <div className="query-status">Loading weekly report...</div> : null}
+        {weeklyQuery.isError ? (
+          <div className="query-status error">
+            <span>Could not load weekly report.</span>
+            <button className="secondary" onClick={() => weeklyQuery.refetch()}>
+              Retry
+            </button>
+          </div>
+        ) : null}
+        {weeklyQuery.data ? (
+          <div className="estimation-card">
+            <div className="estimation-title">{weeklyQuery.data.week}</div>
+            <div className="estimation-metrics">
+              <span>Habits completion: {weeklyQuery.data.habitsCompletionPercent}%</span>
+              <span>Work hours: {weeklyQuery.data.workHoursTotal}</span>
+              <span>Predominant mood: {weeklyQuery.data.moodPredominant || "--"}</span>
+              <span>Negative mood days: {weeklyQuery.data.negativeMoodDays}</span>
+            </div>
+            <div className="estimation-note">{weeklyQuery.data.message}</div>
+            <div className="estimation-metrics">
+              <span>Habits Δ: {weeklyQuery.data.comparison.habitsDelta}</span>
+              <span>Work Δ: {weeklyQuery.data.comparison.workHoursDelta}</span>
+              <span>Neg mood Δ: {weeklyQuery.data.comparison.negativeMoodDelta}</span>
+            </div>
+            <div>
+              <h4>Top habits this week</h4>
+              {weeklyQuery.data.topHabits.map((habit) => (
+                <div key={habit.key} className="estimation-row">
+                  <span>{habit.label}</span>
+                  <span>{habit.value} days</span>
+                  <span />
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="section">
+        <h3>Productivity heatmap</h3>
+        {heatmapQuery.isPending ? <div className="query-status">Loading productivity heatmap...</div> : null}
+        {heatmapQuery.isError ? (
+          <div className="query-status error">
+            <span>Could not load heatmap.</span>
+            <button className="secondary" onClick={() => heatmapQuery.refetch()}>
+              Retry
+            </button>
+          </div>
+        ) : null}
+        {heatmapQuery.data ? (
+          <div className="estimation-card">
+            <div className="estimation-note">{heatmapQuery.data.insight}</div>
+            <div className="heatmap-grid">
+              <div className="heatmap-row heatmap-row-head">
+                <div className="heatmap-week" />
+                {heatmapQuery.data.weekdays.map((weekday) => (
+                  <div key={weekday.label} className="heatmap-head">
+                    {weekday.label}
+                  </div>
+                ))}
+              </div>
+              {heatmapQuery.data.weeks.map((week, rowIndex) => (
+                <div key={week} className="heatmap-row">
+                  <div className="heatmap-week">{week}</div>
+                  {heatmapQuery.data.matrix[rowIndex]?.map((score, colIndex) => (
+                    <div
+                      key={`${week}-${colIndex}`}
+                      className="heatmap-cell"
+                      style={{
+                        background: `rgba(127, 211, 165, ${Math.max(
+                          0.08,
+                          Math.min(0.92, score / 100)
+                        )})`,
+                      }}
+                      title={`${week} ${heatmapQuery.data.weekdays[colIndex]?.label}: ${score}`}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="section">
+        <h3>Life balance score</h3>
+        {lifeBalanceQuery.isPending ? <div className="query-status">Loading life balance...</div> : null}
+        {lifeBalanceQuery.isError ? (
+          <div className="query-status error">
+            <span>Could not load life balance.</span>
+            <button className="secondary" onClick={() => lifeBalanceQuery.refetch()}>
+              Retry
+            </button>
+          </div>
+        ) : null}
+        {lifeBalanceQuery.data ? (
+          <div className="estimation-card">
+            <div className="estimation-main">
+              <div className="estimation-score">{lifeBalanceQuery.data.score}</div>
+              <div>
+                <div className="estimation-title">Life balance (0-100)</div>
+                <div className="estimation-note">{lifeBalanceQuery.data.insight}</div>
+              </div>
+            </div>
+            <div className="estimation-breakdown">
+              {Object.entries(lifeBalanceQuery.data.breakdown).map(([key, value]) => (
+                <div key={key} className="estimation-row">
+                  <span>{key}</span>
+                  <span>{value}</span>
+                  <span />
+                </div>
+              ))}
+            </div>
+            {lifeBalanceSeries.length ? (
+              <LineChart points={lifeBalanceSeries} color="#7fd3a5" step={16} />
+            ) : (
+              <div className="line-empty">No life-balance trend available.</div>
+            )}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="section">
+        <h3>Export data</h3>
+        <div className="stats-controls">
+          <button
+            className="secondary"
+            disabled={exporting}
+            onClick={() => handleExport("csv")}
+          >
+            {exporting ? "Exporting..." : "Export CSV"}
+          </button>
+          <button
+            className="secondary"
+            disabled={exporting}
+            onClick={() => handleExport("json")}
+          >
+            {exporting ? "Exporting..." : "Export JSON"}
+          </button>
+        </div>
+        {exportError ? <div className="warning">{exportError}</div> : null}
       </div>
     </div>
   );

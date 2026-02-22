@@ -5,7 +5,11 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/client/api";
 import { MOOD_PALETTE } from "@/lib/constants";
 import { format } from "date-fns";
-import type { CoupleMoodboardData, StreakData } from "@/lib/types";
+import type {
+  CoupleComparisonResponse,
+  CoupleMoodboardData,
+  StreakData,
+} from "@/lib/types";
 
 export default function CoupleTab({ userEmail }: { userEmail: string }) {
   const [monthKey, setMonthKey] = useState(() => format(new Date(), "yyyy-MM"));
@@ -18,8 +22,12 @@ export default function CoupleTab({ userEmail }: { userEmail: string }) {
     queryKey: ["couple-streaks"],
     queryFn: () => fetchJson<StreakData>("/api/couple/streaks"),
   });
-  const queryLoading = moodQuery.isPending || streakQuery.isPending;
-  const queryError = moodQuery.isError || streakQuery.isError;
+  const analyticsQuery = useQuery({
+    queryKey: ["couple-analytics"],
+    queryFn: () => fetchJson<CoupleComparisonResponse>("/api/couple/analytics?days=30"),
+  });
+  const queryLoading = moodQuery.isPending || streakQuery.isPending || analyticsQuery.isPending;
+  const queryError = moodQuery.isError || streakQuery.isError || analyticsQuery.isError;
 
   const moodMeta = (key?: string | null) => {
     if (!key) return null;
@@ -81,6 +89,7 @@ export default function CoupleTab({ userEmail }: { userEmail: string }) {
             onClick={() => {
               moodQuery.refetch();
               streakQuery.refetch();
+              analyticsQuery.refetch();
             }}
           >
             Retry
@@ -165,6 +174,30 @@ export default function CoupleTab({ userEmail }: { userEmail: string }) {
             </div>
           ))}
         </div>
+      </div>
+      <div className="section">
+        <h3>Couple comparison (30 days)</h3>
+        <div className="suggestion-grid">
+          {(analyticsQuery.data?.users || []).map((person) => (
+            <div key={person.email} className="suggestion-card">
+              <div className="suggestion-title">{person.name}</div>
+              <div className="suggestion-body">
+                Sleep avg: {person.sleepAvg ?? "--"}h
+              </div>
+              <div className="suggestion-body">
+                Anxiety avg: {person.anxietyAvg ?? "--"}
+              </div>
+              <div className="suggestion-body">
+                Habit completion: {person.habitCompletionRate ?? "--"}%
+              </div>
+            </div>
+          ))}
+        </div>
+        {(analyticsQuery.data?.notes || []).map((note, index) => (
+          <div key={`couple-note-${index}`} className="estimation-note">
+            {note}
+          </div>
+        ))}
       </div>
     </div>
   );

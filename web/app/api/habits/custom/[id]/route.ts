@@ -8,6 +8,7 @@ import {
 } from "@/lib/server/response";
 import { canonicalHabitKey, getCustomHabits, saveCustomHabits } from "@/lib/server/settings";
 import { customHabitSchema, taskIdSchema } from "@/lib/server/schemas";
+import { logServerEvent } from "@/lib/server/logger";
 
 export async function PATCH(
   request: NextRequest,
@@ -48,6 +49,11 @@ export async function PATCH(
     await saveCustomHabits(userEmail, next);
     return jsonOk({ ok: true });
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "PATCH /api/habits/custom/[id]",
+      message: "Unhandled error while updating custom habit",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to update habit", 500);
@@ -70,6 +76,11 @@ export async function DELETE(
     await saveCustomHabits(userEmail, next);
     return jsonOk({ ok: true });
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "DELETE /api/habits/custom/[id]",
+      message: "Unhandled error while deleting custom habit",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to delete habit", 500);

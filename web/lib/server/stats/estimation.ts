@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
-import { format, subDays } from "date-fns";
+import { format, parseISO, subDays } from "date-fns";
 import type {
   EstimationBucket,
   EstimationPoint,
@@ -16,6 +16,8 @@ const DURATION_BUCKETS = [
   { key: "60-120", label: "1-2h", min: 60, max: 120 },
   { key: "120+", label: "2h+", min: 120, max: Number.MAX_SAFE_INTEGER },
 ];
+
+const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const average = (values: number[]) =>
   values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
@@ -125,6 +127,7 @@ export async function getEstimationStats(
       id: true,
       title: true,
       priorityTag: true,
+      source: true,
       estimatedMinutes: true,
       actualMinutes: true,
       scheduledDate: true,
@@ -178,10 +181,56 @@ export async function getEstimationStats(
     };
   });
 
+  const byWeekday = aggregateBuckets(points, WEEKDAY_LABELS, (point) => {
+    if (!point.scheduledDate) return "Mon";
+    const date = parseISO(point.scheduledDate);
+    const weekday = WEEKDAY_LABELS[(date.getDay() + 6) % 7];
+    return weekday;
+  });
+
+  const sourceLabels = Array.from(
+    new Set(
+      tasks.map((task) => String(task.source || "manual").toLowerCase())
+    )
+  ).sort();
+
+  const bySource = aggregateBuckets(points, sourceLabels, (point) => {
+    const matching = tasks.find((task) => task.id === point.taskId);
+    return String(matching?.source || "manual").toLowerCase();
+  });
+
+  const sortedByDate = [...points].sort((a, b) =>
+    String(a.scheduledDate || "").localeCompare(String(b.scheduledDate || ""))
+  );
+  const currentWindow = sortedByDate.slice(-30);
+  const previousWindow = sortedByDate.slice(-60, -30);
+  const currentRatio = average(currentWindow.map((item) => item.ratio));
+  const previousRatio = average(previousWindow.map((item) => item.ratio));
+  const delta =
+    currentRatio === null || previousRatio === null
+      ? null
+      : currentRatio - previousRatio;
+  const trendMessage =
+    delta === null
+      ? "Need more completed tasks to evaluate trend."
+      : delta < -0.08
+        ? "Estimation precision is improving in recent tasks."
+        : delta > 0.08
+          ? "Recent tasks are taking longer than planned. Increase buffers."
+          : "Estimation trend is stable.";
+
   return {
     summary: buildSummary(points),
     byPriority,
     byDuration,
+    byWeekday,
+    bySource,
+    trend: {
+      currentRatio: round2(currentRatio),
+      previousRatio: round2(previousRatio),
+      delta: round2(delta),
+      message: trendMessage,
+    },
     points,
   };
 }

@@ -8,6 +8,7 @@ import {
 } from "@/lib/server/response";
 import { getCustomHabitDone, setCustomHabitDone } from "@/lib/server/settings";
 import { customHabitDoneSchema, dateParamSchema } from "@/lib/server/schemas";
+import { logServerEvent } from "@/lib/server/logger";
 
 export async function GET(
   _request: NextRequest,
@@ -20,6 +21,11 @@ export async function GET(
     const payload = await getCustomHabitDone(userEmail, paramsParsed.data.date);
     return jsonOk({ done: payload });
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "GET /api/habits/custom/done/[date]",
+      message: "Unhandled error while loading custom habit done for day",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to load custom habits", 500);
@@ -45,6 +51,11 @@ export async function PUT(
     await setCustomHabitDone(userEmail, paramsParsed.data.date, parsed.data.done);
     return jsonOk({ ok: true });
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "PUT /api/habits/custom/done/[date]",
+      message: "Unhandled error while updating custom habit done for day",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to update custom habits", 500);

@@ -8,6 +8,7 @@ import {
 } from "@/lib/server/response";
 import { listCustomHabitDoneRange } from "@/lib/server/settings";
 import { rangeQuerySchema } from "@/lib/server/schemas";
+import { logServerEvent } from "@/lib/server/logger";
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,6 +23,11 @@ export async function GET(request: NextRequest) {
     const items = await listCustomHabitDoneRange(userEmail, start, end);
     return jsonOk({ items });
   } catch (err) {
+    logServerEvent("error", {
+      endpoint: "GET /api/habits/custom/done",
+      message: "Unhandled error while loading custom habit done range",
+      error: err,
+    });
     const authError = handleAuthError(err);
     if (authError) return authError;
     return jsonError("Failed to load habit done", 500);

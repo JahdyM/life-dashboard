@@ -12,6 +12,9 @@ type CustomHabitsResponse = { items: CustomHabit[] };
 type CustomDoneResponse = { done: Record<string, number> };
 type MeetingDaysResponse = { days: number[] };
 type FamilyDayResponse = { day: number };
+const EMPTY_CUSTOM_HABITS: CustomHabit[] = [];
+const EMPTY_DONE: Record<string, number> = {};
+const EMPTY_DAYS: number[] = [];
 
 function readMutationError(error: unknown, fallback: string) {
   if (error instanceof Error && error.message) {
@@ -206,16 +209,16 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
   }, [dayQuery, customHabitsQuery, customDoneQuery, meetingDaysQuery, familyDayQuery]);
 
   const dayEntry = dayQuery.data?.entry || {};
-  const customHabitsRaw = customHabitsQuery.data?.items || [];
-  const customDone = customDoneQuery.data?.done || {};
-  const meetingDaysRaw = meetingDaysQuery.data?.days || [];
+  const customHabitsRaw = customHabitsQuery.data?.items ?? EMPTY_CUSTOM_HABITS;
+  const customDone = customDoneQuery.data?.done ?? EMPTY_DONE;
+  const meetingDaysRaw = meetingDaysQuery.data?.days ?? EMPTY_DAYS;
   const familyDay = familyDayQuery.data?.day ?? 6;
 
   const meetingDays = useMemo(() => {
     const unique = Array.from(new Set(meetingDaysRaw));
     unique.sort((a, b) => a - b);
     return unique;
-  }, [meetingDaysRaw.join(",")]);
+  }, [meetingDaysRaw]);
 
   const uniqueCustomHabits = useMemo(() => {
     const seen = new Map<string, CustomHabit>();

@@ -152,16 +152,12 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
     },
   });
 
-  const onPickDay = (dayIso: string) => {
+  const onPickDay = useCallback((dayIso: string) => {
     setSelectedDay(dayIso);
     const existing = moodByDay.get(dayIso);
     setEditorMood(existing?.moodCategory || "neutral");
     setEditorFeeling(existing?.moodNote || "");
-  };
-
-  const pickDay = useCallback((dayIso: string) => {
-    onPickDay(dayIso);
-  }, []);
+  }, [moodByDay]);
 
   const onMonthChange = (nextMonth: string) => {
     setMonthKey(nextMonth);
@@ -214,7 +210,7 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
               moodEmoji={mood?.emoji}
               selected={isSelected}
               clickable
-              onPick={pickDay}
+              onPick={onPickDay}
             />
           );
         })}

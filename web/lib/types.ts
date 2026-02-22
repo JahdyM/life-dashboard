@@ -160,5 +160,108 @@ export type EstimationResponse = {
   summary: EstimationSummary;
   byPriority: EstimationBucket[];
   byDuration: EstimationBucket[];
+  byWeekday?: EstimationBucket[];
+  bySource?: EstimationBucket[];
+  trend?: {
+    currentRatio: number | null;
+    previousRatio: number | null;
+    delta: number | null;
+    message: string;
+  };
   points: EstimationPoint[];
+};
+
+export type HabitCorrelationItem = {
+  key: string;
+  label: string;
+  withHabitRate: number | null;
+  withoutHabitRate: number | null;
+  impact: number | null;
+  withHabitDays: number;
+  withoutHabitDays: number;
+};
+
+export type MoodCorrelationResponse = {
+  period: "30d" | "90d" | "all";
+  positiveMoods: string[];
+  rows: HabitCorrelationItem[];
+  insight: string;
+};
+
+export type AnxietyTrendPoint = {
+  date: string;
+  anxiety: number;
+  movingAverage7: number;
+};
+
+export type AnxietyTrendResponse = {
+  periodDays: 30 | 90;
+  points: AnxietyTrendPoint[];
+  highAnxietyCurrentStreak: number;
+  highAnxietyMaxStreak: number;
+  alert: string | null;
+  sleepCorrelation: {
+    lowSleepAverage: number | null;
+    regularSleepAverage: number | null;
+    sampleLowSleep: number;
+    sampleRegularSleep: number;
+  };
+};
+
+export type SleepScoreResponse = {
+  score: number;
+  components: {
+    duration: number;
+    consistency: number;
+    impact: number;
+  };
+  trend14: Array<{ date: string; score: number }>;
+  insight: string;
+};
+
+export type WeeklyReportResponse = {
+  week: string;
+  habitsCompletionPercent: number;
+  moodPredominant: string | null;
+  negativeMoodDays: number;
+  workHoursTotal: number;
+  topHabits: Array<{ key: string; label: string; value: number }>;
+  comparison: {
+    habitsDelta: number;
+    workHoursDelta: number;
+    negativeMoodDelta: number;
+  };
+  message: string;
+};
+
+export type ProductivityHeatmapResponse = {
+  period: "30d" | "90d" | "all";
+  weeks: string[];
+  weekdays: Array<{ index: number; label: string; averageScore: number }>;
+  matrix: number[][];
+  insight: string;
+};
+
+export type LifeBalanceResponse = {
+  score: number;
+  breakdown: {
+    physical: number;
+    mental: number;
+    spiritual: number;
+    productivity: number;
+  };
+  trend: Array<{ date: string; score: number }>;
+  insight: string;
+};
+
+export type CoupleComparisonResponse = {
+  periodDays: number;
+  users: Array<{
+    email: string;
+    name: string;
+    sleepAvg: number | null;
+    anxietyAvg: number | null;
+    habitCompletionRate: number | null;
+  }>;
+  notes: string[];
 };

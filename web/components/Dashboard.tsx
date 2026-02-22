@@ -19,11 +19,33 @@ const TABS = [
 ];
 
 type TabKey = (typeof TABS)[number]["key"];
+const isTabKey = (value: string): value is TabKey =>
+  TABS.some((tab) => tab.key === value);
 
 export default function Dashboard({ userEmail }: { userEmail: string }) {
   const [activeTab, setActiveTab] = useState<TabKey>("habits");
   const [timezoneSyncError, setTimezoneSyncError] = useState<string | null>(null);
   const [timezoneSyncing, setTimezoneSyncing] = useState(false);
+  const tabStorageKey = `life-dashboard.active-tab.${userEmail.toLowerCase()}`;
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(tabStorageKey);
+      if (saved && isTabKey(saved)) {
+        setActiveTab(saved);
+      }
+    } catch (_err) {
+      // Non-blocking: keep default tab when storage is unavailable.
+    }
+  }, [tabStorageKey]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(tabStorageKey, activeTab);
+    } catch (_err) {
+      // Non-blocking: ignore storage write failures.
+    }
+  }, [activeTab, tabStorageKey]);
 
   useEffect(() => {
     let isMounted = true;

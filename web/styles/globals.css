@@ -775,6 +775,44 @@ button.link.danger {
   border-bottom: 1px solid var(--border-soft);
 }
 
+.heatmap-grid {
+  display: grid;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.heatmap-head {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  min-width: 34px;
+}
+
+.heatmap-row {
+  display: grid;
+  grid-template-columns: 88px repeat(7, minmax(28px, 1fr));
+  gap: 6px;
+  align-items: center;
+}
+
+.heatmap-row-head {
+  margin-bottom: 2px;
+}
+
+.heatmap-week {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.heatmap-cell {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 6px;
+  border: 1px solid var(--border-soft);
+}
+
 .mood-grid {
   display: grid;
   grid-template-columns: repeat(14, 1fr);
