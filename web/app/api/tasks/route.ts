@@ -26,21 +26,22 @@ async function syncGoogleTasks(userEmail: string, start: string, end: string) {
   });
   const existingMap = new Map(existing.map((item) => [item.googleEventId, item]));
   const timezone = (await getUserTimeZone(userEmail)) || DEFAULT_TIME_ZONE;
-  for (const event of events) {
-    if (!event?.id) continue;
-    const mapped = googleEventToTask(event, timezone);
-    const payload = {
-      title: mapped.title,
-      scheduledDate: mapped.scheduled_date || null,
-      scheduledTime: mapped.scheduled_time || null,
-      source: "google",
-      googleCalendarId: "primary",
-      googleEventId: event.id,
-    };
-    if (existingMap.has(event.id)) {
-      await updateTask(userEmail, existingMap.get(event.id)!.id, payload as any);
-    } else {
-      await createTask(userEmail, {
+  const operations = events
+    .filter((event: any) => Boolean(event?.id))
+    .map(async (event: any) => {
+      const mapped = googleEventToTask(event, timezone);
+      const payload = {
+        title: mapped.title,
+        scheduledDate: mapped.scheduled_date || null,
+        scheduledTime: mapped.scheduled_time || null,
+        source: "google",
+        googleCalendarId: "primary",
+        googleEventId: event.id,
+      };
+      if (existingMap.has(event.id)) {
+        return updateTask(userEmail, existingMap.get(event.id)!.id, payload);
+      }
+      return createTask(userEmail, {
         title: payload.title,
         source: payload.source,
         scheduledDate: payload.scheduledDate || null,
@@ -48,8 +49,8 @@ async function syncGoogleTasks(userEmail: string, start: string, end: string) {
         googleCalendarId: payload.googleCalendarId,
         googleEventId: payload.googleEventId,
       });
-    }
-  }
+    });
+  await Promise.all(operations);
 }
 
 export async function GET(request: NextRequest) {
@@ -121,6 +122,7 @@ export async function POST(request: NextRequest) {
       estimatedMinutes: payload.estimated_minutes || null,
       actualMinutes: payload.actual_minutes || null,
       isDone: payload.is_done ? 1 : 0,
+      completedAt: payload.completed_at || null,
       googleCalendarId: googleEventId ? "primary" : null,
       googleEventId,
     });

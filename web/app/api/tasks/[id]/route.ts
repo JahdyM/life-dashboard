@@ -41,6 +41,7 @@ export async function PATCH(
     if ("estimated_minutes" in payload) updatePayload.estimatedMinutes = payload.estimated_minutes;
     if ("actual_minutes" in payload) updatePayload.actualMinutes = payload.actual_minutes;
     if ("is_done" in payload) updatePayload.isDone = payload.is_done ? 1 : 0;
+    if ("completed_at" in payload) updatePayload.completedAt = payload.completed_at;
 
     const updated = await updateTask(userEmail, taskId, updatePayload);
     if (payload.sync_google && existing.googleEventId) {
