@@ -12,9 +12,13 @@ const nullableBoundedInt = (min: number, max: number) =>
 
 const hasInvalidHtmlTags = (value: string) => /<[^>]*>/g.test(value);
 
+const intlAny = Intl as unknown as {
+  supportedValuesOf?: (key: string) => string[];
+};
+
 const ianaZones =
-  typeof Intl.supportedValuesOf === "function"
-    ? new Set(Intl.supportedValuesOf("timeZone"))
+  typeof intlAny.supportedValuesOf === "function"
+    ? new Set(intlAny.supportedValuesOf("timeZone"))
     : null;
 
 const validRange = (start: string, end: string) => start <= end;

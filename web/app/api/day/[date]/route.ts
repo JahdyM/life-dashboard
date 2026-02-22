@@ -1,9 +1,13 @@
 import { NextRequest } from "next/server";
 import { requireUserEmail } from "@/lib/server/auth";
 import { getDailyEntry, updateDailyEntry } from "@/lib/server/habits";
-import { handleAuthError, jsonError, jsonOk } from "@/lib/server/response";
+import {
+  handleAuthError,
+  jsonError,
+  jsonOk,
+  zodErrorMessage,
+} from "@/lib/server/response";
 import { dateParamSchema, dayPatchSchema } from "@/lib/server/schemas";
-import { zodErrorMessage } from "@/lib/server/response";
 
 export async function GET(
   _request: NextRequest,

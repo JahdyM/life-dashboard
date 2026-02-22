@@ -100,6 +100,13 @@ export async function updateTask(
   taskId: string,
   payload: Partial<TaskPayload>
 ) {
+  const ownedTask = await prisma.todoTask.findFirst({
+    where: { id: taskId, userEmail },
+    select: { id: true },
+  });
+  if (!ownedTask) {
+    throw new Error("RESOURCE_NOT_FOUND");
+  }
   const nowIso = new Date().toISOString();
   const task = await prisma.todoTask.update({
     where: { id: taskId },
@@ -122,12 +129,17 @@ export async function updateTask(
 }
 
 export async function deleteTask(userEmail: string, taskId: string) {
-  await prisma.todoSubtask.deleteMany({
-    where: { userEmail, taskId },
-  });
-  await prisma.todoTask.delete({
-    where: { id: taskId },
-  });
+  const [, deletedTask] = await prisma.$transaction([
+    prisma.todoSubtask.deleteMany({
+      where: { userEmail, taskId },
+    }),
+    prisma.todoTask.deleteMany({
+      where: { id: taskId, userEmail },
+    }),
+  ]);
+  if (!deletedTask.count) {
+    throw new Error("RESOURCE_NOT_FOUND");
+  }
 }
 
 export async function createSubtask(
@@ -135,6 +147,13 @@ export async function createSubtask(
   taskId: string,
   title: string
 ) {
+  const ownedTask = await prisma.todoTask.findFirst({
+    where: { id: taskId, userEmail },
+    select: { id: true },
+  });
+  if (!ownedTask) {
+    throw new Error("RESOURCE_NOT_FOUND");
+  }
   const nowIso = new Date().toISOString();
   return prisma.todoSubtask.create({
     data: {
@@ -155,6 +174,13 @@ export async function updateSubtask(
   subtaskId: string,
   data: Partial<{ title: string; priorityTag: string; estimatedMinutes: number | null; actualMinutes: number | null; isDone: number | null }>
 ) {
+  const ownedSubtask = await prisma.todoSubtask.findFirst({
+    where: { id: subtaskId, userEmail },
+    select: { id: true },
+  });
+  if (!ownedSubtask) {
+    throw new Error("RESOURCE_NOT_FOUND");
+  }
   const nowIso = new Date().toISOString();
   return prisma.todoSubtask.update({
     where: { id: subtaskId },
@@ -170,7 +196,10 @@ export async function updateSubtask(
 }
 
 export async function deleteSubtask(userEmail: string, subtaskId: string) {
-  await prisma.todoSubtask.delete({
-    where: { id: subtaskId },
+  const deleted = await prisma.todoSubtask.deleteMany({
+    where: { id: subtaskId, userEmail },
   });
+  if (!deleted.count) {
+    throw new Error("RESOURCE_NOT_FOUND");
+  }
 }

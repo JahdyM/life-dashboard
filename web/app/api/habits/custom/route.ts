@@ -1,10 +1,14 @@
 import { NextRequest } from "next/server";
 import { requireUserEmail } from "@/lib/server/auth";
-import { handleAuthError, jsonError, jsonOk } from "@/lib/server/response";
+import {
+  handleAuthError,
+  jsonError,
+  jsonOk,
+  zodErrorMessage,
+} from "@/lib/server/response";
 import { canonicalHabitKey, ensureDefaultCustomHabits, getCustomHabits, saveCustomHabits } from "@/lib/server/settings";
 import { randomUUID } from "crypto";
 import { customHabitSchema } from "@/lib/server/schemas";
-import { zodErrorMessage } from "@/lib/server/response";
 
 export async function GET(_request: NextRequest) {
   try {
