@@ -7,6 +7,12 @@ const isoTimeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const boolishSchema = z.union([z.boolean(), z.number().int().min(0).max(1)]);
 const nullableIsoDateSchema = z.union([z.string().regex(isoDateRegex), z.null()]);
 const nullableIsoTimeSchema = z.union([z.string().regex(isoTimeRegex), z.null()]);
+const nullableIsoDateTimeSchema = z.union([
+  z.string().refine((value) => !Number.isNaN(Date.parse(value)), {
+    message: "Invalid ISO datetime",
+  }),
+  z.null(),
+]);
 const nullableBoundedInt = (min: number, max: number) =>
   z.union([z.number().int().min(min).max(max), z.null()]);
 
@@ -71,6 +77,7 @@ export const taskCreateSchema = z
     estimated_minutes: nullableBoundedInt(0, 480).optional(),
     actual_minutes: nullableBoundedInt(0, 1440).optional(),
     is_done: boolishSchema.optional(),
+    completed_at: nullableIsoDateTimeSchema.optional(),
     sync_google: z.boolean().optional(),
   })
   .strict();
@@ -84,6 +91,7 @@ export const taskPatchSchema = z
     estimated_minutes: nullableBoundedInt(0, 480).optional(),
     actual_minutes: nullableBoundedInt(0, 1440).optional(),
     is_done: boolishSchema.optional(),
+    completed_at: nullableIsoDateTimeSchema.optional(),
     sync_google: z.boolean().optional(),
   })
   .strict();
@@ -184,5 +192,6 @@ export const subtaskPatchSchema = z
     estimated_minutes: nullableBoundedInt(0, 480).optional(),
     actual_minutes: nullableBoundedInt(0, 1440).optional(),
     is_done: boolishSchema.optional(),
+    completed_at: nullableIsoDateTimeSchema.optional(),
   })
   .strict();
