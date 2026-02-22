@@ -17,6 +17,13 @@ export default function HabitsTab({ userEmail }: { userEmail: string }) {
       .toLowerCase()
       .replace(/\s+/g, " ")
       .replace(/\s*\(books\)/g, "");
+  const weekdayFromIso = (iso: string) => {
+    const [year, month, day] = String(iso || "")
+      .split("-")
+      .map((value) => Number(value));
+    if (!year || !month || !day) return new Date().getDay();
+    return new Date(year, month - 1, day).getDay();
+  };
   const dayQuery = useQuery({
     queryKey: ["day", selectedDate],
     queryFn: () => fetchJson<{ entry: any }>(`/api/day/${selectedDate}`),
@@ -57,12 +64,12 @@ export default function HabitsTab({ userEmail }: { userEmail: string }) {
   }, [customHabits]);
 
   const isMeetingDay = useMemo(() => {
-    const dayIndex = new Date(selectedDate).getDay();
+    const dayIndex = weekdayFromIso(selectedDate);
     return meetingDays.includes(dayIndex);
   }, [meetingDays, selectedDate]);
 
   const isFamilyWorshipDay = useMemo(() => {
-    const dayIndex = new Date(selectedDate).getDay();
+    const dayIndex = weekdayFromIso(selectedDate);
     return dayIndex === familyDay;
   }, [familyDay, selectedDate]);
 

@@ -116,12 +116,20 @@ export async function getSharedStreaks(userEmail: string, todayIso: string) {
     user: {
       email: userEmail,
       streak: userStreaks[habit.key]?.streak || 0,
-      today_done: userStreaks[habit.key]?.todayDone || false,
+      today_done:
+        userStreaks[habit.key]?.todayApplicable === false
+          ? true
+          : userStreaks[habit.key]?.todayDone || false,
+      today_applicable: userStreaks[habit.key]?.todayApplicable ?? true,
     },
     partner: {
       email: partnerEmail,
       streak: partnerStreaks[habit.key]?.streak || 0,
-      today_done: partnerStreaks[habit.key]?.todayDone || false,
+      today_done:
+        partnerStreaks[habit.key]?.todayApplicable === false
+          ? true
+          : partnerStreaks[habit.key]?.todayDone || false,
+      today_applicable: partnerStreaks[habit.key]?.todayApplicable ?? true,
     },
   }));
   return { items };

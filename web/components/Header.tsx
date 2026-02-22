@@ -21,8 +21,8 @@ type StreakResponse = {
   items: Array<{
     habit_key: string;
     label: string;
-    user: { email: string; streak: number; today_done: boolean };
-    partner: { email: string; streak: number; today_done: boolean };
+    user: { email: string; streak: number; today_done: boolean; today_applicable?: boolean };
+    partner: { email: string; streak: number; today_done: boolean; today_applicable?: boolean };
   }>;
   warning?: string;
 };
@@ -83,13 +83,29 @@ export default function Header() {
                 <div className="streak-label">{item.label}</div>
                 <div className="streak-row">
                   <span>{item.user.streak} days</span>
-                  <span className={item.user.today_done ? "done" : "pending"}>
+                  <span
+                    className={
+                      item.user.today_applicable === false
+                        ? "offday"
+                        : item.user.today_done
+                          ? "done"
+                          : "pending"
+                    }
+                  >
                     {item.user.email.split("@")[0]}
                   </span>
                 </div>
                 <div className="streak-row">
                   <span>{item.partner.streak} days</span>
-                  <span className={item.partner.today_done ? "done" : "pending"}>
+                  <span
+                    className={
+                      item.partner.today_applicable === false
+                        ? "offday"
+                        : item.partner.today_done
+                          ? "done"
+                          : "pending"
+                    }
+                  >
                     {item.partner.email.split("@")[0]}
                   </span>
                 </div>

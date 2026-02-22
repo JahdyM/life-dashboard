@@ -1,5 +1,6 @@
 import { prisma } from "../db/prisma";
 import { FIXED_SHARED_HABITS } from "../constants";
+import { getFamilyWorshipDay, getMeetingDays } from "./settings";
 
 const habitFieldMap: Record<string, keyof typeof habitFieldAccess> = {
   bible_reading: "bibleReading",
@@ -33,6 +34,44 @@ const habitFieldAccess = {
 
 export function habitKeyToField(key: string) {
   return habitFieldMap[key];
+}
+
+const STREAK_LOOKBACK_DAYS = 730;
+
+function parseIsoDateUtc(iso: string): Date | null {
+  const [year, month, day] = String(iso || "")
+    .split("-")
+    .map((value) => Number(value));
+  if (!year || !month || !day) return null;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatIsoDateUtc(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function getWeekdayUtc(iso: string): number {
+  const date = parseIsoDateUtc(iso);
+  if (!date) return -1;
+  return date.getUTCDay();
+}
+
+function isHabitScheduledOnDate(
+  habitKey: string,
+  dateIso: string,
+  meetingDays: number[],
+  familyWorshipDay: number
+): boolean {
+  const weekday = getWeekdayUtc(dateIso);
+  if (weekday < 0) return false;
+  if (habitKey === "meeting_attended" || habitKey === "prepare_meeting") {
+    return meetingDays.includes(weekday);
+  }
+  if (habitKey === "family_worship") {
+    return weekday === familyWorshipDay;
+  }
+  return true;
 }
 
 export async function getDailyEntry(userEmail: string, dateIso: string) {
@@ -121,45 +160,91 @@ export async function computeSharedHabitStreaks(
   userEmail: string,
   todayIso: string
 ) {
+  const [meetingDaysRaw, familyWorshipDayRaw] = await Promise.all([
+    getMeetingDays(userEmail),
+    getFamilyWorshipDay(userEmail),
+  ]);
+
+  const meetingDays = Array.from(
+    new Set(
+      meetingDaysRaw
+        .map((day) => Number(day))
+        .filter((day) => Number.isInteger(day) && day >= 0 && day <= 6)
+    )
+  );
+  const familyWorshipDay =
+    Number.isInteger(familyWorshipDayRaw) && familyWorshipDayRaw >= 0 && familyWorshipDayRaw <= 6
+      ? familyWorshipDayRaw
+      : 6;
+
+  const todayDateUtc = parseIsoDateUtc(todayIso);
+  if (!todayDateUtc) {
+    return FIXED_SHARED_HABITS.reduce((acc, habit) => {
+      acc[habit.key] = { streak: 0, todayDone: false, todayApplicable: false };
+      return acc;
+    }, {} as Record<string, { streak: number; todayDone: boolean; todayApplicable: boolean }>);
+  }
+
+  const allDays: string[] = [];
+  for (let i = 0; i < STREAK_LOOKBACK_DAYS; i += 1) {
+    const date = new Date(todayDateUtc);
+    date.setUTCDate(todayDateUtc.getUTCDate() - i);
+    allDays.push(formatIsoDateUtc(date));
+  }
+  const earliestIso = allDays[allDays.length - 1] || todayIso;
+
   const entries = await prisma.dailyEntryUser.findMany({
     where: {
       userEmail,
-      date: { lte: todayIso },
+      date: { gte: earliestIso, lte: todayIso },
     },
-    orderBy: { date: "desc" },
-    take: 370,
+    orderBy: { date: "asc" },
+    select: {
+      date: true,
+      bibleReading: true,
+      workout: true,
+      shower: true,
+      dailyText: true,
+      meetingAttended: true,
+      prepareMeeting: true,
+      familyWorship: true,
+    },
   });
-  const byDate = new Map(entries.map((entry) => [entry.date, entry]));
-  const results: Record<string, { streak: number; todayDone: boolean }> = {};
+  const byDate = new Map(entries.map((entry) => [entry.date, entry as any]));
+  const results: Record<string, { streak: number; todayDone: boolean; todayApplicable: boolean }> = {};
 
   FIXED_SHARED_HABITS.forEach((habit) => {
     const field = habitKeyToField(habit.key);
     if (!field) {
-      results[habit.key] = { streak: 0, todayDone: false };
+      results[habit.key] = { streak: 0, todayDone: false, todayApplicable: false };
       return;
     }
+
+    const todayApplicable = isHabitScheduledOnDate(
+      habit.key,
+      todayIso,
+      meetingDays,
+      familyWorshipDay
+    );
+    const todayDone = todayApplicable
+      ? Boolean(byDate.get(todayIso)?.[field])
+      : false;
+
     let streak = 0;
-    const todayEntry = byDate.get(todayIso);
-    const todayDone = Boolean(todayEntry && (todayEntry as any)[field]);
-    if (todayDone) {
-      streak = 1;
-      for (let i = 1; i < entries.length; i += 1) {
-        const entry = entries[i];
-        if (!entry) break;
-        if (entry.date >= todayIso) continue;
-        const done = Boolean((entry as any)[field]);
-        if (!done) break;
-        streak += 1;
-      }
-    } else {
-      for (const entry of entries) {
-        if (entry.date >= todayIso) continue;
-        const done = Boolean((entry as any)[field]);
-        if (!done) break;
-        streak += 1;
-      }
+    for (const dayIso of allDays) {
+      const applicable = isHabitScheduledOnDate(
+        habit.key,
+        dayIso,
+        meetingDays,
+        familyWorshipDay
+      );
+      if (!applicable) continue;
+      const done = Boolean(byDate.get(dayIso)?.[field]);
+      if (!done) break;
+      streak += 1;
     }
-    results[habit.key] = { streak, todayDone };
+
+    results[habit.key] = { streak, todayDone, todayApplicable };
   });
 
   return results;

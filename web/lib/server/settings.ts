@@ -56,6 +56,33 @@ export async function setUserTimeZone(userEmail: string, timezone: string) {
   await setSetting(userEmail, "timezone", timezone);
 }
 
+function todayIsoForTimeZone(timezone: string): string {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(new Date());
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+  if (!year || !month || !day) {
+    return new Date().toISOString().slice(0, 10);
+  }
+  return `${year}-${month}-${day}`;
+}
+
+export async function getTodayIsoForUser(userEmail: string): Promise<string> {
+  const timezone = await getUserTimeZone(userEmail);
+  if (!timezone) return new Date().toISOString().slice(0, 10);
+  try {
+    return todayIsoForTimeZone(timezone);
+  } catch (_err) {
+    return new Date().toISOString().slice(0, 10);
+  }
+}
+
 export async function getCustomHabits(userEmail: string) {
   const raw = await getSetting(userEmail, "custom_habits");
   if (!raw) return [] as Array<{ id: string; name: string; active?: boolean }>;

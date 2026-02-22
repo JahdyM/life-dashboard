@@ -137,6 +137,10 @@ body {
   color: var(--warning);
 }
 
+.streak-row .offday {
+  color: var(--text-muted);
+}
+
 .tabs {
   display: flex;
   gap: 8px;

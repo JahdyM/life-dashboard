@@ -2,13 +2,18 @@ import { NextRequest } from "next/server";
 import { requireUserEmail } from "@/lib/server/auth";
 import { handleAuthError, jsonError, jsonOk } from "@/lib/server/response";
 import { buildHeaderSnapshot } from "@/lib/server/header";
-import { getFamilyWorshipDay, getMeetingDays, getUserTimeZone } from "@/lib/server/settings";
+import {
+  getFamilyWorshipDay,
+  getMeetingDays,
+  getTodayIsoForUser,
+  getUserTimeZone,
+} from "@/lib/server/settings";
 import { prisma } from "@/lib/db/prisma";
 
 export async function GET(_request: NextRequest) {
   try {
     const userEmail = await requireUserEmail();
-    const todayIso = new Date().toISOString().slice(0, 10);
+    const todayIso = await getTodayIsoForUser(userEmail);
     const [header, meetingDays, familyWorshipDay, timezone] = await Promise.all([
       buildHeaderSnapshot(userEmail, todayIso),
       getMeetingDays(userEmail),
