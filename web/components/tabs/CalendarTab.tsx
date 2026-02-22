@@ -531,7 +531,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     });
   };
 
-  const confirmTaskUpdate = (task: TodoTask) => {
+  const confirmTaskUpdate = useCallback((task: TodoTask) => {
     const patch = buildTaskPatch(task, taskDrafts[task.id]);
     if (!Object.keys(patch).length) return;
     setSavingTaskId(task.id);
@@ -555,9 +555,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         },
       }
     );
-  };
+  }, [buildTaskPatch, taskDrafts, updateTask, clearTaskDraft]);
 
-  const toggleTaskDoneNow = (task: TodoTask, checked: boolean) => {
+  const toggleTaskDoneNow = useCallback((task: TodoTask, checked: boolean) => {
     const cacheSnapshot = queryClient.getQueryData(["tasks", range.start, range.end]);
     const patch = { is_done: checked ? 1 : 0 };
     setTaskDraft(task.id, { isDone: checked });
@@ -587,7 +587,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         },
       }
     );
-  };
+  }, [queryClient, range.start, range.end, setTaskDraft, updateTask]);
 
   const handleDeleteTask = useCallback(
     (taskId: string) => {
