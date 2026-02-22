@@ -6,6 +6,7 @@ export async function buildHeaderSnapshot(userEmail: string, dateIso: string) {
   const entry = await prisma.dailyEntryUser.findUnique({
     where: { userEmail_date: { userEmail, date: dateIso } },
   });
+  const entryRecord = (entry || null) as Record<string, unknown> | null;
   const habitKeys = [...FIXED_SHARED_HABITS, ...PERSONAL_HABIT_KEYS].map((h) => h.key);
   const counts = habitKeys.reduce(
     (acc, key) => {
@@ -13,7 +14,7 @@ export async function buildHeaderSnapshot(userEmail: string, dateIso: string) {
         .split("_")
         .map((chunk, index) => (index === 0 ? chunk : chunk[0].toUpperCase() + chunk.slice(1)))
         .join("");
-      const value = entry ? (entry as any)[fieldKey] : 0;
+      const value = entryRecord?.[fieldKey];
       if (value) acc.completed += 1;
       acc.total += 1;
       return acc;
