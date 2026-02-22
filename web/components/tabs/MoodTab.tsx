@@ -1,11 +1,61 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/client/api";
 import { MOOD_PALETTE } from "@/lib/constants";
 import { format } from "date-fns";
 import type { MoodEntry } from "@/lib/types";
+
+type MoodCellProps = {
+  dayKey: string;
+  moodLabel: string | null;
+  moodColor: string;
+  moodEmoji?: string;
+  selected?: boolean;
+  clickable?: boolean;
+  onPick?: (dayIso: string) => void;
+};
+
+const MoodCell = memo(function MoodCell({
+  dayKey,
+  moodLabel,
+  moodColor,
+  moodEmoji,
+  selected = false,
+  clickable = false,
+  onPick,
+}: MoodCellProps) {
+  const handleClick = useCallback(() => {
+    if (!clickable || !onPick) return;
+    onPick(dayKey);
+  }, [clickable, onPick, dayKey]);
+
+  return (
+    <div
+      className={`mood-cell ${selected ? "selected" : ""}`}
+      style={{ background: moodColor }}
+      title={
+        moodLabel ? `${dayKey} • ${moodLabel}` : `${dayKey} • sem registro`
+      }
+      onClick={clickable ? handleClick : undefined}
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={
+        clickable
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                handleClick();
+              }
+            }
+          : undefined
+      }
+    >
+      {moodEmoji ? <span className="mood-cell-emoji">{moodEmoji}</span> : null}
+    </div>
+  );
+});
 
 export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }) {
   const [monthKey, setMonthKey] = useState(() => format(new Date(), "yyyy-MM"));
@@ -109,6 +159,10 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
     setEditorFeeling(existing?.moodNote || "");
   };
 
+  const pickDay = useCallback((dayIso: string) => {
+    onPickDay(dayIso);
+  }, []);
+
   const onMonthChange = (nextMonth: string) => {
     setMonthKey(nextMonth);
     const todayKey = format(new Date(), "yyyy-MM-dd");
@@ -152,15 +206,16 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
           const mood = moodMeta(moodByDay.get(dayKey)?.moodCategory);
           const isSelected = selectedDay === dayKey;
           return (
-            <div
+            <MoodCell
               key={dayKey}
-              className={`mood-cell ${isSelected ? "selected" : ""}`}
-              style={{ background: mood?.color || "#2E2A26" }}
-              title={mood ? `${dayKey} • ${mood.label}` : `${dayKey} • sem registro`}
-              onClick={() => onPickDay(dayKey)}
-            >
-              {mood?.emoji ? <span className="mood-cell-emoji">{mood.emoji}</span> : null}
-            </div>
+              dayKey={dayKey}
+              moodLabel={mood?.label || null}
+              moodColor={mood?.color || "#2E2A26"}
+              moodEmoji={mood?.emoji}
+              selected={isSelected}
+              clickable
+              onPick={pickDay}
+            />
           );
         })}
       </div>
@@ -241,14 +296,13 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
             const key = format(date, "yyyy-MM-dd");
             const mood = moodMeta(moodByDayYear.get(key));
             return (
-              <div
+              <MoodCell
                 key={key}
-                className="mood-cell"
-                style={{ background: mood?.color || "#2E2A26" }}
-                title={mood ? `${key} • ${mood.label}` : `${key} • sem registro`}
-              >
-                {mood?.emoji ? <span className="mood-cell-emoji">{mood.emoji}</span> : null}
-              </div>
+                dayKey={key}
+                moodLabel={mood?.label || null}
+                moodColor={mood?.color || "#2E2A26"}
+                moodEmoji={mood?.emoji}
+              />
             );
           })}
         </div>
