@@ -39,6 +39,7 @@ async function syncGoogleTasks(userEmail: string, start: string, end: string) {
   const operations = events
     .filter((event: GoogleCalendarEvent) => Boolean(event?.id))
     .map((event: GoogleCalendarEvent) => {
+      const eventId = event.id as string;
       const mapped = googleEventToTask(event, timezone);
       const payload = {
         title: mapped.title,
@@ -46,11 +47,11 @@ async function syncGoogleTasks(userEmail: string, start: string, end: string) {
         scheduledTime: mapped.scheduled_time || null,
         source: "google",
         googleCalendarId: "primary",
-        googleEventId: event.id,
+        googleEventId: eventId,
       };
-      if (existingMap.has(event.id)) {
+      if (existingMap.has(eventId)) {
         return prisma.todoTask.update({
-          where: { id: existingMap.get(event.id)!.id },
+          where: { id: existingMap.get(eventId)!.id },
           data: {
             title: payload.title,
             source: payload.source,

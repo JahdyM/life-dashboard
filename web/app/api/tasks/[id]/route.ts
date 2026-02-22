@@ -34,7 +34,7 @@ export async function PATCH(
     const payload = parsed.data;
     const existing = await prisma.todoTask.findUnique({ where: { id: taskId } });
     if (!existing || existing.userEmail !== userEmail) return jsonError("Task not found", 404);
-    const updatePayload: Record<string, any> = {};
+    const updatePayload: Record<string, string | number | null> = {};
     if ("title" in payload) updatePayload.title = payload.title;
     if ("scheduled_date" in payload) updatePayload.scheduledDate = payload.scheduled_date;
     if ("scheduled_time" in payload) updatePayload.scheduledTime = payload.scheduled_time;
@@ -47,7 +47,7 @@ export async function PATCH(
     const updated = await updateTask(userEmail, taskId, updatePayload);
     if (payload.sync_google && existing.googleEventId) {
       const timezone = (await getUserTimeZone(userEmail)) || DEFAULT_TIME_ZONE;
-      const googlePatch: Record<string, any> = { timeZone: timezone };
+      const googlePatch: Record<string, string | number | null> = { timeZone: timezone };
       if ("title" in payload) googlePatch.title = payload.title;
       if ("scheduled_date" in payload) googlePatch.scheduledDate = payload.scheduled_date;
       if ("scheduled_time" in payload) googlePatch.scheduledTime = payload.scheduled_time;
