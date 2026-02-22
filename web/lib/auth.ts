@@ -2,20 +2,13 @@ import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "./db/prisma";
 import { encryptToken } from "./encryption";
-
-const allowedEmails = (process.env.ALLOWED_EMAILS || "")
-  .split(",")
-  .map((email) => email.trim().toLowerCase())
-  .filter(Boolean);
-
-const googleClientId = process.env.GOOGLE_CLIENT_ID || "";
-const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
+import { allowedEmails, env } from "./env";
 
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
-      clientId: googleClientId,
-      clientSecret: googleClientSecret,
+      clientId: env.GOOGLE_CLIENT_ID,
+      clientSecret: env.GOOGLE_CLIENT_SECRET,
       authorization: {
         params: {
           scope:
@@ -116,6 +109,5 @@ export const authOptions: NextAuthOptions = {
 
 export function isAllowedEmail(email?: string | null): boolean {
   if (!email) return false;
-  if (allowedEmails.length === 0) return true;
   return allowedEmails.includes(email.toLowerCase());
 }
