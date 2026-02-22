@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { requireUserEmail } from "@/lib/server/auth";
 import { getDailyEntry, updateDailyEntry } from "@/lib/server/habits";
 import { handleAuthError, jsonError, jsonOk } from "@/lib/server/response";
+import { dateParamSchema, dayPatchSchema } from "@/lib/server/schemas";
+import { zodErrorMessage } from "@/lib/server/response";
 
 export async function GET(
   _request: NextRequest,
@@ -9,7 +11,9 @@ export async function GET(
 ) {
   try {
     const userEmail = await requireUserEmail();
-    const dateIso = context.params.date;
+    const paramsParsed = dateParamSchema.safeParse(context.params);
+    if (!paramsParsed.success) return jsonError(zodErrorMessage(paramsParsed.error), 400);
+    const dateIso = paramsParsed.data.date;
     const entry = await getDailyEntry(userEmail, dateIso);
     return jsonOk({ entry });
   } catch (err) {
@@ -25,8 +29,21 @@ export async function PATCH(
 ) {
   try {
     const userEmail = await requireUserEmail();
-    const dateIso = context.params.date;
-    const payload = await request.json();
+    const paramsParsed = dateParamSchema.safeParse(context.params);
+    if (!paramsParsed.success) return jsonError(zodErrorMessage(paramsParsed.error), 400);
+    const dateIso = paramsParsed.data.date;
+    let rawPayload: unknown;
+    try {
+      rawPayload = await request.json();
+    } catch (_err) {
+      return jsonError("Invalid JSON body", 400);
+    }
+    const parsed = dayPatchSchema.safeParse(rawPayload);
+    if (!parsed.success) return jsonError(zodErrorMessage(parsed.error), 400);
+    const payload = { ...parsed.data } as Record<string, unknown>;
+    if (Array.isArray(payload.mood_tags_json)) {
+      payload.mood_tags_json = JSON.stringify(payload.mood_tags_json);
+    }
     const entry = await updateDailyEntry(userEmail, dateIso, payload);
     return jsonOk({ entry });
   } catch (err) {
