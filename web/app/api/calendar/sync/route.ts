@@ -6,14 +6,21 @@ import { createTask, updateTask } from "@/lib/server/tasks";
 import { prisma } from "@/lib/db/prisma";
 import { getUserTimeZone } from "@/lib/server/settings";
 import { DEFAULT_TIME_ZONE } from "@/lib/constants";
+import { rangeQuerySchema } from "@/lib/server/schemas";
+import { zodErrorMessage } from "@/lib/server/response";
 
 export async function POST(request: NextRequest) {
   try {
     const userEmail = await requireUserEmail();
-    const body = await request.json();
-    const start = body?.start;
-    const end = body?.end;
-    if (!start || !end) return jsonError("Missing start/end", 400);
+    let rawBody: unknown;
+    try {
+      rawBody = await request.json();
+    } catch (_err) {
+      return jsonError("Invalid JSON body", 400);
+    }
+    const parsed = rangeQuerySchema.safeParse(rawBody);
+    if (!parsed.success) return jsonError(zodErrorMessage(parsed.error), 400);
+    const { start, end } = parsed.data;
     const events = await listGoogleEvents(userEmail, start, end, "primary");
     const eventIds = events.map((event: any) => event.id).filter(Boolean);
     const existing = await prisma.todoTask.findMany({
