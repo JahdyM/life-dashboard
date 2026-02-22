@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/client/api";
 import FullCalendar from "@fullcalendar/react";
@@ -278,7 +278,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   );
   const unscheduledTasks = tasks.filter((task) => !task.scheduledDate);
 
-  const setTaskDraft = (taskId: string, patch: TaskDraft) => {
+  const setTaskDraft = useCallback((taskId: string, patch: TaskDraft) => {
     setTaskDrafts((prev) => ({
       ...prev,
       [taskId]: {
@@ -286,16 +286,16 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         ...patch,
       },
     }));
-  };
+  }, []);
 
-  const clearTaskDraft = (taskId: string) => {
+  const clearTaskDraft = useCallback((taskId: string) => {
     setTaskDrafts((prev) => {
       if (!prev[taskId]) return prev;
       const next = { ...prev };
       delete next[taskId];
       return next;
     });
-  };
+  }, []);
 
   const readTaskDraft = (task: TodoTask) => {
     const draft = taskDrafts[task.id] || {};
@@ -588,6 +588,23 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       }
     );
   };
+
+  const handleDeleteTask = useCallback(
+    (taskId: string) => {
+      deleteTask.mutate(taskId);
+    },
+    [deleteTask]
+  );
+
+  const handleScheduleToday = useCallback(
+    (taskId: string) => {
+      updateTask.mutate({
+        id: taskId,
+        data: { scheduled_date: format(selectedDate, "yyyy-MM-dd") },
+      });
+    },
+    [updateTask, selectedDate]
+  );
 
   return (
     <div className="calendar-layout">
