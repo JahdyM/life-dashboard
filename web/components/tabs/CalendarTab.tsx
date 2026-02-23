@@ -277,6 +277,7 @@ type CompletedTaskRowProps = {
   };
   hasChanges: boolean;
   saving: boolean;
+  onToggleDone: (task: TodoTask, checked: boolean) => void;
   onSetDraft: (taskId: string, patch: TaskDraft) => void;
   onConfirm: (task: TodoTask) => void;
 };
@@ -286,9 +287,15 @@ const CompletedTaskRow = memo(function CompletedTaskRow({
   draft,
   hasChanges,
   saving,
+  onToggleDone,
   onSetDraft,
   onConfirm,
 }: CompletedTaskRowProps) {
+  const handleToggle = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      onToggleDone(task, event.target.checked),
+    [onToggleDone, task]
+  );
   const handleActual = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       onSetDraft(task.id, { actualMinutes: Math.max(0, Number(event.target.value || 0)) });
@@ -299,7 +306,7 @@ const CompletedTaskRow = memo(function CompletedTaskRow({
 
   return (
     <div className="calendar-completed-item editable">
-      <span className="calendar-completed-mark">✓</span>
+      <input type="checkbox" checked={draft.isDone} onChange={handleToggle} disabled={saving} />
       <span className="calendar-completed-title">{task.title}</span>
       <div className="calendar-completed-editor">
         <input
@@ -1565,6 +1572,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               draft={readTaskDraft(task)}
               hasChanges={hasTaskChanges(task)}
               saving={savingTaskId === task.id}
+              onToggleDone={requestToggleTaskDone}
               onSetDraft={setTaskDraft}
               onConfirm={confirmTaskUpdate}
             />
