@@ -112,7 +112,7 @@ function LineChart({
   const chartRightPad = 12;
   const plotLeft = labelWidth + 8;
   const plotRight = width - chartRightPad;
-  const plotHeight = rows * step;
+  const plotHeight = Math.max(120, rows * step);
   const axisHeight = 18;
   const totalHeight = plotHeight + axisHeight;
 
@@ -135,8 +135,7 @@ function LineChart({
       <svg
         className="line-chart"
         viewBox={`0 0 ${width} ${totalHeight}`}
-        preserveAspectRatio="none"
-        style={{ height: `${totalHeight}px` }}
+        style={{ width: "100%", height: `${totalHeight}px` }}
       >
         {tickValues.map((value, idx) => {
           const x =
@@ -186,8 +185,9 @@ function LineChart({
             <text
               key={`y-label-${item.label}-${idx}`}
               x={labelWidth}
-              y={y + 3.5}
+              y={y}
               textAnchor="end"
+              dominantBaseline="middle"
               fill="rgba(255,255,255,0.70)"
               fontSize="11"
             >
@@ -203,11 +203,6 @@ function LineChart({
           </g>
         ))}
       </svg>
-      <div className="line-x-scale">
-        {tickValues.map((value, idx) => (
-          <span key={idx}>{formatMetricTick(value)}</span>
-        ))}
-      </div>
     </div>
   );
 }
