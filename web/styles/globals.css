@@ -402,9 +402,14 @@ button.link.danger {
   background: transparent;
   color: var(--text-muted);
   border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 13px;
+  padding: 2px 7px;
+  font-size: 12px;
   line-height: 1;
+  opacity: 0.78;
+}
+
+.habit-remove-btn:disabled {
+  opacity: 0.4;
 }
 
 .task-row.dirty {
@@ -651,6 +656,10 @@ button.link.danger {
   font-size: 13px;
 }
 
+.calendar-completed-item.editable {
+  align-items: center;
+}
+
 .calendar-completed-mark {
   color: var(--accent);
   font-size: 12px;
@@ -665,6 +674,19 @@ button.link.danger {
 .calendar-completed-badge {
   font-size: 11px;
   color: var(--text-muted);
+}
+
+.calendar-completed-editor {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.completed-actual-input {
+  width: 72px;
+  min-height: 28px;
+  padding: 3px 6px;
+  font-size: 12px;
 }
 
 .sync-status {

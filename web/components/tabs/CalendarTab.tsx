@@ -16,6 +16,7 @@ type TaskDraft = {
   priorityTag?: string;
   scheduledTime?: string;
   estimatedMinutes?: number;
+  actualMinutes?: number;
 };
 
 type TaskListResponse = {
@@ -94,6 +95,7 @@ type EditableTaskRowProps = {
     priorityTag: string;
     scheduledTime: string;
     estimatedMinutes: number;
+    actualMinutes: number;
   };
   hasChanges: boolean;
   saving: boolean;
@@ -210,6 +212,7 @@ type SimpleTaskRowProps = {
     priorityTag: string;
     scheduledTime: string;
     estimatedMinutes: number;
+    actualMinutes: number;
   };
   hasChanges: boolean;
   saving: boolean;
@@ -258,6 +261,65 @@ const SimpleTaskRow = memo(function SimpleTaskRow({
           Schedule today
         </button>
       ) : null}
+    </div>
+  );
+});
+
+type CompletedTaskRowProps = {
+  task: TodoTask;
+  draft: {
+    title: string;
+    isDone: boolean;
+    priorityTag: string;
+    scheduledTime: string;
+    estimatedMinutes: number;
+    actualMinutes: number;
+  };
+  hasChanges: boolean;
+  saving: boolean;
+  onSetDraft: (taskId: string, patch: TaskDraft) => void;
+  onConfirm: (task: TodoTask) => void;
+};
+
+const CompletedTaskRow = memo(function CompletedTaskRow({
+  task,
+  draft,
+  hasChanges,
+  saving,
+  onSetDraft,
+  onConfirm,
+}: CompletedTaskRowProps) {
+  const handleActual = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      onSetDraft(task.id, { actualMinutes: Math.max(0, Number(event.target.value || 0)) });
+    },
+    [onSetDraft, task.id]
+  );
+  const handleConfirm = useCallback(() => onConfirm(task), [onConfirm, task]);
+
+  return (
+    <div className="calendar-completed-item editable">
+      <span className="calendar-completed-mark">✓</span>
+      <span className="calendar-completed-title">{task.title}</span>
+      <div className="calendar-completed-editor">
+        <input
+          className="completed-actual-input"
+          type="number"
+          min={0}
+          step={5}
+          value={draft.actualMinutes}
+          onChange={handleActual}
+        />
+        <button
+          className={`task-confirm-btn ${hasChanges ? "visible" : ""}`}
+          disabled={!hasChanges || saving}
+          onClick={handleConfirm}
+          title="Save actual minutes"
+          type="button"
+        >
+          {saving ? "..." : "save"}
+        </button>
+      </div>
     </div>
   );
 });
@@ -502,6 +564,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       scheduledTime: draft.scheduledTime ?? (task.scheduledTime || ""),
       estimatedMinutes:
         draft.estimatedMinutes ?? Number(task.estimatedMinutes || 0),
+      actualMinutes: draft.actualMinutes ?? Number(task.actualMinutes || 0),
     };
   }, [taskDrafts]);
 
@@ -547,7 +610,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       const taskIds = tasksForDay
         .filter(
           (task) =>
-            task.source === "habit" &&
             canonicalHabitKey(task.title) === canonicalHabitKey(habit.label)
         )
         .map((task) => task.id);
@@ -566,7 +628,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       const taskIds = tasksForDay
         .filter(
           (task) =>
-            task.source === "habit" &&
             canonicalHabitKey(task.title) === canonicalHabitKey(habit.name)
         )
         .map((task) => task.id);
@@ -617,6 +678,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       draft.estimatedMinutes !== Number(task.estimatedMinutes || 0)
     ) {
       patch.estimated_minutes = draft.estimatedMinutes;
+    }
+    if (
+      typeof draft.actualMinutes === "number" &&
+      draft.actualMinutes !== Number(task.actualMinutes || 0)
+    ) {
+      patch.actual_minutes = draft.actualMinutes;
     }
     return patch;
   }, []);
@@ -843,11 +910,34 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         }
       }
     },
+    onMutate: async (taskIds) => {
+      setTaskSaveError(null);
+      await queryClient.cancelQueries({ queryKey: ["tasks", range.start, range.end] });
+      const previous = queryClient.getQueryData<TaskListResponse>([
+        "tasks",
+        range.start,
+        range.end,
+      ]);
+      queryClient.setQueryData(
+        ["tasks", range.start, range.end],
+        (old: TaskListResponse | undefined) => {
+          if (!old?.items) return old;
+          return {
+            ...old,
+            items: old.items.filter((item) => !taskIds.includes(item.id)),
+          };
+        }
+      );
+      return { previous };
+    },
     onSuccess: () => {
       setTaskSaveError(null);
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
     },
-    onError: (error) => {
+    onError: (error, _taskIds, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["tasks", range.start, range.end], context.previous);
+      }
       setTaskSaveError(readErrorMessage(error, "Could not remove habit from agenda."));
     },
   });
@@ -1153,10 +1243,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     const avgError = Number(summary.averageErrorMinutes || 0);
     const absMinutes = Math.round(Math.abs(avgError));
     if (summary.tendency === "overestimate") {
-      return `Estimativa: voce costuma superestimar em ~${absMinutes} min por tarefa.`;
+      const planned30 = Math.max(5, 30 - absMinutes);
+      return `Estimativa: voce costuma superestimar em ~${absMinutes} min por tarefa. Ex.: tarefa de 30 min tende a levar ~${planned30} min.`;
     }
     if (summary.tendency === "underestimate") {
-      return `Estimativa: voce costuma subestimar em ~${absMinutes} min por tarefa.`;
+      return `Estimativa: voce costuma subestimar em ~${absMinutes} min por tarefa. Ex.: tarefa de 30 min tende a levar ~${30 + absMinutes} min.`;
     }
     return "Estimativa: seu tempo real esta proximo do planejado.";
   }, [estimationHintQuery.data]);
@@ -1418,13 +1509,15 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             <div className="line-empty">No completed items for this day yet.</div>
           ) : null}
           {completedTasks.map((task) => (
-            <div key={`done-task-${task.id}`} className="calendar-completed-item">
-              <span className="calendar-completed-mark">✓</span>
-              <span className="calendar-completed-title">{task.title}</span>
-              {task.scheduledTime ? (
-                <span className="calendar-completed-time">{task.scheduledTime}</span>
-              ) : null}
-            </div>
+            <CompletedTaskRow
+              key={`done-task-${task.id}`}
+              task={task}
+              draft={readTaskDraft(task)}
+              hasChanges={hasTaskChanges(task)}
+              saving={savingTaskId === task.id}
+              onSetDraft={setTaskDraft}
+              onConfirm={confirmTaskUpdate}
+            />
           ))}
           {completedHabits.map((habit) => (
             <div key={`done-habit-${habit.id}`} className="calendar-completed-item">
