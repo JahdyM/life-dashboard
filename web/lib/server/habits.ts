@@ -214,12 +214,17 @@ export async function computeSharedHabitStreaks(
     select: {
       date: true,
       bibleReading: true,
+      bibleStudy: true,
+      dissertationWork: true,
       workout: true,
+      generalReading: true,
       shower: true,
       dailyText: true,
       meetingAttended: true,
       prepareMeeting: true,
       familyWorship: true,
+      writing: true,
+      scientificWriting: true,
     },
   });
   const byDate = new Map<string, (typeof entries)[number]>(

@@ -13,6 +13,7 @@ import { getUserTimeZone } from "@/lib/server/settings";
 import { DEFAULT_TIME_ZONE } from "@/lib/constants";
 import { taskIdSchema, taskPatchSchema } from "@/lib/server/schemas";
 import { logServerEvent } from "@/lib/server/logger";
+import type { TaskPayload } from "@/lib/server/tasks";
 
 export async function PATCH(
   request: NextRequest,
@@ -34,24 +35,34 @@ export async function PATCH(
     const payload = parsed.data;
     const existing = await prisma.todoTask.findUnique({ where: { id: taskId } });
     if (!existing || existing.userEmail !== userEmail) return jsonError("Task not found", 404);
-    const updatePayload: Record<string, string | number | null> = {};
-    if ("title" in payload) updatePayload.title = payload.title;
-    if ("scheduled_date" in payload) updatePayload.scheduledDate = payload.scheduled_date;
-    if ("scheduled_time" in payload) updatePayload.scheduledTime = payload.scheduled_time;
-    if ("priority_tag" in payload) updatePayload.priorityTag = payload.priority_tag;
-    if ("estimated_minutes" in payload) updatePayload.estimatedMinutes = payload.estimated_minutes;
-    if ("actual_minutes" in payload) updatePayload.actualMinutes = payload.actual_minutes;
-    if ("is_done" in payload) updatePayload.isDone = payload.is_done ? 1 : 0;
-    if ("completed_at" in payload) updatePayload.completedAt = payload.completed_at;
+    const updatePayload: Partial<TaskPayload> = {};
+    if (payload.title !== undefined) updatePayload.title = payload.title;
+    if (payload.scheduled_date !== undefined) updatePayload.scheduledDate = payload.scheduled_date;
+    if (payload.scheduled_time !== undefined) updatePayload.scheduledTime = payload.scheduled_time;
+    if (payload.priority_tag !== undefined) updatePayload.priorityTag = payload.priority_tag;
+    if (payload.estimated_minutes !== undefined) {
+      updatePayload.estimatedMinutes = payload.estimated_minutes;
+    }
+    if (payload.actual_minutes !== undefined) {
+      updatePayload.actualMinutes = payload.actual_minutes;
+    }
+    if (payload.is_done !== undefined) updatePayload.isDone = payload.is_done ? 1 : 0;
+    if (payload.completed_at !== undefined) updatePayload.completedAt = payload.completed_at;
 
     const updated = await updateTask(userEmail, taskId, updatePayload);
     if (payload.sync_google && existing.googleEventId) {
       const timezone = (await getUserTimeZone(userEmail)) || DEFAULT_TIME_ZONE;
-      const googlePatch: Record<string, string | number | null> = { timeZone: timezone };
-      if ("title" in payload) googlePatch.title = payload.title;
-      if ("scheduled_date" in payload) googlePatch.scheduledDate = payload.scheduled_date;
-      if ("scheduled_time" in payload) googlePatch.scheduledTime = payload.scheduled_time;
-      if ("estimated_minutes" in payload) googlePatch.estimatedMinutes = payload.estimated_minutes;
+      const googlePatch: Parameters<typeof updateGoogleEvent>[3] = { timeZone: timezone };
+      if (payload.title !== undefined) googlePatch.title = payload.title;
+      if (payload.scheduled_date !== undefined && payload.scheduled_date !== null) {
+        googlePatch.scheduledDate = payload.scheduled_date;
+      }
+      if (payload.scheduled_time !== undefined) {
+        googlePatch.scheduledTime = payload.scheduled_time;
+      }
+      if (payload.estimated_minutes !== undefined) {
+        googlePatch.estimatedMinutes = payload.estimated_minutes;
+      }
       await updateGoogleEvent(userEmail, existing.googleCalendarId || "primary", existing.googleEventId, {
         ...googlePatch,
       });

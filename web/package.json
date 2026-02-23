@@ -14,7 +14,7 @@
     "prisma:studio": "prisma studio"
   },
   "engines": {
-    "node": "20.x"
+    "node": ">=20 <25"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.11",
