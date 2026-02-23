@@ -172,8 +172,9 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
   return (
     <div className="card">
       <div className="form-row">
-        <label>Month</label>
+        <label htmlFor="mood-month">Month</label>
         <input
+          id="mood-month"
           type="month"
           value={monthKey}
           onChange={(event) => onMonthChange(event.target.value)}
@@ -230,8 +231,9 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
         <div className="mood-editor">
           <div className="mood-editor-row">
             <div className="form-row">
-              <label>Date</label>
+              <label htmlFor="mood-date">Date</label>
               <input
+                id="mood-date"
                 type="date"
                 value={selectedDay}
                 min={start}
@@ -240,8 +242,12 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
               />
             </div>
             <div className="form-row">
-              <label>Mood</label>
-              <select value={editorMood} onChange={(event) => setEditorMood(event.target.value)}>
+              <label htmlFor="mood-select">Mood</label>
+              <select
+                id="mood-select"
+                value={editorMood}
+                onChange={(event) => setEditorMood(event.target.value)}
+              >
                 {MOOD_PALETTE.map((mood) => (
                   <option key={mood.key} value={mood.key}>
                     {mood.emoji} {mood.label}
@@ -251,8 +257,9 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
             </div>
           </div>
           <div className="form-row">
-            <label>Specific feeling for this day</label>
+            <label htmlFor="mood-feeling">Specific feeling for this day</label>
             <input
+              id="mood-feeling"
               type="text"
               placeholder="Ex: confiante, sensível, sobrecarregada..."
               value={editorFeeling}

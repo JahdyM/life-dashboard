@@ -73,8 +73,9 @@ export default function CoupleTab({ userEmail }: { userEmail: string }) {
     <div className="card">
       <h2>Shared mood board</h2>
       <div className="form-row">
-        <label>Month</label>
+        <label htmlFor="couple-month">Month</label>
         <input
+          id="couple-month"
           type="month"
           value={monthKey}
           onChange={(event) => setMonthKey(event.target.value)}

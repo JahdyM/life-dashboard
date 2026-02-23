@@ -493,13 +493,13 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
         {mutationError ? <div className="warning">{mutationError}</div> : null}
 
         <div className="form-row">
-          <label>Date</label>
-          <input type="date" value={selectedDate} onChange={handleDateChange} />
+          <label htmlFor="habits-date">Date</label>
+          <input id="habits-date" type="date" value={selectedDate} onChange={handleDateChange} />
         </div>
 
         <div className="form-row">
-          <label>Weekly meeting days</label>
-          <div className="chip-row">
+          <div id="meeting-days-label">Weekly meeting days</div>
+          <div className="chip-row" role="group" aria-labelledby="meeting-days-label">
             {WEEKDAY_LABELS_PT.map((label, index) => (
               <MeetingDayChip
                 key={label}
@@ -513,8 +513,8 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
         </div>
 
         <div className="form-row">
-          <label>Adoração em família (dia)</label>
-          <select value={familyDay} onChange={handleFamilyDayChange}>
+          <label htmlFor="family-day-select">Adoração em família (dia)</label>
+          <select id="family-day-select" value={familyDay} onChange={handleFamilyDayChange}>
             {WEEKDAY_LABELS_PT.map((label, index) => (
               <option key={label} value={index}>
                 {label}
@@ -583,8 +583,9 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
       <div className="card">
         <div className="metrics-grid">
           <div className="form-row">
-            <label>Sleep hours</label>
+            <label htmlFor="metric-sleep">Sleep hours</label>
             <input
+              id="metric-sleep"
               type="number"
               step="0.5"
               value={dayEntry.sleepHours || 0}
@@ -592,8 +593,9 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
             />
           </div>
           <div className="form-row">
-            <label>Anxiety level</label>
+            <label htmlFor="metric-anxiety">Anxiety level</label>
             <input
+              id="metric-anxiety"
               type="number"
               min="1"
               max="10"
@@ -602,8 +604,9 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
             />
           </div>
           <div className="form-row">
-            <label>Work/study hours</label>
+            <label htmlFor="metric-work">Work/study hours</label>
             <input
+              id="metric-work"
               type="number"
               step="0.5"
               value={dayEntry.workHours || 0}
@@ -611,8 +614,9 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
             />
           </div>
           <div className="form-row">
-            <label>Boredom minutes</label>
+            <label htmlFor="metric-boredom">Boredom minutes</label>
             <input
+              id="metric-boredom"
               type="number"
               min="0"
               value={dayEntry.boredomMinutes || 0}
@@ -622,8 +626,9 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
             />
           </div>
           <div className="form-row">
-            <label>Mood</label>
+            <label htmlFor="metric-mood">Mood</label>
             <select
+              id="metric-mood"
               value={dayEntry.moodCategory || "neutral"}
               onChange={(event) => updateDay.mutate({ mood_category: event.target.value })}
             >
@@ -635,8 +640,9 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
             </select>
           </div>
           <div className="form-row">
-            <label>Priority focus</label>
+            <label htmlFor="metric-priority">Priority focus</label>
             <input
+              id="metric-priority"
               type="text"
               value={dayEntry.priorityLabel || ""}
               onChange={(event) => updateDay.mutate({ priority_label: event.target.value })}

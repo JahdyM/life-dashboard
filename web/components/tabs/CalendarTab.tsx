@@ -409,7 +409,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     }
   }, [tasksQuery.data, didSync]);
 
-  const tasks = tasksQuery.data?.items || [];
+  const tasks = useMemo(
+    () => tasksQuery.data?.items || [],
+    [tasksQuery.data?.items]
+  );
   const syncWarning = tasksQuery.data?.warning;
 
   const tasksForDay = tasks.filter((task) => task.scheduledDate === selectedDayIso);
@@ -448,10 +451,19 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const pendingTasks = tasksForDay.filter((task) => !readTaskDraft(task).isDone);
   const completedTasks = tasksForDay.filter((task) => readTaskDraft(task).isDone);
 
-  const dayEntry = dayQuery.data?.entry || {};
-  const customHabitsRaw = customHabitsQuery.data?.items || [];
-  const customDone = customDoneQuery.data?.done || {};
-  const meetingDaysRaw = meetingDaysQuery.data?.days || [];
+  const dayEntry = useMemo(() => dayQuery.data?.entry || {}, [dayQuery.data?.entry]);
+  const customHabitsRaw = useMemo(
+    () => customHabitsQuery.data?.items || [],
+    [customHabitsQuery.data?.items]
+  );
+  const customDone = useMemo(
+    () => customDoneQuery.data?.done || {},
+    [customDoneQuery.data?.done]
+  );
+  const meetingDaysRaw = useMemo(
+    () => meetingDaysQuery.data?.days || [],
+    [meetingDaysQuery.data?.days]
+  );
   const familyDay = familyDayQuery.data?.day ?? 6;
 
   const meetingDays = useMemo(() => {
@@ -534,44 +546,44 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     [buildTaskPatch, taskDrafts]
   );
 
-  const applyTaskPatchToCache = (
-    taskId: string,
-    patch: Record<string, string | number | null>
-  ) => {
-    queryClient.setQueryData(
-      ["tasks", range.start, range.end],
-      (previous: TaskListResponse | undefined) => {
-        if (!previous?.items) return previous;
-        return {
-          ...previous,
-          items: previous.items.map((item) => {
-            if (item.id !== taskId) return item;
-            return {
-              ...item,
-              isDone: "is_done" in patch ? (patch.is_done ? 1 : 0) : item.isDone,
-              priorityTag: "priority_tag" in patch ? patch.priority_tag : item.priorityTag,
-              scheduledTime:
-                "scheduled_time" in patch
-                  ? patch.scheduled_time || null
-                  : item.scheduledTime,
-              estimatedMinutes:
-                "estimated_minutes" in patch
-                  ? patch.estimated_minutes
-                  : item.estimatedMinutes,
-              actualMinutes:
-                "actual_minutes" in patch
-                  ? patch.actual_minutes
-                  : item.actualMinutes,
-              completedAt:
-                "completed_at" in patch ? patch.completed_at : item.completedAt,
-            };
-          }),
-        };
-      }
-    );
-  };
+  const applyTaskPatchToCache = useCallback(
+    (taskId: string, patch: Record<string, string | number | null>) => {
+      queryClient.setQueryData(
+        ["tasks", range.start, range.end],
+        (previous: TaskListResponse | undefined) => {
+          if (!previous?.items) return previous;
+          return {
+            ...previous,
+            items: previous.items.map((item) => {
+              if (item.id !== taskId) return item;
+              return {
+                ...item,
+                isDone: "is_done" in patch ? (patch.is_done ? 1 : 0) : item.isDone,
+                priorityTag: "priority_tag" in patch ? patch.priority_tag : item.priorityTag,
+                scheduledTime:
+                  "scheduled_time" in patch
+                    ? patch.scheduled_time || null
+                    : item.scheduledTime,
+                estimatedMinutes:
+                  "estimated_minutes" in patch
+                    ? patch.estimated_minutes
+                    : item.estimatedMinutes,
+                actualMinutes:
+                  "actual_minutes" in patch
+                    ? patch.actual_minutes
+                    : item.actualMinutes,
+                completedAt:
+                  "completed_at" in patch ? patch.completed_at : item.completedAt,
+              };
+            }),
+          };
+        }
+      );
+    },
+    [queryClient, range.start, range.end]
+  );
 
-  const clearDoneDraft = (taskId: string) => {
+  const clearDoneDraft = useCallback((taskId: string) => {
     setTaskDrafts((prev) => {
       const current = prev[taskId];
       if (!current || !("isDone" in current)) return prev;
@@ -585,7 +597,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       }
       return next;
     });
-  };
+  }, []);
 
   const events = tasksForDay
     .filter((task) => task.scheduledTime)
@@ -891,7 +903,15 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         },
       }
     );
-  }, [queryClient, range.start, range.end, setTaskDraft, updateTask]);
+  }, [
+    queryClient,
+    range.start,
+    range.end,
+    setTaskDraft,
+    updateTask,
+    applyTaskPatchToCache,
+    clearDoneDraft,
+  ]);
 
   const requestToggleTaskDone = useCallback(
     (task: TodoTask, checked: boolean) => {
@@ -1065,13 +1085,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         {completionPrompt ? (
           <div className="completion-prompt">
             <div className="completion-prompt-title">
-              Complete "{completionPrompt.title}"
+              Complete &ldquo;{completionPrompt.title}&rdquo;
             </div>
             <div className="completion-prompt-row">
-              <label>
+              <label htmlFor="completion-minutes">
                 Actual minutes (estimated {completionPrompt.estimatedMinutes})
               </label>
               <input
+                id="completion-minutes"
                 type="number"
                 min={0}
                 value={completionMinutes}
@@ -1145,20 +1166,35 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         <div className="task-form">
           <h3>Add activity</h3>
           <div className="form-row">
-            <label>Title</label>
-            <input value={newTitle} onChange={(event) => setNewTitle(event.target.value)} />
-          </div>
-          <div className="form-row">
-            <label>Date</label>
-            <input type="date" value={newDate} onChange={(event) => setNewDate(event.target.value)} />
-          </div>
-          <div className="form-row">
-            <label>Start time</label>
-            <input type="time" value={newTime} onChange={(event) => setNewTime(event.target.value)} />
-          </div>
-          <div className="form-row">
-            <label>Est. minutes</label>
+            <label htmlFor="new-task-title">Title</label>
             <input
+              id="new-task-title"
+              value={newTitle}
+              onChange={(event) => setNewTitle(event.target.value)}
+            />
+          </div>
+          <div className="form-row">
+            <label htmlFor="new-task-date">Date</label>
+            <input
+              id="new-task-date"
+              type="date"
+              value={newDate}
+              onChange={(event) => setNewDate(event.target.value)}
+            />
+          </div>
+          <div className="form-row">
+            <label htmlFor="new-task-time">Start time</label>
+            <input
+              id="new-task-time"
+              type="time"
+              value={newTime}
+              onChange={(event) => setNewTime(event.target.value)}
+            />
+          </div>
+          <div className="form-row">
+            <label htmlFor="new-task-est">Est. minutes</label>
+            <input
+              id="new-task-est"
               type="number"
               value={newEst}
               onChange={(event) => setNewEst(Number(event.target.value))}
