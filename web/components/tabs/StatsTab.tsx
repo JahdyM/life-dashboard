@@ -219,6 +219,7 @@ function renderBucketRows(rows: EstimationBucket[]) {
 
 export default function StatsTab({ userEmail: _userEmail }: { userEmail: string }) {
   const [rangeKey, setRangeKey] = useState<RangeKey>("month");
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [customStart, setCustomStart] = useState(() =>
     format(startOfMonth(new Date()), "yyyy-MM-dd")
   );
@@ -262,34 +263,40 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
 
   const estimationQuery = useQuery({
     queryKey: ["stats-estimation", periodKey],
+    enabled: showAdvanced,
     queryFn: () =>
       fetchJson<EstimationResponse>(`/api/stats/estimation?period=${periodKey}`),
   });
 
   const correlationsQuery = useQuery({
     queryKey: ["stats-correlations", periodKey],
+    enabled: showAdvanced,
     queryFn: () =>
       fetchJson<MoodCorrelationResponse>(`/api/stats/correlations?period=${periodKey}`),
   });
 
   const anxietyQuery = useQuery({
     queryKey: ["stats-anxiety", anxietyDays],
+    enabled: showAdvanced,
     queryFn: () =>
       fetchJson<AnxietyTrendResponse>(`/api/stats/anxiety-trend?days=${anxietyDays}`),
   });
 
   const sleepQuery = useQuery({
     queryKey: ["stats-sleep-score"],
+    enabled: showAdvanced,
     queryFn: () => fetchJson<SleepScoreResponse>("/api/stats/sleep-score"),
   });
 
   const weeklyQuery = useQuery({
     queryKey: ["stats-weekly-report"],
+    enabled: showAdvanced,
     queryFn: () => fetchJson<WeeklyReportResponse>("/api/stats/weekly-report"),
   });
 
   const heatmapQuery = useQuery({
     queryKey: ["stats-heatmap", periodKey],
+    enabled: showAdvanced,
     queryFn: () =>
       fetchJson<ProductivityHeatmapResponse>(
         `/api/stats/productivity-heatmap?period=${periodKey}`
@@ -298,6 +305,7 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
 
   const lifeBalanceQuery = useQuery({
     queryKey: ["stats-life-balance"],
+    enabled: showAdvanced,
     queryFn: () => fetchJson<LifeBalanceResponse>("/api/stats/life-balance"),
   });
 
@@ -449,6 +457,19 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
         ))}
       </div>
 
+      <div className="section stats-simple-mode">
+        <h3>Modo simples</h3>
+        <p className="stats-helper">
+          Mantive os 4 gráficos principais e deixei as análises avançadas como opcionais para
+          ficar mais fácil de interpretar.
+        </p>
+        <button className="secondary" onClick={() => setShowAdvanced((value) => !value)}>
+          {showAdvanced ? "Ocultar análises avançadas" : "Mostrar análises avançadas"}
+        </button>
+      </div>
+
+      {showAdvanced ? (
+        <>
       <div className="section">
         <h3>Task estimation accuracy</h3>
         <div className="stats-controls">
@@ -770,6 +791,8 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
           </div>
         ) : null}
       </div>
+      </>
+      ) : null}
 
       <div className="section">
         <h3>Export data</h3>

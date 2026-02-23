@@ -646,6 +646,17 @@ button.link.danger {
   color: var(--text-muted);
 }
 
+.stats-simple-mode {
+  margin-top: 14px;
+}
+
+.stats-helper {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
 .chart-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
