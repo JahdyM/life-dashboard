@@ -15,6 +15,9 @@ const nullableIsoDateTimeSchema = z.union([
 ]);
 const nullableBoundedInt = (min: number, max: number) =>
   z.union([z.number().int().min(min).max(max), z.null()]);
+const binaryDoneValueSchema = z
+  .union([z.number().int().min(0).max(1), z.boolean()])
+  .transform((value) => (typeof value === "boolean" ? (value ? 1 : 0) : value));
 
 const hasInvalidHtmlTags = (value: string) => /<[^>]*>/g.test(value);
 
@@ -217,7 +220,7 @@ export const customHabitDoneSchema = z
   .object({
     done: z.record(
       z.string().trim().min(1).max(120),
-      z.union([z.number().int().min(0).max(1), z.boolean()])
+      binaryDoneValueSchema
     ),
   })
   .strict();

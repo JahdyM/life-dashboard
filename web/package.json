@@ -6,9 +6,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "lint:strict": "next lint --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "verify": "npm run lint:strict && npm run typecheck && npm run build",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio"
+  },
+  "engines": {
+    "node": "20.x"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.11",
