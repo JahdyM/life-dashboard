@@ -398,10 +398,10 @@ const DailyHabitRow = memo(function DailyHabitRow({
       </button>
       <button
         className="habit-remove-btn"
-        disabled={!habit.inAgenda || saving}
+        disabled={saving}
         type="button"
-        title={`Remove ${habit.label} from agenda`}
-        aria-label={`Remove ${habit.label} from agenda`}
+        title={`Hide ${habit.label} for today`}
+        aria-label={`Hide ${habit.label} for today`}
         onClick={handleRemove}
       >
         -
@@ -435,6 +435,31 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [completionMinutes, setCompletionMinutes] = useState(0);
   const [habitTimeDrafts, setHabitTimeDrafts] = useState<Record<string, string>>({});
   const [habitDurationDrafts, setHabitDurationDrafts] = useState<Record<string, number>>({});
+  const [dismissedHabitsByDay, setDismissedHabitsByDay] = useState<Record<string, string[]>>({});
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("calendar.dismissedHabitsByDay.v1");
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Record<string, string[]>;
+      if (parsed && typeof parsed === "object") {
+        setDismissedHabitsByDay(parsed);
+      }
+    } catch (_error) {
+      // ignore malformed local cache
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        "calendar.dismissedHabitsByDay.v1",
+        JSON.stringify(dismissedHabitsByDay)
+      );
+    } catch (_error) {
+      // ignore storage failures
+    }
+  }, [dismissedHabitsByDay]);
 
   const range = useMemo(() => {
     const start = startOfWeek(selectedDate, { weekStartsOn: 1 });
@@ -647,6 +672,16 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const completedHabits = useMemo(
     () => dailyHabits.filter((habit) => habit.done),
     [dailyHabits]
+  );
+  const visibleDailyHabits = useMemo(
+    () =>
+      dailyHabits.filter((habit) => {
+        if (habit.done) return false;
+        if (habit.inAgenda) return false;
+        const dismissedForDay = dismissedHabitsByDay[selectedDayIso] || [];
+        return !dismissedForDay.includes(habit.id);
+      }),
+    [dailyHabits, dismissedHabitsByDay, selectedDayIso]
   );
 
   const buildTaskPatch = useCallback((task: TodoTask, draft?: TaskDraft) => {
@@ -1205,21 +1240,34 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     (habit: DailyHabitItem) => {
       const scheduledTime = habitTimeDrafts[habit.id] || null;
       const estimatedMinutes = Math.max(5, Number(habitDurationDrafts[habit.id] || 30));
+      setDismissedHabitsByDay((prev) => {
+        const current = prev[selectedDayIso] || [];
+        if (!current.includes(habit.id)) return prev;
+        const nextDay = current.filter((id) => id !== habit.id);
+        return { ...prev, [selectedDayIso]: nextDay };
+      });
       createHabitTask.mutate({
         title: habit.label,
         scheduledTime,
         estimatedMinutes,
       });
     },
-    [createHabitTask, habitDurationDrafts, habitTimeDrafts]
+    [createHabitTask, habitDurationDrafts, habitTimeDrafts, selectedDayIso]
   );
 
   const handleRemoveHabitFromAgenda = useCallback(
     (habit: DailyHabitItem) => {
-      if (!habit.taskIds.length) return;
-      removeHabitTasks.mutate(habit.taskIds);
+      if (habit.taskIds.length) {
+        removeHabitTasks.mutate(habit.taskIds);
+        return;
+      }
+      setDismissedHabitsByDay((prev) => {
+        const current = prev[selectedDayIso] || [];
+        if (current.includes(habit.id)) return prev;
+        return { ...prev, [selectedDayIso]: [...current, habit.id] };
+      });
     },
-    [removeHabitTasks]
+    [removeHabitTasks, selectedDayIso]
   );
 
   const habitsLoading =
@@ -1284,7 +1332,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         {syncWarning && <div className="warning">{syncWarning}</div>}
         {taskSaveError && <div className="warning">{taskSaveError}</div>}
         <div className="task-remembered">
-          <h3>Daily habits (show every day)</h3>
+          <h3>Daily habits to add</h3>
           {habitsLoading ? (
             <div className="query-status">Loading habits for this day...</div>
           ) : null}
@@ -1306,25 +1354,27 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             </div>
           ) : null}
           {!habitsLoading && !habitsError
-            ? dailyHabits.map((habit) => (
-                <DailyHabitRow
-                  key={habit.id}
-                  habit={habit}
-                  timeValue={habitTimeDrafts[habit.id] || ""}
-                  durationValue={Math.max(5, Number(habitDurationDrafts[habit.id] || 30))}
-                  saving={
-                    updateDayHabit.isPending ||
-                    updateCustomHabitDone.isPending ||
-                    createHabitTask.isPending ||
-                    removeHabitTasks.isPending
-                  }
-                  onToggleHabit={handleToggleHabit}
-                  onTimeChange={handleHabitTimeChange}
-                  onDurationChange={handleHabitDurationChange}
-                  onAddToAgenda={handleAddHabitToAgenda}
-                  onRemoveFromAgenda={handleRemoveHabitFromAgenda}
-                />
-              ))
+            ? visibleDailyHabits.length === 0
+              ? <div className="line-empty">All habits are already done, in the agenda, or hidden for today.</div>
+              : visibleDailyHabits.map((habit) => (
+                  <DailyHabitRow
+                    key={habit.id}
+                    habit={habit}
+                    timeValue={habitTimeDrafts[habit.id] || ""}
+                    durationValue={Math.max(5, Number(habitDurationDrafts[habit.id] || 30))}
+                    saving={
+                      updateDayHabit.isPending ||
+                      updateCustomHabitDone.isPending ||
+                      createHabitTask.isPending ||
+                      removeHabitTasks.isPending
+                    }
+                    onToggleHabit={handleToggleHabit}
+                    onTimeChange={handleHabitTimeChange}
+                    onDurationChange={handleHabitDurationChange}
+                    onAddToAgenda={handleAddHabitToAgenda}
+                    onRemoveFromAgenda={handleRemoveHabitFromAgenda}
+                  />
+                ))
             : null}
         </div>
         {completionPrompt ? (
