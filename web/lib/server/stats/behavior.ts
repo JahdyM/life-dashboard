@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { format, parseISO, startOfWeek, endOfWeek, subDays, addDays } from "date-fns";
+import { ensureTaskCompletionColumns } from "@/lib/server/dbCompat";
 import type {
   AnxietyTrendResponse,
   CoupleComparisonResponse,
@@ -675,6 +676,7 @@ export async function getExportPayload(
   startIso: string,
   endIso: string
 ) {
+  await ensureTaskCompletionColumns();
   const [entries, tasks] = await Promise.all([
     prisma.dailyEntryUser.findMany({
       where: {

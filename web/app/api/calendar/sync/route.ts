@@ -17,6 +17,7 @@ import { DEFAULT_TIME_ZONE } from "@/lib/constants";
 import { rangeQuerySchema } from "@/lib/server/schemas";
 import { randomUUID } from "crypto";
 import { logServerEvent } from "@/lib/server/logger";
+import { ensureTaskCompletionColumns } from "@/lib/server/dbCompat";
 
 function knownCalendarSyncError(message: string) {
   return (
@@ -38,6 +39,7 @@ export async function POST(request: NextRequest) {
     const parsed = rangeQuerySchema.safeParse(rawBody);
     if (!parsed.success) return jsonError(zodErrorMessage(parsed.error), 400);
     const { start, end } = parsed.data;
+    await ensureTaskCompletionColumns();
     const events = await listGoogleEvents(userEmail, start, end, "primary");
     const eventIds = events
       .map((event: GoogleCalendarEvent) => event.id)

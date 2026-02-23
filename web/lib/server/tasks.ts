@@ -1,5 +1,6 @@
 import { prisma } from "../db/prisma";
 import { randomUUID } from "crypto";
+import { ensureTaskCompletionColumns } from "./dbCompat";
 
 export type TaskPayload = {
   title: string;
@@ -22,6 +23,7 @@ export async function listTasks(
   endIso: string,
   includeUnscheduled = false
 ) {
+  await ensureTaskCompletionColumns();
   const whereClause = includeUnscheduled
     ? {
         userEmail,
@@ -59,6 +61,7 @@ export async function listTasks(
 }
 
 export async function createTask(userEmail: string, payload: TaskPayload) {
+  await ensureTaskCompletionColumns();
   const nowIso = new Date().toISOString();
   const task = await prisma.todoTask.create({
     data: {
@@ -91,6 +94,7 @@ export async function updateTask(
   taskId: string,
   payload: Partial<TaskPayload>
 ) {
+  await ensureTaskCompletionColumns();
   const nowIso = new Date().toISOString();
   const existing = await prisma.todoTask.findFirst({
     where: { id: taskId, userEmail },
@@ -142,6 +146,7 @@ export async function updateTask(
 }
 
 export async function deleteTask(userEmail: string, taskId: string) {
+  await ensureTaskCompletionColumns();
   const [, deletedTask] = await prisma.$transaction([
     prisma.todoSubtask.deleteMany({
       where: { userEmail, taskId },
@@ -160,6 +165,7 @@ export async function createSubtask(
   taskId: string,
   title: string
 ) {
+  await ensureTaskCompletionColumns();
   const ownedTask = await prisma.todoTask.findFirst({
     where: { id: taskId, userEmail },
     select: { id: true },
@@ -194,6 +200,7 @@ export async function updateSubtask(
     completedAt: string | null;
   }>
 ) {
+  await ensureTaskCompletionColumns();
   const nowIso = new Date().toISOString();
   const existing = await prisma.todoSubtask.findFirst({
     where: { id: subtaskId, userEmail },
@@ -239,6 +246,7 @@ export async function updateSubtask(
 }
 
 export async function deleteSubtask(userEmail: string, subtaskId: string) {
+  await ensureTaskCompletionColumns();
   const deleted = await prisma.todoSubtask.deleteMany({
     where: { id: subtaskId, userEmail },
   });

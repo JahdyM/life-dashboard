@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { format, parseISO, subDays } from "date-fns";
+import { ensureTaskCompletionColumns } from "@/lib/server/dbCompat";
 import type {
   EstimationBucket,
   EstimationPoint,
@@ -98,6 +99,7 @@ export async function getEstimationStats(
   userEmail: string,
   period: "30d" | "90d" | "all"
 ): Promise<EstimationResponse> {
+  await ensureTaskCompletionColumns();
   const today = new Date();
   const todayIso = format(today, "yyyy-MM-dd");
   const nowIso = today.toISOString();

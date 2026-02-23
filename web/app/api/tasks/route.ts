@@ -18,9 +18,11 @@ import { getUserTimeZone } from "@/lib/server/settings";
 import { DEFAULT_TIME_ZONE } from "@/lib/constants";
 import { taskCreateSchema, taskListQuerySchema } from "@/lib/server/schemas";
 import { logServerEvent } from "@/lib/server/logger";
+import { ensureTaskCompletionColumns } from "@/lib/server/dbCompat";
 import { randomUUID } from "crypto";
 
 async function syncGoogleTasks(userEmail: string, start: string, end: string) {
+  await ensureTaskCompletionColumns();
   const events = await listGoogleEvents(userEmail, start, end, "primary");
   if (!events.length) return;
   const eventIds = events
