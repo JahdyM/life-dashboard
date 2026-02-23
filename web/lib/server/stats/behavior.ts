@@ -526,9 +526,16 @@ export async function getLifeBalanceScore(userEmail: string): Promise<LifeBalanc
 
   const byDate = new Map(entries.map((entry) => [entry.date, entry]));
   const trend: Array<{ date: string; score: number }> = [];
-  const startDate = parseISO(startIso);
-  for (let index = 0; index < 30; index += 1) {
-    const dayIso = format(addDays(startDate, index), "yyyy-MM-dd");
+  const trendDates = Array.from(
+    new Set([
+      ...entries.map((entry) => entry.date),
+      ...Array.from(taskByDate.entries())
+        .filter(([, aggregate]) => aggregate.total > 0)
+        .map(([date]) => date),
+    ])
+  ).sort();
+
+  for (const dayIso of trendDates) {
     const entry = byDate.get(dayIso);
     const taskAggregate = taskByDate.get(dayIso) || { total: 0, done: 0 };
 
@@ -564,6 +571,20 @@ export async function getLifeBalanceScore(userEmail: string): Promise<LifeBalanc
       date: dayIso,
       score: Math.round(score),
     });
+  }
+
+  if (!trend.length) {
+    return {
+      score: 0,
+      breakdown: {
+        physical: 0,
+        mental: 0,
+        spiritual: 0,
+        productivity: 0,
+      },
+      trend: [],
+      insight: "No life-balance data in the last 30 days yet.",
+    };
   }
 
   const latest = trend[trend.length - 1] || { date: endIso, score: 0 };
