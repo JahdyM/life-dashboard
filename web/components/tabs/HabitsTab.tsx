@@ -209,9 +209,15 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
   }, [dayQuery, customHabitsQuery, customDoneQuery, meetingDaysQuery, familyDayQuery]);
 
   const dayEntry = dayQuery.data?.entry || {};
-  const customHabitsRaw = customHabitsQuery.data?.items ?? EMPTY_CUSTOM_HABITS;
+  const customHabitsRaw = useMemo(
+    () => customHabitsQuery.data?.items ?? EMPTY_CUSTOM_HABITS,
+    [customHabitsQuery.data?.items]
+  );
   const customDone = customDoneQuery.data?.done ?? EMPTY_DONE;
-  const meetingDaysRaw = meetingDaysQuery.data?.days ?? EMPTY_DAYS;
+  const meetingDaysRaw = useMemo(
+    () => meetingDaysQuery.data?.days ?? EMPTY_DAYS,
+    [meetingDaysQuery.data?.days]
+  );
   const familyDay = familyDayQuery.data?.day ?? 6;
 
   const meetingDays = useMemo(() => {

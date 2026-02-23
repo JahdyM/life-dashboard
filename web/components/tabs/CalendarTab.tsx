@@ -7,7 +7,8 @@ import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { format, addDays, startOfWeek, endOfWeek } from "date-fns";
-import type { TodoTask } from "@/lib/types";
+import { FIXED_SHARED_HABITS } from "@/lib/constants";
+import type { CustomHabit, DayEntry, TodoTask } from "@/lib/types";
 
 type TaskDraft = {
   isDone?: boolean;
@@ -19,6 +20,21 @@ type TaskDraft = {
 type TaskListResponse = {
   items: TodoTask[];
   warning?: string | null;
+};
+
+type DayResponse = { entry: DayEntry };
+type CustomHabitsResponse = { items: CustomHabit[] };
+type CustomDoneResponse = { done: Record<string, number> };
+type MeetingDaysResponse = { days: number[] };
+type FamilyDayResponse = { day: number };
+
+type DailyHabitItem = {
+  id: string;
+  label: string;
+  kind: "fixed" | "custom";
+  key: string;
+  done: boolean;
+  inAgenda: boolean;
 };
 
 type CompletionPromptState = {
@@ -33,6 +49,40 @@ function readErrorMessage(error: unknown, fallback: string) {
   }
   return fallback;
 }
+
+const toCamel = (key: string) =>
+  key.replace(/_([a-z])/g, (_match, char) => String(char).toUpperCase());
+
+const canonicalHabitKey = (name: string) =>
+  String(name || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/\s*\(books\)/g, "");
+
+const weekdayFromIso = (iso: string) => {
+  const [year, month, day] = String(iso || "")
+    .split("-")
+    .map((value) => Number(value));
+  if (!year || !month || !day) return new Date().getDay();
+  return new Date(year, month - 1, day).getDay();
+};
+
+const isHabitScheduledOnDate = (
+  habitKey: string,
+  dayIso: string,
+  meetingDays: number[],
+  familyDay: number
+) => {
+  const dayIndex = weekdayFromIso(dayIso);
+  if (habitKey === "meeting_attended" || habitKey === "prepare_meeting") {
+    return meetingDays.includes(dayIndex);
+  }
+  if (habitKey === "family_worship") {
+    return dayIndex === familyDay;
+  }
+  return true;
+};
 
 type EditableTaskRowProps = {
   task: TodoTask;
@@ -199,6 +249,56 @@ const SimpleTaskRow = memo(function SimpleTaskRow({
   );
 });
 
+type DailyHabitRowProps = {
+  habit: DailyHabitItem;
+  timeValue: string;
+  saving: boolean;
+  onToggleHabit: (habit: DailyHabitItem, checked: boolean) => void;
+  onTimeChange: (habitId: string, value: string) => void;
+  onAddToAgenda: (habit: DailyHabitItem) => void;
+};
+
+const DailyHabitRow = memo(function DailyHabitRow({
+  habit,
+  timeValue,
+  saving,
+  onToggleHabit,
+  onTimeChange,
+  onAddToAgenda,
+}: DailyHabitRowProps) {
+  const handleToggle = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      onToggleHabit(habit, event.target.checked),
+    [habit, onToggleHabit]
+  );
+  const handleTime = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      onTimeChange(habit.id, event.target.value),
+    [habit.id, onTimeChange]
+  );
+  const handleAdd = useCallback(() => onAddToAgenda(habit), [habit, onAddToAgenda]);
+
+  return (
+    <div className={`task-row habit-row-inline ${habit.done ? "completed" : ""}`}>
+      <input type="checkbox" checked={habit.done} onChange={handleToggle} />
+      <span className="task-title">{habit.label}</span>
+      <input
+        className="habit-time-input"
+        type="time"
+        value={timeValue}
+        onChange={handleTime}
+      />
+      <button
+        className="task-confirm-btn visible"
+        disabled={habit.inAgenda || saving}
+        onClick={handleAdd}
+      >
+        {habit.inAgenda ? "in agenda" : saving ? "..." : "add"}
+      </button>
+    </div>
+  );
+});
+
 export default function CalendarTab({ userEmail: _userEmail }: { userEmail: string }) {
   const queryClient = useQueryClient();
   const calendarRef = useRef<FullCalendar | null>(null);
@@ -222,6 +322,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [taskSaveError, setTaskSaveError] = useState<string | null>(null);
   const [completionPrompt, setCompletionPrompt] = useState<CompletionPromptState | null>(null);
   const [completionMinutes, setCompletionMinutes] = useState(0);
+  const [habitTimeDrafts, setHabitTimeDrafts] = useState<Record<string, string>>({});
 
   const range = useMemo(() => {
     const start = startOfWeek(selectedDate, { weekStartsOn: 1 });
@@ -231,6 +332,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       end: format(end, "yyyy-MM-dd"),
     };
   }, [selectedDate]);
+  const selectedDayIso = useMemo(
+    () => format(selectedDate, "yyyy-MM-dd"),
+    [selectedDate]
+  );
 
   const scrollTime = useMemo(() => {
     const now = new Date(nowTick);
@@ -264,12 +369,38 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     api.scrollToTime(scrollTime);
   }, [scrollTime, selectedDate]);
 
+  useEffect(() => {
+    setHabitTimeDrafts({});
+  }, [selectedDayIso]);
+
   const tasksQuery = useQuery({
     queryKey: ["tasks", range.start, range.end],
     queryFn: () =>
       fetchJson<TaskListResponse>(
         `/api/tasks?start=${range.start}&end=${range.end}&sync=${didSync ? 0 : 1}&include_unscheduled=1`
       ),
+  });
+
+  const dayQuery = useQuery({
+    queryKey: ["day", selectedDayIso],
+    queryFn: () => fetchJson<DayResponse>(`/api/day/${selectedDayIso}`),
+  });
+  const customHabitsQuery = useQuery({
+    queryKey: ["custom-habits"],
+    queryFn: () => fetchJson<CustomHabitsResponse>("/api/habits/custom"),
+  });
+  const customDoneQuery = useQuery({
+    queryKey: ["custom-habits-done", selectedDayIso],
+    queryFn: () =>
+      fetchJson<CustomDoneResponse>(`/api/habits/custom/done/${selectedDayIso}`),
+  });
+  const meetingDaysQuery = useQuery({
+    queryKey: ["meeting-days"],
+    queryFn: () => fetchJson<MeetingDaysResponse>("/api/settings/meeting-days"),
+  });
+  const familyDayQuery = useQuery({
+    queryKey: ["family-day"],
+    queryFn: () => fetchJson<FamilyDayResponse>("/api/settings/family-worship-day"),
   });
 
   useEffect(() => {
@@ -281,9 +412,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const tasks = tasksQuery.data?.items || [];
   const syncWarning = tasksQuery.data?.warning;
 
-  const tasksForDay = tasks.filter(
-    (task) => task.scheduledDate === format(selectedDate, "yyyy-MM-dd")
-  );
+  const tasksForDay = tasks.filter((task) => task.scheduledDate === selectedDayIso);
   const unscheduledTasks = tasks.filter((task) => !task.scheduledDate);
 
   const setTaskDraft = useCallback((taskId: string, patch: TaskDraft) => {
@@ -318,6 +447,59 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   const pendingTasks = tasksForDay.filter((task) => !readTaskDraft(task).isDone);
   const completedTasks = tasksForDay.filter((task) => readTaskDraft(task).isDone);
+
+  const dayEntry = dayQuery.data?.entry || {};
+  const customHabitsRaw = customHabitsQuery.data?.items || [];
+  const customDone = customDoneQuery.data?.done || {};
+  const meetingDaysRaw = meetingDaysQuery.data?.days || [];
+  const familyDay = familyDayQuery.data?.day ?? 6;
+
+  const meetingDays = useMemo(() => {
+    const unique = Array.from(new Set(meetingDaysRaw.map((value) => Number(value))));
+    unique.sort((a, b) => a - b);
+    return unique.filter((value) => Number.isInteger(value) && value >= 0 && value <= 6);
+  }, [meetingDaysRaw]);
+
+  const customHabits = useMemo(() => {
+    const seen = new Map<string, CustomHabit>();
+    customHabitsRaw.forEach((habit) => {
+      const name = String(habit?.name || "").trim();
+      if (!name) return;
+      const canonical = canonicalHabitKey(name);
+      if (!seen.has(canonical)) seen.set(canonical, habit);
+    });
+    return Array.from(seen.values());
+  }, [customHabitsRaw]);
+
+  const dayTaskTitleSet = useMemo(() => {
+    return new Set(
+      tasksForDay.map((task) => canonicalHabitKey(task.title))
+    );
+  }, [tasksForDay]);
+
+  const dailyHabits = useMemo<DailyHabitItem[]>(() => {
+    const fixed: DailyHabitItem[] = FIXED_SHARED_HABITS.filter((habit) =>
+      isHabitScheduledOnDate(habit.key, selectedDayIso, meetingDays, familyDay)
+    ).map((habit) => ({
+      id: `fixed:${habit.key}`,
+      label: habit.label,
+      kind: "fixed" as const,
+      key: habit.key,
+      done: Boolean(dayEntry[toCamel(habit.key) as keyof DayEntry]),
+      inAgenda: dayTaskTitleSet.has(canonicalHabitKey(habit.label)),
+    }));
+
+    const custom: DailyHabitItem[] = customHabits.map((habit) => ({
+      id: `custom:${habit.id}`,
+      label: habit.name,
+      kind: "custom" as const,
+      key: habit.id,
+      done: Boolean(customDone[habit.id]),
+      inAgenda: dayTaskTitleSet.has(canonicalHabitKey(habit.name)),
+    }));
+
+    return [...fixed, ...custom];
+  }, [customDone, customHabits, dayEntry, dayTaskTitleSet, familyDay, meetingDays, selectedDayIso]);
 
   const buildTaskPatch = useCallback((task: TodoTask, draft?: TaskDraft) => {
     if (!draft) return {};
@@ -448,6 +630,100 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     },
     onError: (error) => {
       setTaskSaveError(readErrorMessage(error, "Could not create task."));
+    },
+  });
+
+  const updateDayHabit = useMutation({
+    mutationFn: (payload: Record<string, number>) =>
+      fetchJson<DayResponse>(`/api/day/${selectedDayIso}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      }),
+    onMutate: async (payload) => {
+      setTaskSaveError(null);
+      await queryClient.cancelQueries({ queryKey: ["day", selectedDayIso] });
+      const previous = queryClient.getQueryData<DayResponse>(["day", selectedDayIso]);
+      const normalizedPayload = Object.entries(payload).reduce(
+        (acc, [key, value]) => ({
+          ...acc,
+          [toCamel(key)]: value,
+        }),
+        {} as Record<string, number>
+      );
+      queryClient.setQueryData(["day", selectedDayIso], (old: DayResponse | undefined) => ({
+        entry: { ...(old?.entry || {}), ...normalizedPayload },
+      }));
+      return { previous };
+    },
+    onError: (error, _payload, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["day", selectedDayIso], context.previous);
+      }
+      setTaskSaveError(readErrorMessage(error, "Could not update daily habit."));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["day", selectedDayIso] });
+      queryClient.invalidateQueries({ queryKey: ["couple-streaks"] });
+      queryClient.invalidateQueries({ queryKey: ["init"] });
+    },
+  });
+
+  const updateCustomHabitDone = useMutation({
+    mutationFn: (done: Record<string, number>) =>
+      fetchJson<{ ok: boolean }>(`/api/habits/custom/done/${selectedDayIso}`, {
+        method: "PUT",
+        body: JSON.stringify({ done }),
+      }),
+    onMutate: async (done) => {
+      setTaskSaveError(null);
+      await queryClient.cancelQueries({ queryKey: ["custom-habits-done", selectedDayIso] });
+      const previous = queryClient.getQueryData<CustomDoneResponse>([
+        "custom-habits-done",
+        selectedDayIso,
+      ]);
+      queryClient.setQueryData(["custom-habits-done", selectedDayIso], { done });
+      return { previous };
+    },
+    onError: (error, _payload, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          ["custom-habits-done", selectedDayIso],
+          context.previous
+        );
+      }
+      setTaskSaveError(readErrorMessage(error, "Could not update custom habit."));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["custom-habits-done", selectedDayIso] });
+      queryClient.invalidateQueries({ queryKey: ["couple-streaks"] });
+      queryClient.invalidateQueries({ queryKey: ["init"] });
+    },
+  });
+
+  const createHabitTask = useMutation({
+    mutationFn: ({
+      title,
+      scheduledTime,
+    }: {
+      title: string;
+      scheduledTime?: string | null;
+    }) =>
+      fetchJson("/api/tasks", {
+        method: "POST",
+        body: JSON.stringify({
+          title,
+          source: "habit",
+          scheduled_date: selectedDayIso,
+          scheduled_time: scheduledTime || null,
+          estimated_minutes: 30,
+          sync_google: true,
+        }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
+    },
+    onError: (error) => {
+      setTaskSaveError(readErrorMessage(error, "Could not add habit to agenda."));
     },
   });
 
@@ -669,11 +945,54 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     (taskId: string) => {
       updateTask.mutate({
         id: taskId,
-        data: { scheduled_date: format(selectedDate, "yyyy-MM-dd") },
+        data: { scheduled_date: selectedDayIso },
       });
     },
-    [updateTask, selectedDate]
+    [updateTask, selectedDayIso]
   );
+
+  const handleHabitTimeChange = useCallback((habitId: string, value: string) => {
+    setHabitTimeDrafts((prev) => ({
+      ...prev,
+      [habitId]: value,
+    }));
+  }, []);
+
+  const handleToggleHabit = useCallback(
+    (habit: DailyHabitItem, checked: boolean) => {
+      if (habit.kind === "fixed") {
+        updateDayHabit.mutate({ [habit.key]: checked ? 1 : 0 });
+        return;
+      }
+      const nextDone = { ...customDone, [habit.key]: checked ? 1 : 0 };
+      updateCustomHabitDone.mutate(nextDone);
+    },
+    [customDone, updateCustomHabitDone, updateDayHabit]
+  );
+
+  const handleAddHabitToAgenda = useCallback(
+    (habit: DailyHabitItem) => {
+      const scheduledTime = habitTimeDrafts[habit.id] || null;
+      createHabitTask.mutate({
+        title: habit.label,
+        scheduledTime,
+      });
+    },
+    [createHabitTask, habitTimeDrafts]
+  );
+
+  const habitsLoading =
+    dayQuery.isPending ||
+    customHabitsQuery.isPending ||
+    customDoneQuery.isPending ||
+    meetingDaysQuery.isPending ||
+    familyDayQuery.isPending;
+  const habitsError =
+    dayQuery.isError ||
+    customHabitsQuery.isError ||
+    customDoneQuery.isError ||
+    meetingDaysQuery.isError ||
+    familyDayQuery.isError;
 
   return (
     <div className="calendar-layout">
@@ -703,6 +1022,46 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         )}
         {syncWarning && <div className="warning">{syncWarning}</div>}
         {taskSaveError && <div className="warning">{taskSaveError}</div>}
+        <div className="task-remembered">
+          <h3>Daily habits (show every day)</h3>
+          {habitsLoading ? (
+            <div className="query-status">Loading habits for this day...</div>
+          ) : null}
+          {habitsError ? (
+            <div className="query-status error">
+              <span>Could not load daily habits.</span>
+              <button
+                className="secondary"
+                onClick={() => {
+                  dayQuery.refetch();
+                  customHabitsQuery.refetch();
+                  customDoneQuery.refetch();
+                  meetingDaysQuery.refetch();
+                  familyDayQuery.refetch();
+                }}
+              >
+                Retry
+              </button>
+            </div>
+          ) : null}
+          {!habitsLoading && !habitsError
+            ? dailyHabits.map((habit) => (
+                <DailyHabitRow
+                  key={habit.id}
+                  habit={habit}
+                  timeValue={habitTimeDrafts[habit.id] || ""}
+                  saving={
+                    updateDayHabit.isPending ||
+                    updateCustomHabitDone.isPending ||
+                    createHabitTask.isPending
+                  }
+                  onToggleHabit={handleToggleHabit}
+                  onTimeChange={handleHabitTimeChange}
+                  onAddToAgenda={handleAddHabitToAgenda}
+                />
+              ))
+            : null}
+        </div>
         {completionPrompt ? (
           <div className="completion-prompt">
             <div className="completion-prompt-title">
