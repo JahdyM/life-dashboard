@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
@@ -15,15 +15,22 @@ function resolveSignInErrorMessage(error: string | null): string {
   return "Login failed. Please try again.";
 }
 
-export default function SignInClient({ error }: { error: string | null }) {
+export default function SignInClient() {
   const router = useRouter();
   const { status } = useSession();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "authenticated") {
       router.replace("/");
     }
   }, [status, router]);
+
+  useEffect(() => {
+    const search = typeof window !== "undefined" ? window.location.search : "";
+    const params = new URLSearchParams(search);
+    setError(params.get("error"));
+  }, []);
 
   const errorMessage = useMemo(() => resolveSignInErrorMessage(error), [error]);
   const loading = status === "loading" || status === "authenticated";
