@@ -532,7 +532,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   });
   const estimationHintQuery = useQuery({
     queryKey: ["stats-estimation", "calendar-hint"],
-    queryFn: () => fetchJson<EstimationResponse>("/api/stats/estimation?period=90d"),
+    queryFn: () => fetchJson<EstimationResponse>("/api/stats/estimation?period=all"),
     staleTime: 5 * 60 * 1000,
   });
   const customHabitsQuery = useQuery({
@@ -1295,16 +1295,16 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     if (summary.tendency === "insufficient_data") {
       return summary.recommendation;
     }
-    const avgError = Number(summary.averageErrorMinutes || 0);
-    const absMinutes = Math.round(Math.abs(avgError));
+    const ratio = Number(summary.averageRatio || 1);
+    const sampleCount = Number(summary.totalSamples || 0);
+    const projected30 = Math.max(5, Math.round(30 * ratio));
     if (summary.tendency === "overestimate") {
-      const planned30 = Math.max(5, 30 - absMinutes);
-      return `Estimativa: voce costuma superestimar em ~${absMinutes} min por tarefa. Ex.: tarefa de 30 min tende a levar ~${planned30} min.`;
+      return `Estimativa (historico completo, ${sampleCount} tarefas feitas): voce costuma superestimar. Tarefa de 30 min tende a levar ~${projected30} min.`;
     }
     if (summary.tendency === "underestimate") {
-      return `Estimativa: voce costuma subestimar em ~${absMinutes} min por tarefa. Ex.: tarefa de 30 min tende a levar ~${30 + absMinutes} min.`;
+      return `Estimativa (historico completo, ${sampleCount} tarefas feitas): voce costuma subestimar. Tarefa de 30 min tende a levar ~${projected30} min.`;
     }
-    return "Estimativa: seu tempo real esta proximo do planejado.";
+    return `Estimativa (historico completo, ${sampleCount} tarefas feitas): seu tempo real esta proximo do planejado.`;
   }, [estimationHintQuery.data]);
 
   return (

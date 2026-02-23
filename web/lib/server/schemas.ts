@@ -60,7 +60,7 @@ export const coupleMoodboardQuerySchema = z.object({
 
 export const estimationStatsQuerySchema = z
   .object({
-    period: z.enum(["30d", "90d", "all"]).default("90d"),
+    period: z.enum(["30d", "90d", "all"]).default("all"),
   })
   .strict();
 

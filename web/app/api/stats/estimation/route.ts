@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const userEmail = await requireUserEmail();
     const { searchParams } = new URL(request.url);
     const parsed = estimationStatsQuerySchema.safeParse({
-      period: searchParams.get("period") || "90d",
+      period: searchParams.get("period") || "all",
     });
     if (!parsed.success) {
       return jsonError(zodErrorMessage(parsed.error), 400);

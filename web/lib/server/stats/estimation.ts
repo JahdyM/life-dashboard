@@ -23,8 +23,33 @@ const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const average = (values: number[]) =>
   values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
 
+const median = (values: number[]) => {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  if (sorted.length % 2) {
+    return sorted[middle];
+  }
+  return (sorted[middle - 1] + sorted[middle]) / 2;
+};
+
+const trimmedMean = (values: number[]) => {
+  if (values.length < 5) return average(values);
+  const sorted = [...values].sort((a, b) => a - b);
+  const trimEachSide = Math.max(1, Math.floor(sorted.length * 0.1));
+  const trimmed = sorted.slice(trimEachSide, sorted.length - trimEachSide);
+  return average(trimmed.length ? trimmed : sorted);
+};
+
 const round2 = (value: number | null) =>
   value === null ? null : Math.round(value * 100) / 100;
+
+const normalizeCompletedDate = (completedAt: string | null) => {
+  if (!completedAt) return null;
+  const parsed = new Date(completedAt);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return format(parsed, "yyyy-MM-dd");
+};
 
 const buildSummary = (points: EstimationPoint[]): EstimationSummary => {
   if (!points.length) {
@@ -46,6 +71,10 @@ const buildSummary = (points: EstimationPoint[]): EstimationSummary => {
   const absErrorPercent = points.map((point) => Math.abs(point.errorPercent));
 
   const averageRatio = average(ratios);
+  const medianRatio = median(ratios);
+  const trimmedRatio = trimmedMean(ratios);
+  const tendencyRatio =
+    trimmedRatio ?? medianRatio ?? averageRatio ?? 1;
   const averageError = average(errorMinutes);
   const averagePercent = average(errorPercent);
   const averageAbsPercent = average(absErrorPercent);
@@ -55,14 +84,22 @@ const buildSummary = (points: EstimationPoint[]): EstimationSummary => {
   let tendency: EstimationSummary["tendency"] = "balanced";
   let recommendation = "Your estimates are close to reality. Keep this planning style.";
 
-  if (averageRatio !== null && averageRatio > 1.1) {
+  if (tendencyRatio > 1.1) {
     tendency = "underestimate";
+    const factor = Math.min(2.5, Math.max(1.05, tendencyRatio));
+    const sampleTask = Math.round(30 * factor);
     recommendation =
-      "Tasks are taking longer than estimated. Add a 20-40% buffer to future estimates.";
-  } else if (averageRatio !== null && averageRatio < 0.9) {
+      `Completed-task history shows underestimation. Add ~${Math.round(
+        (factor - 1) * 100
+      )}% buffer (30 min tasks usually take ~${sampleTask} min).`;
+  } else if (tendencyRatio < 0.9) {
     tendency = "overestimate";
+    const factor = Math.min(0.95, Math.max(0.4, tendencyRatio));
+    const sampleTask = Math.max(5, Math.round(30 * factor));
     recommendation =
-      "You usually finish earlier than planned. Reduce estimates slightly for tighter plans.";
+      `Completed-task history shows overestimation. Reduce estimates by ~${Math.round(
+        (1 - factor) * 100
+      )}% (30 min tasks usually take ~${sampleTask} min).`;
   }
 
   return {
@@ -105,6 +142,7 @@ export async function getEstimationStats(
   const nowIso = today.toISOString();
   const where: Record<string, unknown> = {
     userEmail,
+    isDone: 1,
     estimatedMinutes: { not: null },
     actualMinutes: { not: null },
   };
@@ -132,10 +170,10 @@ export async function getEstimationStats(
       source: true,
       estimatedMinutes: true,
       actualMinutes: true,
+      completedAt: true,
       scheduledDate: true,
     },
-    orderBy: [{ scheduledDate: "desc" }, { updatedAt: "desc" }],
-    take: 2500,
+    orderBy: [{ completedAt: "desc" }, { scheduledDate: "desc" }, { updatedAt: "desc" }],
   });
 
   const points: EstimationPoint[] = tasks
@@ -148,6 +186,8 @@ export async function getEstimationStats(
     .map((task) => {
       const estimated = Number(task.estimatedMinutes || 0);
       const actual = Number(task.actualMinutes || 0);
+      const completedDate = normalizeCompletedDate(task.completedAt || null);
+      const referenceDate = task.scheduledDate || completedDate || null;
       const ratio = actual / estimated;
       const errorMinutes = actual - estimated;
       const errorPercent = (errorMinutes / estimated) * 100;
@@ -160,7 +200,7 @@ export async function getEstimationStats(
         errorMinutes,
         errorPercent,
         priorityTag: task.priorityTag || "Medium",
-        scheduledDate: task.scheduledDate || null,
+        scheduledDate: referenceDate,
       };
     });
 
@@ -190,15 +230,13 @@ export async function getEstimationStats(
     return weekday;
   });
 
-  const sourceLabels = Array.from(
-    new Set(
-      tasks.map((task) => String(task.source || "manual").toLowerCase())
-    )
-  ).sort();
+  const sourceByTaskId = new Map(
+    tasks.map((task) => [task.id, String(task.source || "manual").toLowerCase()])
+  );
+  const sourceLabels = Array.from(new Set(sourceByTaskId.values())).sort();
 
   const bySource = aggregateBuckets(points, sourceLabels, (point) => {
-    const matching = tasks.find((task) => task.id === point.taskId);
-    return String(matching?.source || "manual").toLowerCase();
+    return sourceByTaskId.get(point.taskId) || "manual";
   });
 
   const sortedByDate = [...points].sort((a, b) =>
