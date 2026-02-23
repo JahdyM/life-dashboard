@@ -36,6 +36,7 @@ type DailyHabitItem = {
   key: string;
   done: boolean;
   inAgenda: boolean;
+  taskIds: string[];
 };
 
 type CompletionPromptState = {
@@ -264,19 +265,25 @@ const SimpleTaskRow = memo(function SimpleTaskRow({
 type DailyHabitRowProps = {
   habit: DailyHabitItem;
   timeValue: string;
+  durationValue: number;
   saving: boolean;
   onToggleHabit: (habit: DailyHabitItem, checked: boolean) => void;
   onTimeChange: (habitId: string, value: string) => void;
+  onDurationChange: (habitId: string, value: number) => void;
   onAddToAgenda: (habit: DailyHabitItem) => void;
+  onRemoveFromAgenda: (habit: DailyHabitItem) => void;
 };
 
 const DailyHabitRow = memo(function DailyHabitRow({
   habit,
   timeValue,
+  durationValue,
   saving,
   onToggleHabit,
   onTimeChange,
+  onDurationChange,
   onAddToAgenda,
+  onRemoveFromAgenda,
 }: DailyHabitRowProps) {
   const handleToggle = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) =>
@@ -288,7 +295,18 @@ const DailyHabitRow = memo(function DailyHabitRow({
       onTimeChange(habit.id, event.target.value),
     [habit.id, onTimeChange]
   );
+  const handleDuration = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const next = Math.max(5, Number(event.target.value || 30));
+      onDurationChange(habit.id, next);
+    },
+    [habit.id, onDurationChange]
+  );
   const handleAdd = useCallback(() => onAddToAgenda(habit), [habit, onAddToAgenda]);
+  const handleRemove = useCallback(
+    () => onRemoveFromAgenda(habit),
+    [habit, onRemoveFromAgenda]
+  );
 
   return (
     <div className={`task-row habit-row-inline ${habit.done ? "completed" : ""}`}>
@@ -300,12 +318,27 @@ const DailyHabitRow = memo(function DailyHabitRow({
         value={timeValue}
         onChange={handleTime}
       />
+      <input
+        className="habit-duration-input"
+        type="number"
+        min={5}
+        step={5}
+        value={durationValue}
+        onChange={handleDuration}
+      />
       <button
         className="task-confirm-btn visible"
         disabled={habit.inAgenda || saving}
         onClick={handleAdd}
       >
         {habit.inAgenda ? "in agenda" : saving ? "..." : "add"}
+      </button>
+      <button
+        className="link danger"
+        disabled={!habit.inAgenda || saving}
+        onClick={handleRemove}
+      >
+        remove
       </button>
     </div>
   );
@@ -335,6 +368,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [completionPrompt, setCompletionPrompt] = useState<CompletionPromptState | null>(null);
   const [completionMinutes, setCompletionMinutes] = useState(0);
   const [habitTimeDrafts, setHabitTimeDrafts] = useState<Record<string, string>>({});
+  const [habitDurationDrafts, setHabitDurationDrafts] = useState<Record<string, number>>({});
 
   const range = useMemo(() => {
     const start = startOfWeek(selectedDate, { weekStartsOn: 1 });
@@ -383,6 +417,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   useEffect(() => {
     setHabitTimeDrafts({});
+    setHabitDurationDrafts({});
   }, [selectedDayIso]);
 
   const tasksQuery = useQuery({
@@ -501,35 +536,49 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     return Array.from(seen.values());
   }, [customHabitsRaw]);
 
-  const dayTaskTitleSet = useMemo(() => {
-    return new Set(
-      tasksForDay.map((task) => canonicalHabitKey(task.title))
-    );
-  }, [tasksForDay]);
-
   const dailyHabits = useMemo<DailyHabitItem[]>(() => {
     const fixed: DailyHabitItem[] = FIXED_SHARED_HABITS.filter((habit) =>
       isHabitScheduledOnDate(habit.key, selectedDayIso, meetingDays, familyDay)
-    ).map((habit) => ({
-      id: `fixed:${habit.key}`,
-      label: habit.label,
-      kind: "fixed" as const,
-      key: habit.key,
-      done: Boolean(dayEntry[toCamel(habit.key) as keyof DayEntry]),
-      inAgenda: dayTaskTitleSet.has(canonicalHabitKey(habit.label)),
-    }));
+    ).map((habit) => {
+      const taskIds = tasksForDay
+        .filter(
+          (task) =>
+            task.source === "habit" &&
+            canonicalHabitKey(task.title) === canonicalHabitKey(habit.label)
+        )
+        .map((task) => task.id);
+      return {
+        id: `fixed:${habit.key}`,
+        label: habit.label,
+        kind: "fixed" as const,
+        key: habit.key,
+        done: Boolean(dayEntry[toCamel(habit.key) as keyof DayEntry]),
+        inAgenda: taskIds.length > 0,
+        taskIds,
+      };
+    });
 
-    const custom: DailyHabitItem[] = customHabits.map((habit) => ({
-      id: `custom:${habit.id}`,
-      label: habit.name,
-      kind: "custom" as const,
-      key: habit.id,
-      done: Boolean(customDone[habit.id]),
-      inAgenda: dayTaskTitleSet.has(canonicalHabitKey(habit.name)),
-    }));
+    const custom: DailyHabitItem[] = customHabits.map((habit) => {
+      const taskIds = tasksForDay
+        .filter(
+          (task) =>
+            task.source === "habit" &&
+            canonicalHabitKey(task.title) === canonicalHabitKey(habit.name)
+        )
+        .map((task) => task.id);
+      return {
+        id: `custom:${habit.id}`,
+        label: habit.name,
+        kind: "custom" as const,
+        key: habit.id,
+        done: Boolean(customDone[habit.id]),
+        inAgenda: taskIds.length > 0,
+        taskIds,
+      };
+    });
 
     return [...fixed, ...custom];
-  }, [customDone, customHabits, dayEntry, dayTaskTitleSet, familyDay, meetingDays, selectedDayIso]);
+  }, [customDone, customHabits, dayEntry, familyDay, meetingDays, selectedDayIso, tasksForDay]);
 
   const buildTaskPatch = useCallback((task: TodoTask, draft?: TaskDraft) => {
     if (!draft) return {};
@@ -741,9 +790,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     mutationFn: ({
       title,
       scheduledTime,
+      estimatedMinutes,
     }: {
       title: string;
       scheduledTime?: string | null;
+      estimatedMinutes?: number;
     }) =>
       fetchJson("/api/tasks", {
         method: "POST",
@@ -752,7 +803,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           source: "habit",
           scheduled_date: selectedDayIso,
           scheduled_time: scheduledTime || null,
-          estimated_minutes: 30,
+          estimated_minutes: estimatedMinutes || 30,
           sync_google: true,
         }),
       }),
@@ -761,6 +812,26 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     },
     onError: (error) => {
       setTaskSaveError(readErrorMessage(error, "Could not add habit to agenda."));
+    },
+  });
+
+  const removeHabitTasks = useMutation({
+    mutationFn: async (taskIds: string[]) => {
+      if (!taskIds.length) return;
+      await Promise.all(
+        taskIds.map((taskId) =>
+          fetchJson(`/api/tasks/${taskId}`, {
+            method: "DELETE",
+          })
+        )
+      );
+    },
+    onSuccess: () => {
+      setTaskSaveError(null);
+      queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
+    },
+    onError: (error) => {
+      setTaskSaveError(readErrorMessage(error, "Could not remove habit from agenda."));
     },
   });
 
@@ -1004,6 +1075,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     }));
   }, []);
 
+  const handleHabitDurationChange = useCallback((habitId: string, value: number) => {
+    setHabitDurationDrafts((prev) => ({
+      ...prev,
+      [habitId]: value,
+    }));
+  }, []);
+
   const handleToggleHabit = useCallback(
     (habit: DailyHabitItem, checked: boolean) => {
       if (habit.kind === "fixed") {
@@ -1019,12 +1097,22 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const handleAddHabitToAgenda = useCallback(
     (habit: DailyHabitItem) => {
       const scheduledTime = habitTimeDrafts[habit.id] || null;
+      const estimatedMinutes = Math.max(5, Number(habitDurationDrafts[habit.id] || 30));
       createHabitTask.mutate({
         title: habit.label,
         scheduledTime,
+        estimatedMinutes,
       });
     },
-    [createHabitTask, habitTimeDrafts]
+    [createHabitTask, habitDurationDrafts, habitTimeDrafts]
+  );
+
+  const handleRemoveHabitFromAgenda = useCallback(
+    (habit: DailyHabitItem) => {
+      if (!habit.taskIds.length) return;
+      removeHabitTasks.mutate(habit.taskIds);
+    },
+    [removeHabitTasks]
   );
 
   const habitsLoading =
@@ -1113,14 +1201,18 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   key={habit.id}
                   habit={habit}
                   timeValue={habitTimeDrafts[habit.id] || ""}
+                  durationValue={Math.max(5, Number(habitDurationDrafts[habit.id] || 30))}
                   saving={
                     updateDayHabit.isPending ||
                     updateCustomHabitDone.isPending ||
-                    createHabitTask.isPending
+                    createHabitTask.isPending ||
+                    removeHabitTasks.isPending
                   }
                   onToggleHabit={handleToggleHabit}
                   onTimeChange={handleHabitTimeChange}
+                  onDurationChange={handleHabitDurationChange}
                   onAddToAgenda={handleAddHabitToAgenda}
+                  onRemoveFromAgenda={handleRemoveHabitFromAgenda}
                 />
               ))
             : null}
@@ -1286,14 +1378,16 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           ref={calendarRef}
           plugins={[timeGridPlugin, interactionPlugin]}
           initialView="timeGridDay"
-          height="auto"
-          contentHeight="auto"
-          expandRows
+          height={560}
+          contentHeight={500}
+          expandRows={false}
           headerToolbar={false}
           allDaySlot={false}
           nowIndicator
           scrollTime={scrollTime}
           scrollTimeReset={false}
+          slotMinTime="05:00:00"
+          slotMaxTime="23:30:00"
           slotDuration="00:30:00"
           selectable
           selectMirror

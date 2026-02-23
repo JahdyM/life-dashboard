@@ -337,7 +337,7 @@ button.link.danger {
 
 .calendar-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(340px, 0.7fr);
+  grid-template-columns: minmax(0, 1.1fr) minmax(460px, 0.9fr);
   gap: 16px;
   align-items: start;
 }
@@ -377,13 +377,20 @@ button.link.danger {
 
 .task-row.habit-row-inline {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) 94px auto;
+  grid-template-columns: 18px minmax(0, 1fr) 94px 78px auto auto;
   align-items: center;
   gap: 8px;
 }
 
 .habit-time-input {
   min-width: 0;
+  padding: 5px 6px;
+  font-size: 12px;
+}
+
+.habit-duration-input {
+  min-width: 0;
+  width: 78px;
   padding: 5px 6px;
   font-size: 12px;
 }
@@ -523,7 +530,7 @@ button.link.danger {
   border-radius: 16px;
   padding: 12px;
   width: 100%;
-  max-width: 560px;
+  max-width: 700px;
   justify-self: end;
 }
 
@@ -570,7 +577,7 @@ button.link.danger {
 }
 
 .fc .fc-timegrid-slot {
-  height: 26px;
+  height: 22px;
 }
 
 .fc .fc-timegrid-axis {
@@ -1325,7 +1332,17 @@ button.link.danger {
     max-width: 120px;
   }
 
+  .habit-duration-input {
+    grid-column: 2 / 3;
+    max-width: 120px;
+  }
+
   .task-row.habit-row-inline .task-confirm-btn {
+    grid-column: 2 / 3;
+    justify-self: start;
+  }
+
+  .task-row.habit-row-inline .link.danger {
     grid-column: 2 / 3;
     justify-self: start;
   }
