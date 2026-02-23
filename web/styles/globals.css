@@ -380,6 +380,8 @@ button.link.danger {
   grid-template-columns: 18px minmax(0, 1fr) 94px 78px auto auto;
   align-items: center;
   gap: 8px;
+  padding-top: 2px;
+  padding-bottom: 8px;
 }
 
 .habit-time-input {
@@ -393,6 +395,16 @@ button.link.danger {
   width: 78px;
   padding: 5px 6px;
   font-size: 12px;
+}
+
+.habit-remove-btn {
+  border: 1px solid var(--border-soft);
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 13px;
+  line-height: 1;
 }
 
 .task-row.dirty {
@@ -611,6 +623,48 @@ button.link.danger {
   align-items: center;
   font-size: 14px;
   margin-bottom: 10px;
+}
+
+.calendar-completed {
+  margin-top: 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  display: grid;
+  gap: 8px;
+}
+
+.calendar-completed h3 {
+  margin: 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.calendar-completed-item {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.calendar-completed-mark {
+  color: var(--accent);
+  font-size: 12px;
+}
+
+.calendar-completed-title {
+  text-decoration: line-through;
+  opacity: 0.82;
+}
+
+.calendar-completed-time,
+.calendar-completed-badge {
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 .sync-status {
@@ -1240,6 +1294,11 @@ button.link.danger {
     color: var(--text);
   }
 
+  .habit-remove-btn:hover {
+    border-color: var(--border);
+    color: var(--text);
+  }
+
   .mood-cell:hover {
     transform: translateY(-1px);
     border-color: rgba(255, 255, 255, 0.28);
@@ -1342,7 +1401,7 @@ button.link.danger {
     justify-self: start;
   }
 
-  .task-row.habit-row-inline .link.danger {
+  .task-row.habit-row-inline .habit-remove-btn {
     grid-column: 2 / 3;
     justify-self: start;
   }

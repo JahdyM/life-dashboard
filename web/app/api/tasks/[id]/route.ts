@@ -92,7 +92,21 @@ export async function DELETE(
     const existing = await prisma.todoTask.findUnique({ where: { id: taskId } });
     if (!existing || existing.userEmail !== userEmail) return jsonError("Task not found", 404);
     if (existing.googleEventId) {
-      await deleteGoogleEvent(userEmail, existing.googleCalendarId || "primary", existing.googleEventId);
+      try {
+        await deleteGoogleEvent(
+          userEmail,
+          existing.googleCalendarId || "primary",
+          existing.googleEventId
+        );
+      } catch (error) {
+        logServerEvent("warn", {
+          endpoint: "DELETE /api/tasks/[id]",
+          userEmail,
+          message: "Google event delete failed; task will still be removed locally",
+          error,
+          meta: { taskId, googleEventId: existing.googleEventId },
+        });
+      }
     }
     await deleteTask(userEmail, taskId);
     return jsonOk({ ok: true });

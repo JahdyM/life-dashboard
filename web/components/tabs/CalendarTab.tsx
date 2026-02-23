@@ -329,16 +329,20 @@ const DailyHabitRow = memo(function DailyHabitRow({
       <button
         className="task-confirm-btn visible"
         disabled={habit.inAgenda || saving}
+        type="button"
         onClick={handleAdd}
       >
         {habit.inAgenda ? "in agenda" : saving ? "..." : "add"}
       </button>
       <button
-        className="link danger"
+        className="habit-remove-btn"
         disabled={!habit.inAgenda || saving}
+        type="button"
+        title={`Remove ${habit.label} from agenda`}
+        aria-label={`Remove ${habit.label} from agenda`}
         onClick={handleRemove}
       >
-        remove
+        -
       </button>
     </div>
   );
@@ -579,6 +583,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
     return [...fixed, ...custom];
   }, [customDone, customHabits, dayEntry, familyDay, meetingDays, selectedDayIso, tasksForDay]);
+  const completedHabits = useMemo(
+    () => dailyHabits.filter((habit) => habit.done),
+    [dailyHabits]
+  );
 
   const buildTaskPatch = useCallback((task: TodoTask, draft?: TaskDraft) => {
     if (!draft) return {};
@@ -818,13 +826,22 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const removeHabitTasks = useMutation({
     mutationFn: async (taskIds: string[]) => {
       if (!taskIds.length) return;
-      await Promise.all(
-        taskIds.map((taskId) =>
-          fetchJson(`/api/tasks/${taskId}`, {
+      for (const taskId of taskIds) {
+        try {
+          await fetchJson(`/api/tasks/${taskId}`, {
             method: "DELETE",
-          })
-        )
-      );
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "";
+          const notFound =
+            message.includes("404") ||
+            message.includes("Task not found") ||
+            message.includes("RESOURCE_NOT_FOUND");
+          if (!notFound) {
+            throw error;
+          }
+        }
+      }
     },
     onSuccess: () => {
       setTaskSaveError(null);
@@ -1133,13 +1150,15 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     if (summary.tendency === "insufficient_data") {
       return summary.recommendation;
     }
-    const tendencyLabel =
-      summary.tendency === "overestimate"
-        ? "you usually overestimate task duration."
-        : summary.tendency === "underestimate"
-          ? "you usually underestimate task duration."
-          : "your estimates are balanced.";
-    return `Estimation trend: ${tendencyLabel}`;
+    const avgError = Number(summary.averageErrorMinutes || 0);
+    const absMinutes = Math.round(Math.abs(avgError));
+    if (summary.tendency === "overestimate") {
+      return `Estimativa: voce costuma superestimar em ~${absMinutes} min por tarefa.`;
+    }
+    if (summary.tendency === "underestimate") {
+      return `Estimativa: voce costuma subestimar em ~${absMinutes} min por tarefa.`;
+    }
+    return "Estimativa: seu tempo real esta proximo do planejado.";
   }, [estimationHintQuery.data]);
 
   return (
@@ -1281,23 +1300,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             ))}
           </div>
         )}
-        {completedTasks.length > 0 && (
-          <div className="task-completed">
-            <h3>Completed</h3>
-            {completedTasks.map((task) => (
-              <SimpleTaskRow
-                key={task.id}
-                task={task}
-                draft={readTaskDraft(task)}
-                hasChanges={hasTaskChanges(task)}
-                saving={savingTaskId === task.id}
-                onToggleDone={requestToggleTaskDone}
-                onConfirm={confirmTaskUpdate}
-                completed
-              />
-            ))}
-          </div>
-        )}
         <div className="task-form">
           <h3>Add activity</h3>
           <div className="form-row">
@@ -1410,6 +1412,28 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             });
           }}
         />
+        <div className="calendar-completed">
+          <h3>Completed</h3>
+          {completedTasks.length === 0 && completedHabits.length === 0 ? (
+            <div className="line-empty">No completed items for this day yet.</div>
+          ) : null}
+          {completedTasks.map((task) => (
+            <div key={`done-task-${task.id}`} className="calendar-completed-item">
+              <span className="calendar-completed-mark">✓</span>
+              <span className="calendar-completed-title">{task.title}</span>
+              {task.scheduledTime ? (
+                <span className="calendar-completed-time">{task.scheduledTime}</span>
+              ) : null}
+            </div>
+          ))}
+          {completedHabits.map((habit) => (
+            <div key={`done-habit-${habit.id}`} className="calendar-completed-item">
+              <span className="calendar-completed-mark">✓</span>
+              <span className="calendar-completed-title">{habit.label}</span>
+              <span className="calendar-completed-badge">habit</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
