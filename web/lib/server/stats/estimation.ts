@@ -23,24 +23,6 @@ const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const average = (values: number[]) =>
   values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
 
-const median = (values: number[]) => {
-  if (!values.length) return null;
-  const sorted = [...values].sort((a, b) => a - b);
-  const middle = Math.floor(sorted.length / 2);
-  if (sorted.length % 2) {
-    return sorted[middle];
-  }
-  return (sorted[middle - 1] + sorted[middle]) / 2;
-};
-
-const trimmedMean = (values: number[]) => {
-  if (values.length < 5) return average(values);
-  const sorted = [...values].sort((a, b) => a - b);
-  const trimEachSide = Math.max(1, Math.floor(sorted.length * 0.1));
-  const trimmed = sorted.slice(trimEachSide, sorted.length - trimEachSide);
-  return average(trimmed.length ? trimmed : sorted);
-};
-
 const round2 = (value: number | null) =>
   value === null ? null : Math.round(value * 100) / 100;
 
@@ -71,10 +53,7 @@ const buildSummary = (points: EstimationPoint[]): EstimationSummary => {
   const absErrorPercent = points.map((point) => Math.abs(point.errorPercent));
 
   const averageRatio = average(ratios);
-  const medianRatio = median(ratios);
-  const trimmedRatio = trimmedMean(ratios);
-  const tendencyRatio =
-    trimmedRatio ?? medianRatio ?? averageRatio ?? 1;
+  const tendencyRatio = averageRatio ?? 1;
   const averageError = average(errorMinutes);
   const averagePercent = average(errorPercent);
   const averageAbsPercent = average(absErrorPercent);
@@ -84,7 +63,7 @@ const buildSummary = (points: EstimationPoint[]): EstimationSummary => {
   let tendency: EstimationSummary["tendency"] = "balanced";
   let recommendation = "Your estimates are close to reality. Keep this planning style.";
 
-  if (tendencyRatio > 1.1) {
+  if (tendencyRatio > 1.05) {
     tendency = "underestimate";
     const factor = Math.min(2.5, Math.max(1.05, tendencyRatio));
     const sampleTask = Math.round(30 * factor);
@@ -92,7 +71,7 @@ const buildSummary = (points: EstimationPoint[]): EstimationSummary => {
       `Completed-task history shows underestimation. Add ~${Math.round(
         (factor - 1) * 100
       )}% buffer (30 min tasks usually take ~${sampleTask} min).`;
-  } else if (tendencyRatio < 0.9) {
+  } else if (tendencyRatio < 0.95) {
     tendency = "overestimate";
     const factor = Math.min(0.95, Math.max(0.4, tendencyRatio));
     const sampleTask = Math.max(5, Math.round(30 * factor));
