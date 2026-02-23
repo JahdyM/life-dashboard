@@ -18,6 +18,14 @@ import { rangeQuerySchema } from "@/lib/server/schemas";
 import { randomUUID } from "crypto";
 import { logServerEvent } from "@/lib/server/logger";
 
+function knownCalendarSyncError(message: string) {
+  return (
+    message.includes("Google calendar not connected") ||
+    message.includes("Google authorization expired") ||
+    message.includes("Reconnect your account")
+  );
+}
+
 export async function POST(request: NextRequest) {
   try {
     const userEmail = await requireUserEmail();
@@ -99,6 +107,12 @@ export async function POST(request: NextRequest) {
     });
     const authError = handleAuthError(err);
     if (authError) return authError;
+    if (err instanceof Error && err.message) {
+      if (knownCalendarSyncError(err.message)) {
+        return jsonError(err.message, 400);
+      }
+      return jsonError(err.message, 500);
+    }
     return jsonError("Failed to sync calendar", 500);
   }
 }

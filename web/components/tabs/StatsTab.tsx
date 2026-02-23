@@ -218,7 +218,7 @@ function renderBucketRows(rows: EstimationBucket[]) {
 }
 
 export default function StatsTab({ userEmail: _userEmail }: { userEmail: string }) {
-  const [rangeKey, setRangeKey] = useState<RangeKey>("week");
+  const [rangeKey, setRangeKey] = useState<RangeKey>("month");
   const [customStart, setCustomStart] = useState(() =>
     format(startOfMonth(new Date()), "yyyy-MM-dd")
   );

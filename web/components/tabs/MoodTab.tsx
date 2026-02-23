@@ -132,8 +132,8 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
       return fetchJson(`/api/day/${payload.dayIso}`, {
         method: "PATCH",
         body: JSON.stringify({
-          moodCategory: payload.moodCategory,
-          moodNote: payload.moodNote,
+          mood_category: payload.moodCategory,
+          mood_note: payload.moodNote,
         }),
       });
     },

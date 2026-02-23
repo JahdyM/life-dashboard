@@ -8,9 +8,10 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { format, addDays, startOfWeek, endOfWeek } from "date-fns";
 import { FIXED_SHARED_HABITS } from "@/lib/constants";
-import type { CustomHabit, DayEntry, TodoTask } from "@/lib/types";
+import type { CustomHabit, DayEntry, EstimationResponse, TodoTask } from "@/lib/types";
 
 type TaskDraft = {
+  title?: string;
   isDone?: boolean;
   priorityTag?: string;
   scheduledTime?: string;
@@ -87,6 +88,7 @@ const isHabitScheduledOnDate = (
 type EditableTaskRowProps = {
   task: TodoTask;
   draft: {
+    title: string;
     isDone: boolean;
     priorityTag: string;
     scheduledTime: string;
@@ -130,6 +132,11 @@ const EditableTaskRow = memo(function EditableTaskRow({
       onSetDraft(task.id, { priorityTag: event.target.value }),
     [onSetDraft, task.id]
   );
+  const handleTitle = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      onSetDraft(task.id, { title: event.target.value }),
+    [onSetDraft, task.id]
+  );
   const handleTime = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) =>
       onSetDraft(task.id, { scheduledTime: event.target.value }),
@@ -146,8 +153,8 @@ const EditableTaskRow = memo(function EditableTaskRow({
     <details className={`task-row ${hasChanges ? "dirty" : ""}`}>
       <summary>
         <input type="checkbox" checked={draft.isDone} onChange={handleToggle} />
-        <span className="task-title">{task.title}</span>
-        {task.scheduledTime ? <span className="task-time">{task.scheduledTime}</span> : null}
+        <span className="task-title">{draft.title}</span>
+        {draft.scheduledTime ? <span className="task-time">{draft.scheduledTime}</span> : null}
         <button
           className={`task-confirm-btn ${hasChanges || saved ? "visible" : ""}`}
           onClick={handleConfirm}
@@ -158,6 +165,10 @@ const EditableTaskRow = memo(function EditableTaskRow({
         </button>
       </summary>
       <div className="task-details">
+        <label>
+          Title
+          <input type="text" value={draft.title} onChange={handleTitle} />
+        </label>
         <label>
           Priority
           <select value={draft.priorityTag} onChange={handlePriority}>
@@ -193,6 +204,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
 type SimpleTaskRowProps = {
   task: TodoTask;
   draft: {
+    title: string;
     isDone: boolean;
     priorityTag: string;
     scheduledTime: string;
@@ -230,8 +242,8 @@ const SimpleTaskRow = memo(function SimpleTaskRow({
   return (
     <div className={`task-row ${completed ? "completed" : ""}`}>
       <input type="checkbox" checked={draft.isDone} onChange={handleToggle} />
-      <span className="task-title">{task.title}</span>
-      {task.scheduledTime ? <span className="task-time">{task.scheduledTime}</span> : null}
+      <span className="task-title">{draft.title}</span>
+      {draft.scheduledTime ? <span className="task-time">{draft.scheduledTime}</span> : null}
       <button
         className={`task-confirm-btn ${hasChanges ? "visible" : ""}`}
         onClick={handleConfirm}
@@ -385,6 +397,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     queryKey: ["day", selectedDayIso],
     queryFn: () => fetchJson<DayResponse>(`/api/day/${selectedDayIso}`),
   });
+  const estimationHintQuery = useQuery({
+    queryKey: ["stats-estimation", "calendar-hint"],
+    queryFn: () => fetchJson<EstimationResponse>("/api/stats/estimation?period=90d"),
+    staleTime: 5 * 60 * 1000,
+  });
   const customHabitsQuery = useQuery({
     queryKey: ["custom-habits"],
     queryFn: () => fetchJson<CustomHabitsResponse>("/api/habits/custom"),
@@ -440,6 +457,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const readTaskDraft = useCallback((task: TodoTask) => {
     const draft = taskDrafts[task.id] || {};
     return {
+      title: draft.title ?? task.title,
       isDone: draft.isDone ?? Boolean(task.isDone),
       priorityTag: draft.priorityTag ?? (task.priorityTag || "Medium"),
       scheduledTime: draft.scheduledTime ?? (task.scheduledTime || ""),
@@ -516,6 +534,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const buildTaskPatch = useCallback((task: TodoTask, draft?: TaskDraft) => {
     if (!draft) return {};
     const patch: Record<string, string | number | null> = {};
+    if (typeof draft.title === "string") {
+      const trimmed = draft.title.trim();
+      if (trimmed && trimmed !== task.title) {
+        patch.title = trimmed;
+      }
+    }
     if (typeof draft.isDone === "boolean" && draft.isDone !== Boolean(task.isDone)) {
       patch.is_done = draft.isDone ? 1 : 0;
     }
@@ -558,6 +582,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               if (item.id !== taskId) return item;
               return {
                 ...item,
+                title: "title" in patch ? String(patch.title || item.title) : item.title,
                 isDone: "is_done" in patch ? (patch.is_done ? 1 : 0) : item.isDone,
                 priorityTag: "priority_tag" in patch ? patch.priority_tag : item.priorityTag,
                 scheduledTime:
@@ -812,10 +837,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         body: JSON.stringify(range),
       });
       setSyncStatus("idle");
+      setTaskSaveError(null);
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
-    } catch (_err) {
+    } catch (error) {
       setSyncStatus("failed");
-      setTaskSaveError("Could not sync calendar now. Please retry.");
+      setTaskSaveError(readErrorMessage(error, "Could not sync calendar now. Please retry."));
     }
   };
 
@@ -1013,6 +1039,20 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     customDoneQuery.isError ||
     meetingDaysQuery.isError ||
     familyDayQuery.isError;
+  const estimationHint = useMemo(() => {
+    const summary = estimationHintQuery.data?.summary;
+    if (!summary) return null;
+    if (summary.tendency === "insufficient_data") {
+      return summary.recommendation;
+    }
+    const tendencyLabel =
+      summary.tendency === "overestimate"
+        ? "you usually overestimate task duration."
+        : summary.tendency === "underestimate"
+          ? "you usually underestimate task duration."
+          : "your estimates are balanced.";
+    return `Estimation trend: ${tendencyLabel}`;
+  }, [estimationHintQuery.data]);
 
   return (
     <div className="calendar-layout">
@@ -1029,6 +1069,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           </button>
           <span className={`sync-status ${syncStatus}`}>{syncStatus}</span>
         </div>
+        {estimationHint ? (
+          <div className="task-estimation-hint">{estimationHint}</div>
+        ) : null}
         {tasksQuery.isPending && (
           <div className="query-status">Loading tasks...</div>
         )}

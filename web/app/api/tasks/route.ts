@@ -113,7 +113,10 @@ export async function GET(request: NextRequest) {
           error,
           meta: { start, end },
         });
-        syncWarning = "Google sync failed";
+        syncWarning =
+          error instanceof Error && error.message
+            ? error.message
+            : "Google sync failed";
       }
     }
     const tasks = await listTasks(userEmail, start, end, includeUnscheduled);
