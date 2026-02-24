@@ -8,7 +8,13 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { format, addDays, startOfWeek, endOfWeek } from "date-fns";
 import { FIXED_SHARED_HABITS } from "@/lib/constants";
-import type { CustomHabit, DayEntry, EstimationResponse, TodoTask } from "@/lib/types";
+import type {
+  CustomHabit,
+  DayEntry,
+  EstimationResponse,
+  TaskShareInvite,
+  TodoTask,
+} from "@/lib/types";
 
 type TaskDraft = {
   title?: string;
@@ -29,6 +35,7 @@ type CustomHabitsResponse = { items: CustomHabit[] };
 type CustomDoneResponse = { done: Record<string, number> };
 type MeetingDaysResponse = { days: number[] };
 type FamilyDayResponse = { day: number };
+type TaskSharesResponse = { items: TaskShareInvite[] };
 
 type DailyHabitItem = {
   id: string;
@@ -64,6 +71,12 @@ const canonicalHabitKey = (name: string) =>
     .toLowerCase()
     .replace(/\s+/g, " ")
     .replace(/\s*\(books\)/g, "");
+
+const emailHandle = (email: string) => {
+  const normalized = String(email || "").trim().toLowerCase();
+  if (!normalized.includes("@")) return normalized;
+  return normalized.split("@")[0];
+};
 
 const weekdayFromIso = (iso: string) => {
   const [year, month, day] = String(iso || "")
@@ -106,6 +119,8 @@ type EditableTaskRowProps = {
   onConfirm: (task: TodoTask) => void;
   onSetDraft: (taskId: string, patch: TaskDraft) => void;
   onDelete: (taskId: string) => void;
+  onShare: (taskId: string) => void;
+  sharing: boolean;
 };
 
 const EditableTaskRow = memo(function EditableTaskRow({
@@ -118,6 +133,8 @@ const EditableTaskRow = memo(function EditableTaskRow({
   onConfirm,
   onSetDraft,
   onDelete,
+  onShare,
+  sharing,
 }: EditableTaskRowProps) {
   const handleToggle = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) =>
@@ -153,6 +170,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
     [onSetDraft, task.id]
   );
   const handleDelete = useCallback(() => onDelete(task.id), [onDelete, task.id]);
+  const handleShare = useCallback(() => onShare(task.id), [onShare, task.id]);
 
   return (
     <details className={`task-row ${hasChanges ? "dirty" : ""}`}>
@@ -200,6 +218,9 @@ const EditableTaskRow = memo(function EditableTaskRow({
         </button>
         <button className="link danger" onClick={handleDelete}>
           Delete
+        </button>
+        <button className="link" onClick={handleShare} disabled={sharing}>
+          {sharing ? "Sharing..." : "Share with partner"}
         </button>
       </div>
     </details>
@@ -448,6 +469,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     Record<string, { estimatedMinutes: number; actualMinutes: number }>
   >({});
   const [savingEstimationTaskId, setSavingEstimationTaskId] = useState<string | null>(null);
+  const [sharingTaskId, setSharingTaskId] = useState<string | null>(null);
+  const [respondingShareId, setRespondingShareId] = useState<string | null>(null);
+  const [taskShareNotice, setTaskShareNotice] = useState<string | null>(null);
   const [habitTimeDrafts, setHabitTimeDrafts] = useState<Record<string, string>>({});
   const [habitDurationDrafts, setHabitDurationDrafts] = useState<Record<string, number>>({});
   const [dismissedHabitsByDay, setDismissedHabitsByDay] = useState<Record<string, string[]>>({});
@@ -586,6 +610,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     queryKey: ["family-day"],
     queryFn: () => fetchJson<FamilyDayResponse>("/api/settings/family-worship-day"),
   });
+  const taskSharesQuery = useQuery({
+    queryKey: ["task-shares"],
+    queryFn: () => fetchJson<TaskSharesResponse>("/api/task-shares"),
+    staleTime: 10_000,
+  });
 
   useEffect(() => {
     if (tasksQuery.data && !didSync) {
@@ -636,6 +665,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   const pendingTasks = tasksForDay.filter((task) => !readTaskDraft(task).isDone);
   const completedTasks = tasksForDay.filter((task) => readTaskDraft(task).isDone);
+  const pendingTaskShares = useMemo(
+    () => taskSharesQuery.data?.items || [],
+    [taskSharesQuery.data?.items]
+  );
 
   const dayEntry = useMemo(() => dayQuery.data?.entry || {}, [dayQuery.data?.entry]);
   const customHabitsRaw = useMemo(
@@ -1099,6 +1132,59 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     },
   });
 
+  const shareTaskWithPartner = useMutation({
+    mutationFn: (taskId: string) =>
+      fetchJson<{ invite: TaskShareInvite }>("/api/task-shares", {
+        method: "POST",
+        body: JSON.stringify({ task_id: taskId }),
+      }),
+    onSuccess: (payload) => {
+      setTaskSaveError(null);
+      setTaskShareNotice(
+        `Task shared with ${emailHandle(payload.invite.toEmail)}. Waiting for acceptance.`
+      );
+      queryClient.invalidateQueries({ queryKey: ["task-shares"] });
+    },
+    onError: (error) => {
+      setTaskShareNotice(null);
+      setTaskSaveError(readErrorMessage(error, "Could not share this task."));
+    },
+  });
+
+  const acceptTaskShare = useMutation({
+    mutationFn: (inviteId: string) =>
+      fetchJson<{ invite: TaskShareInvite }>(`/api/task-shares/${inviteId}/accept`, {
+        method: "POST",
+      }),
+    onSuccess: () => {
+      setTaskSaveError(null);
+      setTaskShareNotice("Shared task accepted and added to your calendar.");
+      queryClient.invalidateQueries({ queryKey: ["task-shares"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
+      queryClient.invalidateQueries({ queryKey: ["init"] });
+    },
+    onError: (error) => {
+      setTaskShareNotice(null);
+      setTaskSaveError(readErrorMessage(error, "Could not accept shared task."));
+    },
+  });
+
+  const declineTaskShare = useMutation({
+    mutationFn: (inviteId: string) =>
+      fetchJson<{ invite: TaskShareInvite }>(`/api/task-shares/${inviteId}/decline`, {
+        method: "POST",
+      }),
+    onSuccess: () => {
+      setTaskSaveError(null);
+      setTaskShareNotice("Shared task invite declined.");
+      queryClient.invalidateQueries({ queryKey: ["task-shares"] });
+    },
+    onError: (error) => {
+      setTaskShareNotice(null);
+      setTaskSaveError(readErrorMessage(error, "Could not decline shared task."));
+    },
+  });
+
   const deleteTask = useMutation({
     mutationFn: (id: string) =>
       fetchJson(`/api/tasks/${id}`, {
@@ -1279,6 +1365,42 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       });
     },
     [updateTask, selectedDayIso]
+  );
+
+  const handleShareTask = useCallback(
+    (taskId: string) => {
+      setSharingTaskId(taskId);
+      shareTaskWithPartner.mutate(taskId, {
+        onSettled: () => {
+          setSharingTaskId(null);
+        },
+      });
+    },
+    [shareTaskWithPartner]
+  );
+
+  const handleAcceptShare = useCallback(
+    (inviteId: string) => {
+      setRespondingShareId(inviteId);
+      acceptTaskShare.mutate(inviteId, {
+        onSettled: () => {
+          setRespondingShareId(null);
+        },
+      });
+    },
+    [acceptTaskShare]
+  );
+
+  const handleDeclineShare = useCallback(
+    (inviteId: string) => {
+      setRespondingShareId(inviteId);
+      declineTaskShare.mutate(inviteId, {
+        onSettled: () => {
+          setRespondingShareId(null);
+        },
+      });
+    },
+    [declineTaskShare]
   );
 
   const handleHabitTimeChange = useCallback((habitId: string, value: string) => {
@@ -1568,6 +1690,58 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         )}
         {syncWarning && <div className="warning">{syncWarning}</div>}
         {taskSaveError && <div className="warning">{taskSaveError}</div>}
+        {taskShareNotice ? <div className="query-status">{taskShareNotice}</div> : null}
+        <div className="task-remembered">
+          <h3>Shared tasks pending your answer</h3>
+          {taskSharesQuery.isPending ? (
+            <div className="query-status">Loading shared invites...</div>
+          ) : null}
+          {taskSharesQuery.isError ? (
+            <div className="query-status error">
+              <span>Could not load shared invites.</span>
+              <button className="secondary" onClick={() => taskSharesQuery.refetch()}>
+                Retry
+              </button>
+            </div>
+          ) : null}
+          {!taskSharesQuery.isPending && !taskSharesQuery.isError ? (
+            pendingTaskShares.length === 0 ? (
+              <div className="line-empty">No shared tasks waiting for your acceptance.</div>
+            ) : (
+              pendingTaskShares.map((invite) => (
+                <div key={`share-invite-${invite.id}`} className="share-invite-row">
+                  <div className="share-invite-meta">
+                    <strong>{invite.title}</strong>
+                    <span>
+                      From {emailHandle(invite.fromEmail)}
+                      {invite.scheduledDate
+                        ? ` • ${invite.scheduledDate} ${invite.scheduledTime || ""}`.trim()
+                        : ""}
+                    </span>
+                  </div>
+                  <div className="share-invite-actions">
+                    <button
+                      type="button"
+                      className="task-confirm-btn visible"
+                      disabled={respondingShareId === invite.id}
+                      onClick={() => handleAcceptShare(invite.id)}
+                    >
+                      {respondingShareId === invite.id ? "..." : "Accept"}
+                    </button>
+                    <button
+                      type="button"
+                      className="link"
+                      disabled={respondingShareId === invite.id}
+                      onClick={() => handleDeclineShare(invite.id)}
+                    >
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              ))
+            )
+          ) : null}
+        </div>
         <div className="task-remembered">
           <h3>Daily habits to add</h3>
           {habitsLoading ? (
@@ -1657,6 +1831,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 onConfirm={confirmTaskUpdate}
                 onSetDraft={setTaskDraft}
                 onDelete={handleDeleteTask}
+                onShare={handleShareTask}
+                sharing={sharingTaskId === task.id}
               />
             );
           })}

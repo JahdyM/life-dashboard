@@ -225,6 +225,13 @@ export const customHabitDoneSchema = z
   })
   .strict();
 
+export const taskShareCreateSchema = z
+  .object({
+    task_id: taskIdSchema,
+    to_email: z.string().trim().email().optional(),
+  })
+  .strict();
+
 export const subtaskCreateSchema = z
   .object({
     task_id: taskIdSchema,

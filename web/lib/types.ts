@@ -33,6 +33,22 @@ export type CustomHabit = {
   active?: boolean;
 };
 
+export type TaskShareInvite = {
+  id: string;
+  sourceTaskId: string;
+  title: string;
+  fromEmail: string;
+  toEmail: string;
+  scheduledDate: string | null;
+  scheduledTime: string | null;
+  estimatedMinutes: number | null;
+  priorityTag: string | null;
+  status: "pending" | "accepted" | "declined";
+  createdAt: string;
+  respondedAt: string | null;
+  recipientTaskId: string | null;
+};
+
 export type TodoSubtask = {
   id: string;
   taskId: string;
