@@ -626,8 +626,16 @@ button.link.danger {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
   font-size: 14px;
   margin-bottom: 10px;
+}
+
+.calendar-view-toggle {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
 }
 
 .calendar-completed {

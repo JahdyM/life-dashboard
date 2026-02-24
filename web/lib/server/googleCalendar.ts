@@ -12,6 +12,14 @@ type GoogleEventDateTime = {
   dateTime?: string;
 };
 
+type GoogleTaskMapping = {
+  title: string;
+  scheduled_date: string | null;
+  scheduled_time: string | null;
+  estimated_minutes: number | null;
+  is_all_day: boolean;
+};
+
 export type GoogleCalendarEvent = {
   id?: string;
   summary?: string;
@@ -158,32 +166,47 @@ export async function listGoogleEvents(
 export function googleEventToTask(event: GoogleCalendarEvent, timeZone: string) {
   const start = event.start || {};
   const end = event.end || {};
+  const title = event.summary || "(no title)";
+
+  const estimatedMinutesFromBlock = (() => {
+    if (!start.dateTime || !end.dateTime) return null;
+    const startMs = Date.parse(start.dateTime);
+    const endMs = Date.parse(end.dateTime);
+    if (Number.isNaN(startMs) || Number.isNaN(endMs)) return null;
+    const diffMinutes = Math.round((endMs - startMs) / 60000);
+    if (diffMinutes <= 0) return null;
+    return diffMinutes;
+  })();
+
   if (start.date) {
     return {
-      title: event.summary || "(no title)",
+      title,
       scheduled_date: start.date,
       scheduled_time: null,
+      estimated_minutes: null,
       is_all_day: true,
-    };
+    } satisfies GoogleTaskMapping;
   }
   const dateTime = start.dateTime as string | undefined;
   if (!dateTime) {
     return {
-      title: event.summary || "(no title)",
+      title,
       scheduled_date: null,
       scheduled_time: null,
+      estimated_minutes: null,
       is_all_day: true,
-    };
+    } satisfies GoogleTaskMapping;
   }
   const date = new Date(dateTime);
   const dateStr = formatInTimeZone(date, timeZone, "yyyy-MM-dd");
   const timeStr = formatInTimeZone(date, timeZone, "HH:mm");
   return {
-    title: event.summary || "(no title)",
+    title,
     scheduled_date: dateStr,
     scheduled_time: timeStr,
+    estimated_minutes: estimatedMinutesFromBlock,
     is_all_day: false,
-  };
+  } satisfies GoogleTaskMapping;
 }
 
 export async function createGoogleEvent(

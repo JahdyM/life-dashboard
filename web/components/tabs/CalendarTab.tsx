@@ -46,6 +46,8 @@ type CompletionPromptState = {
   estimatedMinutes: number;
 };
 
+type CalendarViewMode = "timeGridDay" | "timeGridWeek";
+
 function readErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error && error.message) {
     return `${fallback} ${error.message}`;
@@ -423,6 +425,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "failed">("idle");
+  const [calendarView, setCalendarView] = useState<CalendarViewMode>("timeGridDay");
   const [didSync, setDidSync] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDate, setNewDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
@@ -459,6 +462,17 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   useEffect(() => {
     try {
+      const raw = window.localStorage.getItem("calendar.view.mode.v1");
+      if (raw === "timeGridDay" || raw === "timeGridWeek") {
+        setCalendarView(raw);
+      }
+    } catch (_error) {
+      // ignore storage failures
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
       window.localStorage.setItem(
         "calendar.dismissedHabitsByDay.v1",
         JSON.stringify(dismissedHabitsByDay)
@@ -467,6 +481,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       // ignore storage failures
     }
   }, [dismissedHabitsByDay]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("calendar.view.mode.v1", calendarView);
+    } catch (_error) {
+      // ignore storage failures
+    }
+  }, [calendarView]);
 
   const range = useMemo(() => {
     const start = startOfWeek(selectedDate, { weekStartsOn: 1 });
@@ -512,6 +534,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     if (!api) return;
     api.scrollToTime(scrollTime);
   }, [scrollTime, selectedDate]);
+
+  useEffect(() => {
+    const api = calendarRef.current?.getApi();
+    if (!api) return;
+    api.changeView(calendarView);
+    api.gotoDate(selectedDate);
+  }, [calendarView, selectedDate]);
 
   useEffect(() => {
     setHabitTimeDrafts({});
@@ -1520,14 +1549,46 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           )}
         </div>
         <div className="calendar-header">
-          <button onClick={() => setSelectedDate(addDays(selectedDate, -1))}>Prev</button>
+          <button
+            onClick={() =>
+              setSelectedDate(
+                addDays(selectedDate, calendarView === "timeGridWeek" ? -7 : -1)
+              )
+            }
+          >
+            Prev
+          </button>
           <div>{format(selectedDate, "MMMM dd, yyyy")}</div>
-          <button onClick={() => setSelectedDate(addDays(selectedDate, 1))}>Next</button>
+          <button
+            onClick={() =>
+              setSelectedDate(
+                addDays(selectedDate, calendarView === "timeGridWeek" ? 7 : 1)
+              )
+            }
+          >
+            Next
+          </button>
+          <div className="calendar-view-toggle">
+            <button
+              className={calendarView === "timeGridDay" ? "chip active" : "chip"}
+              onClick={() => setCalendarView("timeGridDay")}
+              type="button"
+            >
+              Day
+            </button>
+            <button
+              className={calendarView === "timeGridWeek" ? "chip active" : "chip"}
+              onClick={() => setCalendarView("timeGridWeek")}
+              type="button"
+            >
+              Week
+            </button>
+          </div>
         </div>
         <FullCalendar
           ref={calendarRef}
           plugins={[timeGridPlugin, interactionPlugin]}
-          initialView="timeGridDay"
+          initialView={calendarView}
           height={560}
           contentHeight={500}
           expandRows={false}
@@ -1537,16 +1598,18 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           scrollTime={scrollTime}
           scrollTimeReset={false}
           slotMinTime="05:00:00"
-          slotMaxTime="23:30:00"
+          slotMaxTime="24:00:00"
           slotDuration="00:30:00"
           selectable
           selectMirror
           events={events}
           editable
           dateClick={(info) => {
+            setSelectedDate(info.date);
             applyCalendarSelection(info.date, null);
           }}
           select={(info) => {
+            setSelectedDate(info.start);
             applyCalendarSelection(info.start, info.end);
           }}
           eventDrop={(info) => {
