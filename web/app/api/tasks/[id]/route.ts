@@ -50,7 +50,11 @@ export async function PATCH(
     if (payload.completed_at !== undefined) updatePayload.completedAt = payload.completed_at;
 
     const updated = await updateTask(userEmail, taskId, updatePayload);
-    if (payload.sync_google && existing.googleEventId) {
+    if (
+      payload.sync_google &&
+      existing.googleEventId &&
+      existing.source !== "google_shared"
+    ) {
       const timezone = (await getUserTimeZone(userEmail)) || DEFAULT_TIME_ZONE;
       const googlePatch: Parameters<typeof updateGoogleEvent>[3] = { timeZone: timezone };
       if (payload.title !== undefined) googlePatch.title = payload.title;
@@ -91,7 +95,7 @@ export async function DELETE(
     const taskId = idParsed.data;
     const existing = await prisma.todoTask.findUnique({ where: { id: taskId } });
     if (!existing || existing.userEmail !== userEmail) return jsonError("Task not found", 404);
-    if (existing.googleEventId) {
+    if (existing.googleEventId && existing.source !== "google_shared") {
       try {
         await deleteGoogleEvent(
           userEmail,

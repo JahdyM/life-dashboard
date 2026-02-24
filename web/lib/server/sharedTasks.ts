@@ -1,7 +1,12 @@
 import { randomUUID } from "crypto";
 import { prisma } from "../db/prisma";
 import { allowedEmails } from "../env";
-import { createGoogleEvent, deleteGoogleEvent } from "./googleCalendar";
+import {
+  addGoogleEventAttendee,
+  createGoogleEvent,
+  deleteGoogleEvent,
+  removeGoogleEventAttendee,
+} from "./googleCalendar";
 import { DEFAULT_TIME_ZONE } from "../constants";
 import { getUserTimeZone } from "./settings";
 import { createTask } from "./tasks";
@@ -258,6 +263,38 @@ export async function acceptTaskShareInvite(userEmail: string, inviteId: string)
     googleEventId,
   });
 
+  const sourceTask = await prisma.todoTask.findFirst({
+    where: { id: invite.sourceTaskId, userEmail: invite.fromEmail },
+    select: {
+      id: true,
+      googleCalendarId: true,
+      googleEventId: true,
+    },
+  });
+  if (sourceTask?.googleEventId) {
+    try {
+      await addGoogleEventAttendee(
+        invite.fromEmail,
+        sourceTask.googleCalendarId || "primary",
+        sourceTask.googleEventId,
+        recipientEmail
+      );
+    } catch (error) {
+      logServerEvent("warn", {
+        endpoint: "task-share.accept",
+        message: "Could not add recipient as attendee in source Google event",
+        error,
+        meta: {
+          inviteId,
+          sender: invite.fromEmail,
+          recipient: recipientEmail,
+          sourceTaskId: sourceTask.id,
+          sourceGoogleEventId: sourceTask.googleEventId,
+        },
+      });
+    }
+  }
+
   const nextInvite: TaskShareInvite = {
     ...invite,
     status: "accepted",
@@ -301,6 +338,38 @@ export async function revokeTaskShareInvite(userEmail: string, inviteId: string)
   }
 
   if (invite.status === "accepted" && invite.recipientTaskId) {
+    const sourceTask = await prisma.todoTask.findFirst({
+      where: { id: invite.sourceTaskId, userEmail: invite.fromEmail },
+      select: {
+        id: true,
+        googleCalendarId: true,
+        googleEventId: true,
+      },
+    });
+    if (sourceTask?.googleEventId) {
+      try {
+        await removeGoogleEventAttendee(
+          invite.fromEmail,
+          sourceTask.googleCalendarId || "primary",
+          sourceTask.googleEventId,
+          recipientEmail
+        );
+      } catch (error) {
+        logServerEvent("warn", {
+          endpoint: "task-share.revoke",
+          message: "Could not remove recipient attendee from source Google event",
+          error,
+          meta: {
+            inviteId,
+            sender: invite.fromEmail,
+            recipient: recipientEmail,
+            sourceTaskId: sourceTask.id,
+            sourceGoogleEventId: sourceTask.googleEventId,
+          },
+        });
+      }
+    }
+
     const recipientTask = await prisma.todoTask.findFirst({
       where: { id: invite.recipientTaskId, userEmail: recipientEmail },
       select: {

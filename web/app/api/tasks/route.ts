@@ -8,10 +8,10 @@ import {
 } from "@/lib/server/response";
 import { createTask, listTasks } from "@/lib/server/tasks";
 import {
-  listGoogleEvents,
+  listGoogleEventsAcrossCalendars,
   googleEventToTask,
   createGoogleEvent,
-  type GoogleCalendarEvent,
+  type GoogleCalendarEventItem,
 } from "@/lib/server/googleCalendar";
 import { prisma } from "@/lib/db/prisma";
 import { getUserTimeZone } from "@/lib/server/settings";
@@ -23,41 +23,79 @@ import { randomUUID } from "crypto";
 
 async function syncGoogleTasks(userEmail: string, start: string, end: string) {
   await ensureTaskCompletionColumns();
-  const events = await listGoogleEvents(userEmail, start, end, "primary");
-  if (!events.length) return;
-  const eventIds = events
-    .map((event: GoogleCalendarEvent) => event.id)
+  const items = await listGoogleEventsAcrossCalendars(userEmail, start, end);
+  if (!items.length) return;
+  const eventKeys = items
+    .map((item) =>
+      item.event?.id ? `google:${item.calendarId}:${item.event.id}` : null
+    )
     .filter((value): value is string => Boolean(value));
+  const eventIds = items
+    .map((item) => item.event?.id || null)
+    .filter((value): value is string => Boolean(value));
+  const calendarIds = Array.from(new Set(items.map((item) => item.calendarId)));
   if (!eventIds.length) return;
   const existing = await prisma.todoTask.findMany({
     where: {
       userEmail,
-      googleEventId: { in: eventIds },
+      OR: [
+        { externalEventKey: { in: eventKeys } },
+        {
+          googleEventId: { in: eventIds },
+          googleCalendarId: { in: calendarIds },
+        },
+      ],
     },
   });
-  const existingMap = new Map(existing.map((item) => [item.googleEventId, item]));
+  const existingByExternalKey = new Map(
+    existing
+      .filter((item) => Boolean(item.externalEventKey))
+      .map((item) => [item.externalEventKey as string, item])
+  );
+  const existingByLegacyPair = new Map(
+    existing
+      .filter((item) => Boolean(item.googleEventId))
+      .map((item) => [
+        `${item.googleCalendarId || "primary"}:${item.googleEventId}`,
+        item,
+      ])
+  );
   const timezone = (await getUserTimeZone(userEmail)) || DEFAULT_TIME_ZONE;
   const nowIso = new Date().toISOString();
-  const operations = events
-    .filter((event: GoogleCalendarEvent) => Boolean(event?.id))
-    .map((event: GoogleCalendarEvent) => {
-      const eventId = event.id as string;
-      const mapped = googleEventToTask(event, timezone);
+  const operations = items
+    .filter((item: GoogleCalendarEventItem) => Boolean(item.event?.id))
+    .map((item: GoogleCalendarEventItem) => {
+      const eventId = item.event.id as string;
+      const externalEventKey = `google:${item.calendarId}:${eventId}`;
+      const mapped = googleEventToTask(item.event, timezone, {
+        calendarId: item.calendarId,
+        userEmail,
+      });
       const payload = {
         title: mapped.title,
         scheduledDate: mapped.scheduled_date || null,
         scheduledTime: mapped.scheduled_time || null,
         estimatedMinutes: mapped.estimated_minutes ?? null,
-        source: "google",
-        googleCalendarId: "primary",
+        source: mapped.source,
+        googleCalendarId: item.calendarId,
         googleEventId: eventId,
+        externalEventKey,
       };
-      if (existingMap.has(eventId)) {
+      const existingTask =
+        existingByExternalKey.get(externalEventKey) ||
+        existingByLegacyPair.get(`${item.calendarId}:${eventId}`);
+      if (existingTask) {
+        const nextSource =
+          existingTask.source === "google" ||
+          existingTask.source === "google_shared"
+            ? payload.source
+            : existingTask.source;
         return prisma.todoTask.update({
-          where: { id: existingMap.get(eventId)!.id },
+          where: { id: existingTask.id },
           data: {
             title: payload.title,
-            source: payload.source,
+            source: nextSource,
+            externalEventKey: payload.externalEventKey,
             scheduledDate: payload.scheduledDate,
             scheduledTime: payload.scheduledTime,
             estimatedMinutes: payload.estimatedMinutes,
@@ -73,6 +111,7 @@ async function syncGoogleTasks(userEmail: string, start: string, end: string) {
           userEmail,
           title: payload.title,
           source: payload.source,
+          externalEventKey: payload.externalEventKey,
           scheduledDate: payload.scheduledDate || null,
           scheduledTime: payload.scheduledTime || null,
           estimatedMinutes: payload.estimatedMinutes,
@@ -168,6 +207,7 @@ export async function POST(request: NextRequest) {
     const task = await createTask(userEmail, {
       title,
       source: payload.source || "manual",
+      externalEventKey: googleEventId ? `google:primary:${googleEventId}` : null,
       scheduledDate: payload.scheduled_date || null,
       scheduledTime: payload.scheduled_time || null,
       priorityTag: payload.priority_tag || "Medium",

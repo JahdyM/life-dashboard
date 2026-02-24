@@ -12,12 +12,24 @@ type GoogleEventDateTime = {
   dateTime?: string;
 };
 
+type GoogleEventPerson = {
+  email?: string;
+  displayName?: string;
+  self?: boolean;
+};
+
+type GoogleEventAttendee = GoogleEventPerson & {
+  responseStatus?: string;
+};
+
 type GoogleTaskMapping = {
   title: string;
   scheduled_date: string | null;
   scheduled_time: string | null;
   estimated_minutes: number | null;
   is_all_day: boolean;
+  source: "google" | "google_shared";
+  shared_from_email: string | null;
 };
 
 export type GoogleCalendarEvent = {
@@ -25,6 +37,21 @@ export type GoogleCalendarEvent = {
   summary?: string;
   start?: GoogleEventDateTime;
   end?: GoogleEventDateTime;
+  organizer?: GoogleEventPerson;
+  creator?: GoogleEventPerson;
+  attendees?: GoogleEventAttendee[];
+};
+
+type GoogleCalendarListItem = {
+  id?: string;
+  primary?: boolean;
+  selected?: boolean;
+  deleted?: boolean;
+};
+
+export type GoogleCalendarEventItem = {
+  calendarId: string;
+  event: GoogleCalendarEvent;
 };
 
 function isGoogleAuthExpired(status: number, bodyText: string) {
@@ -163,10 +190,99 @@ export async function listGoogleEvents(
   return items;
 }
 
-export function googleEventToTask(event: GoogleCalendarEvent, timeZone: string) {
+export async function listGoogleCalendarIds(userEmail: string) {
+  const accessToken = await getAccessToken(userEmail);
+  const ids = new Set<string>();
+  let pageToken: string | null = null;
+
+  do {
+    const url = new URL(`${CAL_BASE}/users/me/calendarList`);
+    url.searchParams.set("maxResults", "250");
+    url.searchParams.set("minAccessRole", "reader");
+    if (pageToken) {
+      url.searchParams.set("pageToken", pageToken);
+    }
+    const response = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      if (isGoogleAuthExpired(response.status, text)) {
+        await clearGoogleToken(userEmail);
+        throw new Error("Google authorization expired. Please reconnect calendar.");
+      }
+      throw new Error(text || "Google calendar list fetch failed");
+    }
+    const payload = await response.json();
+    const items = (payload.items || []) as GoogleCalendarListItem[];
+    items.forEach((item) => {
+      if (!item?.id) return;
+      if (item.deleted) return;
+      if (item.selected === false) return;
+      ids.add(item.primary ? "primary" : item.id);
+    });
+    pageToken = payload.nextPageToken || null;
+  } while (pageToken);
+
+  if (!ids.size) {
+    ids.add("primary");
+  }
+  if (!ids.has("primary")) {
+    ids.add("primary");
+  }
+  return Array.from(ids);
+}
+
+export async function listGoogleEventsAcrossCalendars(
+  userEmail: string,
+  startIso: string,
+  endIso: string
+) {
+  const calendarIds = await listGoogleCalendarIds(userEmail);
+  const output: GoogleCalendarEventItem[] = [];
+  for (const calendarId of calendarIds) {
+    try {
+      const events = await listGoogleEvents(userEmail, startIso, endIso, calendarId);
+      events.forEach((event) => {
+        output.push({ calendarId, event });
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (
+        message.includes("Google calendar not connected") ||
+        message.includes("Google authorization expired") ||
+        message.includes("Reconnect your account")
+      ) {
+        throw error;
+      }
+      continue;
+    }
+  }
+  return output;
+}
+
+export function googleEventToTask(
+  event: GoogleCalendarEvent,
+  timeZone: string,
+  context?: { calendarId?: string; userEmail?: string }
+) {
   const start = event.start || {};
   const end = event.end || {};
   const title = event.summary || "(no title)";
+  const organizerEmail = event.organizer?.email?.toLowerCase() || null;
+  const creatorEmail = event.creator?.email?.toLowerCase() || null;
+  const normalizedUserEmail = context?.userEmail?.toLowerCase() || null;
+  const calendarId = context?.calendarId || "primary";
+  const isFromExternalCalendar = calendarId !== "primary";
+  const isSharedByOwner =
+    Boolean(normalizedUserEmail) &&
+    ((Boolean(organizerEmail) && organizerEmail !== normalizedUserEmail) ||
+      (!organizerEmail &&
+        Boolean(creatorEmail) &&
+        creatorEmail !== normalizedUserEmail));
+  const source: "google" | "google_shared" =
+    isFromExternalCalendar || isSharedByOwner ? "google_shared" : "google";
+  const sharedFromEmail = organizerEmail || creatorEmail || null;
 
   const estimatedMinutesFromBlock = (() => {
     if (!start.dateTime || !end.dateTime) return null;
@@ -185,6 +301,8 @@ export function googleEventToTask(event: GoogleCalendarEvent, timeZone: string) 
       scheduled_time: null,
       estimated_minutes: null,
       is_all_day: true,
+      source,
+      shared_from_email: sharedFromEmail,
     } satisfies GoogleTaskMapping;
   }
   const dateTime = start.dateTime as string | undefined;
@@ -195,6 +313,8 @@ export function googleEventToTask(event: GoogleCalendarEvent, timeZone: string) 
       scheduled_time: null,
       estimated_minutes: null,
       is_all_day: true,
+      source,
+      shared_from_email: sharedFromEmail,
     } satisfies GoogleTaskMapping;
   }
   const date = new Date(dateTime);
@@ -206,6 +326,8 @@ export function googleEventToTask(event: GoogleCalendarEvent, timeZone: string) 
     scheduled_time: timeStr,
     estimated_minutes: estimatedMinutesFromBlock,
     is_all_day: false,
+    source,
+    shared_from_email: sharedFromEmail,
   } satisfies GoogleTaskMapping;
 }
 
@@ -341,4 +463,90 @@ export async function deleteGoogleEvent(
     throw new Error(text || "Google event delete failed");
   }
   return true;
+}
+
+async function getGoogleEvent(
+  userEmail: string,
+  calendarId: string,
+  eventId: string
+) {
+  const accessToken = await getAccessToken(userEmail);
+  const response = await fetch(
+    `${CAL_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+  if (!response.ok) {
+    const text = await response.text();
+    if (isGoogleAuthExpired(response.status, text)) {
+      await clearGoogleToken(userEmail);
+      throw new Error("Google authorization expired. Please reconnect calendar.");
+    }
+    throw new Error(text || "Google event fetch failed");
+  }
+  return (await response.json()) as GoogleCalendarEvent;
+}
+
+async function patchGoogleEventAttendees(
+  userEmail: string,
+  calendarId: string,
+  eventId: string,
+  attendees: GoogleEventAttendee[]
+) {
+  const accessToken = await getAccessToken(userEmail);
+  const url = new URL(
+    `${CAL_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`
+  );
+  url.searchParams.set("sendUpdates", "all");
+  const response = await fetch(url.toString(), {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ attendees }),
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    if (isGoogleAuthExpired(response.status, text)) {
+      await clearGoogleToken(userEmail);
+      throw new Error("Google authorization expired. Please reconnect calendar.");
+    }
+    throw new Error(text || "Google attendees patch failed");
+  }
+  return response.json();
+}
+
+export async function addGoogleEventAttendee(
+  userEmail: string,
+  calendarId: string,
+  eventId: string,
+  attendeeEmail: string
+) {
+  const event = await getGoogleEvent(userEmail, calendarId, eventId);
+  const normalizedTarget = attendeeEmail.toLowerCase();
+  const current = (event.attendees || []).filter((item) => Boolean(item?.email));
+  if (current.some((item) => item.email?.toLowerCase() === normalizedTarget)) {
+    return event;
+  }
+  const next = [...current, { email: attendeeEmail }];
+  return patchGoogleEventAttendees(userEmail, calendarId, eventId, next);
+}
+
+export async function removeGoogleEventAttendee(
+  userEmail: string,
+  calendarId: string,
+  eventId: string,
+  attendeeEmail: string
+) {
+  const event = await getGoogleEvent(userEmail, calendarId, eventId);
+  const normalizedTarget = attendeeEmail.toLowerCase();
+  const current = (event.attendees || []).filter((item) => Boolean(item?.email));
+  const next = current.filter(
+    (item) => item.email?.toLowerCase() !== normalizedTarget
+  );
+  return patchGoogleEventAttendees(userEmail, calendarId, eventId, next);
 }

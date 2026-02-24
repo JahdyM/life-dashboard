@@ -939,7 +939,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     .filter((task) => task.scheduledTime)
     .map((task) => {
       const sentShare = activeSentShareByTaskId.get(task.id);
-      const isSharedReceived = task.source === "shared";
+      const isSharedReceived =
+        task.source === "shared" || task.source === "google_shared";
       const isSharedPending = sentShare?.status === "pending";
       const isSharedAccepted = sentShare?.status === "accepted";
       const start = `${task.scheduledDate}T${task.scheduledTime}:00`;
@@ -1699,9 +1700,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   const getTaskSharePresentation = useCallback(
     (task: TodoTask) => {
-      if (task.source === "shared") {
+      if (task.source === "shared" || task.source === "google_shared") {
         return {
-          label: "Shared with you",
+          label:
+            task.source === "google_shared"
+              ? "Shared from Google"
+              : "Shared with you",
           canToggle: false,
           actionLabel: "Share",
         };
