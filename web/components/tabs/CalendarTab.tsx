@@ -35,7 +35,7 @@ type CustomHabitsResponse = { items: CustomHabit[] };
 type CustomDoneResponse = { done: Record<string, number> };
 type MeetingDaysResponse = { days: number[] };
 type FamilyDayResponse = { day: number };
-type TaskSharesResponse = { items: TaskShareInvite[] };
+type TaskSharesResponse = { items: TaskShareInvite[]; sent?: TaskShareInvite[] };
 
 type DailyHabitItem = {
   id: string;
@@ -119,8 +119,10 @@ type EditableTaskRowProps = {
   onConfirm: (task: TodoTask) => void;
   onSetDraft: (taskId: string, patch: TaskDraft) => void;
   onDelete: (taskId: string) => void;
-  onShare: (taskId: string) => void;
+  onShare?: (taskId: string) => void;
   sharing: boolean;
+  shareLabel?: string | null;
+  shareActionLabel?: string;
 };
 
 const EditableTaskRow = memo(function EditableTaskRow({
@@ -135,6 +137,8 @@ const EditableTaskRow = memo(function EditableTaskRow({
   onDelete,
   onShare,
   sharing,
+  shareLabel,
+  shareActionLabel = "Share with partner",
 }: EditableTaskRowProps) {
   const handleToggle = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) =>
@@ -170,13 +174,17 @@ const EditableTaskRow = memo(function EditableTaskRow({
     [onSetDraft, task.id]
   );
   const handleDelete = useCallback(() => onDelete(task.id), [onDelete, task.id]);
-  const handleShare = useCallback(() => onShare(task.id), [onShare, task.id]);
+  const handleShare = useCallback(() => {
+    if (!onShare) return;
+    onShare(task.id);
+  }, [onShare, task.id]);
 
   return (
-    <details className={`task-row ${hasChanges ? "dirty" : ""}`}>
+    <details className={`task-row ${hasChanges ? "dirty" : ""} ${shareLabel ? "task-row-shared" : ""}`}>
       <summary>
         <input type="checkbox" checked={draft.isDone} onChange={handleToggle} />
         <span className="task-title">{draft.title}</span>
+        {shareLabel ? <span className="task-share-badge">{shareLabel}</span> : null}
         {draft.scheduledTime ? <span className="task-time">{draft.scheduledTime}</span> : null}
         <button
           className={`task-confirm-btn ${hasChanges || saved ? "visible" : ""}`}
@@ -219,9 +227,11 @@ const EditableTaskRow = memo(function EditableTaskRow({
         <button className="link danger" onClick={handleDelete}>
           Delete
         </button>
-        <button className="link" onClick={handleShare} disabled={sharing}>
-          {sharing ? "Sharing..." : "Share with partner"}
-        </button>
+        {onShare ? (
+          <button className="link" onClick={handleShare} disabled={sharing}>
+            {sharing ? "..." : shareActionLabel}
+          </button>
+        ) : null}
       </div>
     </details>
   );
@@ -245,6 +255,8 @@ type SimpleTaskRowProps = {
   onShare?: (taskId: string) => void;
   sharing?: boolean;
   completed?: boolean;
+  shareLabel?: string | null;
+  shareActionLabel?: string;
 };
 
 const SimpleTaskRow = memo(function SimpleTaskRow({
@@ -258,6 +270,8 @@ const SimpleTaskRow = memo(function SimpleTaskRow({
   onShare,
   sharing = false,
   completed = false,
+  shareLabel,
+  shareActionLabel = "Share",
 }: SimpleTaskRowProps) {
   const handleToggle = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) =>
@@ -275,9 +289,10 @@ const SimpleTaskRow = memo(function SimpleTaskRow({
   }, [onShare, task.id]);
 
   return (
-    <div className={`task-row ${completed ? "completed" : ""}`}>
+    <div className={`task-row ${completed ? "completed" : ""} ${shareLabel ? "task-row-shared" : ""}`}>
       <input type="checkbox" checked={draft.isDone} onChange={handleToggle} />
       <span className="task-title">{draft.title}</span>
+      {shareLabel ? <span className="task-share-badge">{shareLabel}</span> : null}
       {draft.scheduledTime ? <span className="task-time">{draft.scheduledTime}</span> : null}
       <button
         className={`task-confirm-btn ${hasChanges ? "visible" : ""}`}
@@ -294,7 +309,7 @@ const SimpleTaskRow = memo(function SimpleTaskRow({
       ) : null}
       {onShare ? (
         <button className="link" onClick={handleShare} disabled={sharing}>
-          {sharing ? "Sharing..." : "Share"}
+          {sharing ? "..." : shareActionLabel}
         </button>
       ) : null}
     </div>
@@ -316,8 +331,10 @@ type CompletedTaskRowProps = {
   onToggleDone: (task: TodoTask, checked: boolean) => void;
   onSetDraft: (taskId: string, patch: TaskDraft) => void;
   onConfirm: (task: TodoTask) => void;
-  onShare: (taskId: string) => void;
+  onShare?: (taskId: string) => void;
   sharing: boolean;
+  shareLabel?: string | null;
+  shareActionLabel?: string;
 };
 
 const CompletedTaskRow = memo(function CompletedTaskRow({
@@ -330,6 +347,8 @@ const CompletedTaskRow = memo(function CompletedTaskRow({
   onConfirm,
   onShare,
   sharing,
+  shareLabel,
+  shareActionLabel = "share",
 }: CompletedTaskRowProps) {
   const handleToggle = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) =>
@@ -343,12 +362,16 @@ const CompletedTaskRow = memo(function CompletedTaskRow({
     [onSetDraft, task.id]
   );
   const handleConfirm = useCallback(() => onConfirm(task), [onConfirm, task]);
-  const handleShare = useCallback(() => onShare(task.id), [onShare, task.id]);
+  const handleShare = useCallback(() => {
+    if (!onShare) return;
+    onShare(task.id);
+  }, [onShare, task.id]);
 
   return (
-    <div className="calendar-completed-item editable">
+    <div className={`calendar-completed-item editable ${shareLabel ? "task-row-shared" : ""}`}>
       <input type="checkbox" checked={draft.isDone} onChange={handleToggle} disabled={saving} />
       <span className="calendar-completed-title">{task.title}</span>
+      {shareLabel ? <span className="task-share-badge">{shareLabel}</span> : null}
       <div className="calendar-completed-editor">
         <input
           className="completed-actual-input"
@@ -367,9 +390,11 @@ const CompletedTaskRow = memo(function CompletedTaskRow({
         >
           {saving ? "..." : "save"}
         </button>
-        <button className="link" type="button" onClick={handleShare} disabled={sharing}>
-          {sharing ? "..." : "share"}
-        </button>
+        {onShare ? (
+          <button className="link" type="button" onClick={handleShare} disabled={sharing}>
+            {sharing ? "..." : shareActionLabel}
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -692,6 +717,36 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     () => taskSharesQuery.data?.items || [],
     [taskSharesQuery.data?.items]
   );
+  const sentTaskShares = useMemo(
+    () => taskSharesQuery.data?.sent || [],
+    [taskSharesQuery.data?.sent]
+  );
+  const activeSentShareByTaskId = useMemo(() => {
+    const map = new Map<
+      string,
+      { inviteId: string; status: TaskShareInvite["status"]; toEmail: string }
+    >();
+    sentTaskShares.forEach((invite) => {
+      if (invite.status !== "pending" && invite.status !== "accepted") return;
+      const current = map.get(invite.sourceTaskId);
+      if (!current) {
+        map.set(invite.sourceTaskId, {
+          inviteId: invite.id,
+          status: invite.status,
+          toEmail: invite.toEmail,
+        });
+        return;
+      }
+      if (current.status === "pending" && invite.status === "accepted") {
+        map.set(invite.sourceTaskId, {
+          inviteId: invite.id,
+          status: invite.status,
+          toEmail: invite.toEmail,
+        });
+      }
+    });
+    return map;
+  }, [sentTaskShares]);
 
   const dayEntry = useMemo(() => dayQuery.data?.entry || {}, [dayQuery.data?.entry]);
   const customHabitsRaw = useMemo(
@@ -883,23 +938,50 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const events = tasksForDay
     .filter((task) => task.scheduledTime)
     .map((task) => {
+      const sentShare = activeSentShareByTaskId.get(task.id);
+      const isSharedReceived = task.source === "shared";
+      const isSharedPending = sentShare?.status === "pending";
+      const isSharedAccepted = sentShare?.status === "accepted";
       const start = `${task.scheduledDate}T${task.scheduledTime}:00`;
       const startDate = new Date(start);
       const endDate = new Date(
         startDate.getTime() + (task.estimatedMinutes || 30) * 60000
       );
       const end = format(endDate, "yyyy-MM-dd'T'HH:mm:ss");
+      let backgroundColor = task.isDone
+        ? "rgba(127, 211, 165, 0.76)"
+        : "rgba(143, 123, 179, 0.64)";
+      let borderColor = task.isDone
+        ? "rgba(127, 211, 165, 0.95)"
+        : "rgba(143, 123, 179, 0.95)";
+      let textColor = task.isDone ? "#102418" : "#F5F1EA";
+      if (isSharedReceived) {
+        backgroundColor = "rgba(76, 153, 226, 0.72)";
+        borderColor = "rgba(76, 153, 226, 0.95)";
+        textColor = "#f7fbff";
+      } else if (isSharedPending) {
+        backgroundColor = "rgba(231, 178, 76, 0.72)";
+        borderColor = "rgba(231, 178, 76, 0.95)";
+        textColor = "#1f1606";
+      } else if (isSharedAccepted) {
+        backgroundColor = "rgba(76, 153, 226, 0.66)";
+        borderColor = "rgba(76, 153, 226, 0.9)";
+        textColor = "#f7fbff";
+      }
       return {
         id: task.id,
         title: task.title,
         start,
         end,
-        classNames: [task.isDone ? "task-done" : "task-pending"],
-        backgroundColor: task.isDone
-          ? "rgba(127, 211, 165, 0.76)"
-          : "rgba(143, 123, 179, 0.64)",
-        borderColor: task.isDone ? "rgba(127, 211, 165, 0.95)" : "rgba(143, 123, 179, 0.95)",
-        textColor: task.isDone ? "#102418" : "#F5F1EA",
+        classNames: [
+          task.isDone ? "task-done" : "task-pending",
+          isSharedReceived ? "task-shared-received" : "",
+          isSharedPending ? "task-shared-pending" : "",
+          isSharedAccepted ? "task-shared-accepted" : "",
+        ].filter(Boolean),
+        backgroundColor,
+        borderColor,
+        textColor,
       };
     });
 
@@ -1182,6 +1264,23 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     },
   });
 
+  const revokeTaskShare = useMutation({
+    mutationFn: (inviteId: string) =>
+      fetchJson<{ invite: TaskShareInvite }>(`/api/task-shares/${inviteId}/revoke`, {
+        method: "POST",
+      }),
+    onSuccess: () => {
+      setTaskSaveError(null);
+      setTaskShareNotice("Share removed.");
+      queryClient.invalidateQueries({ queryKey: ["task-shares"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
+    },
+    onError: (error) => {
+      setTaskShareNotice(null);
+      setTaskSaveError(readErrorMessage(error, "Could not undo task share."));
+    },
+  });
+
   const acceptTaskShare = useMutation({
     mutationFn: (inviteId: string) =>
       fetchJson<{ invite: TaskShareInvite }>(`/api/task-shares/${inviteId}/accept`, {
@@ -1400,14 +1499,23 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   const handleShareTask = useCallback(
     (taskId: string) => {
+      const activeShare = activeSentShareByTaskId.get(taskId);
       setSharingTaskId(taskId);
+      if (activeShare) {
+        revokeTaskShare.mutate(activeShare.inviteId, {
+          onSettled: () => {
+            setSharingTaskId(null);
+          },
+        });
+        return;
+      }
       shareTaskWithPartner.mutate(taskId, {
         onSettled: () => {
           setSharingTaskId(null);
         },
       });
     },
-    [shareTaskWithPartner]
+    [activeSentShareByTaskId, revokeTaskShare, shareTaskWithPartner]
   );
 
   const handleAcceptShare = useCallback(
@@ -1587,6 +1695,39 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       );
     },
     [readEstimationDraft, updateEstimationRow]
+  );
+
+  const getTaskSharePresentation = useCallback(
+    (task: TodoTask) => {
+      if (task.source === "shared") {
+        return {
+          label: "Shared with you",
+          canToggle: false,
+          actionLabel: "Share",
+        };
+      }
+      const sentShare = activeSentShareByTaskId.get(task.id);
+      if (sentShare?.status === "pending") {
+        return {
+          label: `Shared with ${emailHandle(sentShare.toEmail)} • pending`,
+          canToggle: true,
+          actionLabel: "Unshare",
+        };
+      }
+      if (sentShare?.status === "accepted") {
+        return {
+          label: `Shared with ${emailHandle(sentShare.toEmail)} • accepted`,
+          canToggle: true,
+          actionLabel: "Unshare",
+        };
+      }
+      return {
+        label: null,
+        canToggle: true,
+        actionLabel: "Share with partner",
+      };
+    },
+    [activeSentShareByTaskId]
   );
 
   return (
@@ -1850,6 +1991,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         <div className="task-items">
           {pendingTasks.map((task) => {
             const draft = readTaskDraft(task);
+            const shareUi = getTaskSharePresentation(task);
             return (
               <EditableTaskRow
                 key={task.id}
@@ -1862,8 +2004,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 onConfirm={confirmTaskUpdate}
                 onSetDraft={setTaskDraft}
                 onDelete={handleDeleteTask}
-                onShare={handleShareTask}
+                onShare={shareUi.canToggle ? handleShareTask : undefined}
                 sharing={sharingTaskId === task.id}
+                shareLabel={shareUi.label}
+                shareActionLabel={shareUi.actionLabel}
               />
             );
           })}
@@ -1871,7 +2015,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         {unscheduledTasks.length > 0 && (
           <div className="task-remembered">
             <h3>Remembered tasks</h3>
-            {unscheduledTasks.map((task) => (
+            {unscheduledTasks.map((task) => {
+              const shareUi = getTaskSharePresentation(task);
+              return (
               <SimpleTaskRow
                 key={task.id}
                 task={task}
@@ -1881,10 +2027,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 onToggleDone={requestToggleTaskDone}
                 onConfirm={confirmTaskUpdate}
                 onScheduleToday={handleScheduleToday}
-                onShare={handleShareTask}
+                onShare={shareUi.canToggle ? handleShareTask : undefined}
                 sharing={sharingTaskId === task.id}
+                shareLabel={shareUi.label}
+                shareActionLabel={shareUi.actionLabel}
               />
-            ))}
+              );
+            })}
           </div>
         )}
         <div className="task-form">
@@ -1950,7 +2099,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             />
             <button
               className="secondary"
-              disabled={!calendarSelection || !calendarDraftTitle.trim()}
+              disabled={!calendarSelection}
               onClick={() => createTaskFromCalendar.mutate()}
             >
               {createTaskFromCalendar.isPending ? "Adding..." : "Add"}
@@ -2054,7 +2203,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           {completedTasks.length === 0 && completedHabits.length === 0 ? (
             <div className="line-empty">No completed items for this day yet.</div>
           ) : null}
-          {completedTasks.map((task) => (
+          {completedTasks.map((task) => {
+            const shareUi = getTaskSharePresentation(task);
+            return (
             <CompletedTaskRow
               key={`done-task-${task.id}`}
               task={task}
@@ -2064,10 +2215,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               onToggleDone={requestToggleTaskDone}
               onSetDraft={setTaskDraft}
               onConfirm={confirmTaskUpdate}
-              onShare={handleShareTask}
+              onShare={shareUi.canToggle ? handleShareTask : undefined}
               sharing={sharingTaskId === task.id}
+              shareLabel={shareUi.label}
+              shareActionLabel={shareUi.actionLabel}
             />
-          ))}
+            );
+          })}
           {completedHabits.map((habit) => (
             <div key={`done-habit-${habit.id}`} className="calendar-completed-item">
               <span className="calendar-completed-mark">✓</span>

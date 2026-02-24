@@ -43,7 +43,7 @@ export type TaskShareInvite = {
   scheduledTime: string | null;
   estimatedMinutes: number | null;
   priorityTag: string | null;
-  status: "pending" | "accepted" | "declined";
+  status: "pending" | "accepted" | "declined" | "revoked";
   createdAt: string;
   respondedAt: string | null;
   recipientTaskId: string | null;

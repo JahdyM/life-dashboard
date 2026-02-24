@@ -10,6 +10,7 @@ import { taskShareCreateSchema } from "@/lib/server/schemas";
 import {
   createTaskShareInvite,
   listPendingTaskShareInvites,
+  listSentTaskShareInvites,
 } from "@/lib/server/sharedTasks";
 import { logServerEvent } from "@/lib/server/logger";
 
@@ -24,8 +25,11 @@ function knownShareError(message: string) {
 export async function GET(_request: NextRequest) {
   try {
     const userEmail = await requireUserEmail();
-    const items = await listPendingTaskShareInvites(userEmail);
-    return jsonOk({ items });
+    const [items, sent] = await Promise.all([
+      listPendingTaskShareInvites(userEmail),
+      listSentTaskShareInvites(userEmail),
+    ]);
+    return jsonOk({ items, sent });
   } catch (err) {
     logServerEvent("error", {
       endpoint: "GET /api/task-shares",

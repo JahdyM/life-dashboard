@@ -1,13 +1,17 @@
 import { randomUUID } from "crypto";
 import { prisma } from "../db/prisma";
 import { allowedEmails } from "../env";
-import { createGoogleEvent } from "./googleCalendar";
+import { createGoogleEvent, deleteGoogleEvent } from "./googleCalendar";
 import { DEFAULT_TIME_ZONE } from "../constants";
 import { getUserTimeZone } from "./settings";
 import { createTask } from "./tasks";
 import { logServerEvent } from "./logger";
 
-export type TaskShareInviteStatus = "pending" | "accepted" | "declined";
+export type TaskShareInviteStatus =
+  | "pending"
+  | "accepted"
+  | "declined"
+  | "revoked";
 
 export type TaskShareInvite = {
   id: string;
@@ -38,7 +42,8 @@ function parseInvitePayload(value: string | null): TaskShareInvite | null {
     if (
       parsed.status !== "pending" &&
       parsed.status !== "accepted" &&
-      parsed.status !== "declined"
+      parsed.status !== "declined" &&
+      parsed.status !== "revoked"
     ) {
       return null;
     }
@@ -89,6 +94,23 @@ async function loadInvite(recipientEmail: string, inviteId: string) {
   return parseInvitePayload(row.value);
 }
 
+async function loadInviteById(inviteId: string) {
+  const rows = await prisma.setting.findMany({
+    where: {
+      key: { endsWith: `::task_share_invite::${inviteId}` },
+    },
+    take: 5,
+  });
+  for (const row of rows) {
+    const invite = parseInvitePayload(row.value);
+    if (!invite || invite.id !== inviteId) continue;
+    const [recipientEmail] = row.key.split("::task_share_invite::");
+    if (!recipientEmail) continue;
+    return { invite, recipientEmail: recipientEmail.toLowerCase() };
+  }
+  return null;
+}
+
 async function saveInvite(recipientEmail: string, invite: TaskShareInvite) {
   const key = settingKeyForInvite(recipientEmail, invite.id);
   await prisma.setting.upsert({
@@ -128,7 +150,7 @@ export async function createTaskShareInvite(
     .find(
       (invite) =>
         invite &&
-        invite.status === "pending" &&
+        (invite.status === "pending" || invite.status === "accepted") &&
         invite.sourceTaskId === task.id &&
         invite.fromEmail === fromEmail
     );
@@ -167,6 +189,21 @@ export async function listPendingTaskShareInvites(userEmail: string) {
     .map((row) => parseInvitePayload(row.value))
     .filter((item): item is TaskShareInvite => Boolean(item))
     .filter((item) => item.status === "pending")
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  return items;
+}
+
+export async function listSentTaskShareInvites(userEmail: string) {
+  const normalized = userEmail.toLowerCase();
+  const rows = await prisma.setting.findMany({
+    where: {
+      key: { contains: "::task_share_invite::" },
+    },
+  });
+  const items = rows
+    .map((row) => parseInvitePayload(row.value))
+    .filter((item): item is TaskShareInvite => Boolean(item))
+    .filter((item) => item.fromEmail === normalized)
     .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
   return items;
 }
@@ -243,6 +280,64 @@ export async function declineTaskShareInvite(userEmail: string, inviteId: string
   const nextInvite: TaskShareInvite = {
     ...invite,
     status: "declined",
+    respondedAt: new Date().toISOString(),
+  };
+  await saveInvite(recipientEmail, nextInvite);
+  return nextInvite;
+}
+
+export async function revokeTaskShareInvite(userEmail: string, inviteId: string) {
+  const senderEmail = userEmail.toLowerCase();
+  const loaded = await loadInviteById(inviteId);
+  if (!loaded) {
+    throw new Error("RESOURCE_NOT_FOUND");
+  }
+  const { invite, recipientEmail } = loaded;
+  if (invite.fromEmail !== senderEmail) {
+    throw new Error("FORBIDDEN");
+  }
+  if (invite.status === "revoked" || invite.status === "declined") {
+    return invite;
+  }
+
+  if (invite.status === "accepted" && invite.recipientTaskId) {
+    const recipientTask = await prisma.todoTask.findFirst({
+      where: { id: invite.recipientTaskId, userEmail: recipientEmail },
+      select: {
+        id: true,
+        googleCalendarId: true,
+        googleEventId: true,
+      },
+    });
+    if (recipientTask?.googleEventId) {
+      try {
+        await deleteGoogleEvent(
+          recipientEmail,
+          recipientTask.googleCalendarId || "primary",
+          recipientTask.googleEventId
+        );
+      } catch (error) {
+        logServerEvent("warn", {
+          endpoint: "task-share.revoke",
+          message: "Could not remove Google event for revoked shared task",
+          error,
+          meta: { inviteId, recipientEmail, taskId: recipientTask.id },
+        });
+      }
+    }
+    await prisma.$transaction([
+      prisma.todoSubtask.deleteMany({
+        where: { userEmail: recipientEmail, taskId: invite.recipientTaskId },
+      }),
+      prisma.todoTask.deleteMany({
+        where: { id: invite.recipientTaskId, userEmail: recipientEmail },
+      }),
+    ]);
+  }
+
+  const nextInvite: TaskShareInvite = {
+    ...invite,
+    status: "revoked",
     respondedAt: new Date().toISOString(),
   };
   await saveInvite(recipientEmail, nextInvite);

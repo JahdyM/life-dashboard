@@ -461,6 +461,14 @@ button.link.danger {
   padding-bottom: 6px;
 }
 
+.task-row-shared {
+  background: rgba(76, 153, 226, 0.1);
+  border-radius: 10px;
+  padding: 6px 8px 8px;
+  margin: 2px 0;
+  border-bottom-color: rgba(76, 153, 226, 0.55);
+}
+
 .task-row.completed .task-title {
   text-decoration: line-through;
   opacity: 0.72;
@@ -521,6 +529,17 @@ button.link.danger {
 
 .task-title {
   flex: 1;
+}
+
+.task-share-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid rgba(76, 153, 226, 0.5);
+  color: #9fd2ff;
+  border-radius: 999px;
+  padding: 2px 6px;
+  white-space: nowrap;
 }
 
 .task-time {
@@ -757,6 +776,11 @@ button.link.danger {
 
 .calendar-completed-item.editable {
   align-items: center;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+}
+
+.calendar-completed-item.editable.task-row-shared {
+  grid-template-columns: 16px minmax(0, 1fr) auto auto;
 }
 
 .calendar-completed-mark {
