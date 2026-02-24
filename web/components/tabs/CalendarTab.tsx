@@ -242,6 +242,8 @@ type SimpleTaskRowProps = {
   onToggleDone: (task: TodoTask, checked: boolean) => void;
   onConfirm: (task: TodoTask) => void;
   onScheduleToday?: (taskId: string) => void;
+  onShare?: (taskId: string) => void;
+  sharing?: boolean;
   completed?: boolean;
 };
 
@@ -253,6 +255,8 @@ const SimpleTaskRow = memo(function SimpleTaskRow({
   onToggleDone,
   onConfirm,
   onScheduleToday,
+  onShare,
+  sharing = false,
   completed = false,
 }: SimpleTaskRowProps) {
   const handleToggle = useCallback(
@@ -265,6 +269,10 @@ const SimpleTaskRow = memo(function SimpleTaskRow({
     if (!onScheduleToday) return;
     onScheduleToday(task.id);
   }, [onScheduleToday, task.id]);
+  const handleShare = useCallback(() => {
+    if (!onShare) return;
+    onShare(task.id);
+  }, [onShare, task.id]);
 
   return (
     <div className={`task-row ${completed ? "completed" : ""}`}>
@@ -282,6 +290,11 @@ const SimpleTaskRow = memo(function SimpleTaskRow({
       {onScheduleToday ? (
         <button className="link" onClick={handleSchedule}>
           Schedule today
+        </button>
+      ) : null}
+      {onShare ? (
+        <button className="link" onClick={handleShare} disabled={sharing}>
+          {sharing ? "Sharing..." : "Share"}
         </button>
       ) : null}
     </div>
@@ -303,6 +316,8 @@ type CompletedTaskRowProps = {
   onToggleDone: (task: TodoTask, checked: boolean) => void;
   onSetDraft: (taskId: string, patch: TaskDraft) => void;
   onConfirm: (task: TodoTask) => void;
+  onShare: (taskId: string) => void;
+  sharing: boolean;
 };
 
 const CompletedTaskRow = memo(function CompletedTaskRow({
@@ -313,6 +328,8 @@ const CompletedTaskRow = memo(function CompletedTaskRow({
   onToggleDone,
   onSetDraft,
   onConfirm,
+  onShare,
+  sharing,
 }: CompletedTaskRowProps) {
   const handleToggle = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) =>
@@ -326,6 +343,7 @@ const CompletedTaskRow = memo(function CompletedTaskRow({
     [onSetDraft, task.id]
   );
   const handleConfirm = useCallback(() => onConfirm(task), [onConfirm, task]);
+  const handleShare = useCallback(() => onShare(task.id), [onShare, task.id]);
 
   return (
     <div className="calendar-completed-item editable">
@@ -348,6 +366,9 @@ const CompletedTaskRow = memo(function CompletedTaskRow({
           type="button"
         >
           {saving ? "..." : "save"}
+        </button>
+        <button className="link" type="button" onClick={handleShare} disabled={sharing}>
+          {sharing ? "..." : "share"}
         </button>
       </div>
     </div>
@@ -452,7 +473,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [newDate, setNewDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
   const [newTime, setNewTime] = useState("");
   const [newEst, setNewEst] = useState(30);
+  const [shareOnCreate, setShareOnCreate] = useState(false);
   const [calendarDraftTitle, setCalendarDraftTitle] = useState("");
+  const [shareOnCalendarCreate, setShareOnCalendarCreate] = useState(false);
   const [calendarSelection, setCalendarSelection] = useState<{
     date: string;
     time: string;
@@ -882,7 +905,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   const createTask = useMutation({
     mutationFn: () =>
-      fetchJson("/api/tasks", {
+      fetchJson<{ task: TodoTask }>("/api/tasks", {
         method: "POST",
         body: JSON.stringify({
           title: newTitle,
@@ -892,10 +915,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           sync_google: true,
         }),
       }),
-    onSuccess: () => {
+    onSuccess: (payload) => {
       setTaskSaveError(null);
       setNewTitle("");
       setNewTime("");
+      if (shareOnCreate && payload?.task?.id) {
+        shareTaskWithPartner.mutate(payload.task.id);
+      }
+      setShareOnCreate(false);
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
     },
     onError: (error) => {
@@ -1053,8 +1080,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   const createTaskFromCalendar = useMutation({
     mutationFn: () => {
-      if (!calendarSelection) return Promise.resolve(null);
-      return fetchJson("/api/tasks", {
+      if (!calendarSelection) return Promise.resolve<{ task: TodoTask } | null>(null);
+      return fetchJson<{ task: TodoTask }>("/api/tasks", {
         method: "POST",
         body: JSON.stringify({
           title: (calendarDraftTitle || newTitle || "New task").trim(),
@@ -1065,9 +1092,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         }),
       });
     },
-    onSuccess: () => {
+    onSuccess: (payload) => {
       setTaskSaveError(null);
       setCalendarDraftTitle("");
+      if (shareOnCalendarCreate && payload?.task?.id) {
+        shareTaskWithPartner.mutate(payload.task.id);
+      }
+      setShareOnCalendarCreate(false);
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
     },
     onError: (error) => {
@@ -1850,6 +1881,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 onToggleDone={requestToggleTaskDone}
                 onConfirm={confirmTaskUpdate}
                 onScheduleToday={handleScheduleToday}
+                onShare={handleShareTask}
+                sharing={sharingTaskId === task.id}
               />
             ))}
           </div>
@@ -1891,6 +1924,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               onChange={(event) => setNewEst(Number(event.target.value))}
             />
           </div>
+          <label className="habit-row">
+            <input
+              type="checkbox"
+              checked={shareOnCreate}
+              onChange={(event) => setShareOnCreate(event.target.checked)}
+            />
+            <span>Share this new task with partner</span>
+          </label>
           <button className="primary" onClick={() => createTask.mutate()}>
             Confirm task
           </button>
@@ -1915,6 +1956,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               {createTaskFromCalendar.isPending ? "Adding..." : "Add"}
             </button>
           </div>
+          <label className="habit-row">
+            <input
+              type="checkbox"
+              checked={shareOnCalendarCreate}
+              onChange={(event) => setShareOnCalendarCreate(event.target.checked)}
+            />
+            <span>Share this calendar-created task with partner</span>
+          </label>
           {calendarSelection ? (
             <div className="calendar-selection-meta">
               Selected: {calendarSelection.date} {calendarSelection.time} ({calendarSelection.estimatedMinutes}m)
@@ -2015,6 +2064,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               onToggleDone={requestToggleTaskDone}
               onSetDraft={setTaskDraft}
               onConfirm={confirmTaskUpdate}
+              onShare={handleShareTask}
+              sharing={sharingTaskId === task.id}
             />
           ))}
           {completedHabits.map((habit) => (
