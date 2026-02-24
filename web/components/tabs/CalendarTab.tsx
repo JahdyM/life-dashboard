@@ -443,6 +443,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [taskSaveError, setTaskSaveError] = useState<string | null>(null);
   const [completionPrompt, setCompletionPrompt] = useState<CompletionPromptState | null>(null);
   const [completionMinutes, setCompletionMinutes] = useState(0);
+  const [showEstimationEditor, setShowEstimationEditor] = useState(false);
+  const [estimationDrafts, setEstimationDrafts] = useState<
+    Record<string, { estimatedMinutes: number; actualMinutes: number }>
+  >({});
+  const [savingEstimationTaskId, setSavingEstimationTaskId] = useState<string | null>(null);
   const [habitTimeDrafts, setHabitTimeDrafts] = useState<Record<string, string>>({});
   const [habitDurationDrafts, setHabitDurationDrafts] = useState<Record<string, number>>({});
   const [dismissedHabitsByDay, setDismissedHabitsByDay] = useState<Record<string, string[]>>({});
@@ -1064,6 +1069,36 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     },
   });
 
+  const updateEstimationRow = useMutation({
+    mutationFn: ({
+      taskId,
+      estimatedMinutes,
+      actualMinutes,
+    }: {
+      taskId: string;
+      estimatedMinutes: number;
+      actualMinutes: number;
+    }) =>
+      fetchJson(`/api/tasks/${taskId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          estimated_minutes: Math.max(0, estimatedMinutes),
+          actual_minutes: Math.max(0, actualMinutes),
+          sync_google: false,
+        }),
+      }),
+    onSuccess: () => {
+      setTaskSaveError(null);
+      queryClient.invalidateQueries({ queryKey: ["stats-estimation", "calendar-hint"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
+    },
+    onError: (error) => {
+      setTaskSaveError(
+        readErrorMessage(error, "Could not update estimation values for this task.")
+      );
+    },
+  });
+
   const deleteTask = useMutation({
     mutationFn: (id: string) =>
       fetchJson(`/api/tasks/${id}`, {
@@ -1336,6 +1371,71 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     return `Estimativa (historico completo, ${sampleCount} tarefas feitas): seu tempo real esta proximo do planejado.`;
   }, [estimationHintQuery.data]);
 
+  const estimationPoints = useMemo(
+    () => estimationHintQuery.data?.points || [],
+    [estimationHintQuery.data?.points]
+  );
+
+  const readEstimationDraft = useCallback(
+    (taskId: string, estimatedMinutes: number, actualMinutes: number) => {
+      const current = estimationDrafts[taskId];
+      return {
+        estimatedMinutes:
+          current?.estimatedMinutes ?? Math.max(0, Number(estimatedMinutes || 0)),
+        actualMinutes: current?.actualMinutes ?? Math.max(0, Number(actualMinutes || 0)),
+      };
+    },
+    [estimationDrafts]
+  );
+
+  const setEstimationDraft = useCallback(
+    (
+      taskId: string,
+      patch: Partial<{ estimatedMinutes: number; actualMinutes: number }>
+    ) => {
+      setEstimationDrafts((prev) => ({
+        ...prev,
+        [taskId]: {
+          estimatedMinutes:
+            patch.estimatedMinutes ?? prev[taskId]?.estimatedMinutes ?? 0,
+          actualMinutes: patch.actualMinutes ?? prev[taskId]?.actualMinutes ?? 0,
+        },
+      }));
+    },
+    []
+  );
+
+  const saveEstimationDraft = useCallback(
+    (taskId: string, fallbackEstimated: number, fallbackActual: number) => {
+      const draft = readEstimationDraft(taskId, fallbackEstimated, fallbackActual);
+      const estimated = Math.max(0, Number(draft.estimatedMinutes || 0));
+      const actual = Math.max(0, Number(draft.actualMinutes || 0));
+      if (estimated <= 0) {
+        setTaskSaveError("Estimated minutes must be greater than zero.");
+        return;
+      }
+      setSavingEstimationTaskId(taskId);
+      updateEstimationRow.mutate(
+        { taskId, estimatedMinutes: estimated, actualMinutes: actual },
+        {
+          onSuccess: () => {
+            setSavingEstimationTaskId(null);
+            setEstimationDrafts((prev) => {
+              if (!prev[taskId]) return prev;
+              const next = { ...prev };
+              delete next[taskId];
+              return next;
+            });
+          },
+          onError: () => {
+            setSavingEstimationTaskId(null);
+          },
+        }
+      );
+    },
+    [readEstimationDraft, updateEstimationRow]
+  );
+
   return (
     <div className="calendar-layout">
       <div className="task-list">
@@ -1352,7 +1452,108 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           <span className={`sync-status ${syncStatus}`}>{syncStatus}</span>
         </div>
         {estimationHint ? (
-          <div className="task-estimation-hint">{estimationHint}</div>
+          <button
+            type="button"
+            className="task-estimation-hint task-estimation-toggle"
+            onClick={() => setShowEstimationEditor((value) => !value)}
+          >
+            <span>{estimationHint}</span>
+            <span className="task-estimation-toggle-meta">
+              {showEstimationEditor
+                ? "Hide tasks used in this calculation"
+                : "Click to view/edit tasks used in this calculation"}
+            </span>
+          </button>
+        ) : null}
+        {showEstimationEditor ? (
+          <div className="estimation-editor">
+            <div className="estimation-editor-title">
+              Tasks used in estimation (completed with estimated + actual minutes)
+            </div>
+            {estimationHintQuery.isPending ? (
+              <div className="query-status">Loading estimation rows...</div>
+            ) : null}
+            {estimationHintQuery.isError ? (
+              <div className="query-status error">
+                <span>Could not load estimation rows.</span>
+                <button className="secondary" onClick={() => estimationHintQuery.refetch()}>
+                  Retry
+                </button>
+              </div>
+            ) : null}
+            {!estimationHintQuery.isPending && !estimationHintQuery.isError ? (
+              estimationPoints.length === 0 ? (
+                <div className="line-empty">No completed tasks with time data yet.</div>
+              ) : (
+                <div className="estimation-editor-table">
+                  <div className="estimation-editor-row estimation-editor-head">
+                    <span>Task</span>
+                    <span>Date</span>
+                    <span>Estimated</span>
+                    <span>Actual</span>
+                    <span />
+                  </div>
+                  {estimationPoints.map((point) => {
+                    const draft = readEstimationDraft(
+                      point.taskId,
+                      point.estimatedMinutes,
+                      point.actualMinutes
+                    );
+                    const dirty =
+                      draft.estimatedMinutes !== point.estimatedMinutes ||
+                      draft.actualMinutes !== point.actualMinutes;
+                    return (
+                      <div className="estimation-editor-row" key={`estimation-row-${point.taskId}`}>
+                        <span className="estimation-task-title">{point.title}</span>
+                        <span>{point.scheduledDate || "--"}</span>
+                        <input
+                          type="number"
+                          min={1}
+                          step={5}
+                          value={draft.estimatedMinutes}
+                          onChange={(event) =>
+                            setEstimationDraft(point.taskId, {
+                              estimatedMinutes: Math.max(
+                                0,
+                                Number(event.target.value || 0)
+                              ),
+                            })
+                          }
+                          aria-label={`Estimated minutes for ${point.title}`}
+                        />
+                        <input
+                          type="number"
+                          min={0}
+                          step={5}
+                          value={draft.actualMinutes}
+                          onChange={(event) =>
+                            setEstimationDraft(point.taskId, {
+                              actualMinutes: Math.max(0, Number(event.target.value || 0)),
+                            })
+                          }
+                          aria-label={`Actual minutes for ${point.title}`}
+                        />
+                        <button
+                          type="button"
+                          className={`task-confirm-btn ${dirty ? "visible" : ""}`}
+                          disabled={!dirty || savingEstimationTaskId === point.taskId}
+                          onClick={() =>
+                            saveEstimationDraft(
+                              point.taskId,
+                              point.estimatedMinutes,
+                              point.actualMinutes
+                            )
+                          }
+                        >
+                          {savingEstimationTaskId === point.taskId ? "..." : "save"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            ) : null}
+          </div>
         ) : null}
         {tasksQuery.isPending && (
           <div className="query-status">Loading tasks...</div>
