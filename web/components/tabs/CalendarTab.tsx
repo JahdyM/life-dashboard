@@ -3,6 +3,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/client/api";
+import { signIn } from "next-auth/react";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -60,6 +61,16 @@ function readErrorMessage(error: unknown, fallback: string) {
     return `${fallback} ${error.message}`;
   }
   return fallback;
+}
+
+function isGoogleReconnectErrorText(text: string | null | undefined) {
+  const normalized = String(text || "").toLowerCase();
+  if (!normalized) return false;
+  return (
+    normalized.includes("google authorization expired") ||
+    normalized.includes("google calendar not connected") ||
+    normalized.includes("reconnect your account")
+  );
 }
 
 const toCamel = (key: string) =>
@@ -520,6 +531,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [sharingTaskId, setSharingTaskId] = useState<string | null>(null);
   const [respondingShareId, setRespondingShareId] = useState<string | null>(null);
   const [taskShareNotice, setTaskShareNotice] = useState<string | null>(null);
+  const [reconnectingGoogle, setReconnectingGoogle] = useState(false);
   const [habitTimeDrafts, setHabitTimeDrafts] = useState<Record<string, string>>({});
   const [habitDurationDrafts, setHabitDurationDrafts] = useState<Record<string, number>>({});
   const [dismissedHabitsByDay, setDismissedHabitsByDay] = useState<Record<string, string[]>>({});
@@ -675,6 +687,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     [tasksQuery.data?.items]
   );
   const syncWarning = tasksQuery.data?.warning;
+  const reconnectRequired = useMemo(
+    () =>
+      reconnectingGoogle ||
+      isGoogleReconnectErrorText(syncWarning) ||
+      isGoogleReconnectErrorText(taskSaveError),
+    [reconnectingGoogle, syncWarning, taskSaveError]
+  );
 
   const tasksForDay = tasks.filter((task) => task.scheduledDate === selectedDayIso);
   const unscheduledTasks = tasks.filter((task) => !task.scheduledDate);
@@ -1330,6 +1349,20 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     },
   });
 
+  const triggerGoogleReconnect = useCallback(async () => {
+    setReconnectingGoogle(true);
+    try {
+      const callbackUrl =
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}`
+          : "/";
+      await signIn("google", { callbackUrl });
+    } catch (_error) {
+      setReconnectingGoogle(false);
+      setTaskSaveError("Could not start Google reconnection. Please try again.");
+    }
+  }, []);
+
   const syncNow = async () => {
     setSyncStatus("syncing");
     try {
@@ -1338,10 +1371,17 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         body: JSON.stringify(range),
       });
       setSyncStatus("idle");
+      setReconnectingGoogle(false);
       setTaskSaveError(null);
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
     } catch (error) {
       setSyncStatus("failed");
+      const rawMessage = error instanceof Error ? error.message : "";
+      if (isGoogleReconnectErrorText(rawMessage)) {
+        setTaskSaveError("Google authorization expired. Redirecting for reconnection...");
+        void triggerGoogleReconnect();
+        return;
+      }
       setTaskSaveError(readErrorMessage(error, "Could not sync calendar now. Please retry."));
     }
   };
@@ -1865,6 +1905,21 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           </div>
         )}
         {syncWarning && <div className="warning">{syncWarning}</div>}
+        {reconnectRequired ? (
+          <div className="query-status warning">
+            <span>Google Calendar needs reconnection.</span>
+            <button
+              className="secondary"
+              type="button"
+              disabled={reconnectingGoogle}
+              onClick={() => {
+                void triggerGoogleReconnect();
+              }}
+            >
+              {reconnectingGoogle ? "Redirecting..." : "Reconnect Google"}
+            </button>
+          </div>
+        ) : null}
         {taskSaveError && <div className="warning">{taskSaveError}</div>}
         {taskShareNotice ? <div className="query-status">{taskShareNotice}</div> : null}
         <div className="task-remembered">
