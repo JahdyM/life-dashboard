@@ -3,7 +3,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/client/api";
-import { signIn } from "next-auth/react";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -1349,14 +1348,15 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     },
   });
 
-  const triggerGoogleReconnect = useCallback(async () => {
+  const triggerGoogleReconnect = useCallback(() => {
+    if (typeof window === "undefined") return;
     setReconnectingGoogle(true);
     try {
-      const callbackUrl =
-        typeof window !== "undefined"
-          ? `${window.location.pathname}${window.location.search}`
-          : "/";
-      await signIn("google", { callbackUrl });
+      const callbackUrl = window.location.href;
+      const reconnectUrl = `/api/auth/signin/google?callbackUrl=${encodeURIComponent(
+        callbackUrl
+      )}`;
+      window.location.assign(reconnectUrl);
     } catch (_error) {
       setReconnectingGoogle(false);
       setTaskSaveError("Could not start Google reconnection. Please try again.");
@@ -1379,7 +1379,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       const rawMessage = error instanceof Error ? error.message : "";
       if (isGoogleReconnectErrorText(rawMessage)) {
         setTaskSaveError("Google authorization expired. Redirecting for reconnection...");
-        void triggerGoogleReconnect();
+        triggerGoogleReconnect();
         return;
       }
       setTaskSaveError(readErrorMessage(error, "Could not sync calendar now. Please retry."));
@@ -1913,7 +1913,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               type="button"
               disabled={reconnectingGoogle}
               onClick={() => {
-                void triggerGoogleReconnect();
+                triggerGoogleReconnect();
               }}
             >
               {reconnectingGoogle ? "Redirecting..." : "Reconnect Google"}
