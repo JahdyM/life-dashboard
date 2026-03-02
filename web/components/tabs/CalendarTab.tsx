@@ -1353,7 +1353,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     setReconnectingGoogle(true);
     try {
       const callbackUrl = window.location.href;
-      const reconnectUrl = `/api/auth/signin/google?callbackUrl=${encodeURIComponent(
+      const reconnectUrl = `/signin?reconnect=google&callbackUrl=${encodeURIComponent(
         callbackUrl
       )}`;
       window.location.assign(reconnectUrl);

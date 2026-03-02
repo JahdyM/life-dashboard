@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
@@ -19,6 +19,9 @@ export default function SignInClient() {
   const router = useRouter();
   const { status } = useSession();
   const [error, setError] = useState<string | null>(null);
+  const [callbackUrl, setCallbackUrl] = useState<string>("/");
+  const [reconnectGoogle, setReconnectGoogle] = useState(false);
+  const reconnectStartedRef = useRef(false);
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -30,7 +33,20 @@ export default function SignInClient() {
     const search = typeof window !== "undefined" ? window.location.search : "";
     const params = new URLSearchParams(search);
     setError(params.get("error"));
+    const rawCallback = params.get("callbackUrl");
+    if (rawCallback && rawCallback.trim()) {
+      setCallbackUrl(rawCallback);
+    }
+    setReconnectGoogle(params.get("reconnect") === "google");
   }, []);
+
+  useEffect(() => {
+    if (!reconnectGoogle) return;
+    if (status !== "unauthenticated") return;
+    if (reconnectStartedRef.current) return;
+    reconnectStartedRef.current = true;
+    void signIn("google", { callbackUrl });
+  }, [callbackUrl, reconnectGoogle, status]);
 
   const errorMessage = useMemo(() => resolveSignInErrorMessage(error), [error]);
   const loading = status === "loading" || status === "authenticated";
@@ -44,7 +60,7 @@ export default function SignInClient() {
         <button
           className="primary"
           disabled={loading}
-          onClick={() => signIn("google", { callbackUrl: "/" })}
+          onClick={() => signIn("google", { callbackUrl })}
         >
           {loading ? "Redirecting..." : "Sign in"}
         </button>
