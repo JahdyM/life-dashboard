@@ -24,10 +24,10 @@ export default function SignInClient() {
   const reconnectStartedRef = useRef(false);
 
   useEffect(() => {
-    if (status === "authenticated") {
+    if (status === "authenticated" && !reconnectGoogle) {
       router.replace("/");
     }
-  }, [status, router]);
+  }, [status, reconnectGoogle, router]);
 
   useEffect(() => {
     const search = typeof window !== "undefined" ? window.location.search : "";
@@ -42,7 +42,7 @@ export default function SignInClient() {
 
   useEffect(() => {
     if (!reconnectGoogle) return;
-    if (status !== "unauthenticated") return;
+    if (status === "loading") return;
     if (reconnectStartedRef.current) return;
     reconnectStartedRef.current = true;
     void signIn("google", { callbackUrl });
