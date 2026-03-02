@@ -10,6 +10,8 @@ import { estimationStatsQuerySchema } from "@/lib/server/schemas";
 import { getEstimationStats } from "@/lib/server/stats/estimation";
 import { logServerEvent } from "@/lib/server/logger";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     const userEmail = await requireUserEmail();

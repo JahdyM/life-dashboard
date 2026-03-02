@@ -10,6 +10,8 @@ import {
 import { dateParamSchema, dayPatchSchema } from "@/lib/server/schemas";
 import { logServerEvent } from "@/lib/server/logger";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
   _request: NextRequest,
   context: { params: { date: string } }

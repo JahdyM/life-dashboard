@@ -10,6 +10,8 @@ import { updateSubtask, deleteSubtask } from "@/lib/server/tasks";
 import { subtaskIdSchema, subtaskPatchSchema } from "@/lib/server/schemas";
 import { logServerEvent } from "@/lib/server/logger";
 
+export const dynamic = "force-dynamic";
+
 export async function PATCH(
   request: NextRequest,
   context: { params: { id: string } }

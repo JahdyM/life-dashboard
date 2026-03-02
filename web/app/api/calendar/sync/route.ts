@@ -19,6 +19,8 @@ import { randomUUID } from "crypto";
 import { logServerEvent } from "@/lib/server/logger";
 import { ensureTaskCompletionColumns } from "@/lib/server/dbCompat";
 
+export const dynamic = "force-dynamic";
+
 function knownCalendarSyncError(message: string) {
   return (
     message.includes("Google calendar not connected") ||

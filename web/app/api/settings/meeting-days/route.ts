@@ -10,6 +10,8 @@ import { getMeetingDays, setMeetingDays } from "@/lib/server/settings";
 import { meetingDaysSchema } from "@/lib/server/schemas";
 import { logServerEvent } from "@/lib/server/logger";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(_request: NextRequest) {
   try {
     const userEmail = await requireUserEmail();

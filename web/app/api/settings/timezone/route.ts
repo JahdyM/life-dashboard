@@ -10,6 +10,8 @@ import { getUserTimeZone, setUserTimeZone } from "@/lib/server/settings";
 import { timezoneSchema } from "@/lib/server/schemas";
 import { logServerEvent } from "@/lib/server/logger";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(_request: NextRequest) {
   try {
     const userEmail = await requireUserEmail();

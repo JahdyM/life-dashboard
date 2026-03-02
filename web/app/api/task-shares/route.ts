@@ -14,6 +14,8 @@ import {
 } from "@/lib/server/sharedTasks";
 import { logServerEvent } from "@/lib/server/logger";
 
+export const dynamic = "force-dynamic";
+
 function knownShareError(message: string) {
   return (
     message.includes("Cannot share a task with yourself") ||

@@ -4,6 +4,8 @@ import { handleAuthError, jsonError, jsonOk } from "@/lib/server/response";
 import { getLifeBalanceScore } from "@/lib/server/stats/behavior";
 import { logServerEvent } from "@/lib/server/logger";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(_request: NextRequest) {
   try {
     const userEmail = await requireUserEmail();

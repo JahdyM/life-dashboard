@@ -5,6 +5,8 @@ import { exportQuerySchema } from "@/lib/server/schemas";
 import { getExportPayload, toExportCsv } from "@/lib/server/stats/behavior";
 import { logServerEvent } from "@/lib/server/logger";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     const userEmail = await requireUserEmail();

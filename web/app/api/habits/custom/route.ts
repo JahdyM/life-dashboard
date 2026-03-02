@@ -11,6 +11,8 @@ import { randomUUID } from "crypto";
 import { customHabitSchema } from "@/lib/server/schemas";
 import { logServerEvent } from "@/lib/server/logger";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(_request: NextRequest) {
   try {
     const userEmail = await requireUserEmail();

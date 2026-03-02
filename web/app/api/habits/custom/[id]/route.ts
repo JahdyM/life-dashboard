@@ -10,6 +10,8 @@ import { canonicalHabitKey, getCustomHabits, saveCustomHabits } from "@/lib/serv
 import { customHabitSchema, taskIdSchema } from "@/lib/server/schemas";
 import { logServerEvent } from "@/lib/server/logger";
 
+export const dynamic = "force-dynamic";
+
 export async function PATCH(
   request: NextRequest,
   context: { params: { id: string } }

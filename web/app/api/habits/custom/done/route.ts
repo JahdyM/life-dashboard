@@ -10,6 +10,8 @@ import { listCustomHabitDoneRange } from "@/lib/server/settings";
 import { rangeQuerySchema } from "@/lib/server/schemas";
 import { logServerEvent } from "@/lib/server/logger";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     const userEmail = await requireUserEmail();

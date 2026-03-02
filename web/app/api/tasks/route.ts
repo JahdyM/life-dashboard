@@ -21,6 +21,8 @@ import { logServerEvent } from "@/lib/server/logger";
 import { ensureTaskCompletionColumns } from "@/lib/server/dbCompat";
 import { randomUUID } from "crypto";
 
+export const dynamic = "force-dynamic";
+
 async function syncGoogleTasks(userEmail: string, start: string, end: string) {
   await ensureTaskCompletionColumns();
   const items = await listGoogleEventsAcrossCalendars(userEmail, start, end);

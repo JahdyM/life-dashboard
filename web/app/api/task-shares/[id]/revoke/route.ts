@@ -10,6 +10,8 @@ import { taskIdSchema } from "@/lib/server/schemas";
 import { revokeTaskShareInvite } from "@/lib/server/sharedTasks";
 import { logServerEvent } from "@/lib/server/logger";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(
   _request: NextRequest,
   context: { params: { id: string } }

@@ -15,6 +15,8 @@ import { taskIdSchema, taskPatchSchema } from "@/lib/server/schemas";
 import { logServerEvent } from "@/lib/server/logger";
 import type { TaskPayload } from "@/lib/server/tasks";
 
+export const dynamic = "force-dynamic";
+
 export async function PATCH(
   request: NextRequest,
   context: { params: { id: string } }

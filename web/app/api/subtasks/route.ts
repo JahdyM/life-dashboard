@@ -11,6 +11,8 @@ import { subtaskCreateSchema } from "@/lib/server/schemas";
 import { prisma } from "@/lib/db/prisma";
 import { logServerEvent } from "@/lib/server/logger";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   try {
     const userEmail = await requireUserEmail();

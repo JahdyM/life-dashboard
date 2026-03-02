@@ -5,6 +5,8 @@ import { getSharedStreaks } from "@/lib/server/couple";
 import { getTodayIsoForUser } from "@/lib/server/settings";
 import { logServerEvent } from "@/lib/server/logger";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(_request: NextRequest) {
   try {
     const userEmail = await requireUserEmail();
