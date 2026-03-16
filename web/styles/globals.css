@@ -616,57 +616,47 @@ button.link.danger {
   color: var(--text-muted);
 }
 
-.quick-notes-panel {
+.quick-note-block {
+  margin-top: 12px;
   border: 1px solid var(--border-soft);
   border-radius: 10px;
   padding: 10px;
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.quick-notes-input-row {
+  background: rgba(255, 255, 255, 0.04);
   display: grid;
-  grid-template-columns: 1fr auto;
   gap: 8px;
 }
 
-.quick-notes-list {
-  display: grid;
-  gap: 6px;
+.quick-note-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-.quick-note-row {
-  display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) auto;
+.quick-note-head h3 {
+  margin: 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.quick-note-actions {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 0;
-  border-bottom: 1px solid var(--border-soft);
 }
 
-.quick-note-row:last-child {
-  border-bottom: none;
-}
-
-.quick-note-row span {
-  font-size: 13px;
-  line-height: 1.35;
-}
-
-.quick-note-row.done span {
-  text-decoration: line-through;
-  opacity: 0.68;
-}
-
-.quick-note-remove {
-  border: 1px solid var(--border-soft);
-  border-radius: 999px;
-  background: transparent;
+.quick-note-status {
+  font-size: 11px;
   color: var(--text-muted);
-  width: 22px;
-  height: 22px;
-  line-height: 1;
-  font-size: 14px;
-  padding: 0;
+}
+
+.quick-note-textarea {
+  width: 100%;
+  min-height: 180px;
+  resize: vertical;
+  line-height: 1.45;
 }
 
 .task-form {

@@ -6,8 +6,8 @@ import {
   jsonOk,
   zodErrorMessage,
 } from "@/lib/server/response";
-import { dateParamSchema, quickNotesSchema } from "@/lib/server/schemas";
-import { getQuickNotes, setQuickNotes } from "@/lib/server/settings";
+import { dateParamSchema, quickNoteTextSchema } from "@/lib/server/schemas";
+import { getQuickNotesText, setQuickNotesText } from "@/lib/server/settings";
 import { logServerEvent } from "@/lib/server/logger";
 
 export const dynamic = "force-dynamic";
@@ -20,8 +20,8 @@ export async function GET(
     const userEmail = await requireUserEmail();
     const paramsParsed = dateParamSchema.safeParse(context.params);
     if (!paramsParsed.success) return jsonError(zodErrorMessage(paramsParsed.error), 400);
-    const items = await getQuickNotes(userEmail, paramsParsed.data.date);
-    return jsonOk({ items });
+    const text = await getQuickNotesText(userEmail, paramsParsed.data.date);
+    return jsonOk({ text });
   } catch (err) {
     logServerEvent("error", {
       endpoint: "GET /api/settings/quick-notes/[date]",
@@ -48,9 +48,9 @@ export async function PUT(
     } catch (_err) {
       return jsonError("Invalid JSON body", 400);
     }
-    const parsed = quickNotesSchema.safeParse(rawPayload);
+    const parsed = quickNoteTextSchema.safeParse(rawPayload);
     if (!parsed.success) return jsonError(zodErrorMessage(parsed.error), 400);
-    await setQuickNotes(userEmail, paramsParsed.data.date, parsed.data.items);
+    await setQuickNotesText(userEmail, paramsParsed.data.date, parsed.data.text);
     return jsonOk({ ok: true });
   } catch (err) {
     logServerEvent("error", {
@@ -63,4 +63,3 @@ export async function PUT(
     return jsonError("Failed to update quick notes", 500);
   }
 }
-

@@ -56,61 +56,42 @@ export async function setUserTimeZone(userEmail: string, timezone: string) {
   await setSetting(userEmail, "timezone", timezone);
 }
 
-export type QuickNoteItem = {
-  id: string;
-  text: string;
-  done: number;
-};
-
-function normalizeQuickNotes(
-  items: Array<{ id: string; text: string; done: number | boolean }>
-): QuickNoteItem[] {
-  const output: QuickNoteItem[] = [];
-  const seen = new Set<string>();
-  for (const raw of items || []) {
-    const id = String(raw?.id || "").trim().slice(0, 120);
-    if (!id || seen.has(id)) continue;
-    const text = String(raw?.text || "").trim().slice(0, 400);
-    if (!text) continue;
-    output.push({
-      id,
-      text,
-      done: raw?.done ? 1 : 0,
-    });
-    seen.add(id);
-    if (output.length >= 200) break;
-  }
-  return output;
-}
-
-export async function getQuickNotes(
-  userEmail: string,
-  dayIso: string
-): Promise<QuickNoteItem[]> {
-  const raw = await getSetting(userEmail, `quick_notes::${dayIso}`);
-  if (!raw) return [];
+function legacyQuickNotesToText(raw: string | null): string {
+  if (!raw) return "";
   try {
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return normalizeQuickNotes(
-      parsed.map((item) => ({
-        id: String(item?.id || ""),
-        text: String(item?.text || ""),
-        done: item?.done ? 1 : 0,
-      }))
-    );
+    if (!Array.isArray(parsed)) return "";
+    return parsed
+      .map((item) => {
+        const text = String(item?.text || "").trim();
+        if (!text) return "";
+        const done = item?.done ? "[x]" : "[ ]";
+        return `${done} ${text}`;
+      })
+      .filter(Boolean)
+      .join("\n")
+      .slice(0, 20000);
   } catch (_err) {
-    return [];
+    return "";
   }
 }
 
-export async function setQuickNotes(
-  userEmail: string,
-  dayIso: string,
-  items: Array<{ id: string; text: string; done: number | boolean }>
-) {
-  const clean = normalizeQuickNotes(items);
-  await setSetting(userEmail, `quick_notes::${dayIso}`, JSON.stringify(clean));
+export async function getQuickNotesText(userEmail: string, dayIso: string): Promise<string> {
+  const key = `quick_notes_text::${dayIso}`;
+  const raw = await getSetting(userEmail, key);
+  if (raw !== null) return String(raw).slice(0, 20000);
+  const legacy = legacyQuickNotesToText(
+    await getSetting(userEmail, `quick_notes::${dayIso}`)
+  );
+  if (legacy) {
+    await setSetting(userEmail, key, legacy);
+  }
+  return legacy;
+}
+
+export async function setQuickNotesText(userEmail: string, dayIso: string, text: string) {
+  const clean = String(text || "").replace(/\r\n/g, "\n").slice(0, 20000);
+  await setSetting(userEmail, `quick_notes_text::${dayIso}`, clean);
 }
 
 function todayIsoForTimeZone(timezone: string): string {
