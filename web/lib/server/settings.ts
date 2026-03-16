@@ -56,6 +56,63 @@ export async function setUserTimeZone(userEmail: string, timezone: string) {
   await setSetting(userEmail, "timezone", timezone);
 }
 
+export type QuickNoteItem = {
+  id: string;
+  text: string;
+  done: number;
+};
+
+function normalizeQuickNotes(
+  items: Array<{ id: string; text: string; done: number | boolean }>
+): QuickNoteItem[] {
+  const output: QuickNoteItem[] = [];
+  const seen = new Set<string>();
+  for (const raw of items || []) {
+    const id = String(raw?.id || "").trim().slice(0, 120);
+    if (!id || seen.has(id)) continue;
+    const text = String(raw?.text || "").trim().slice(0, 400);
+    if (!text) continue;
+    output.push({
+      id,
+      text,
+      done: raw?.done ? 1 : 0,
+    });
+    seen.add(id);
+    if (output.length >= 200) break;
+  }
+  return output;
+}
+
+export async function getQuickNotes(
+  userEmail: string,
+  dayIso: string
+): Promise<QuickNoteItem[]> {
+  const raw = await getSetting(userEmail, `quick_notes::${dayIso}`);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return normalizeQuickNotes(
+      parsed.map((item) => ({
+        id: String(item?.id || ""),
+        text: String(item?.text || ""),
+        done: item?.done ? 1 : 0,
+      }))
+    );
+  } catch (_err) {
+    return [];
+  }
+}
+
+export async function setQuickNotes(
+  userEmail: string,
+  dayIso: string,
+  items: Array<{ id: string; text: string; done: number | boolean }>
+) {
+  const clean = normalizeQuickNotes(items);
+  await setSetting(userEmail, `quick_notes::${dayIso}`, JSON.stringify(clean));
+}
+
 function todayIsoForTimeZone(timezone: string): string {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone,

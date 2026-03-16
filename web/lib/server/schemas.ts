@@ -203,6 +203,29 @@ export const timezoneSchema = z
   })
   .strict();
 
+export const quickNotesSchema = z
+  .object({
+    items: z
+      .array(
+        z
+          .object({
+            id: z.string().trim().min(1).max(120),
+            text: z
+              .string()
+              .trim()
+              .min(1)
+              .max(400)
+              .refine((value) => !hasInvalidHtmlTags(value), {
+                message: "Note text must not contain HTML",
+              }),
+            done: z.union([z.number().int().min(0).max(1), z.boolean()]),
+          })
+          .strict()
+      )
+      .max(200),
+  })
+  .strict();
+
 export const customHabitSchema = z
   .object({
     name: z

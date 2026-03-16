@@ -49,6 +49,12 @@ export type TaskShareInvite = {
   recipientTaskId: string | null;
 };
 
+export type QuickNote = {
+  id: string;
+  text: string;
+  done: number;
+};
+
 export type TodoSubtask = {
   id: string;
   taskId: string;

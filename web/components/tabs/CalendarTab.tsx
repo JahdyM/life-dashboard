@@ -12,6 +12,7 @@ import type {
   CustomHabit,
   DayEntry,
   EstimationResponse,
+  QuickNote,
   TaskShareInvite,
   TodoTask,
 } from "@/lib/types";
@@ -36,6 +37,7 @@ type CustomDoneResponse = { done: Record<string, number> };
 type MeetingDaysResponse = { days: number[] };
 type FamilyDayResponse = { day: number };
 type TaskSharesResponse = { items: TaskShareInvite[]; sent?: TaskShareInvite[] };
+type QuickNotesResponse = { items: QuickNote[] };
 
 type DailyHabitItem = {
   id: string;
@@ -60,6 +62,13 @@ function readErrorMessage(error: unknown, fallback: string) {
     return `${fallback} ${error.message}`;
   }
   return fallback;
+}
+
+function buildQuickNoteId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `note-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function isGoogleReconnectErrorText(text: string | null | undefined) {
@@ -534,6 +543,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [habitTimeDrafts, setHabitTimeDrafts] = useState<Record<string, string>>({});
   const [habitDurationDrafts, setHabitDurationDrafts] = useState<Record<string, number>>({});
   const [dismissedHabitsByDay, setDismissedHabitsByDay] = useState<Record<string, string[]>>({});
+  const [quickNoteDraft, setQuickNoteDraft] = useState("");
 
   useEffect(() => {
     try {
@@ -674,6 +684,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     queryFn: () => fetchJson<TaskSharesResponse>("/api/task-shares"),
     staleTime: 10_000,
   });
+  const quickNotesQuery = useQuery({
+    queryKey: ["quick-notes", selectedDayIso],
+    queryFn: () =>
+      fetchJson<QuickNotesResponse>(`/api/settings/quick-notes/${selectedDayIso}`),
+  });
 
   useEffect(() => {
     if (tasksQuery.data && !didSync) {
@@ -738,6 +753,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const sentTaskShares = useMemo(
     () => taskSharesQuery.data?.sent || [],
     [taskSharesQuery.data?.sent]
+  );
+  const quickNotes = useMemo(
+    () => quickNotesQuery.data?.items || [],
+    [quickNotesQuery.data?.items]
   );
   const activeSentShareByTaskId = useMemo(() => {
     const map = new Map<
@@ -1179,6 +1198,36 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     },
   });
 
+  const saveQuickNotes = useMutation({
+    mutationFn: (items: QuickNote[]) =>
+      fetchJson<{ ok: boolean }>(`/api/settings/quick-notes/${selectedDayIso}`, {
+        method: "PUT",
+        body: JSON.stringify({ items }),
+      }),
+    onMutate: async (items) => {
+      setTaskSaveError(null);
+      await queryClient.cancelQueries({ queryKey: ["quick-notes", selectedDayIso] });
+      const previous = queryClient.getQueryData<QuickNotesResponse>([
+        "quick-notes",
+        selectedDayIso,
+      ]);
+      queryClient.setQueryData(["quick-notes", selectedDayIso], { items });
+      return { previous };
+    },
+    onError: (error, _items, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          ["quick-notes", selectedDayIso],
+          context.previous
+        );
+      }
+      setTaskSaveError(readErrorMessage(error, "Could not save quick notes."));
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["quick-notes", selectedDayIso] });
+    },
+  });
+
   const createTaskFromCalendar = useMutation({
     mutationFn: () => {
       if (!calendarSelection) return Promise.resolve<{ task: TodoTask } | null>(null);
@@ -1596,6 +1645,48 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       [habitId]: value,
     }));
   }, []);
+
+  const handleAddQuickNote = useCallback(() => {
+    const text = quickNoteDraft.trim().slice(0, 400);
+    if (!text) return;
+    const next: QuickNote[] = [
+      ...quickNotes,
+      {
+        id: buildQuickNoteId(),
+        text,
+        done: 0,
+      },
+    ];
+    setQuickNoteDraft("");
+    saveQuickNotes.mutate(next);
+  }, [quickNoteDraft, quickNotes, saveQuickNotes]);
+
+  const handleToggleQuickNote = useCallback(
+    (noteId: string, checked: boolean) => {
+      const next = quickNotes.map((note) =>
+        note.id === noteId ? { ...note, done: checked ? 1 : 0 } : note
+      );
+      saveQuickNotes.mutate(next);
+    },
+    [quickNotes, saveQuickNotes]
+  );
+
+  const handleRemoveQuickNote = useCallback(
+    (noteId: string) => {
+      const next = quickNotes.filter((note) => note.id !== noteId);
+      saveQuickNotes.mutate(next);
+    },
+    [quickNotes, saveQuickNotes]
+  );
+
+  const handleQuickNoteKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      handleAddQuickNote();
+    },
+    [handleAddQuickNote]
+  );
 
   const handleToggleHabit = useCallback(
     (habit: DailyHabitItem, checked: boolean) => {
@@ -2018,6 +2109,72 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   />
                 ))
             : null}
+        </div>
+        <div className="task-remembered quick-notes-panel">
+          <h3>Quick notes</h3>
+          <div className="quick-notes-input-row">
+            <input
+              id="quick-note-input"
+              type="text"
+              value={quickNoteDraft}
+              placeholder="Write a quick note and press Enter"
+              onChange={(event) => setQuickNoteDraft(event.target.value)}
+              onKeyDown={handleQuickNoteKeyDown}
+              maxLength={400}
+              aria-label="Quick note text"
+            />
+            <button
+              type="button"
+              className="secondary"
+              onClick={handleAddQuickNote}
+              disabled={!quickNoteDraft.trim() || saveQuickNotes.isPending}
+            >
+              {saveQuickNotes.isPending ? "..." : "Add"}
+            </button>
+          </div>
+          {quickNotesQuery.isPending ? (
+            <div className="query-status">Loading notes...</div>
+          ) : null}
+          {quickNotesQuery.isError ? (
+            <div className="query-status error">
+              <span>Could not load quick notes.</span>
+              <button className="secondary" onClick={() => quickNotesQuery.refetch()}>
+                Retry
+              </button>
+            </div>
+          ) : null}
+          {!quickNotesQuery.isPending && !quickNotesQuery.isError ? (
+            quickNotes.length === 0 ? (
+              <div className="line-empty">No quick notes for this day yet.</div>
+            ) : (
+              <div className="quick-notes-list">
+                {quickNotes.map((note) => (
+                  <div
+                    key={note.id}
+                    className={`quick-note-row ${note.done ? "done" : ""}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={Boolean(note.done)}
+                      onChange={(event) =>
+                        handleToggleQuickNote(note.id, event.target.checked)
+                      }
+                      aria-label={`Mark note ${note.text} as done`}
+                    />
+                    <span>{note.text}</span>
+                    <button
+                      type="button"
+                      className="quick-note-remove"
+                      onClick={() => handleRemoveQuickNote(note.id)}
+                      aria-label={`Remove note ${note.text}`}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )
+          ) : null}
         </div>
         {completionPrompt ? (
           <div className="completion-prompt">
