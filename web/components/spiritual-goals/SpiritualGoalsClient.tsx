@@ -75,7 +75,10 @@ export default function SpiritualGoalsClient({
     initialData,
   });
 
-  const items = spiritualQuery.data?.items || [];
+  const items = useMemo(
+    () => spiritualQuery.data?.items ?? [],
+    [spiritualQuery.data?.items]
+  );
 
   useEffect(() => {
     if (!items.some((item) => item.category === selectedCategory) && items[0]) {
