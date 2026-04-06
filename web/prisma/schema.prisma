@@ -154,3 +154,32 @@ model DaySnapshotCache {
   @@id([userEmail, date])
   @@map("day_snapshot_cache")
 }
+
+model MinistryMonthlyGoal {
+  id            String @id
+  userEmail     String @map("user_email")
+  year          Int
+  month         Int
+  targetMinutes Int    @map("target_minutes")
+  createdAt     String @map("created_at")
+  updatedAt     String @map("updated_at")
+
+  @@unique([userEmail, year, month])
+  @@index([userEmail, year, month])
+  @@map("monthly_goals")
+}
+
+model MinistryDailyEntry {
+  id            String  @id
+  userEmail     String  @map("user_email")
+  date          String  @map("date")
+  goalMinutes   Int?    @map("goal_minutes")
+  actualMinutes Int?    @map("actual_minutes")
+  notes         String?
+  createdAt     String  @map("created_at")
+  updatedAt     String  @map("updated_at")
+
+  @@unique([userEmail, date])
+  @@index([userEmail, date])
+  @@map("daily_service_entries")
+}
