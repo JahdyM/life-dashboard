@@ -183,7 +183,7 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
       {queryLoading && <div className="query-status">Loading…</div>}
       {queryError && (
         <div className="query-status error">
-          <span>Couldn't load mood.</span>
+          <span>Could not load mood.</span>
           <button
             className="secondary"
             onClick={() => {

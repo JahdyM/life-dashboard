@@ -427,7 +427,7 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
       {entriesQuery.isPending && <div className="query-status">Loading…</div>}
       {entriesQuery.isError && (
         <div className="query-status error">
-          <span>Couldn't load charts.</span>
+          <span>Could not load charts.</span>
           <button className="secondary" onClick={() => entriesQuery.refetch()}>
             Retry
           </button>
@@ -493,7 +493,7 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
         )}
         {estimationQuery.isError && (
           <div className="query-status error">
-            <span>Couldn't load estimates.</span>
+            <span>Could not load estimates.</span>
             <button className="secondary" onClick={() => estimationQuery.refetch()}>
               Retry
             </button>
