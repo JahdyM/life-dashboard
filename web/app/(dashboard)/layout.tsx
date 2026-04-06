@@ -86,8 +86,7 @@ export default async function DashboardLayout({
               {shell.nextTask?.scheduledTime
                 ? `Starts ${shell.nextTask.scheduledTime}`
                 : moodMeta
-                ? `${moodMeta.emoji} ${MOOD_LABELS_EN[moodMeta.key] || moodMeta.label}`
-                ? `${moodMeta.emoji} ${moodMeta.label}`
+                  ? `${moodMeta.emoji} ${moodMeta.label}`
                   : "Add a task or mood."}
             </p>
           </article>

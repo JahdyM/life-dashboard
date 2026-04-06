@@ -63,6 +63,11 @@ export default function CoupleTab({ userEmail }: { userEmail: string }) {
   const xLabels = moodQuery.data?.x_labels || [];
   const yLabels = moodQuery.data?.y_labels || [];
   const z = moodQuery.data?.z || [];
+  const legendMoods = Array.from(
+    new Set((z || []).flat().filter(Boolean) as string[])
+  )
+    .map((key) => getMoodMeta(key))
+    .filter((mood): mood is NonNullable<ReturnType<typeof getMoodMeta>> => Boolean(mood));
   const userName = yLabels[0] || userEmail.split("@")[0];
   const partnerName = yLabels[1] || "Partner";
   const latestUserMood = getLatestMood(z?.[0]);
@@ -100,7 +105,7 @@ export default function CoupleTab({ userEmail }: { userEmail: string }) {
         <div className="warning">{moodQuery.data.warning}</div>
       )}
       <div className="mood-legend">
-        {MOOD_PALETTE.map((mood) => (
+        {(legendMoods.length ? legendMoods : MOOD_PALETTE.slice(0, 6)).map((mood) => (
           <div key={mood.key} className="mood-legend-item">
             <span className="mood-legend-color" style={{ background: mood.color }}>
               {mood.emoji}

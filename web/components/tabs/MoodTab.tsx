@@ -14,6 +14,7 @@ import { MOOD_DEFINITIONS, getMoodMeta } from "@/lib/moods";
 import type { MoodHistoryResponse, MoodMomentEntry } from "@/lib/types";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const EMPTY_MOOD_ENTRIES: MoodMomentEntry[] = [];
 
 type MoodCellProps = {
   dayKey: string;
@@ -136,7 +137,10 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
   }, [moodQuery.data?.entries]);
 
   const selectedSummary = dailySummaryMap.get(selectedDay) || null;
-  const selectedEntries = entriesByDay.get(selectedDay) || [];
+  const selectedEntries = useMemo(
+    () => entriesByDay.get(selectedDay) || EMPTY_MOOD_ENTRIES,
+    [entriesByDay, selectedDay]
+  );
   const selectedMoodMeta = getMoodMeta(selectedSummary?.moodCategory);
 
   useEffect(() => {
