@@ -2734,3 +2734,703 @@ button.link.danger {
     justify-self: start;
   }
 }
+
+.spiritual-shell {
+  gap: 24px;
+}
+
+.spiritual-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.spiritual-overview-card,
+.spiritual-detail-shell,
+.spiritual-visual-card,
+.spiritual-detail-panel,
+.spiritual-support-card,
+.spiritual-config-card,
+.spiritual-config-drawer {
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--spiritual-accent, var(--accent)) 16%, transparent), transparent 28%),
+    linear-gradient(180deg, rgba(255, 249, 241, 0.08), rgba(255, 255, 255, 0.03));
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.22);
+}
+
+.spiritual-overview-card {
+  overflow: hidden;
+}
+
+.spiritual-overview-button {
+  width: 100%;
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: inherit;
+}
+
+.spiritual-overview-card.active {
+  border-color: color-mix(in srgb, var(--spiritual-accent, var(--accent)) 45%, rgba(255, 255, 255, 0.1));
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.28);
+}
+
+.spiritual-overview-head,
+.spiritual-overview-footer,
+.spiritual-visual-head,
+.spiritual-visual-footer,
+.spiritual-detail-header,
+.spiritual-detail-head,
+.spiritual-support-head,
+.spiritual-config-card-head,
+.spiritual-config-head,
+.spiritual-config-actions,
+.spiritual-step-editor-head,
+.spiritual-config-task-head,
+.spiritual-task-row,
+.spiritual-step-actions,
+.spiritual-notes-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.spiritual-overview-copy,
+.spiritual-detail-header > div,
+.spiritual-visual-head > div,
+.spiritual-detail-empty,
+.spiritual-config-head > div,
+.spiritual-config-card-head > div,
+.spiritual-support-head > div {
+  display: grid;
+  gap: 8px;
+}
+
+.spiritual-overview-copy h3,
+.spiritual-detail-header h2,
+.spiritual-visual-head h3,
+.spiritual-detail-head h3,
+.spiritual-detail-empty h3,
+.spiritual-support-head h4,
+.spiritual-config-head h3,
+.spiritual-config-card-head h4,
+.spiritual-config-empty p {
+  margin: 0;
+  font-family: var(--font-heading), Georgia, serif;
+  line-height: 1.08;
+}
+
+.spiritual-overview-copy h3 {
+  font-size: 1.2rem;
+}
+
+.spiritual-overview-copy p,
+.spiritual-detail-goal,
+.spiritual-detail-subtitle,
+.spiritual-progress-copy,
+.spiritual-feedback,
+.spiritual-detail-head p,
+.spiritual-detail-meta,
+.spiritual-support-empty,
+.spiritual-config-head p,
+.spiritual-config-card-head p,
+.spiritual-config-empty span,
+.spiritual-config-warning,
+.spiritual-staircase-empty span,
+.spiritual-step-editor label,
+.spiritual-notes-field span,
+.spiritual-overview-label {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.spiritual-overview-copy p,
+.spiritual-detail-subtitle,
+.spiritual-progress-copy,
+.spiritual-detail-meta,
+.spiritual-overview-label,
+.spiritual-config-warning,
+.spiritual-staircase-empty span {
+  font-size: 13px;
+}
+
+.spiritual-detail-goal {
+  color: var(--text);
+  max-width: 58ch;
+}
+
+.spiritual-progress-pill,
+.spiritual-step-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--spiritual-accent, var(--accent)) 38%, rgba(255, 255, 255, 0.1));
+  background: color-mix(in srgb, var(--spiritual-accent, var(--accent)) 18%, rgba(255, 255, 255, 0.04));
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.spiritual-progress-pill.large {
+  min-height: 40px;
+  font-size: 14px;
+}
+
+.spiritual-open-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font-size: 13px;
+}
+
+.spiritual-detail-shell {
+  padding: 22px;
+  display: grid;
+  gap: 18px;
+}
+
+.spiritual-detail-header h2 {
+  font-size: clamp(1.9rem, 4vw, 3rem);
+}
+
+.spiritual-detail-header-actions {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+}
+
+.spiritual-feedback {
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.spiritual-focus-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.spiritual-visual-card,
+.spiritual-detail-panel {
+  padding: 18px;
+  display: grid;
+  gap: 16px;
+}
+
+.spiritual-detail-panel.empty {
+  align-self: stretch;
+}
+
+.spiritual-visual-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 14px;
+}
+
+.spiritual-visual-footer > div,
+.spiritual-overview-footer > div {
+  display: grid;
+  gap: 6px;
+}
+
+.spiritual-overview-footer strong,
+.spiritual-visual-footer strong {
+  font-size: 14px;
+}
+
+.spiritual-staircase {
+  position: relative;
+  width: min(100%, var(--spiritual-width));
+  min-height: var(--spiritual-height);
+  padding: 10px 0 0 0;
+  margin: 0 auto;
+}
+
+.spiritual-staircase.compact {
+  min-height: min(180px, var(--spiritual-height));
+}
+
+.spiritual-staircase-rail {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: calc(var(--spiritual-height) - 6px);
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 16%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.12));
+  mask-image: linear-gradient(135deg, transparent 0 10%, black 18% 100%);
+  pointer-events: none;
+}
+
+.spiritual-step {
+  position: absolute;
+  width: var(--spiritual-step-width);
+  min-height: var(--spiritual-step-height);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  font: inherit;
+  text-align: center;
+  border-radius: 18px 18px 10px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background:
+    linear-gradient(180deg, rgba(255, 252, 247, 0.12), rgba(255, 255, 255, 0.05)),
+    rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 12px 22px rgba(0, 0, 0, 0.2);
+  transition: transform 0.18s ease, border-color 0.18s ease, opacity 0.18s ease, background 0.18s ease;
+}
+
+.spiritual-step.interactive {
+  cursor: pointer;
+}
+
+.spiritual-step-label {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.spiritual-staircase.compact .spiritual-step {
+  width: var(--spiritual-step-width);
+  min-height: var(--spiritual-step-height);
+  padding: 0;
+  border-radius: 12px 12px 8px 8px;
+}
+
+.spiritual-staircase.compact .spiritual-step-label {
+  display: none;
+}
+
+.spiritual-step.completed {
+  background: color-mix(in srgb, var(--spiritual-accent, var(--accent)) 24%, rgba(255, 255, 255, 0.06));
+  border-color: color-mix(in srgb, var(--spiritual-accent, var(--accent)) 40%, rgba(255, 255, 255, 0.08));
+}
+
+.spiritual-step.current {
+  background: color-mix(in srgb, var(--spiritual-accent, var(--accent)) 18%, rgba(255, 255, 255, 0.08));
+  border-color: color-mix(in srgb, var(--spiritual-accent, var(--accent)) 58%, rgba(255, 255, 255, 0.1));
+  transform: translateY(-4px);
+}
+
+.spiritual-step.available {
+  background: rgba(255, 255, 255, 0.06);
+  border-style: dashed;
+}
+
+.spiritual-step.locked {
+  opacity: 0.58;
+}
+
+.spiritual-step.selected {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--spiritual-accent, var(--accent)) 65%, transparent), 0 12px 22px rgba(0, 0, 0, 0.2);
+}
+
+.spiritual-avatar {
+  position: absolute;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--spiritual-accent, var(--accent)) 40%, #fff), color-mix(in srgb, var(--spiritual-accent, var(--accent)) 78%, #704f29));
+  color: #1a140d;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.28);
+  transition: left 0.22s ease, bottom 0.22s ease;
+}
+
+.spiritual-avatar.compact {
+  width: 28px;
+  height: 28px;
+}
+
+.spiritual-staircase-empty {
+  min-height: var(--spiritual-height);
+  display: grid;
+  place-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.spiritual-staircase-empty p,
+.spiritual-detail-empty p,
+.spiritual-config-empty p {
+  margin: 0;
+}
+
+.spiritual-detail-head {
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.spiritual-step-chip.current,
+.spiritual-step-chip.available {
+  color: var(--warning);
+}
+
+.spiritual-step-chip.completed {
+  color: var(--success);
+}
+
+.spiritual-step-chip.locked {
+  color: var(--text-muted);
+}
+
+.spiritual-step-actions {
+  flex-wrap: wrap;
+}
+
+.spiritual-step-actions .page-link,
+.spiritual-detail-header-actions .page-link {
+  gap: 8px;
+}
+
+.spiritual-detail-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.spiritual-support-card {
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.spiritual-task-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.spiritual-task-row {
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.spiritual-task-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.spiritual-task-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.spiritual-task-toggle input,
+.spiritual-config-task-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.spiritual-task-toggle span.checked {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.spiritual-task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+button.secondary.subtle {
+  padding: 8px 10px;
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+button.secondary.subtle.danger {
+  color: var(--danger);
+}
+
+.spiritual-task-create,
+.spiritual-color-row,
+.spiritual-config-task-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.spiritual-color-row input[type="color"] {
+  width: 56px;
+  min-width: 56px;
+  padding: 4px;
+}
+
+.spiritual-task-create input,
+.spiritual-config-task-row input[type="text"],
+.spiritual-config-task-row input:not([type]) {
+  flex: 1;
+}
+
+.spiritual-task-create button,
+.spiritual-config-task-head button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.spiritual-notes-field,
+.spiritual-step-editor label,
+.spiritual-config-grid label {
+  display: grid;
+  gap: 8px;
+}
+
+.spiritual-notes-field textarea,
+.spiritual-step-editor textarea,
+.spiritual-config-grid textarea,
+.spiritual-config-grid input,
+.spiritual-step-editor input,
+.spiritual-task-actions input,
+.spiritual-task-create input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  color: var(--text);
+  padding: 12px 13px;
+}
+
+.spiritual-notes-field textarea,
+.spiritual-step-editor textarea,
+.spiritual-config-grid textarea {
+  resize: vertical;
+  min-height: 112px;
+  font: inherit;
+}
+
+.spiritual-notes-field.subtle {
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.spiritual-config-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.spiritual-config-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(8, 7, 6, 0.58);
+  backdrop-filter: blur(6px);
+}
+
+.spiritual-config-drawer {
+  position: relative;
+  z-index: 1;
+  width: min(760px, 100%);
+  height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: 22px;
+  border-radius: 30px 0 0 30px;
+  border-right: 0;
+}
+
+.spiritual-config-scroll {
+  overflow: auto;
+  display: grid;
+  gap: 16px;
+  padding-right: 6px;
+}
+
+.spiritual-config-head,
+.spiritual-config-actions {
+  padding-bottom: 14px;
+}
+
+.spiritual-config-actions {
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.spiritual-config-card,
+.spiritual-step-editor {
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.spiritual-config-grid,
+.spiritual-step-editor-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.spiritual-config-card-head.split {
+  align-items: center;
+}
+
+.spiritual-config-warning {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(241, 197, 122, 0.22);
+  background: rgba(241, 197, 122, 0.08);
+}
+
+.spiritual-step-editor.dragging {
+  opacity: 0.7;
+}
+
+.spiritual-step-editor-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.spiritual-drag-handle {
+  color: var(--text-muted);
+}
+
+.spiritual-step-editor-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.spiritual-config-task-group,
+.spiritual-config-task-list,
+.spiritual-step-editor-list {
+  display: grid;
+  gap: 12px;
+}
+
+.spiritual-config-empty,
+.spiritual-detail-empty {
+  display: grid;
+  gap: 8px;
+  padding: 8px 2px;
+}
+
+.spiritual-support-empty.small {
+  font-size: 12px;
+}
+
+@media (max-width: 1280px) {
+  .spiritual-overview-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  .spiritual-overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .spiritual-focus-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .spiritual-detail-header,
+  .spiritual-visual-head,
+  .spiritual-overview-head,
+  .spiritual-overview-footer,
+  .spiritual-detail-head,
+  .spiritual-support-head,
+  .spiritual-config-head,
+  .spiritual-config-card-head,
+  .spiritual-config-card-head.split,
+  .spiritual-step-editor-head,
+  .spiritual-config-actions,
+  .spiritual-step-actions,
+  .spiritual-task-row,
+  .spiritual-notes-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .spiritual-detail-header-actions {
+    justify-items: start;
+  }
+
+  .spiritual-config-drawer {
+    width: min(100%, 100vw);
+  }
+}
+
+@media (max-width: 760px) {
+  .spiritual-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .spiritual-config-overlay {
+    justify-content: stretch;
+    align-items: flex-end;
+  }
+
+  .spiritual-detail-shell,
+  .spiritual-overview-button,
+  .spiritual-visual-card,
+  .spiritual-detail-panel,
+  .spiritual-support-card,
+  .spiritual-config-card,
+  .spiritual-config-drawer {
+    border-radius: 20px;
+  }
+
+  .spiritual-detail-header h2 {
+    font-size: clamp(1.7rem, 8vw, 2.4rem);
+  }
+
+  .spiritual-config-drawer {
+    padding: 16px;
+    height: min(92vh, 100vh);
+    margin-top: auto;
+    border-radius: 24px 24px 0 0;
+  }
+
+  .spiritual-staircase.full {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 12px;
+  }
+
+  .spiritual-step {
+    width: min(var(--spiritual-step-width), 110px);
+  }
+
+  .spiritual-task-create,
+  .spiritual-color-row,
+  .spiritual-config-task-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
