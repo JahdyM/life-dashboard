@@ -287,3 +287,69 @@ export type CoupleComparisonResponse = {
   }>;
   notes: string[];
 };
+
+export type MinistryPaceStatus = "ahead" | "on_track" | "behind" | "no_plan";
+
+export type MinistryDayStatus =
+  | "no_goal"
+  | "missed"
+  | "partial"
+  | "met"
+  | "exceeded";
+
+export type MinistryMonthlyGoal = {
+  id: string;
+  userEmail?: string;
+  year: number;
+  month: number;
+  targetMinutes: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type MinistryDailyEntry = {
+  id: string;
+  userEmail?: string;
+  date: string;
+  goalMinutes: number | null;
+  actualMinutes: number | null;
+  notes: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type MinistryDayComputed = {
+  date: string;
+  goalMinutes: number | null;
+  actualMinutes: number | null;
+  notes: string | null;
+  differenceMinutes: number | null;
+  status: MinistryDayStatus;
+  isToday: boolean;
+  isPast: boolean;
+  isFuture: boolean;
+};
+
+export type MinistryMonthSummary = {
+  monthKey: string;
+  targetMinutes: number | null;
+  totalCompletedMinutes: number;
+  totalRemainingMinutes: number | null;
+  completionPercent: number | null;
+  accumulatedPlannedMinutes: number;
+  accumulatedActualMinutes: number;
+  accumulatedDifferenceMinutes: number;
+  paceStatus: MinistryPaceStatus;
+  paceLabel: string;
+  activeGoalDays: number;
+  completedGoalDays: number;
+};
+
+export type MinistryMonthPayload = {
+  monthKey: string;
+  todayIso: string;
+  goal: MinistryMonthlyGoal | null;
+  entries: MinistryDailyEntry[];
+  days: MinistryDayComputed[];
+  summary: MinistryMonthSummary;
+};
