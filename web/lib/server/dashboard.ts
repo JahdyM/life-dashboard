@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { prisma } from "@/lib/db/prisma";
-import { buildHeaderSnapshot } from "./header";
+import { buildTodayHabitSnapshot } from "./header";
 import { getSharedStreaks } from "./couple";
 import { getQuickNotesText, getTodayIsoForUser, getUserTimeZone } from "./settings";
 import { listTasks } from "./tasks";
@@ -28,6 +28,13 @@ export type TodayOverviewData = DashboardShellData & {
   todayTasks: TodoTask[];
   pendingTasks: TodoTask[];
   completedTasks: TodoTask[];
+  completedItems: Array<{
+    id: string;
+    title: string;
+    meta: string | null;
+    kind: "task" | "habit";
+    scheduledTime?: string | null;
+  }>;
   moodNote: string | null;
   quickNotesText: string;
 };
@@ -44,7 +51,7 @@ function selectNextTask(tasks: TodoTask[]) {
 
 const getTodayBaseData = cache(async (userEmail: string) => {
   const todayIso = await getTodayIsoForUser(userEmail);
-  const [todayTasks, timezone, quickNotesText, todayEntry] = await Promise.all([
+  const [todayTasks, timezone, quickNotesText, todayEntry, habitSnapshot] = await Promise.all([
     listTasks(userEmail, todayIso, todayIso),
     getUserTimeZone(userEmail),
     getQuickNotesText(userEmail, todayIso),
@@ -55,10 +62,24 @@ const getTodayBaseData = cache(async (userEmail: string) => {
         moodNote: true,
       },
     }),
+    buildTodayHabitSnapshot(userEmail, todayIso),
   ]);
 
   const pendingTasks = todayTasks.filter((task) => !task.isDone);
   const completedTasks = todayTasks.filter((task) => Boolean(task.isDone));
+  const completedItems = [
+    ...completedTasks.map((task) => ({
+      id: task.id,
+      title: task.title,
+      meta: task.actualMinutes ? `${task.actualMinutes} min` : task.scheduledTime || "Task",
+      kind: "task" as const,
+      scheduledTime: task.scheduledTime || null,
+    })),
+    ...habitSnapshot.completedHabits.map((habit) => ({
+      ...habit,
+      scheduledTime: null,
+    })),
+  ];
 
   return {
     todayIso,
@@ -66,6 +87,8 @@ const getTodayBaseData = cache(async (userEmail: string) => {
     todayTasks,
     pendingTasks,
     completedTasks,
+    completedItems,
+    header: habitSnapshot.header,
     nextTask: selectNextTask(todayTasks),
     moodCategory: todayEntry?.moodCategory || null,
     moodNote: todayEntry?.moodNote || null,
@@ -76,17 +99,14 @@ const getTodayBaseData = cache(async (userEmail: string) => {
 export const getDashboardShellData = cache(
   async (userEmail: string): Promise<DashboardShellData> => {
     const todayBase = await getTodayBaseData(userEmail);
-    const [header, streaks] = await Promise.all([
-      buildHeaderSnapshot(userEmail, todayBase.todayIso),
-      getSharedStreaks(userEmail, todayBase.todayIso),
-    ]);
+    const streaks = await getSharedStreaks(userEmail, todayBase.todayIso);
 
     return {
       userEmail,
       displayName: getDisplayName(userEmail),
       todayIso: todayBase.todayIso,
       timezone: todayBase.timezone,
-      header,
+      header: todayBase.header,
       streaks,
       pendingTasksCount: todayBase.pendingTasks.length,
       completedTasksCount: todayBase.completedTasks.length,
@@ -108,6 +128,7 @@ export const getTodayOverviewData = cache(
       todayTasks: todayBase.todayTasks,
       pendingTasks: todayBase.pendingTasks,
       completedTasks: todayBase.completedTasks,
+      completedItems: todayBase.completedItems,
       moodNote: todayBase.moodNote,
       quickNotesText: todayBase.quickNotesText,
     };

@@ -8,6 +8,20 @@ import {
   getMeetingDays,
 } from "./settings";
 
+export type CompletedHabitItem = {
+  id: string;
+  title: string;
+  meta: string | null;
+  kind: "habit";
+};
+
+type HeaderSnapshot = {
+  date: string;
+  habits_completed: number;
+  habits_total: number;
+  habits_percent: number;
+};
+
 function parseIsoDateUtc(iso: string): Date | null {
   const [year, month, day] = String(iso || "")
     .split("-")
@@ -40,7 +54,10 @@ function isFixedHabitActiveOnDay(
   return true;
 }
 
-export async function buildHeaderSnapshot(userEmail: string, dateIso: string) {
+export async function buildTodayHabitSnapshot(userEmail: string, dateIso: string): Promise<{
+  header: HeaderSnapshot;
+  completedHabits: CompletedHabitItem[];
+}> {
   const [
     entry,
     customHabits,
@@ -77,13 +94,30 @@ export async function buildHeaderSnapshot(userEmail: string, dateIso: string) {
   const activeCustomHabits = customHabits.filter((habit) => habit.active !== false);
 
   const entryRecord = (entry || null) as Record<string, unknown> | null;
+  const completedHabits: CompletedHabitItem[] = [];
   const fixedCompleted = activeFixedHabits.reduce((sum, habit) => {
     const field = habitKeyToField(habit.key);
     if (!field) return sum;
-    return sum + (entryRecord?.[field] ? 1 : 0);
+    if (!entryRecord?.[field]) return sum;
+    completedHabits.push({
+      id: `fixed-${habit.key}`,
+      title: habit.label,
+      meta: "Habit",
+      kind: "habit",
+    });
+    return sum + 1;
   }, 0);
   const customCompleted = activeCustomHabits.reduce(
-    (sum, habit) => sum + (customDone[habit.id] ? 1 : 0),
+    (sum, habit) => {
+      if (!customDone[habit.id]) return sum;
+      completedHabits.push({
+        id: `custom-${habit.id}`,
+        title: habit.name,
+        meta: "Habit",
+        kind: "habit",
+      });
+      return sum + 1;
+    },
     0
   );
   const counts = {
@@ -92,9 +126,17 @@ export async function buildHeaderSnapshot(userEmail: string, dateIso: string) {
   };
   const percent = counts.total ? Math.round((counts.completed / counts.total) * 100) : 0;
   return {
-    date: dateIso,
-    habits_completed: counts.completed,
-    habits_total: counts.total,
-    habits_percent: percent,
+    header: {
+      date: dateIso,
+      habits_completed: counts.completed,
+      habits_total: counts.total,
+      habits_percent: percent,
+    },
+    completedHabits,
   };
+}
+
+export async function buildHeaderSnapshot(userEmail: string, dateIso: string) {
+  const snapshot = await buildTodayHabitSnapshot(userEmail, dateIso);
+  return snapshot.header;
 }

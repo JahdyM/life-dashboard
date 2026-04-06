@@ -33,7 +33,7 @@ function buildPrimaryAction(args: {
   hasPendingTasks: boolean;
   hasMood: boolean;
   hasNotes: boolean;
-  hasCompletedTasks: boolean;
+  hasCompletedItems: boolean;
   nextTaskTitle: string | null;
 }) {
   if (args.hasPendingTasks) {
@@ -56,7 +56,7 @@ function buildPrimaryAction(args: {
     };
   }
 
-  if (!args.hasNotes && !args.hasCompletedTasks) {
+  if (!args.hasNotes && !args.hasCompletedItems) {
     return {
       href: "/calendar",
       label: "Plan",
@@ -83,13 +83,13 @@ export default async function TodayPage() {
   const moodMeta =
     MOOD_PALETTE.find((item) => item.key === overview.moodCategory) || null;
   const upcomingTasks = sortTasks(overview.pendingTasks).slice(0, 5);
-  const completedTasks = sortTasks(overview.completedTasks).slice(0, 5);
+  const completedItems = sortTasks(overview.completedItems).slice(0, 6);
   const notePreview = overview.quickNotesText.trim();
   const primaryAction = buildPrimaryAction({
     hasPendingTasks: upcomingTasks.length > 0,
     hasMood: Boolean(moodMeta),
     hasNotes: Boolean(notePreview),
-    hasCompletedTasks: completedTasks.length > 0,
+    hasCompletedItems: completedItems.length > 0,
     nextTaskTitle: upcomingTasks[0]?.title || null,
   });
   const secondaryLinks = [
@@ -198,12 +198,12 @@ export default async function TodayPage() {
               Tasks
             </Link>
           </div>
-          {completedTasks.length ? (
+          {completedItems.length ? (
             <ul className="today-compact-list">
-              {completedTasks.map((task) => (
-                <li key={task.id}>
-                  <span>{task.title}</span>
-                  <small>{formatTaskMeta(task.scheduledTime, task.actualMinutes)}</small>
+              {completedItems.map((item) => (
+                <li key={item.id}>
+                  <span>{item.title}</span>
+                  <small>{item.meta || (item.kind === "habit" ? "Habit" : "")}</small>
                 </li>
               ))}
             </ul>

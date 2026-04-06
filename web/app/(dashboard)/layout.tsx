@@ -75,7 +75,6 @@ export default async function DashboardLayout({
           <article className="shell-summary-card primary">
             <p className="shell-summary-label">Today</p>
             <p className="shell-summary-value">{shell.header.date}</p>
-            <p className="shell-summary-meta">{shell.timezone || "Local time"}</p>
           </article>
 
           <article className="shell-summary-card">
