@@ -63,7 +63,7 @@ export default function TaskComposer({
       <div className="task-composer-head">
         <div>
           <p className="panel-kicker">Add</p>
-          <h3>New task</h3>
+          <h3>Task</h3>
         </div>
         <button type="button" className="secondary subtle" onClick={onToggleAdvanced}>
           {advancedOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -79,7 +79,7 @@ export default function TaskComposer({
             value={title}
             onChange={(event) => onTitleChange(event.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="What needs attention next?"
+            placeholder="Add task"
           />
         </label>
         <button type="submit" className="primary" disabled={disabled || !title.trim()}>
@@ -99,9 +99,7 @@ export default function TaskComposer({
           </button>
         </div>
       ) : (
-        <p className="task-composer-hint">
-          Pick a slot to prefill.
-        </p>
+        <p className="task-composer-hint">Pick a slot.</p>
       )}
 
       {advancedOpen ? (
@@ -143,7 +141,7 @@ export default function TaskComposer({
             />
             <span>
               <Sparkles size={15} />
-              Share with partner
+              Share
             </span>
           </label>
         </div>

@@ -43,7 +43,7 @@ function buildPrimaryAction(args: {
       eyebrow: "Next",
       description: args.nextTaskTitle
         ? `Start with ${args.nextTaskTitle}.`
-        : "Your next task is waiting.",
+        : "Next task is ready.",
     };
   }
 
@@ -52,26 +52,26 @@ function buildPrimaryAction(args: {
       href: "/mood",
       label: "Mood",
       eyebrow: "Mood",
-      description: "Log a quick check-in.",
+      description: "Log a check-in.",
     };
   }
 
   if (!args.hasNotes && !args.hasCompletedTasks) {
     return {
       href: "/calendar",
-      label: "Plan the day",
+      label: "Plan",
       eyebrow: "Plan",
       description: "Set one next step.",
     };
   }
 
   return {
-    href: "/calendar",
-    label: "Review",
-    eyebrow: "Review",
-    description: "Check the day.",
-  };
-}
+      href: "/calendar",
+      label: "Review",
+      eyebrow: "Review",
+      description: "Review the day.",
+    };
+  }
 
 export default async function TodayPage() {
   const userEmail = await getOptionalPageEmail();
@@ -124,7 +124,7 @@ export default async function TodayPage() {
             </div>
 
             <div className="today-next-card">
-              <span className="today-next-label">Next up</span>
+              <span className="today-next-label">Next</span>
               {upcomingTasks[0] ? (
                 <>
                   <strong>{upcomingTasks[0].title}</strong>
@@ -137,8 +137,8 @@ export default async function TodayPage() {
                 </>
               ) : (
                 <>
-                  <strong>The day is open.</strong>
-                  <p>Set one next step.</p>
+                  <strong>Open time.</strong>
+                  <p>Add one task.</p>
                 </>
               )}
             </div>
@@ -180,8 +180,7 @@ export default async function TodayPage() {
                 {MOOD_LABELS_EN[moodMeta.key] || moodMeta.label}
               </p>
               <p className="today-panel-copy">
-                {overview.moodNote?.trim() ||
-                  "Mood logged for today. You can refine the note any time."}
+                {overview.moodNote?.trim() || "Logged."}
               </p>
             </div>
           ) : (

@@ -163,7 +163,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
   onShare,
   sharing,
   shareLabel,
-  shareActionLabel = "Share with partner",
+  shareActionLabel = "Share",
 }: EditableTaskRowProps) {
   const handleToggle = useCallback(
     (event: ChangeEvent<HTMLInputElement>) =>
@@ -237,17 +237,17 @@ const EditableTaskRow = memo(function EditableTaskRow({
           <OverflowMenu className="task-row-overflow" align="right">
             <div className="task-row-menu-list">
               {onShare ? (
-                <button type="button" className="task-row-menu-action" onClick={handleShare} disabled={sharing}>
-                  <Share2 size={15} />
-                  {sharing ? "Working..." : shareActionLabel}
-                </button>
-              ) : null}
-              <button type="button" className="task-row-menu-action danger" onClick={handleDelete}>
-                <Trash2 size={15} />
-                Delete task
+              <button type="button" className="task-row-menu-action" onClick={handleShare} disabled={sharing}>
+                <Share2 size={15} />
+                {sharing ? "Working..." : shareActionLabel}
               </button>
-            </div>
-          </OverflowMenu>
+            ) : null}
+            <button type="button" className="task-row-menu-action danger" onClick={handleDelete}>
+              <Trash2 size={15} />
+                Delete
+            </button>
+          </div>
+        </OverflowMenu>
         </div>
       </summary>
       <div className="task-details">
@@ -276,7 +276,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
           </select>
         </label>
         <label>
-          Start time
+          Time
           <input
             type="time"
             value={draft.scheduledTime}
@@ -286,7 +286,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
           />
         </label>
         <label>
-          Est. minutes
+          Estimate
           <input
             type="number"
             min={0}
@@ -297,7 +297,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
             onKeyDown={handleFieldKeyDown}
           />
         </label>
-        <p className="task-detail-hint">Press Enter to save this field, or Escape to cancel your unsaved edits.</p>
+        <p className="task-detail-hint">Enter saves · Esc cancels</p>
       </div>
     </details>
   );
@@ -352,12 +352,12 @@ const SimpleTaskRow = memo(function SimpleTaskRow({
       <input type="checkbox" checked={draft.isDone} onChange={handleToggle} />
       <div className="task-row-main">
         <span className="task-title">{draft.title}</span>
-        <span className="task-time">{completed ? "Completed outside the agenda" : "Not scheduled yet"}</span>
+        <span className="task-time">{completed ? "Done off agenda" : "No time"}</span>
       </div>
       {shareLabel ? <span className="task-share-badge">{shareLabel}</span> : null}
       {onScheduleToday ? (
         <button className="secondary subtle" type="button" onClick={handleSchedule}>
-          Schedule today
+          Today
         </button>
       ) : null}
       <OverflowMenu className="task-row-overflow" align="right">
@@ -1112,7 +1112,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
     },
     onError: (error) => {
-      setTaskSaveError(readErrorMessage(error, "Could not create task."));
+      setTaskSaveError(readErrorMessage(error, "Couldn't add task."));
     },
   });
 
@@ -1142,7 +1142,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       if (context?.previous) {
         queryClient.setQueryData(["day", selectedDayIso], context.previous);
       }
-      setTaskSaveError(readErrorMessage(error, "Could not update daily habit."));
+      setTaskSaveError(readErrorMessage(error, "Couldn't update habit."));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["day", selectedDayIso] });
@@ -1174,7 +1174,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           context.previous
         );
       }
-      setTaskSaveError(readErrorMessage(error, "Could not update custom habit."));
+      setTaskSaveError(readErrorMessage(error, "Couldn't update habit."));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["custom-habits-done", selectedDayIso] });
@@ -1208,7 +1208,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
     },
     onError: (error) => {
-      setTaskSaveError(readErrorMessage(error, "Could not add habit to agenda."));
+      setTaskSaveError(readErrorMessage(error, "Couldn't add to agenda."));
     },
   });
 
@@ -1260,7 +1260,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       if (context?.previous) {
         queryClient.setQueryData(["tasks", range.start, range.end], context.previous);
       }
-      setTaskSaveError(readErrorMessage(error, "Could not remove habit from agenda."));
+      setTaskSaveError(readErrorMessage(error, "Couldn't hide habit."));
     },
   });
 
@@ -1287,7 +1287,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           context.previous
         );
       }
-      setTaskSaveError(readErrorMessage(error, "Could not save notes."));
+      setTaskSaveError(readErrorMessage(error, "Couldn't save notes."));
       setQuickNoteSavedAt(null);
     },
     onSuccess: () => {
@@ -1320,7 +1320,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
     },
     onError: (error) => {
-      setTaskSaveError(readErrorMessage(error, "Could not update task."));
+      setTaskSaveError(readErrorMessage(error, "Couldn't update task."));
     },
   });
 
@@ -1349,7 +1349,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     },
     onError: (error) => {
       setTaskSaveError(
-        readErrorMessage(error, "Could not update estimation values for this task.")
+        readErrorMessage(error, "Couldn't update estimate.")
       );
     },
   });
@@ -1369,7 +1369,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     },
     onError: (error) => {
       setTaskShareNotice(null);
-      setTaskSaveError(readErrorMessage(error, "Could not share this task."));
+      setTaskSaveError(readErrorMessage(error, "Couldn't share task."));
     },
   });
 
@@ -1386,7 +1386,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     },
     onError: (error) => {
       setTaskShareNotice(null);
-      setTaskSaveError(readErrorMessage(error, "Could not undo task share."));
+      setTaskSaveError(readErrorMessage(error, "Couldn't unshare task."));
     },
   });
 
@@ -1397,14 +1397,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       }),
     onSuccess: () => {
       setTaskSaveError(null);
-      setTaskShareNotice("Shared task accepted and added to your calendar.");
+      setTaskShareNotice("Invite accepted.");
       queryClient.invalidateQueries({ queryKey: ["task-shares"] });
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
       queryClient.invalidateQueries({ queryKey: ["init"] });
     },
     onError: (error) => {
       setTaskShareNotice(null);
-      setTaskSaveError(readErrorMessage(error, "Could not accept shared task."));
+      setTaskSaveError(readErrorMessage(error, "Couldn't accept invite."));
     },
   });
 
@@ -1415,12 +1415,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       }),
     onSuccess: () => {
       setTaskSaveError(null);
-      setTaskShareNotice("Shared task invite declined.");
+      setTaskShareNotice("Invite declined.");
       queryClient.invalidateQueries({ queryKey: ["task-shares"] });
     },
     onError: (error) => {
       setTaskShareNotice(null);
-      setTaskSaveError(readErrorMessage(error, "Could not decline shared task."));
+      setTaskSaveError(readErrorMessage(error, "Couldn't decline invite."));
     },
   });
 
@@ -1434,7 +1434,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
     },
     onError: (error) => {
-      setTaskSaveError(readErrorMessage(error, "Could not delete task."));
+      setTaskSaveError(readErrorMessage(error, "Couldn't delete task."));
     },
   });
 
@@ -1449,7 +1449,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       window.location.assign(reconnectUrl);
     } catch (_error) {
       setReconnectingGoogle(false);
-      setTaskSaveError("Could not start Google reconnection. Please try again.");
+      setTaskSaveError("Couldn't start reconnect.");
     }
   }, []);
 
@@ -1468,11 +1468,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       setSyncStatus("failed");
       const rawMessage = error instanceof Error ? error.message : "";
       if (isGoogleReconnectErrorText(rawMessage)) {
-        setTaskSaveError("Google authorization expired. Redirecting for reconnection...");
+        setTaskSaveError("Google expired. Redirecting…");
         triggerGoogleReconnect();
         return;
       }
-      setTaskSaveError(readErrorMessage(error, "Could not sync calendar now. Please retry."));
+      setTaskSaveError(readErrorMessage(error, "Couldn't sync."));
     }
   };
 
@@ -1534,7 +1534,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           },
           onError: (error) => {
             setTaskSaveError(
-              readErrorMessage(error, "Could not save task changes. Please try again.")
+              readErrorMessage(error, "Couldn't save task.")
             );
             setSavingTaskId(null);
           },
@@ -1585,7 +1585,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             );
           }
           setTaskSaveError(
-            readErrorMessage(error, "Could not mark task. Please try again.")
+            readErrorMessage(error, "Couldn't mark task.")
           );
           clearDoneDraft(task.id);
           setSavingTaskId(null);
@@ -1894,10 +1894,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     (task: TodoTask) => {
       if (task.source === "shared" || task.source === "google_shared") {
         return {
-          label:
-            task.source === "google_shared"
-              ? "Shared from Google"
-              : "Shared with you",
+          label: task.source === "google_shared" ? "Google share" : "Shared",
           canToggle: false,
           actionLabel: "Share",
         };
@@ -1905,14 +1902,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       const sentShare = activeSentShareByTaskId.get(task.id);
       if (sentShare?.status === "pending") {
         return {
-          label: `Shared with ${emailHandle(sentShare.toEmail)} • pending`,
+          label: `Shared · ${emailHandle(sentShare.toEmail)}`,
           canToggle: true,
           actionLabel: "Unshare",
         };
       }
       if (sentShare?.status === "accepted") {
         return {
-          label: `Shared with ${emailHandle(sentShare.toEmail)} • accepted`,
+          label: `Shared · ${emailHandle(sentShare.toEmail)}`,
           canToggle: true,
           actionLabel: "Unshare",
         };
@@ -1920,7 +1917,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       return {
         label: null,
         canToggle: true,
-        actionLabel: "Share with partner",
+        actionLabel: "Share",
       };
     },
     [activeSentShareByTaskId]
@@ -1934,7 +1931,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             <p className="panel-kicker">Today</p>
             <h2>Agenda</h2>
             <p className="task-header-meta">
-              {completedTasks.length}/{tasksForDay.length} tasks finished
+              {completedTasks.length}/{tasksForDay.length} done
             </p>
           </div>
           <div className="task-header-actions">
@@ -1958,7 +1955,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           advancedOpen={composerAdvancedOpen}
           selectionLabel={composerSelectionLabel}
           disabled={createTask.isPending}
-          submitLabel={createTask.isPending ? "Adding..." : "Add"}
+          submitLabel={createTask.isPending ? "Adding…" : "Add"}
           onSubmit={handleComposerSubmit}
           onTitleChange={(value) => setNewTitle(value)}
           onDateChange={(value) => setNewDate(value)}
@@ -2017,7 +2014,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               <p className="panel-kicker">Now</p>
               <h3>Pending</h3>
             </div>
-            <span className="calendar-section-count">{pendingTasks.length} pending</span>
+            <span className="calendar-section-count">{pendingTasks.length}</span>
           </div>
           {pendingTasks.length ? (
             <div className="task-items">
@@ -2151,7 +2148,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           {quickNoteQuery.isError ? (
             <InlineActionNotice
               tone="error"
-              body="Could not load notes."
+              body="Couldn't load notes."
               actionLabel="Retry"
               onAction={() => {
                 void quickNoteQuery.refetch();
@@ -2179,7 +2176,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             {taskSharesQuery.isError ? (
               <InlineActionNotice
                 tone="error"
-                body="Could not load shared invites."
+                body="Couldn't load invites."
                 actionLabel="Retry"
                 onAction={() => {
                   void taskSharesQuery.refetch();
@@ -2238,7 +2235,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             {habitsError ? (
               <InlineActionNotice
                 tone="error"
-                body="Could not load daily habits."
+                body="Couldn't load habits."
                 actionLabel="Retry"
                 onAction={() => {
                   void dayQuery.refetch();
@@ -2288,7 +2285,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             {estimationHintQuery.isError ? (
               <InlineActionNotice
                 tone="error"
-                body="Could not load estimation rows."
+                body="Couldn't load estimates."
                 actionLabel="Retry"
                 onAction={() => {
                   void estimationHintQuery.refetch();

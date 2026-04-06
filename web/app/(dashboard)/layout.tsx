@@ -40,7 +40,7 @@ export default async function DashboardLayout({
               Home
             </Link>
             <Link href="/signin?callbackUrl=%2Ftoday" className="page-link primary">
-              Sign in for your real data
+              Sign in
             </Link>
           </div>
         </header>
@@ -62,7 +62,7 @@ export default async function DashboardLayout({
           </div>
           <div className="shell-user">
             <div>
-              <p className="shell-user-label">Signed in as</p>
+              <p className="shell-user-label">Signed in</p>
               <p className="shell-user-name">{shell.displayName}</p>
             </div>
             <LogoutButton />
@@ -75,9 +75,7 @@ export default async function DashboardLayout({
           <article className="shell-summary-card primary">
             <p className="shell-summary-label">Today</p>
             <p className="shell-summary-value">{shell.header.date}</p>
-            <p className="shell-summary-meta">
-              {shell.timezone || "Local time"} is active for this dashboard.
-            </p>
+            <p className="shell-summary-meta">{shell.timezone || "Local time"}</p>
           </article>
 
           <article className="shell-summary-card">
@@ -85,29 +83,25 @@ export default async function DashboardLayout({
             <p className="shell-summary-value">
               {shell.header.habits_completed}/{shell.header.habits_total}
             </p>
-            <p className="shell-summary-meta">
-              {shell.header.habits_percent}% of today&apos;s active habits completed.
-            </p>
+            <p className="shell-summary-meta">{shell.header.habits_percent}%</p>
           </article>
 
           <article className="shell-summary-card">
-            <p className="shell-summary-label">Pending tasks</p>
+            <p className="shell-summary-label">Tasks</p>
             <p className="shell-summary-value">{shell.pendingTasksCount}</p>
-            <p className="shell-summary-meta">
-              {shell.completedTasksCount} completed today.
-            </p>
+            <p className="shell-summary-meta">{shell.completedTasksCount} done</p>
           </article>
 
           <article className="shell-summary-card">
-            <p className="shell-summary-label">Next up</p>
+            <p className="shell-summary-label">Next</p>
             <p className="shell-summary-value shell-summary-title">
-              {shell.nextTask?.title || "Nothing scheduled next"}
+              {shell.nextTask?.title || "Nothing next"}
             </p>
             <p className="shell-summary-meta">
               {shell.nextTask?.scheduledTime
-                ? `Starts at ${shell.nextTask.scheduledTime}`
+                ? `Starts ${shell.nextTask.scheduledTime}`
                 : moodMeta
-                  ? `Mood check: ${moodMeta.emoji} ${MOOD_LABELS_EN[moodMeta.key] || moodMeta.label}`
+                  ? `${moodMeta.emoji} ${MOOD_LABELS_EN[moodMeta.key] || moodMeta.label}`
                   : "Add a task or mood."}
             </p>
           </article>
@@ -116,8 +110,7 @@ export default async function DashboardLayout({
         <section className="shell-streak-panel" aria-label="Shared streak overview">
           <div className="shell-streak-head">
             <div>
-              <p className="shell-kicker">Shared streaks</p>
-              <h2>Shared streaks</h2>
+              <h2>Shared</h2>
             </div>
             {shell.streaks.warning ? (
               <p className="shell-streak-warning">{shell.streaks.warning}</p>

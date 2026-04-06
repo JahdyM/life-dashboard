@@ -33,10 +33,10 @@ export default function CompletionPopover({
           Time
         </span>
         <strong>{title}</strong>
-        <p>Estimated {estimatedMinutes} min.</p>
+        <p>Est. {estimatedMinutes} min.</p>
       </div>
       <div className="completion-popover-controls">
-        <label htmlFor="completion-popover-minutes">Actual minutes</label>
+        <label htmlFor="completion-popover-minutes">Actual</label>
         <input
           id="completion-popover-minutes"
           type="number"

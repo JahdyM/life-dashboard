@@ -44,15 +44,15 @@ function PublicTodayPreviewGrid({ showActions = true }: { showActions?: boolean 
         <div className="today-panel-head">
           <div>
             <p className="panel-kicker">Preview</p>
-            <h2>See the day before you commit to it.</h2>
+            <h2>See today first.</h2>
           </div>
           {showActions ? (
             <div className="today-actions">
               <Link href="/signin?callbackUrl=%2Ftoday" className="page-link primary">
-                Sign in to continue
+                Sign in
               </Link>
               <Link href="/" className="page-link">
-                Back home
+                Home
               </Link>
             </div>
           ) : null}
@@ -75,7 +75,7 @@ function PublicTodayPreviewGrid({ showActions = true }: { showActions?: boolean 
         <div className="today-panel-head compact">
           <div>
             <p className="panel-kicker">Mood</p>
-            <h2>Emotional context</h2>
+            <h2>Mood</h2>
           </div>
         </div>
         <div className="today-mood-card">
@@ -83,9 +83,7 @@ function PublicTodayPreviewGrid({ showActions = true }: { showActions?: boolean 
             <span>🕊️</span>
             Peace
           </p>
-          <p className="today-panel-copy">
-            A quick note keeps the dashboard human, not mechanical.
-          </p>
+          <p className="today-panel-copy">A quick note keeps context.</p>
         </div>
       </article>
 
@@ -93,7 +91,7 @@ function PublicTodayPreviewGrid({ showActions = true }: { showActions?: boolean 
         <div className="today-panel-head compact">
           <div>
             <p className="panel-kicker">Completed</p>
-            <h2>Proof of progress</h2>
+            <h2>Done</h2>
           </div>
         </div>
         <ul className="today-compact-list">
@@ -110,7 +108,7 @@ function PublicTodayPreviewGrid({ showActions = true }: { showActions?: boolean 
         <div className="today-panel-head compact">
           <div>
             <p className="panel-kicker">Notes</p>
-            <h2>Scratchpad</h2>
+            <h2>Notes</h2>
           </div>
         </div>
         <p className="today-note-preview">
@@ -125,8 +123,8 @@ function PublicTodayPreviewGrid({ showActions = true }: { showActions?: boolean 
       <article className="today-panel today-panel-wide">
         <div className="today-panel-head compact">
           <div>
-            <p className="panel-kicker">Shared rhythm</p>
-            <h2>Couple-aware without being noisy</h2>
+            <p className="panel-kicker">Shared</p>
+            <h2>Shared</h2>
           </div>
         </div>
         <div className="today-streak-list">
@@ -152,13 +150,9 @@ export default function PublicEntryExperience({
     return (
       <div className="route-stack">
         <section className="page-intro">
-          <p className="page-intro-eyebrow">Today preview</p>
-          <h2>The product promise should be visible before login.</h2>
-          <p className="page-intro-copy">
-            This preview shows the kind of calm, high-signal daily surface you get after
-            signing in: next actions, completed work, emotional context, notes, and shared
-            rhythm in one place.
-          </p>
+          <p className="page-intro-eyebrow">Preview</p>
+          <h2>See the shape of the day.</h2>
+          <p className="page-intro-copy">Preview the layout before sign-in.</p>
         </section>
         <PublicTodayPreviewGrid />
       </div>
@@ -169,16 +163,12 @@ export default function PublicEntryExperience({
     <div className="landing-shell">
       <section className="landing-hero">
         <div className="landing-copy">
-          <p className="landing-kicker">Private life operating system</p>
-          <h1>Start the day with a calm, clear picture of what matters.</h1>
-          <p className="landing-description">
-            Life Dashboard keeps tasks, habits, mood, shared rhythm, and daily notes in one
-            deliberate place. You understand the product in seconds, then sign in only when
-            you are ready to make it yours.
-          </p>
+          <p className="landing-kicker">Private dashboard</p>
+          <h1>See what matters today.</h1>
+          <p className="landing-description">Tasks, habits, mood, notes, shared rhythm.</p>
           <div className="landing-actions">
             <Link href="/today" className="page-link primary">
-              Preview today flow
+              Preview
             </Link>
             <Link href="/signin?callbackUrl=%2Ftoday" className="page-link">
               Sign in
@@ -197,28 +187,19 @@ export default function PublicEntryExperience({
 
       <section className="landing-pillars">
         <article className="landing-pillar">
-          <p className="panel-kicker">Useful first</p>
-          <h2>Today comes before everything else.</h2>
-          <p>
-            The product leads with what to do now, not with settings, dashboards, or raw
-            analytics.
-          </p>
+          <p className="panel-kicker">Today first</p>
+          <h2>Start with now.</h2>
+          <p>Lead with action.</p>
         </article>
         <article className="landing-pillar">
-          <p className="panel-kicker">Private and intentional</p>
-          <h2>Authentication continues the experience.</h2>
-          <p>
-            Sign-in exists to unlock personal data, not to explain the product from
-            scratch.
-          </p>
+          <p className="panel-kicker">Private</p>
+          <h2>Sign in when ready.</h2>
+          <p>Unlock your data.</p>
         </article>
         <article className="landing-pillar">
-          <p className="panel-kicker">Calm by design</p>
-          <h2>One place for rhythm, not noise.</h2>
-          <p>
-            Habits, tasks, mood, and couple context stay visible without competing for
-            attention.
-          </p>
+          <p className="panel-kicker">Calm</p>
+          <h2>Less noise.</h2>
+          <p>One place for rhythm.</p>
         </article>
       </section>
     </div>
