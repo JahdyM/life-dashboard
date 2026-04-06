@@ -544,7 +544,7 @@ const DailyHabitRow = memo(function DailyHabitRow({
         type="button"
         onClick={handleAdd}
       >
-        {habit.inAgenda ? "in agenda" : saving ? "..." : "add"}
+        {habit.inAgenda ? "Added" : saving ? "…" : "Add"}
       </button>
       <button
         className="habit-remove-btn"
