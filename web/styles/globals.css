@@ -1914,6 +1914,105 @@ button.link.danger {
   border-color: rgba(244, 198, 118, 0.35);
 }
 
+.query-status.quiet {
+  justify-content: flex-start;
+  color: var(--text-soft);
+}
+
+.inline-action-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.inline-action-notice.default {
+  border-color: var(--border-soft);
+}
+
+.inline-action-notice.warning {
+  border-color: rgba(244, 198, 118, 0.32);
+  background: rgba(244, 198, 118, 0.08);
+}
+
+.inline-action-notice.error {
+  border-color: rgba(224, 114, 110, 0.28);
+  background: rgba(224, 114, 110, 0.08);
+}
+
+.inline-action-notice.success {
+  border-color: rgba(127, 211, 165, 0.28);
+  background: rgba(127, 211, 165, 0.08);
+}
+
+.inline-action-notice-copy {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.inline-action-notice-copy strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.inline-action-notice-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.overflow-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.overflow-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  min-height: 38px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+}
+
+.overflow-menu.active .overflow-menu-trigger,
+.overflow-menu.open .overflow-menu-trigger {
+  border-color: rgba(210, 168, 105, 0.32);
+  color: var(--text);
+  background: rgba(210, 168, 105, 0.12);
+}
+
+.overflow-menu-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  min-width: 220px;
+  padding: 8px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: rgba(18, 16, 15, 0.96);
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.28);
+  z-index: 30;
+}
+
+.overflow-menu-panel.align-right {
+  right: 0;
+}
+
+.overflow-menu-panel.align-left {
+  left: 0;
+}
+
 .error-card {
   display: grid;
   gap: 8px;
