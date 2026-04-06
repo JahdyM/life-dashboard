@@ -74,7 +74,7 @@ export default function SpiritualStreakBoard({
         <div className="spiritual-streak-metrics" aria-label={`${board.title} metrics`}>
           <div className="spiritual-streak-metric-pill">
             <span className="spiritual-streak-metric-value">{board.currentStreak}</span>
-            <span className="spiritual-streak-metric-label">Current</span>
+            <span className="spiritual-streak-metric-label">Now</span>
           </div>
           <div className="spiritual-streak-metric-pill">
             <span className="spiritual-streak-metric-value">{board.bestStreak}</span>
@@ -82,7 +82,7 @@ export default function SpiritualStreakBoard({
           </div>
           <div className="spiritual-streak-metric-pill subtle">
             <span className="spiritual-streak-metric-value">{board.monthSuccessDays}</span>
-            <span className="spiritual-streak-metric-label">This month</span>
+            <span className="spiritual-streak-metric-label">Month</span>
           </div>
         </div>
       </div>

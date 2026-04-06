@@ -220,14 +220,10 @@ export default function SpiritualGoalStepPanel({
     return (
       <section className="spiritual-detail-panel empty">
         <div className="spiritual-detail-empty">
-          <p className="panel-kicker">Selected step</p>
-          <h3>The staircase is ready when the first small step is ready.</h3>
-          <p>
-            Add the short steps that matter here. The visual staircase will match that list exactly,
-            without inventing extra levels.
-          </p>
+          <p className="panel-kicker">Step</p>
+          <h3>No steps yet.</h3>
           <button type="button" className="page-link primary" onClick={onOpenConfig}>
-            Configure staircase
+            Configure
           </button>
         </div>
       </section>
@@ -249,11 +245,10 @@ export default function SpiritualGoalStepPanel({
     <section className="spiritual-detail-panel">
       <div className="spiritual-detail-head">
         <div>
-          <p className="panel-kicker">Selected step</p>
+          <p className="panel-kicker">Step</p>
           <h3>{selectedStep.title}</h3>
           <p>
-            {selectedStep.description?.trim() ||
-              "Keep the stair itself short. Put the fuller explanation here, where it can breathe."}
+            {selectedStep.description?.trim() || "No details yet."}
           </p>
         </div>
         <span className={`spiritual-step-chip ${selectedStep.state}`}>{selectedStep.state}</span>
@@ -267,7 +262,7 @@ export default function SpiritualGoalStepPanel({
           onClick={onCompleteCurrent}
         >
           <CheckCircle2 size={17} />
-          {selectedStep.isCompleted ? "Completed" : "Complete step"}
+          Done
         </button>
         <button
           type="button"
@@ -276,7 +271,7 @@ export default function SpiritualGoalStepPanel({
           onClick={onMoveBack}
         >
           <ArrowLeft size={17} />
-          Move back one step
+          Back
         </button>
         <button
           type="button"
@@ -284,13 +279,13 @@ export default function SpiritualGoalStepPanel({
           disabled={!canMoveToSelected || pending}
           onClick={() => setPendingMoveTargetId(selectedStep.id)}
         >
-          Move character here
+          Move here
         </button>
       </div>
 
       {moveConfirmOpen ? (
         <div className="spiritual-inline-confirm">
-          <p>Move the character to “{selectedStep.title}”? Later steps will become future steps again.</p>
+          <p>Move to “{selectedStep.title}”?</p>
           <div className="spiritual-inline-confirm-actions">
             <button
               type="button"
@@ -301,7 +296,7 @@ export default function SpiritualGoalStepPanel({
                 setPendingMoveTargetId(null);
               }}
             >
-              Confirm move
+              Move
             </button>
             <button
               type="button"
@@ -323,7 +318,7 @@ export default function SpiritualGoalStepPanel({
           <div className="spiritual-support-head">
             <div>
               <p className="panel-kicker">Tasks</p>
-              <h4>Checklist for this step</h4>
+              <h4>Checklist</h4>
             </div>
           </div>
 
@@ -345,7 +340,7 @@ export default function SpiritualGoalStepPanel({
             </ul>
           ) : (
             <p className="spiritual-support-empty">
-              No checklist items yet. Add only the few tasks that help this step move forward.
+              No tasks yet.
             </p>
           )}
 
@@ -363,7 +358,7 @@ export default function SpiritualGoalStepPanel({
                   setNewTaskTitle("");
                 }
               }}
-              placeholder="Add a small supporting task"
+              placeholder="Add task"
             />
             <button
               type="button"
@@ -372,7 +367,7 @@ export default function SpiritualGoalStepPanel({
               onClick={handleNewTaskSubmit}
             >
               <Plus size={16} />
-              Add task
+              Add
             </button>
           </div>
         </article>
@@ -381,42 +376,42 @@ export default function SpiritualGoalStepPanel({
           <div className="spiritual-support-head">
             <div>
               <p className="panel-kicker">Notes</p>
-              <h4>Step reflections</h4>
+              <h4>Notes</h4>
             </div>
           </div>
 
           <label className="spiritual-notes-field">
-            <span>Notes for this step</span>
+            <span>Step</span>
             <textarea
               rows={6}
               value={stepNotes}
               onChange={(event) => setStepNotes(event.target.value)}
-              placeholder="Reminders, difficulties, thoughts, or what you want to remember next time."
+              placeholder="Notes"
             />
           </label>
           <p className="spiritual-notes-status">
             {stepNotesState === "saving"
-              ? "Saving step notes…"
+              ? "Saving…"
               : stepNotesState === "saved"
-                ? "Step notes saved"
-                : "Step notes autosave as you type"}
+                ? "Saved"
+                : "Autosave"}
           </p>
 
           <label className="spiritual-notes-field subtle">
-            <span>General staircase notes</span>
+            <span>General</span>
             <textarea
               rows={5}
               value={generalNotes}
               onChange={(event) => setGeneralNotes(event.target.value)}
-              placeholder="A quiet space for the broader context of this staircase."
+              placeholder="General notes"
             />
           </label>
           <p className="spiritual-notes-status">
             {generalNotesState === "saving"
-              ? "Saving staircase notes…"
+              ? "Saving…"
               : generalNotesState === "saved"
-                ? "Staircase notes saved"
-                : "General notes autosave as you type"}
+                ? "Saved"
+                : "Autosave"}
           </p>
         </article>
       </div>

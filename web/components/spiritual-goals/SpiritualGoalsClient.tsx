@@ -232,7 +232,6 @@ export default function SpiritualGoalsClient({
       >
         <header className="spiritual-detail-header">
           <div>
-            <p className="panel-kicker">{meta.label}</p>
             <h2>{selectedStaircase.title}</h2>
             <p className="spiritual-detail-goal">{selectedStaircase.ultimateGoal}</p>
             {selectedStaircase.subtitle ? (
@@ -254,8 +253,8 @@ export default function SpiritualGoalsClient({
           <article className="spiritual-visual-card">
             <div className="spiritual-visual-head">
               <div>
-                <p className="panel-kicker">Small steps reach big goals</p>
-                <h3>Move upward without crowding the page.</h3>
+                <p className="panel-kicker">{meta.label}</p>
+                <h3>Staircase</h3>
               </div>
               <span className="spiritual-progress-pill large">
                 {selectedStaircase.completedSteps}/{selectedStaircase.totalSteps || 0}
@@ -270,12 +269,12 @@ export default function SpiritualGoalsClient({
 
             <div className="spiritual-visual-footer">
               <div>
-                <span className="spiritual-overview-label">Current position</span>
-                <strong>{selectedStaircase.currentStepTitle || "No step in motion yet"}</strong>
+                <span className="spiritual-overview-label">Current</span>
+                <strong>{selectedStaircase.currentStepTitle || "No step yet"}</strong>
               </div>
               <div>
-                <span className="spiritual-overview-label">Progress</span>
-                <strong>{selectedStaircase.progressPercent}% complete</strong>
+                <span className="spiritual-overview-label">Done</span>
+                <strong>{selectedStaircase.progressPercent}%</strong>
               </div>
             </div>
           </article>

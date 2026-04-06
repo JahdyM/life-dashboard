@@ -1931,8 +1931,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       <div className="task-list">
         <div className="task-header calm">
           <div>
-            <p className="panel-kicker">Today&apos;s agenda</p>
-            <h2>Keep the day moving with one clear list.</h2>
+            <p className="panel-kicker">Today</p>
+            <h2>Agenda</h2>
             <p className="task-header-meta">
               {completedTasks.length}/{tasksForDay.length} tasks finished
             </p>
@@ -1944,7 +1944,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               </span>
             ) : null}
             <button className="secondary subtle" type="button" onClick={syncNow}>
-              Sync calendar
+              Sync
             </button>
           </div>
         </div>
@@ -1958,7 +1958,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           advancedOpen={composerAdvancedOpen}
           selectionLabel={composerSelectionLabel}
           disabled={createTask.isPending}
-          submitLabel={createTask.isPending ? "Adding..." : calendarSelection ? "Add selected slot" : "Add task"}
+          submitLabel={createTask.isPending ? "Adding..." : "Add"}
           onSubmit={handleComposerSubmit}
           onTitleChange={(value) => setNewTitle(value)}
           onDateChange={(value) => setNewDate(value)}
@@ -1972,13 +1972,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
         <div className="calendar-status-rail">
           {tasksQuery.isPending ? (
-            <div className="query-status quiet">Loading tasks…</div>
+            <div className="query-status quiet">Loading…</div>
           ) : null}
           {tasksQuery.isError ? (
             <InlineActionNotice
               tone="error"
-              title="Could not load tasks"
-              body="The calendar is still here, but the agenda needs a refresh."
+              title="Couldn&apos;t load tasks"
+              body="Refresh to try again."
               actionLabel="Retry"
               onAction={() => {
                 void tasksQuery.refetch();
@@ -1991,9 +1991,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           {reconnectRequired ? (
             <InlineActionNotice
               tone="warning"
-              title="Google Calendar needs reconnection"
-              body="Your local list still works, but syncing needs a quick reconnect."
-              actionLabel={reconnectingGoogle ? "Redirecting..." : "Reconnect Google"}
+              body="Reconnect Google to sync."
+              actionLabel={reconnectingGoogle ? "Redirecting..." : "Reconnect"}
               onAction={triggerGoogleReconnect}
             />
           ) : null}
@@ -2015,8 +2014,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         <section className="calendar-primary-section">
           <div className="calendar-section-head">
             <div>
-              <p className="panel-kicker">Agenda</p>
-              <h3>What still needs attention today</h3>
+              <p className="panel-kicker">Now</p>
+              <h3>Pending</h3>
             </div>
             <span className="calendar-section-count">{pendingTasks.length} pending</span>
           </div>
@@ -2046,15 +2045,15 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               })}
             </div>
           ) : (
-            <div className="line-empty">No pending tasks here right now. Let the schedule stay quiet unless you need a new next step.</div>
+            <div className="line-empty">No pending tasks.</div>
           )}
         </section>
 
         <section className="calendar-primary-section">
           <div className="calendar-section-head">
             <div>
-              <p className="panel-kicker">Remembered tasks</p>
-              <h3>Loose tasks waiting to be anchored</h3>
+              <p className="panel-kicker">Later</p>
+              <h3>Backlog</h3>
             </div>
             <span className="calendar-section-count">{unscheduledTasks.length}</span>
           </div>
@@ -2078,7 +2077,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               })}
             </div>
           ) : (
-            <div className="line-empty">No remembered tasks waiting outside the schedule.</div>
+            <div className="line-empty">No backlog.</div>
           )}
         </section>
 
@@ -2086,13 +2085,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           <div className="calendar-section-head">
             <div>
               <p className="panel-kicker">Completed</p>
-              <h3>Proof of progress for this day</h3>
+              <h3>Done</h3>
             </div>
             <span className="calendar-section-count">{completedTasks.length + completedHabits.length}</span>
           </div>
           <div className="calendar-completed">
             {completedTasks.length === 0 && completedHabits.length === 0 ? (
-              <div className="line-empty">Nothing completed yet. As the day moves, this becomes the quiet record of what is already done.</div>
+              <div className="line-empty">Nothing done yet.</div>
             ) : null}
             {completedTasks.map((task) => {
               const shareUi = getTaskSharePresentation(task);
@@ -2127,7 +2126,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           <div className="quick-note-head">
             <div>
               <p className="panel-kicker">Notes</p>
-              <h3>Keep the loose thoughts nearby</h3>
+              <h3>Notes</h3>
             </div>
             <div className="quick-note-actions">
               <span className="quick-note-status">
@@ -2137,7 +2136,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     ? "Saving…"
                     : quickNoteSavedAt
                       ? "Saved"
-                      : "Autosave"}
+                      : "Auto"}
               </span>
               <button
                 type="button"
@@ -2145,7 +2144,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 onClick={handleSaveQuickNoteNow}
                 disabled={saveQuickNote.isPending || quickNoteQuery.isPending}
               >
-                Save now
+                Save
               </button>
             </div>
           </div>
@@ -2170,12 +2169,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
         <details className="calendar-secondary-panel" open={pendingTaskShares.length > 0}>
           <summary>
-            <span className="calendar-secondary-title">Shared tasks waiting for a reply</span>
+            <span className="calendar-secondary-title">Shared invites</span>
             <span className="calendar-secondary-meta">{pendingTaskShares.length}</span>
           </summary>
           <div className="calendar-secondary-body">
             {taskSharesQuery.isPending ? (
-              <div className="query-status quiet">Loading shared invites…</div>
+              <div className="query-status quiet">Loading…</div>
             ) : null}
             {taskSharesQuery.isError ? (
               <InlineActionNotice
@@ -2189,7 +2188,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             ) : null}
             {!taskSharesQuery.isPending && !taskSharesQuery.isError ? (
               pendingTaskShares.length === 0 ? (
-                <div className="line-empty">No shared tasks waiting for your answer.</div>
+                <div className="line-empty">No invites.</div>
               ) : (
                 pendingTaskShares.map((invite) => (
                   <div key={`share-invite-${invite.id}`} className="share-invite-row">
@@ -2229,12 +2228,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
         <details className="calendar-secondary-panel">
           <summary>
-            <span className="calendar-secondary-title">Daily habits to add</span>
+            <span className="calendar-secondary-title">Habits</span>
             <span className="calendar-secondary-meta">{visibleDailyHabits.length}</span>
           </summary>
           <div className="calendar-secondary-body">
             {habitsLoading ? (
-              <div className="query-status quiet">Loading habits for this day…</div>
+              <div className="query-status quiet">Loading…</div>
             ) : null}
             {habitsError ? (
               <InlineActionNotice
@@ -2252,7 +2251,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             ) : null}
             {!habitsLoading && !habitsError
               ? visibleDailyHabits.length === 0
-                ? <div className="line-empty">All habits are already done, in the agenda, or hidden for today.</div>
+                ? <div className="line-empty">No habits to add.</div>
                 : visibleDailyHabits.map((habit) => (
                     <DailyHabitRow
                       key={habit.id}
@@ -2278,13 +2277,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
         <details className="calendar-secondary-panel">
           <summary>
-            <span className="calendar-secondary-title">Estimation editor</span>
+            <span className="calendar-secondary-title">Estimates</span>
             <span className="calendar-secondary-meta">{estimationPoints.length} rows</span>
           </summary>
           <div className="calendar-secondary-body">
             {estimationHint ? <p className="task-estimation-hint">{estimationHint}</p> : null}
             {estimationHintQuery.isPending ? (
-              <div className="query-status quiet">Loading estimation rows…</div>
+              <div className="query-status quiet">Loading…</div>
             ) : null}
             {estimationHintQuery.isError ? (
               <InlineActionNotice
@@ -2298,7 +2297,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             ) : null}
             {!estimationHintQuery.isPending && !estimationHintQuery.isError ? (
               estimationPoints.length === 0 ? (
-                <div className="line-empty">No completed tasks with time data yet.</div>
+                <div className="line-empty">No time data yet.</div>
               ) : (
                 <div className="estimation-editor-table">
                   <div className="estimation-editor-row estimation-editor-head">

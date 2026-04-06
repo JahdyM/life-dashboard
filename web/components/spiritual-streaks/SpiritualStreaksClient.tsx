@@ -72,11 +72,7 @@ export default function SpiritualStreaksClient({
     <div className="route-stack spiritual-streaks-shell">
       <section className="spiritual-streaks-toolbar card">
         <div>
-          <p className="panel-kicker">Consistency board</p>
           <h3>{data?.monthLabel || monthKey}</h3>
-          <p className="page-intro-copy small">
-            Seven focused boards, one calm month view, and a respectful way to keep daily spiritual consistency visible.
-          </p>
         </div>
 
         <div className="spiritual-streaks-month-controls">
@@ -107,10 +103,10 @@ export default function SpiritualStreaksClient({
         </div>
       </section>
 
-      {streaksQuery.isPending ? <div className="query-status">Loading spiritual streaks...</div> : null}
+      {streaksQuery.isPending ? <div className="query-status">Loading…</div> : null}
       {streaksQuery.isError ? (
         <div className="query-status error">
-          <span>Could not load spiritual streaks.</span>
+          <span>Couldn&apos;t load streaks.</span>
           <button className="secondary" onClick={() => streaksQuery.refetch()}>
             Retry
           </button>

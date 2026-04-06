@@ -724,12 +724,12 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
   return (
     <div className="tab-grid">
       <div className="card habits-primary-card">
-        {queryLoading ? <div className="query-status quiet">Loading habits...</div> : null}
+        {queryLoading ? <div className="query-status quiet">Loading…</div> : null}
         {queryError ? (
           <InlineActionNotice
             tone="error"
-            title="Could not load habits right now"
-            body="The page is still intact, but some sections need a refresh."
+            title="Couldn&apos;t load habits"
+            body="Refresh to try again."
             actionLabel="Retry"
             onAction={retryAllQueries}
           />
@@ -740,11 +740,11 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
         {pendingDelete ? (
           <InlineActionNotice
             tone="default"
-            title="Habit removed"
-            body={`“${pendingDelete.habit.name}” will be hidden unless you undo.`}
+            title="Removed"
+            body={pendingDelete.habit.name}
             actionLabel="Undo"
             onAction={undoPendingDelete}
-            secondaryLabel="Remove now"
+            secondaryLabel="Delete"
             onSecondary={commitPendingDelete}
           />
         ) : null}
@@ -753,7 +753,7 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
           <div className="habits-section-head">
             <div>
               <p className="panel-kicker">Setup</p>
-              <h3>Choose what applies this week</h3>
+              <h3>Schedule</h3>
             </div>
           </div>
 
@@ -793,7 +793,7 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
           <div className="habits-section-head">
             <div>
               <p className="panel-kicker">Today</p>
-              <h3>Fixed shared habits</h3>
+              <h3>Shared</h3>
             </div>
           </div>
           <div className="habit-list">
@@ -821,9 +821,9 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
           <div className="habits-section-head split">
             <div>
               <p className="panel-kicker">Personal</p>
-              <h3>Custom habits</h3>
+              <h3>Custom</h3>
             </div>
-            <p className="section-hint">Enter adds or saves. Escape cancels inline editing.</p>
+            <p className="section-hint">Enter saves. Esc cancels.</p>
           </div>
 
           <div className="habit-list">
@@ -864,9 +864,9 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
         <div className="habits-section-head">
           <div>
             <p className="panel-kicker">Daily metrics</p>
-            <h3>Capture only what matters for today</h3>
+            <h3>Metrics</h3>
           </div>
-          <p className="section-hint">Blur or press Enter to save. Escape restores the current value.</p>
+          <p className="section-hint">Blur or Enter saves.</p>
         </div>
 
         <div className="metrics-grid">

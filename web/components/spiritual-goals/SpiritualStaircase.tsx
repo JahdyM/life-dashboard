@@ -195,7 +195,7 @@ export default function SpiritualStaircase({
       ) : (
         <div className="spiritual-staircase-empty">
           <p>No steps yet</p>
-          <span>Open Configure to shape this staircase.</span>
+          <span>Configure to add steps.</span>
         </div>
       )}
     </div>

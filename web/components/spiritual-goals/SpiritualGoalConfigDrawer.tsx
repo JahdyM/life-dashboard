@@ -53,12 +53,12 @@ export default function SpiritualGoalConfigDrawer({
 
   const stepCountHint = useMemo(() => {
     if (draft.steps.length === 0) {
-      return "Add only the steps you truly want. The staircase starts empty on purpose.";
+      return "Starts empty.";
     }
     if (draft.steps.length <= 7) {
-      return "This staircase size will stay roomy and easy to scan.";
+      return "Good size.";
     }
-    return "This staircase is getting tall. Keep titles especially short so the visual stays calm.";
+    return "Keep titles short.";
   }, [draft.steps.length]);
 
   if (!open) return null;
@@ -103,7 +103,7 @@ export default function SpiritualGoalConfigDrawer({
         <div className="spiritual-config-head">
           <div>
             <p className="panel-kicker">Configure</p>
-            <h3 id="spiritual-config-title">Shape this staircase quietly, one step at a time.</h3>
+            <h3 id="spiritual-config-title">Configure staircase</h3>
             <p>{stepCountHint}</p>
           </div>
           <button type="button" className="secondary" onClick={onClose}>
@@ -115,8 +115,8 @@ export default function SpiritualGoalConfigDrawer({
           <section className="spiritual-config-card">
             <div className="spiritual-config-card-head">
               <div>
-                <p className="panel-kicker">General settings</p>
-                <h4>Identity and tone</h4>
+                <p className="panel-kicker">General</p>
+                <h4>Basics</h4>
               </div>
             </div>
 
@@ -212,9 +212,8 @@ export default function SpiritualGoalConfigDrawer({
           <section className="spiritual-config-card">
             <div className="spiritual-config-card-head split">
               <div>
-                <p className="panel-kicker">Steps editor</p>
-                <h4>Only the titles appear inside the staircase.</h4>
-                <p>Descriptions, tasks, and notes stay here and in the detail panel - not inside the stair blocks.</p>
+                <p className="panel-kicker">Steps</p>
+                <h4>Step list</h4>
               </div>
               <button
                 type="button"
@@ -233,7 +232,7 @@ export default function SpiritualGoalConfigDrawer({
             </div>
 
             {hasBlankStepTitle ? (
-              <p className="spiritual-config-warning">Every visible stair needs a short title before you save.</p>
+              <p className="spiritual-config-warning">Each step needs a title.</p>
             ) : null}
 
             <div className="spiritual-step-editor-list">
@@ -340,7 +339,7 @@ export default function SpiritualGoalConfigDrawer({
 
                     <div className="spiritual-config-task-group">
                       <div className="spiritual-config-task-head">
-                        <strong>Checklist tasks</strong>
+                        <strong>Tasks</strong>
                         <button
                           type="button"
                           className="secondary subtle"
@@ -352,7 +351,7 @@ export default function SpiritualGoalConfigDrawer({
                           }
                         >
                           <Plus size={15} />
-                          Add task
+                          Add
                         </button>
                       </div>
 
@@ -405,7 +404,7 @@ export default function SpiritualGoalConfigDrawer({
                           ))
                         ) : (
                           <p className="spiritual-support-empty small">
-                            Leave this empty if the step only needs a note or simple intention.
+                            No tasks.
                           </p>
                         )}
                       </div>
@@ -415,7 +414,7 @@ export default function SpiritualGoalConfigDrawer({
               ) : (
                 <div className="spiritual-config-empty">
                   <p>No steps yet.</p>
-                  <span>Start with the first quiet move that would make this journey real.</span>
+                  <span>Add the first step.</span>
                 </div>
               )}
             </div>
@@ -428,7 +427,7 @@ export default function SpiritualGoalConfigDrawer({
           </button>
           <button type="button" className="primary" onClick={() => onSave(draft)} disabled={saving || !canSave}>
             <Save size={16} />
-            {saving ? "Saving..." : "Save staircase"}
+            {saving ? "Saving..." : "Save"}
           </button>
         </div>
       </aside>

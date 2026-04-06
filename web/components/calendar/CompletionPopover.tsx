@@ -30,10 +30,10 @@ export default function CompletionPopover({
       <div className="completion-popover-copy">
         <span className="completion-popover-kicker">
           <Clock3 size={15} />
-          Completion time
+          Time
         </span>
         <strong>{title}</strong>
-        <p>Estimated {estimatedMinutes} min. Add the actual time only if you want to keep the estimate grounded.</p>
+        <p>Estimated {estimatedMinutes} min.</p>
       </div>
       <div className="completion-popover-controls">
         <label htmlFor="completion-popover-minutes">Actual minutes</label>
@@ -47,7 +47,7 @@ export default function CompletionPopover({
       </div>
       <div className="completion-popover-actions">
         <button type="button" className="secondary" onClick={onConfirm}>
-          Save actual
+          Save
         </button>
         <button type="button" className="secondary subtle" onClick={onSkip}>
           Skip

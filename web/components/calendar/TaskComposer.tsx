@@ -62,12 +62,12 @@ export default function TaskComposer({
     <form className="task-composer" onSubmit={handleSubmit}>
       <div className="task-composer-head">
         <div>
-          <p className="panel-kicker">Add activity</p>
-          <h3>Capture the next step without leaving the flow.</h3>
+          <p className="panel-kicker">Add</p>
+          <h3>New task</h3>
         </div>
         <button type="button" className="secondary subtle" onClick={onToggleAdvanced}>
           {advancedOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          {advancedOpen ? "Hide details" : "Show details"}
+          {advancedOpen ? "Hide" : "Details"}
         </button>
       </div>
 
@@ -100,7 +100,7 @@ export default function TaskComposer({
         </div>
       ) : (
         <p className="task-composer-hint">
-          Click or drag a slot on the calendar to prefill the date and time here.
+          Pick a slot to prefill.
         </p>
       )}
 
@@ -116,7 +116,7 @@ export default function TaskComposer({
             />
           </div>
           <div className="form-row">
-            <label htmlFor="calendar-task-time">Start time</label>
+            <label htmlFor="calendar-task-time">Time</label>
             <input
               id="calendar-task-time"
               type="time"
@@ -125,7 +125,7 @@ export default function TaskComposer({
             />
           </div>
           <div className="form-row">
-            <label htmlFor="calendar-task-estimate">Est. minutes</label>
+            <label htmlFor="calendar-task-estimate">Estimate</label>
             <input
               id="calendar-task-estimate"
               type="number"
@@ -143,7 +143,7 @@ export default function TaskComposer({
             />
             <span>
               <Sparkles size={15} />
-              Share this task with your partner
+              Share with partner
             </span>
           </label>
         </div>
