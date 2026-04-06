@@ -1,6 +1,6 @@
 import "../styles/globals.css";
 import { ReactNode } from "react";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Inter } from "next/font/google";
 import AtomCursor from "@/components/AtomCursor";
 
@@ -28,6 +28,9 @@ export const metadata: Metadata = {
     ],
     shortcut: "/icon.svg",
   },
+};
+
+export const viewport: Viewport = {
   themeColor: "#111215",
 };
 
