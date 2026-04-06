@@ -1098,7 +1098,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   const createTask = useMutation({
     mutationFn: (input: CreateTaskInput) =>
-      fetchJson<{ task: TodoTask }>("/api/tasks", {
+      fetchJson<{ task: TodoTask; warning?: string | null }>("/api/tasks", {
         method: "POST",
         body: JSON.stringify({
           title: input.title,
@@ -1109,7 +1109,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         }),
       }),
     onSuccess: (payload, variables) => {
-      setTaskSaveError(null);
+      setTaskSaveError(payload.warning || null);
       queryClient.setQueryData<TaskListResponse | undefined>(
         ["tasks", range.start, range.end],
         (current) => {
@@ -1213,7 +1213,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       scheduledTime?: string | null;
       estimatedMinutes?: number;
     }) =>
-      fetchJson("/api/tasks", {
+      fetchJson<{ task: TodoTask; warning?: string | null }>("/api/tasks", {
         method: "POST",
         body: JSON.stringify({
           title,
@@ -1224,7 +1224,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           sync_google: true,
         }),
       }),
-    onSuccess: () => {
+    onSuccess: (payload) => {
+      setTaskSaveError(payload.warning || null);
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
     },
     onError: (error) => {

@@ -17,6 +17,19 @@ import { logServerEvent } from "@/lib/server/logger";
 
 export const dynamic = "force-dynamic";
 
+function googleCreateWarning(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  const normalized = message.toLowerCase();
+  if (
+    normalized.includes("google authorization expired") ||
+    normalized.includes("google calendar not connected") ||
+    normalized.includes("reconnect your account")
+  ) {
+    return "Saved locally. Reconnect Google to sync.";
+  }
+  return "Saved locally. Google sync failed.";
+}
+
 export async function GET(request: NextRequest) {
   try {
     const userEmail = await requireUserEmail();
@@ -62,15 +75,30 @@ export async function POST(request: NextRequest) {
     const title = payload.title;
     const timezone = (await getUserTimeZone(userEmail)) || DEFAULT_TIME_ZONE;
     let googleEventId: string | null = null;
+    let warning: string | null = null;
     if (payload.sync_google && payload.scheduled_date) {
-      const event = await createGoogleEvent(userEmail, "primary", {
-        title,
-        scheduledDate: payload.scheduled_date,
-        scheduledTime: payload.scheduled_time || null,
-        estimatedMinutes: payload.estimated_minutes || null,
-        timeZone: timezone,
-      });
-      googleEventId = event.id || null;
+      try {
+        const event = await createGoogleEvent(userEmail, "primary", {
+          title,
+          scheduledDate: payload.scheduled_date,
+          scheduledTime: payload.scheduled_time || null,
+          estimatedMinutes: payload.estimated_minutes || null,
+          timeZone: timezone,
+        });
+        googleEventId = event.id || null;
+      } catch (error) {
+        warning = googleCreateWarning(error);
+        logServerEvent("warn", {
+          endpoint: "POST /api/tasks",
+          userEmail,
+          message: "Task saved locally after Google event creation failed",
+          error,
+          meta: {
+            scheduledDate: payload.scheduled_date,
+            scheduledTime: payload.scheduled_time || null,
+          },
+        });
+      }
     }
     const task = await createTask(userEmail, {
       title,
@@ -86,7 +114,7 @@ export async function POST(request: NextRequest) {
       googleCalendarId: googleEventId ? "primary" : null,
       googleEventId,
     });
-    return jsonOk({ task }, 201);
+    return jsonOk({ task, warning }, 201);
   } catch (err) {
     logServerEvent("error", {
       endpoint: "POST /api/tasks",
