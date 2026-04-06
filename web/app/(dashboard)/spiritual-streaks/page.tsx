@@ -20,7 +20,7 @@ export default async function SpiritualStreaksPage() {
       <PageSectionIntro
         eyebrow="Spiritual Streaks"
         title="Keep consistency visible without turning it into noise."
-        description="Four dedicated boards, one day per square, and respectful streak tracking that stays calm even for sensitive areas. Success days fill the month, while missed or unmarked days stay restrained and easy to review."
+        description="Seven dedicated boards, one day per square, and respectful streak tracking that stays calm even for sensitive areas. Success days fill the month, while missed or unmarked days stay restrained and easy to review."
       />
       <ErrorBoundary name="Spiritual Streaks">
         <SpiritualStreaksClient initialData={initialData} />

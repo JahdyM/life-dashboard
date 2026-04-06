@@ -293,6 +293,9 @@ export const spiritualGoalStaircaseSchema = z
 const spiritualStreakBoardKeys = [
   "daily_text",
   "bible_reading",
+  "prayer_on_waking",
+  "prayer_before_lunch",
+  "prayer_before_sleep",
   "pornography",
   "masturbation",
 ] as const;

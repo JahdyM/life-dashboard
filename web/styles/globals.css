@@ -3436,7 +3436,7 @@ button.icon-only {
 
 .spiritual-streaks-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
 }
 
@@ -3643,6 +3643,10 @@ button.icon-only {
   .spiritual-overview-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .spiritual-streaks-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 980px) {
@@ -3655,7 +3659,7 @@ button.icon-only {
   }
 
   .spiritual-streaks-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .spiritual-detail-header,
@@ -3701,6 +3705,10 @@ button.icon-only {
   .spiritual-streaks-toolbar,
   .spiritual-streak-board {
     border-radius: 22px;
+  }
+
+  .spiritual-streaks-grid {
+    grid-template-columns: 1fr;
   }
 
   .spiritual-streaks-month-controls {

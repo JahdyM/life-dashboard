@@ -72,7 +72,7 @@ export default function SpiritualStreaksClient({
           <p className="panel-kicker">Consistency board</p>
           <h3>{data?.monthLabel || monthKey}</h3>
           <p className="page-intro-copy small">
-            Four focused boards, one calm month view, and a respectful way to keep daily spiritual consistency visible.
+            Seven focused boards, one calm month view, and a respectful way to keep daily spiritual consistency visible.
           </p>
         </div>
 
