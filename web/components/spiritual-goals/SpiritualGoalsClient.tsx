@@ -86,6 +86,12 @@ export default function SpiritualGoalsClient({
     }
   }, [items, selectedCategory]);
 
+  useEffect(() => {
+    if (!feedback) return;
+    const timeoutId = window.setTimeout(() => setFeedback(null), 2400);
+    return () => window.clearTimeout(timeoutId);
+  }, [feedback]);
+
   const selectedStaircase =
     items.find((item) => item.category === selectedCategory) || items[0] || null;
 
@@ -292,14 +298,6 @@ export default function SpiritualGoalsClient({
               )
             }
             onMoveToStep={(stepId) => {
-              const targetStep = selectedStaircase.steps.find((step) => step.id === stepId);
-              const confirmed =
-                typeof window !== "undefined"
-                  ? window.confirm(
-                      `Move the character to "${targetStep?.title || "this step"}"? Later steps will become future steps again.`
-                    )
-                  : false;
-              if (!confirmed) return;
               runAction(
                 { type: "move_to_step", step_id: stepId, confirmed: true },
                 { followCurrent: true, successMessage: "Character moved." }

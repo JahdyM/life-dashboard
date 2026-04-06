@@ -1,7 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, CheckCircle2, Pencil, Plus, Save, Trash2 } from "lucide-react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
+import { ArrowLeft, CheckCircle2, Pencil, Plus, Trash2 } from "lucide-react";
 import type {
   SpiritualGoalComputedStaircase,
   SpiritualGoalComputedStep,
@@ -48,10 +54,38 @@ function TaskRow({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(task.title);
+  const skipBlurRef = useRef(false);
 
   useEffect(() => {
     setDraft(task.title);
   }, [task.title]);
+
+  const handleSubmit = () => {
+    const next = draft.trim();
+    if (!next) {
+      setDraft(task.title);
+      setEditing(false);
+      return;
+    }
+    if (next !== task.title) {
+      onSave(next);
+    }
+    setEditing(false);
+  };
+
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleSubmit();
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      skipBlurRef.current = true;
+      setDraft(task.title);
+      setEditing(false);
+    }
+  };
 
   return (
     <li className="spiritual-task-row">
@@ -71,31 +105,16 @@ function TaskRow({
             <input
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={handleKeyDown}
+              onBlur={() => {
+                if (skipBlurRef.current) {
+                  skipBlurRef.current = false;
+                  return;
+                }
+                handleSubmit();
+              }}
               aria-label={`Edit task for ${stepId}`}
             />
-            <button
-              type="button"
-              className="secondary subtle"
-              onClick={() => {
-                const next = draft.trim();
-                if (!next) return;
-                onSave(next);
-                setEditing(false);
-              }}
-              disabled={pending}
-            >
-              <Save size={15} />
-            </button>
-            <button
-              type="button"
-              className="secondary subtle"
-              onClick={() => {
-                setEditing(false);
-                setDraft(task.title);
-              }}
-            >
-              Cancel
-            </button>
           </>
         ) : (
           <>
@@ -103,7 +122,11 @@ function TaskRow({
               type="button"
               className="secondary subtle"
               aria-label={`Edit task ${task.title}`}
-              onClick={() => setEditing(true)}
+              onClick={() => {
+                setDraft(task.title);
+                setEditing(true);
+              }}
+              disabled={pending}
             >
               <Pencil size={15} />
             </button>
@@ -141,15 +164,52 @@ export default function SpiritualGoalStepPanel({
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [stepNotes, setStepNotes] = useState("");
   const [generalNotes, setGeneralNotes] = useState(staircase.generalNotes || "");
+  const [pendingMoveTargetId, setPendingMoveTargetId] = useState<string | null>(null);
+  const [stepNotesState, setStepNotesState] = useState<"idle" | "saving" | "saved">("idle");
+  const [generalNotesState, setGeneralNotesState] = useState<"idle" | "saving" | "saved">("idle");
 
   useEffect(() => {
     setStepNotes(selectedStep?.notes || "");
     setNewTaskTitle("");
+    setPendingMoveTargetId(null);
+    setStepNotesState("idle");
   }, [selectedStep?.id, selectedStep?.notes]);
 
   useEffect(() => {
     setGeneralNotes(staircase.generalNotes || "");
+    setGeneralNotesState("idle");
   }, [staircase.generalNotes, staircase.category]);
+
+  useEffect(() => {
+    if (!selectedStep) return;
+    const normalizedDraft = stepNotes.trim();
+    const normalizedSaved = selectedStep.notes?.trim() || "";
+    if (normalizedDraft === normalizedSaved) {
+      setStepNotesState("idle");
+      return;
+    }
+    setStepNotesState("saving");
+    const timeoutId = window.setTimeout(() => {
+      onSaveStepNotes(selectedStep.id, normalizedDraft || null);
+      setStepNotesState("saved");
+    }, 650);
+    return () => window.clearTimeout(timeoutId);
+  }, [onSaveStepNotes, selectedStep, stepNotes]);
+
+  useEffect(() => {
+    const normalizedDraft = generalNotes.trim();
+    const normalizedSaved = staircase.generalNotes?.trim() || "";
+    if (normalizedDraft === normalizedSaved) {
+      setGeneralNotesState("idle");
+      return;
+    }
+    setGeneralNotesState("saving");
+    const timeoutId = window.setTimeout(() => {
+      onSaveGeneralNotes(normalizedDraft || null);
+      setGeneralNotesState("saved");
+    }, 700);
+    return () => window.clearTimeout(timeoutId);
+  }, [generalNotes, onSaveGeneralNotes, staircase.generalNotes]);
 
   const completedLabel = useMemo(
     () => formatCompletedLabel(selectedStep?.completedAt || null),
@@ -176,6 +236,14 @@ export default function SpiritualGoalStepPanel({
 
   const canCompleteCurrent = selectedStep.isCurrent && !selectedStep.isCompleted;
   const canMoveToSelected = staircase.currentStepId !== selectedStep.id;
+  const moveConfirmOpen = pendingMoveTargetId === selectedStep.id;
+
+  const handleNewTaskSubmit = () => {
+    const title = newTaskTitle.trim();
+    if (!title) return;
+    onAddTask(selectedStep.id, title);
+    setNewTaskTitle("");
+  };
 
   return (
     <section className="spiritual-detail-panel">
@@ -214,11 +282,37 @@ export default function SpiritualGoalStepPanel({
           type="button"
           className="page-link"
           disabled={!canMoveToSelected || pending}
-          onClick={() => onMoveToStep(selectedStep.id)}
+          onClick={() => setPendingMoveTargetId(selectedStep.id)}
         >
           Move character here
         </button>
       </div>
+
+      {moveConfirmOpen ? (
+        <div className="spiritual-inline-confirm">
+          <p>Move the character to “{selectedStep.title}”? Later steps will become future steps again.</p>
+          <div className="spiritual-inline-confirm-actions">
+            <button
+              type="button"
+              className="secondary"
+              disabled={pending}
+              onClick={() => {
+                onMoveToStep(selectedStep.id);
+                setPendingMoveTargetId(null);
+              }}
+            >
+              Confirm move
+            </button>
+            <button
+              type="button"
+              className="page-link inline muted"
+              onClick={() => setPendingMoveTargetId(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {completedLabel ? (
         <p className="spiritual-detail-meta">Completed on {completedLabel}.</p>
@@ -259,18 +353,23 @@ export default function SpiritualGoalStepPanel({
             <input
               value={newTaskTitle}
               onChange={(event) => setNewTaskTitle(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  handleNewTaskSubmit();
+                }
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  setNewTaskTitle("");
+                }
+              }}
               placeholder="Add a small supporting task"
             />
             <button
               type="button"
               className="secondary"
               disabled={pending || !newTaskTitle.trim()}
-              onClick={() => {
-                const title = newTaskTitle.trim();
-                if (!title) return;
-                onAddTask(selectedStep.id, title);
-                setNewTaskTitle("");
-              }}
+              onClick={handleNewTaskSubmit}
             >
               <Plus size={16} />
               Add task
@@ -295,16 +394,13 @@ export default function SpiritualGoalStepPanel({
               placeholder="Reminders, difficulties, thoughts, or what you want to remember next time."
             />
           </label>
-          <div className="spiritual-notes-actions">
-            <button
-              type="button"
-              className="secondary"
-              disabled={pending}
-              onClick={() => onSaveStepNotes(selectedStep.id, stepNotes.trim() || null)}
-            >
-              Save step notes
-            </button>
-          </div>
+          <p className="spiritual-notes-status">
+            {pending && stepNotesState !== "idle"
+              ? "Saving step notes…"
+              : stepNotesState === "saved"
+                ? "Step notes saved"
+                : "Step notes autosave as you type"}
+          </p>
 
           <label className="spiritual-notes-field subtle">
             <span>General staircase notes</span>
@@ -315,16 +411,13 @@ export default function SpiritualGoalStepPanel({
               placeholder="A quiet space for the broader context of this staircase."
             />
           </label>
-          <div className="spiritual-notes-actions">
-            <button
-              type="button"
-              className="secondary"
-              disabled={pending}
-              onClick={() => onSaveGeneralNotes(generalNotes.trim() || null)}
-            >
-              Save staircase notes
-            </button>
-          </div>
+          <p className="spiritual-notes-status">
+            {pending && generalNotesState !== "idle"
+              ? "Saving staircase notes…"
+              : generalNotesState === "saved"
+                ? "Staircase notes saved"
+                : "General notes autosave as you type"}
+          </p>
         </article>
       </div>
     </section>
