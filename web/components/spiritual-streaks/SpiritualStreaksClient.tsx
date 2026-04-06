@@ -34,12 +34,15 @@ export default function SpiritualStreaksClient({
   const [monthKey, setMonthKey] = useState(initialData.monthKey);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pendingBoardKey, setPendingBoardKey] = useState<SpiritualStreakBoardKey | null>(null);
+  const streaksQueryKey = ["spiritual-streaks", monthKey] as const;
+  const monthInitialData =
+    monthKey === initialData.monthKey ? initialData : undefined;
 
-  const streaksQuery = useQuery({
-    queryKey: ["spiritual-streaks", monthKey],
+  const streaksQuery = useQuery<SpiritualStreaksPageData>({
+    queryKey: streaksQueryKey,
     queryFn: () =>
       fetchJson<SpiritualStreaksPageData>(`/api/spiritual-streaks?month=${monthKey}`),
-    initialData: monthKey === initialData.monthKey ? initialData : undefined,
+    ...(monthInitialData ? { initialData: monthInitialData } : {}),
   });
 
   const updateMutation = useMutation({
@@ -63,7 +66,7 @@ export default function SpiritualStreaksClient({
       }),
   });
 
-  const data = monthKey === initialData.monthKey ? streaksQuery.data ?? initialData : streaksQuery.data;
+  const data = streaksQuery.data ?? monthInitialData;
 
   return (
     <div className="route-stack spiritual-streaks-shell">
@@ -131,7 +134,7 @@ export default function SpiritualStreaksClient({
                   {
                     onSuccess: ({ item }) => {
                       queryClient.setQueryData<SpiritualStreaksPageData | undefined>(
-                        ["spiritual-streaks", monthKey],
+                        streaksQueryKey,
                         (current) => patchBoard(current, item)
                       );
                       void queryClient.invalidateQueries({ queryKey: ["spiritual-streaks"] });
