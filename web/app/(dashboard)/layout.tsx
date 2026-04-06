@@ -60,9 +60,9 @@ export default async function DashboardLayout({
 
         <article className="shell-summary-card">
           <p className="shell-summary-label">Pending tasks</p>
-          <p className="shell-summary-value">{shell.pendingTasks.length}</p>
+          <p className="shell-summary-value">{shell.pendingTasksCount}</p>
           <p className="shell-summary-meta">
-            {shell.completedTasks.length} completed today.
+            {shell.completedTasksCount} completed today.
           </p>
         </article>
 

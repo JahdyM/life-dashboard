@@ -8,128 +8,14 @@ import {
 } from "@/lib/server/response";
 import { createTask, listTasks } from "@/lib/server/tasks";
 import {
-  listGoogleEventsAcrossCalendars,
-  googleEventToTask,
   createGoogleEvent,
-  type GoogleCalendarEventItem,
 } from "@/lib/server/googleCalendar";
-import { prisma } from "@/lib/db/prisma";
 import { getUserTimeZone } from "@/lib/server/settings";
 import { DEFAULT_TIME_ZONE } from "@/lib/constants";
 import { taskCreateSchema, taskListQuerySchema } from "@/lib/server/schemas";
 import { logServerEvent } from "@/lib/server/logger";
-import { ensureTaskCompletionColumns } from "@/lib/server/dbCompat";
-import { randomUUID } from "crypto";
 
 export const dynamic = "force-dynamic";
-
-async function syncGoogleTasks(userEmail: string, start: string, end: string) {
-  await ensureTaskCompletionColumns();
-  const items = await listGoogleEventsAcrossCalendars(userEmail, start, end);
-  if (!items.length) return;
-  const eventKeys = items
-    .map((item) =>
-      item.event?.id ? `google:${item.calendarId}:${item.event.id}` : null
-    )
-    .filter((value): value is string => Boolean(value));
-  const eventIds = items
-    .map((item) => item.event?.id || null)
-    .filter((value): value is string => Boolean(value));
-  const calendarIds = Array.from(new Set(items.map((item) => item.calendarId)));
-  if (!eventIds.length) return;
-  const existing = await prisma.todoTask.findMany({
-    where: {
-      userEmail,
-      OR: [
-        { externalEventKey: { in: eventKeys } },
-        {
-          googleEventId: { in: eventIds },
-          googleCalendarId: { in: calendarIds },
-        },
-      ],
-    },
-  });
-  const existingByExternalKey = new Map(
-    existing
-      .filter((item) => Boolean(item.externalEventKey))
-      .map((item) => [item.externalEventKey as string, item])
-  );
-  const existingByLegacyPair = new Map(
-    existing
-      .filter((item) => Boolean(item.googleEventId))
-      .map((item) => [
-        `${item.googleCalendarId || "primary"}:${item.googleEventId}`,
-        item,
-      ])
-  );
-  const timezone = (await getUserTimeZone(userEmail)) || DEFAULT_TIME_ZONE;
-  const nowIso = new Date().toISOString();
-  const operations = items
-    .filter((item: GoogleCalendarEventItem) => Boolean(item.event?.id))
-    .map((item: GoogleCalendarEventItem) => {
-      const eventId = item.event.id as string;
-      const externalEventKey = `google:${item.calendarId}:${eventId}`;
-      const mapped = googleEventToTask(item.event, timezone, {
-        calendarId: item.calendarId,
-        userEmail,
-      });
-      const payload = {
-        title: mapped.title,
-        scheduledDate: mapped.scheduled_date || null,
-        scheduledTime: mapped.scheduled_time || null,
-        estimatedMinutes: mapped.estimated_minutes ?? null,
-        source: mapped.source,
-        googleCalendarId: item.calendarId,
-        googleEventId: eventId,
-        externalEventKey,
-      };
-      const existingTask =
-        existingByExternalKey.get(externalEventKey) ||
-        existingByLegacyPair.get(`${item.calendarId}:${eventId}`);
-      if (existingTask) {
-        const nextSource =
-          existingTask.source === "google" ||
-          existingTask.source === "google_shared"
-            ? payload.source
-            : existingTask.source;
-        return prisma.todoTask.update({
-          where: { id: existingTask.id },
-          data: {
-            title: payload.title,
-            source: nextSource,
-            externalEventKey: payload.externalEventKey,
-            scheduledDate: payload.scheduledDate,
-            scheduledTime: payload.scheduledTime,
-            estimatedMinutes: payload.estimatedMinutes,
-            googleCalendarId: payload.googleCalendarId,
-            googleEventId: payload.googleEventId,
-            updatedAt: nowIso,
-          },
-        });
-      }
-      return prisma.todoTask.create({
-        data: {
-          id: randomUUID(),
-          userEmail,
-          title: payload.title,
-          source: payload.source,
-          externalEventKey: payload.externalEventKey,
-          scheduledDate: payload.scheduledDate || null,
-          scheduledTime: payload.scheduledTime || null,
-          estimatedMinutes: payload.estimatedMinutes,
-          priorityTag: "Medium",
-          isDone: 0,
-          googleCalendarId: payload.googleCalendarId,
-          googleEventId: payload.googleEventId,
-          createdAt: nowIso,
-          updatedAt: nowIso,
-        },
-      });
-    });
-  if (operations.length > 0) {
-    await prisma.$transaction(operations);
-  }
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -138,35 +24,15 @@ export async function GET(request: NextRequest) {
     const queryParsed = taskListQuerySchema.safeParse({
       start: searchParams.get("start"),
       end: searchParams.get("end"),
-      sync: searchParams.get("sync") || undefined,
       include_unscheduled: searchParams.get("include_unscheduled") || undefined,
     });
     if (!queryParsed.success) {
       return jsonError(zodErrorMessage(queryParsed.error), 400);
     }
-    const { start, end, sync, include_unscheduled } = queryParsed.data;
-    const shouldSync = sync === "1";
+    const { start, end, include_unscheduled } = queryParsed.data;
     const includeUnscheduled = include_unscheduled === "1";
-    let syncWarning: string | null = null;
-    if (shouldSync) {
-      try {
-        await syncGoogleTasks(userEmail, start, end);
-      } catch (error) {
-        logServerEvent("warn", {
-          endpoint: "GET /api/tasks",
-          userEmail,
-          message: "Google sync failed while listing tasks",
-          error,
-          meta: { start, end },
-        });
-        syncWarning =
-          error instanceof Error && error.message
-            ? error.message
-            : "Google sync failed";
-      }
-    }
     const tasks = await listTasks(userEmail, start, end, includeUnscheduled);
-    return jsonOk({ items: tasks, warning: syncWarning });
+    return jsonOk({ items: tasks, warning: null });
   } catch (err) {
     logServerEvent("error", {
       endpoint: "GET /api/tasks",

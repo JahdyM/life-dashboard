@@ -106,7 +106,6 @@ export const taskListQuerySchema = z
   .object({
     start: isoDateSchema,
     end: isoDateSchema,
-    sync: z.enum(["0", "1"]).optional(),
     include_unscheduled: z.enum(["0", "1"]).optional(),
   })
   .refine((value) => validRange(value.start, value.end), {

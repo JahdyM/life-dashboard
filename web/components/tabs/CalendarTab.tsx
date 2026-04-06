@@ -504,7 +504,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "failed">("idle");
   const [calendarView, setCalendarView] = useState<CalendarViewMode>("timeGridDay");
-  const [didSync, setDidSync] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDate, setNewDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
   const [newTime, setNewTime] = useState("");
@@ -646,7 +645,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     queryKey: ["tasks", range.start, range.end],
     queryFn: () =>
       fetchJson<TaskListResponse>(
-        `/api/tasks?start=${range.start}&end=${range.end}&sync=${didSync ? 0 : 1}&include_unscheduled=1`
+        `/api/tasks?start=${range.start}&end=${range.end}&include_unscheduled=1`
       ),
   });
 
@@ -686,12 +685,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     queryFn: () =>
       fetchJson<QuickNoteResponse>(`/api/settings/quick-notes/${selectedDayIso}`),
   });
-
-  useEffect(() => {
-    if (tasksQuery.data && !didSync) {
-      setDidSync(true);
-    }
-  }, [tasksQuery.data, didSync]);
 
   const tasks = useMemo(
     () => tasksQuery.data?.items || [],
