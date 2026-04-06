@@ -1,0 +1,19 @@
+{
+  "name": "life-dashboard",
+  "private": true,
+  "workspaces": [
+    "web"
+  ],
+  "engines": {
+    "node": ">=20 <25"
+  },
+  "scripts": {
+    "dev": "npm run dev -w web",
+    "build": "npm run build -w web",
+    "start": "npm run start -w web",
+    "lint": "npm run lint -w web",
+    "lint:strict": "npm run lint:strict -w web",
+    "typecheck": "npm run typecheck -w web",
+    "verify": "npm run verify -w web"
+  }
+}
