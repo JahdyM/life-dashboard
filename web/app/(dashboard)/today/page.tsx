@@ -1,9 +1,9 @@
 import Link from "next/link";
 import PublicEntryExperience from "@/components/PublicEntryExperience";
+import PageSectionIntro from "@/components/PageSectionIntro";
 import { MOOD_PALETTE } from "@/lib/constants";
 import { getTodayOverviewData } from "@/lib/server/dashboard";
 import { getOptionalPageEmail } from "@/lib/server/pageAuth";
-import PageSectionIntro from "@/components/PageSectionIntro";
 
 const MOOD_LABELS_EN: Record<string, string> = {
   peace: "Peace",
@@ -29,43 +29,125 @@ function sortTasks<T extends { scheduledTime?: string | null }>(tasks: T[]) {
   });
 }
 
+function buildPrimaryAction(args: {
+  hasPendingTasks: boolean;
+  hasMood: boolean;
+  hasNotes: boolean;
+  hasCompletedTasks: boolean;
+  nextTaskTitle: string | null;
+}) {
+  if (args.hasPendingTasks) {
+    return {
+      href: "/calendar",
+      label: "Open calendar",
+      eyebrow: args.nextTaskTitle ? "Next scheduled step" : "Next focus",
+      description: args.nextTaskTitle
+        ? `Start with ${args.nextTaskTitle}. The calendar is the fastest path back into the day.`
+        : "Your agenda already has something waiting. Open the calendar and continue from there.",
+    };
+  }
+
+  if (!args.hasMood) {
+    return {
+      href: "/mood",
+      label: "Log mood",
+      eyebrow: "Ground the day",
+      description:
+        "A quick emotional check-in gives the rest of the dashboard better context without adding noise.",
+    };
+  }
+
+  if (!args.hasNotes && !args.hasCompletedTasks) {
+    return {
+      href: "/calendar",
+      label: "Plan the day",
+      eyebrow: "Set the shape",
+      description:
+        "Nothing is anchored yet. Add the next task or a quick note so the day has a clear starting point.",
+    };
+  }
+
+  return {
+    href: "/calendar",
+    label: "Review calendar",
+    eyebrow: "Stay oriented",
+    description:
+      "The essentials are already moving. Review the day calmly and adjust only what needs attention.",
+  };
+}
+
 export default async function TodayPage() {
   const userEmail = await getOptionalPageEmail();
   if (!userEmail) {
     return <PublicEntryExperience mode="today" />;
   }
+
   const overview = await getTodayOverviewData(userEmail);
   const moodMeta =
     MOOD_PALETTE.find((item) => item.key === overview.moodCategory) || null;
   const upcomingTasks = sortTasks(overview.pendingTasks).slice(0, 5);
   const completedTasks = sortTasks(overview.completedTasks).slice(0, 5);
   const notePreview = overview.quickNotesText.trim();
+  const primaryAction = buildPrimaryAction({
+    hasPendingTasks: upcomingTasks.length > 0,
+    hasMood: Boolean(moodMeta),
+    hasNotes: Boolean(notePreview),
+    hasCompletedTasks: completedTasks.length > 0,
+    nextTaskTitle: upcomingTasks[0]?.title || null,
+  });
+  const secondaryLinks = [
+    { href: "/habits", label: "Update habits" },
+    { href: "/mood", label: "Open mood board" },
+    { href: "/couple", label: "Couple pulse" },
+  ].filter((item) => item.href !== primaryAction.href);
 
   return (
     <div className="route-stack">
       <PageSectionIntro
         eyebrow="Today overview"
-        title="Know what matters next in one glance."
-        description="Use this page as the calm starting point for the day: what is scheduled, what is already done, and which shared rhythms still need attention."
+        title="Know what matters next in one calm glance."
+        description="Use this page as the quiet launchpad for the day: one clear next move, the essentials already in motion, and only the sections that deserve attention now."
       />
 
       <section className="today-grid">
         <article className="today-panel today-panel-hero">
-          <div className="today-panel-head">
-            <div>
-              <p className="panel-kicker">Next focus</p>
-              <h2>What deserves attention now</h2>
+          <div className="today-panel-head today-panel-head-hero">
+            <div className="today-hero-copy">
+              <p className="panel-kicker">{primaryAction.eyebrow}</p>
+              <h2>{upcomingTasks[0]?.title || "What deserves attention now"}</h2>
+              <p className="today-panel-copy">{primaryAction.description}</p>
+              <div className="today-primary-actions">
+                <Link href={primaryAction.href} className="page-link primary">
+                  {primaryAction.label}
+                </Link>
+                <div className="today-secondary-links" aria-label="Secondary actions">
+                  {secondaryLinks.map((link) => (
+                    <Link key={link.href} href={link.href} className="page-link inline muted">
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="today-actions">
-              <Link href="/calendar" className="page-link primary">
-                Open calendar
-              </Link>
-              <Link href="/habits" className="page-link">
-                Update habits
-              </Link>
-              <Link href="/mood" className="page-link">
-                Log mood
-              </Link>
+
+            <div className="today-next-card">
+              <span className="today-next-label">Next up</span>
+              {upcomingTasks[0] ? (
+                <>
+                  <strong>{upcomingTasks[0].title}</strong>
+                  <p>
+                    {formatTaskMeta(
+                      upcomingTasks[0].scheduledTime,
+                      upcomingTasks[0].estimatedMinutes
+                    ) || "No time assigned yet"}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <strong>The day is still open.</strong>
+                  <p>Use the next action to anchor one useful step and let the rest stay quiet for now.</p>
+                </>
+              )}
             </div>
           </div>
 
@@ -98,7 +180,7 @@ export default async function TodayPage() {
               <p className="panel-kicker">Mood</p>
               <h2>Emotional check-in</h2>
             </div>
-            <Link href="/mood" className="page-link inline">
+            <Link href="/mood" className="page-link inline muted">
               Open mood board
             </Link>
           </div>
@@ -127,7 +209,7 @@ export default async function TodayPage() {
               <p className="panel-kicker">Completed</p>
               <h2>Already done today</h2>
             </div>
-            <Link href="/calendar" className="page-link inline">
+            <Link href="/calendar" className="page-link inline muted">
               Review tasks
             </Link>
           </div>
@@ -154,7 +236,7 @@ export default async function TodayPage() {
               <p className="panel-kicker">Notes</p>
               <h2>Today&apos;s scratchpad</h2>
             </div>
-            <Link href="/calendar" className="page-link inline">
+            <Link href="/calendar" className="page-link inline muted">
               Open notes pad
             </Link>
           </div>
@@ -174,7 +256,7 @@ export default async function TodayPage() {
               <p className="panel-kicker">Shared rhythm</p>
               <h2>Streaks that matter to both of you</h2>
             </div>
-            <Link href="/couple" className="page-link inline">
+            <Link href="/couple" className="page-link inline muted">
               Open couple view
             </Link>
           </div>
