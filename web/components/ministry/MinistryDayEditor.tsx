@@ -48,6 +48,19 @@ export default function MinistryDayEditor({
     setNotes(day.notes || "");
   }, [day]);
 
+  useEffect(() => {
+    if (!day) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [day, onClose]);
+
   const preview = useMemo(() => {
     const goalHoursValue = toNullableNumber(goalHours);
     const goalMinutesValue = toNullableNumber(goalMinutes);
@@ -72,12 +85,18 @@ export default function MinistryDayEditor({
   if (!day) return null;
 
   return (
-    <div className="ministry-editor-overlay" role="dialog" aria-modal="true">
-      <div className="ministry-editor-card">
+    <div
+      className="ministry-editor-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ministry-day-editor-title"
+      onClick={onClose}
+    >
+      <div className="ministry-editor-card" onClick={(event) => event.stopPropagation()}>
         <div className="ministry-editor-head">
           <div>
             <p className="panel-kicker">Day editor</p>
-            <h3>{day.date}</h3>
+            <h3 id="ministry-day-editor-title">{day.date}</h3>
             <p className="ministry-editor-preview">
               Planned {formatMinutes(preview.goal)} · Actual {formatMinutes(preview.actual)}
             </p>

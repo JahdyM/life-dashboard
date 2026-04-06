@@ -30,8 +30,19 @@ function readStatusLabel(status: MinistryDayComputed["status"]) {
   return "Exceeded";
 }
 
-function toneClass(status: MinistryDayComputed["status"]) {
-  return `ministry-day-card ${status}`;
+function toneClass(day: MinistryDayComputed) {
+  return `ministry-day-card ${day.status}${day.isToday ? " today" : ""}`;
+}
+
+function buildDayAriaLabel(day: MinistryDayComputed) {
+  const planned = day.goalMinutes == null ? "no goal set" : `planned ${formatMinutes(day.goalMinutes)}`;
+  const actual =
+    day.actualMinutes == null
+      ? day.goalMinutes == null
+        ? "no time logged"
+        : "0 minutes completed so far"
+      : `completed ${formatMinutes(day.actualMinutes)}`;
+  return `${day.date}, ${readStatusLabel(day.status)}, ${planned}, ${actual}`;
 }
 
 export default function MinistryHoursClient({
@@ -201,6 +212,7 @@ export default function MinistryHoursClient({
             <button
               className="secondary"
               type="button"
+              disabled={monthlyGoalMutation.isPending}
               onClick={() => monthlyGoalMutation.mutate(null)}
             >
               Clear target
@@ -213,7 +225,7 @@ export default function MinistryHoursClient({
       {monthQuery.isError ? (
         <div className="query-status error">
           <span>Could not load ministry hours for this month.</span>
-          <button className="secondary" onClick={() => monthQuery.refetch()}>
+          <button className="secondary" type="button" onClick={() => monthQuery.refetch()}>
             Retry
           </button>
         </div>
@@ -272,7 +284,8 @@ export default function MinistryHoursClient({
                       <button
                         key={day.date}
                         type="button"
-                        className={toneClass(day.status)}
+                        className={toneClass(day)}
+                        aria-label={buildDayAriaLabel(day)}
                         onClick={() => setSelectedDate(day.date)}
                       >
                         <div className="ministry-day-head">

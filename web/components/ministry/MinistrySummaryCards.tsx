@@ -57,7 +57,10 @@ export default function MinistrySummaryCards({
     {
       label: "Pace",
       value: summary.paceLabel,
-      meta: `${summary.completedGoalDays}/${summary.activeGoalDays} goal days met`,
+      meta:
+        summary.activeGoalDays > 0
+          ? `${summary.completedGoalDays}/${summary.activeGoalDays} goal days met`
+          : "No manual goal days yet",
       accent:
         summary.paceStatus === "ahead"
           ? "success"

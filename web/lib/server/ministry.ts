@@ -10,8 +10,8 @@ function normalizeGoalMinutes(value: number | null) {
   return value;
 }
 
-function normalizeActualMinutes(value: number | null, goalMinutes: number | null, notes: string | null) {
-  if (value == null) return goalMinutes != null || notes ? 0 : null;
+function normalizeActualMinutes(value: number | null, goalMinutes: number | null) {
+  if (value == null) return goalMinutes != null ? 0 : null;
   if (value < 0) return 0;
   return value;
 }
@@ -152,7 +152,7 @@ export async function setMinistryDayEntry(
   const nowIso = new Date().toISOString();
   const goalMinutes = normalizeGoalMinutes(payload.goalMinutes);
   const notes = normalizeNotes(payload.notes);
-  const actualMinutes = normalizeActualMinutes(payload.actualMinutes, goalMinutes, notes);
+  const actualMinutes = normalizeActualMinutes(payload.actualMinutes, goalMinutes);
   const existing = await prisma.ministryDailyEntry.findFirst({
     where: { userEmail, date },
   });

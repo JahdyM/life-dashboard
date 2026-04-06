@@ -2227,6 +2227,15 @@ button.link.danger {
   gap: 10px;
   text-align: left;
   cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.ministry-day-card.today {
+  box-shadow: 0 0 0 1px rgba(231, 194, 131, 0.24);
 }
 
 .ministry-day-card.no_goal {
@@ -2448,6 +2457,11 @@ button.link.danger {
   .task-confirm-inline:hover {
     border-color: var(--accent);
     color: var(--text);
+  }
+
+  .ministry-day-card:hover {
+    transform: translateY(-1px);
+    border-color: rgba(231, 194, 131, 0.22);
   }
 
   .habit-remove-btn:hover {
