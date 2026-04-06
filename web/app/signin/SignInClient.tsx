@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { signIn } from "next-auth/react";
 
@@ -27,6 +28,7 @@ export default function SignInClient({
 }: SignInClientProps) {
   const [submitting, setSubmitting] = useState(false);
   const reconnectStartedRef = useRef(false);
+  const isTodayIntent = callbackUrl.startsWith("/today");
 
   useEffect(() => {
     if (!reconnectGoogle) return;
@@ -43,7 +45,9 @@ export default function SignInClient({
   const errorMessage = useMemo(() => resolveSignInErrorMessage(error), [error]);
   const helperText = reconnectGoogle
     ? "Google Calendar access needs to be refreshed before the app can sync again."
-    : "Sign in once with your private Google account to open the dashboard.";
+    : isTodayIntent
+      ? "Sign in to turn the preview into your real Today view."
+      : "Sign in once with your private Google account to open the dashboard.";
 
   return (
     <div className="signin-shell">
@@ -59,6 +63,14 @@ export default function SignInClient({
           <li>Keep shared habits and calendar rhythm in one place.</li>
           <li>Use one Google sign-in for the full private workspace.</li>
         </ul>
+        <div className="signin-preview-links">
+          <Link href="/" className="page-link">
+            Back home
+          </Link>
+          <Link href="/today" className="page-link">
+            See today preview
+          </Link>
+        </div>
       </section>
 
       <section className="signin-card">
@@ -90,7 +102,7 @@ export default function SignInClient({
               : "Continue with Google"}
         </button>
         <p className="signin-note">
-          Only allowlisted accounts can enter this dashboard.
+          Private access is limited to invited accounts.
         </p>
       </section>
     </div>

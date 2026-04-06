@@ -1,7 +1,8 @@
 import Link from "next/link";
+import PublicEntryExperience from "@/components/PublicEntryExperience";
 import { MOOD_PALETTE } from "@/lib/constants";
 import { getTodayOverviewData } from "@/lib/server/dashboard";
-import { getAuthenticatedPageEmail } from "@/lib/server/pageAuth";
+import { getOptionalPageEmail } from "@/lib/server/pageAuth";
 import PageSectionIntro from "@/components/PageSectionIntro";
 
 const MOOD_LABELS_EN: Record<string, string> = {
@@ -29,7 +30,10 @@ function sortTasks<T extends { scheduledTime?: string | null }>(tasks: T[]) {
 }
 
 export default async function TodayPage() {
-  const userEmail = await getAuthenticatedPageEmail();
+  const userEmail = await getOptionalPageEmail();
+  if (!userEmail) {
+    return <PublicEntryExperience mode="today" />;
+  }
   const overview = await getTodayOverviewData(userEmail);
   const moodMeta =
     MOOD_PALETTE.find((item) => item.key === overview.moodCategory) || null;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-const PUBLIC_PATHS = ["/signin"];
+const PUBLIC_PATHS = ["/", "/signin", "/today"];
 
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`))) {
