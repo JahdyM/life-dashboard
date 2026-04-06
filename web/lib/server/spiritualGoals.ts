@@ -176,86 +176,91 @@ export async function applySpiritualGoalAction(
   }
 
   let staircase = await loadRawSpiritualStaircase(userEmail, category);
+  const action = parsed.data;
 
-  switch (parsed.data.type) {
+  switch (action.type) {
     case "complete_current":
       staircase = completeCurrentSpiritualStep(staircase);
       break;
     case "move_to_step":
-      if (!parsed.data.confirmed) {
+      if (!action.confirmed) {
         throw new Error("CONFIRMATION_REQUIRED");
       }
-      staircase = syncSpiritualProgressToStep(staircase, parsed.data.step_id);
+      staircase = syncSpiritualProgressToStep(staircase, action.step_id);
       break;
     case "move_back":
       staircase = moveBackSpiritualProgress(staircase);
       break;
-    case "toggle_task":
+    case "toggle_task": {
+      const updatedAt = new Date().toISOString();
       staircase = cloneSpiritualStaircase(staircase);
       staircase.steps = staircase.steps.map((step) =>
-        step.id !== parsed.data.step_id
+        step.id !== action.step_id
           ? step
           : {
               ...step,
               tasks: step.tasks.map((task) =>
-                task.id === parsed.data.task_id
-                  ? { ...task, completed: parsed.data.completed, updatedAt: new Date().toISOString() }
+                task.id === action.task_id
+                  ? { ...task, completed: action.completed, updatedAt }
                   : task
               ),
             }
       );
       break;
+    }
     case "add_task":
       staircase = cloneSpiritualStaircase(staircase);
       staircase.steps = staircase.steps.map((step) =>
-        step.id !== parsed.data.step_id
+        step.id !== action.step_id
           ? step
           : {
               ...step,
-              tasks: [...step.tasks, buildEmptyTask(parsed.data.title)],
+              tasks: [...step.tasks, buildEmptyTask(action.title)],
             }
       );
       break;
-    case "update_task":
+    case "update_task": {
+      const updatedAt = new Date().toISOString();
       staircase = cloneSpiritualStaircase(staircase);
       staircase.steps = staircase.steps.map((step) =>
-        step.id !== parsed.data.step_id
+        step.id !== action.step_id
           ? step
           : {
               ...step,
               tasks: step.tasks.map((task) =>
-                task.id === parsed.data.task_id
-                  ? { ...task, title: parsed.data.title, updatedAt: new Date().toISOString() }
+                task.id === action.task_id
+                  ? { ...task, title: action.title, updatedAt }
                   : task
               ),
             }
       );
       break;
+    }
     case "remove_task":
       staircase = cloneSpiritualStaircase(staircase);
       staircase.steps = staircase.steps.map((step) =>
-        step.id !== parsed.data.step_id
+        step.id !== action.step_id
           ? step
           : {
               ...step,
-              tasks: step.tasks.filter((task) => task.id !== parsed.data.task_id),
+              tasks: step.tasks.filter((task) => task.id !== action.task_id),
             }
       );
       break;
     case "save_step_notes":
       staircase = cloneSpiritualStaircase(staircase);
       staircase.steps = staircase.steps.map((step) =>
-        step.id !== parsed.data.step_id
+        step.id !== action.step_id
           ? step
           : {
               ...step,
-              notes: parsed.data.notes ?? null,
+              notes: action.notes ?? null,
             }
       );
       break;
     case "save_general_notes":
       staircase = cloneSpiritualStaircase(staircase);
-      staircase.generalNotes = parsed.data.notes ?? null;
+      staircase.generalNotes = action.notes ?? null;
       break;
   }
 
