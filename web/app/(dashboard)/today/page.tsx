@@ -15,7 +15,7 @@ const MOOD_LABELS_EN: Record<string, string> = {
 };
 
 function formatTaskMeta(time: string | null | undefined, minutes: number | null | undefined) {
-  const parts = [];
+  const parts: string[] = [];
   if (time) parts.push(time);
   if (minutes) parts.push(`${minutes} min`);
   return parts.join(" · ");
