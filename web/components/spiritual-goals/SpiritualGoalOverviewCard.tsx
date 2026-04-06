@@ -44,7 +44,7 @@ export default function SpiritualGoalOverviewCard({
         <div className="spiritual-overview-footer">
           <div>
             <span className="spiritual-overview-label">Current</span>
-            <strong>{staircase.currentStepTitle || "Set the first short step"}</strong>
+            <strong>{staircase.currentStepTitle || "Set first step"}</strong>
           </div>
           <span className="spiritual-open-link">
             Open

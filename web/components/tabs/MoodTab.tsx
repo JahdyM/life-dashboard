@@ -180,10 +180,10 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
           onChange={(event) => onMonthChange(event.target.value)}
         />
       </div>
-      {queryLoading && <div className="query-status">Loading mood data...</div>}
+      {queryLoading && <div className="query-status">Loading…</div>}
       {queryError && (
         <div className="query-status error">
-          <span>Could not load mood data.</span>
+          <span>Couldn't load mood.</span>
           <button
             className="secondary"
             onClick={() => {
@@ -227,7 +227,7 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
         ))}
       </div>
       <div className="section">
-        <h3>Edit daily mood</h3>
+        <h3>Day</h3>
         <div className="mood-editor">
           <div className="mood-editor-row">
             <div className="form-row">
@@ -287,7 +287,7 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
         </div>
       </div>
       <div className="section">
-        <h3>Year mood</h3>
+        <h3>Year</h3>
         <div className="mood-grid yearly">
           {Array.from({ length: (() => {
             const startDate = new Date(`${yearKey}-01-01`);

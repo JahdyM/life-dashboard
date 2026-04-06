@@ -103,7 +103,7 @@ export default function SpiritualGoalConfigDrawer({
         <div className="spiritual-config-head">
           <div>
             <p className="panel-kicker">Configure</p>
-            <h3 id="spiritual-config-title">Configure staircase</h3>
+            <h3 id="spiritual-config-title">Configure</h3>
             <p>{stepCountHint}</p>
           </div>
           <button type="button" className="secondary" onClick={onClose}>
@@ -122,7 +122,7 @@ export default function SpiritualGoalConfigDrawer({
 
             <div className="spiritual-config-grid">
               <label>
-                Staircase title
+                Title
                 <input
                   value={draft.title}
                   onChange={(event) =>
@@ -133,7 +133,7 @@ export default function SpiritualGoalConfigDrawer({
               </label>
 
               <label>
-                Ultimate goal
+                Goal
                 <textarea
                   rows={3}
                   value={draft.ultimateGoal}
@@ -163,7 +163,7 @@ export default function SpiritualGoalConfigDrawer({
               </label>
 
               <label>
-                Accent color
+                Color
                 <div className="spiritual-color-row">
                   <input
                     type="color"
@@ -189,7 +189,7 @@ export default function SpiritualGoalConfigDrawer({
               </label>
 
               <label>
-                Avatar style
+                Avatar
                 <select
                   value={draft.avatarStyle || "sprout"}
                   onChange={(event) =>
@@ -227,7 +227,7 @@ export default function SpiritualGoalConfigDrawer({
                 disabled={draft.steps.length >= 12}
               >
                 <Plus size={16} />
-                Add step
+                Add
               </button>
             </div>
 
@@ -293,7 +293,7 @@ export default function SpiritualGoalConfigDrawer({
 
                     <div className="spiritual-step-editor-grid">
                       <label>
-                        Short title
+                        Title
                         <input
                           value={step.title}
                           onChange={(event) =>
@@ -307,7 +307,7 @@ export default function SpiritualGoalConfigDrawer({
                       </label>
 
                       <label>
-                        Description
+                        Details
                         <textarea
                           rows={3}
                           value={step.description || ""}
@@ -322,7 +322,7 @@ export default function SpiritualGoalConfigDrawer({
                       </label>
 
                       <label>
-                        Step notes
+                        Notes
                         <textarea
                           rows={4}
                           value={step.notes || ""}
@@ -385,7 +385,7 @@ export default function SpiritualGoalConfigDrawer({
                                     ),
                                   }))
                                 }
-                                placeholder="Task title"
+                                placeholder="Task"
                                 maxLength={100}
                               />
                               <button
@@ -414,7 +414,7 @@ export default function SpiritualGoalConfigDrawer({
               ) : (
                 <div className="spiritual-config-empty">
                   <p>No steps yet.</p>
-                  <span>Add the first step.</span>
+                  <span>Add a step.</span>
                 </div>
               )}
             </div>
@@ -427,7 +427,7 @@ export default function SpiritualGoalConfigDrawer({
           </button>
           <button type="button" className="primary" onClick={() => onSave(draft)} disabled={saving || !canSave}>
             <Save size={16} />
-            {saving ? "Saving..." : "Save"}
+            {saving ? "Saving…" : "Save"}
           </button>
         </div>
       </aside>

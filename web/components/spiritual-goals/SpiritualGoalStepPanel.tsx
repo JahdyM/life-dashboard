@@ -245,11 +245,8 @@ export default function SpiritualGoalStepPanel({
     <section className="spiritual-detail-panel">
       <div className="spiritual-detail-head">
         <div>
-          <p className="panel-kicker">Step</p>
           <h3>{selectedStep.title}</h3>
-          <p>
-            {selectedStep.description?.trim() || "No details yet."}
-          </p>
+          <p>{selectedStep.description?.trim() || "No details."}</p>
         </div>
         <span className={`spiritual-step-chip ${selectedStep.state}`}>{selectedStep.state}</span>
       </div>
@@ -285,7 +282,7 @@ export default function SpiritualGoalStepPanel({
 
       {moveConfirmOpen ? (
         <div className="spiritual-inline-confirm">
-          <p>Move to “{selectedStep.title}”?</p>
+          <p>Move here?</p>
           <div className="spiritual-inline-confirm-actions">
             <button
               type="button"
@@ -310,7 +307,7 @@ export default function SpiritualGoalStepPanel({
       ) : null}
 
       {completedLabel ? (
-        <p className="spiritual-detail-meta">Completed on {completedLabel}.</p>
+        <p className="spiritual-detail-meta">Done on {completedLabel}.</p>
       ) : null}
 
       <div className="spiritual-detail-grid">

@@ -71,7 +71,7 @@ export default function CoupleTab({ userEmail }: { userEmail: string }) {
 
   return (
     <div className="card">
-      <h2>Shared mood board</h2>
+      <h2>Mood board</h2>
       <div className="form-row">
         <label htmlFor="couple-month">Month</label>
         <input
@@ -81,10 +81,10 @@ export default function CoupleTab({ userEmail }: { userEmail: string }) {
           onChange={(event) => setMonthKey(event.target.value)}
         />
       </div>
-      {queryLoading && <div className="query-status">Loading couple data...</div>}
+      {queryLoading && <div className="query-status">Loading…</div>}
       {queryError && (
         <div className="query-status error">
-          <span>Could not load couple insights.</span>
+          <span>Could not load couple.</span>
           <button
             className="secondary"
             onClick={() => {
@@ -133,7 +133,7 @@ export default function CoupleTab({ userEmail }: { userEmail: string }) {
         ))}
       </div>
       <div className="section">
-        <h3>Partner care suggestions</h3>
+        <h3>Suggestions</h3>
         <div className="suggestion-grid">
           <div className="suggestion-card">
             <div className="suggestion-title">
@@ -154,7 +154,7 @@ export default function CoupleTab({ userEmail }: { userEmail: string }) {
         </div>
       </div>
       <div className="section">
-        <h3>Shared streaks</h3>
+        <h3>Streaks</h3>
         <div className="streak-grid">
           {(streakQuery.data?.items || []).map((item) => (
             <div key={item.habit_key} className="streak-card">
@@ -177,7 +177,7 @@ export default function CoupleTab({ userEmail }: { userEmail: string }) {
         </div>
       </div>
       <div className="section">
-        <h3>Couple comparison (30 days)</h3>
+        <h3>30 days</h3>
         <div className="suggestion-grid">
           {(analyticsQuery.data?.users || []).map((person) => (
             <div key={person.email} className="suggestion-card">

@@ -392,7 +392,7 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
   return (
     <div className="card">
       <div className="stats-header">
-        <h2>Charts & Behavioral analytics</h2>
+        <h2>Charts</h2>
         <div className="stats-controls">
           <button className={rangeKey === "week" ? "chip active" : "chip"} onClick={() => setRangeKey("week")}>
             Week
@@ -424,10 +424,10 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
         <div className="stats-range">{range.label}</div>
       </div>
 
-      {entriesQuery.isPending && <div className="query-status">Loading chart data...</div>}
+      {entriesQuery.isPending && <div className="query-status">Loading…</div>}
       {entriesQuery.isError && (
         <div className="query-status error">
-          <span>Could not load metrics for this period.</span>
+          <span>Couldn't load charts.</span>
           <button className="secondary" onClick={() => entriesQuery.refetch()}>
             Retry
           </button>
@@ -449,7 +449,7 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
                 .filter((item): item is { label: string; value: number } => item.value !== null)
                 .map((item) => ({ label: item.label, value: item.value }));
               if (points.length === 0) {
-                return <div className="line-empty">No data recorded in this range.</div>;
+                return <div className="line-empty">No data.</div>;
               }
               return <LineChart points={points} color={metric.color} step={LINE_STEP} />;
             })()}
@@ -467,7 +467,7 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
       {showAdvanced ? (
         <>
       <div className="section">
-        <h3>Task estimation accuracy</h3>
+        <h3>Estimates</h3>
         <div className="stats-controls">
           <button
             className={periodKey === "30d" ? "chip active" : "chip"}
@@ -489,11 +489,11 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
           </button>
         </div>
         {estimationQuery.isPending && (
-          <div className="query-status">Loading estimation analytics...</div>
+          <div className="query-status">Loading…</div>
         )}
         {estimationQuery.isError && (
           <div className="query-status error">
-            <span>Could not load estimation analytics.</span>
+            <span>Couldn't load estimates.</span>
             <button className="secondary" onClick={() => estimationQuery.refetch()}>
               Retry
             </button>

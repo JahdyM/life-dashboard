@@ -267,7 +267,7 @@ export function buildSpiritualStreakBoard(
     monthMarkedDays,
     monthTotalDays: daysInMonth,
     firstWeekday,
-    summaryText: `${monthSuccessDays}/${daysInMonth} success days`,
+    summaryText: `${monthSuccessDays}/${daysInMonth}`,
     todayStatus,
     cells,
   };

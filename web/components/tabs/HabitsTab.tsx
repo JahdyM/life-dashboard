@@ -744,7 +744,7 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
             body={pendingDelete.habit.name}
             actionLabel="Undo"
             onAction={undoPendingDelete}
-            secondaryLabel="Delete"
+            secondaryLabel="Remove"
             onSecondary={commitPendingDelete}
           />
         ) : null}
@@ -763,7 +763,7 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
           </div>
 
           <div className="form-row">
-            <div id="meeting-days-label">Weekly meeting days</div>
+            <div id="meeting-days-label">Meeting days</div>
             <div className="chip-row" role="group" aria-labelledby="meeting-days-label">
               {WEEKDAY_LABELS_PT.map((label, index) => (
                 <MeetingDayChip
@@ -778,7 +778,7 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
           </div>
 
           <div className="form-row">
-            <label htmlFor="family-day-select">Adoração em família (dia)</label>
+            <label htmlFor="family-day-select">Family worship</label>
             <select id="family-day-select" value={familyDay} onChange={handleFamilyDayChange}>
               {WEEKDAY_LABELS_PT.map((label, index) => (
                 <option key={label} value={index}>
@@ -823,7 +823,7 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
               <p className="panel-kicker">Personal</p>
               <h3>Custom</h3>
             </div>
-            <p className="section-hint">Enter saves. Esc cancels.</p>
+            <p className="section-hint">Enter saves · Esc cancels</p>
           </div>
 
           <div className="habit-list">
@@ -863,10 +863,10 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
       <div className="card">
         <div className="habits-section-head">
           <div>
-            <p className="panel-kicker">Daily metrics</p>
+              <p className="panel-kicker">Today</p>
             <h3>Metrics</h3>
           </div>
-          <p className="section-hint">Blur or Enter saves.</p>
+          <p className="section-hint">Blur or Enter saves</p>
         </div>
 
         <div className="metrics-grid">
@@ -934,7 +934,7 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
             </select>
           </div>
           <div className="form-row">
-            <label htmlFor="metric-priority">Priority focus</label>
+            <label htmlFor="metric-priority">Priority</label>
             <input
               id="metric-priority"
               type="text"

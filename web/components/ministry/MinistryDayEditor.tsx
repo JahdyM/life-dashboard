@@ -101,7 +101,7 @@ export default function MinistryDayEditor({
       <div className="ministry-editor-card">
         <div className="ministry-editor-head">
           <div>
-            <p className="panel-kicker">Day editor</p>
+            <p className="panel-kicker">Day</p>
             <h3 id="ministry-day-editor-title">{day.date}</h3>
             <p className="ministry-editor-preview">
               Planned {formatMinutes(preview.goal)} · Actual {formatMinutes(preview.actual)}
@@ -114,7 +114,7 @@ export default function MinistryDayEditor({
 
         <div className="ministry-editor-grid">
           <label>
-            Goal hours
+            Goal h
             <input
               type="number"
               min={0}
@@ -123,7 +123,7 @@ export default function MinistryDayEditor({
             />
           </label>
           <label>
-            Goal minutes
+            Goal m
             <input
               type="number"
               min={0}
@@ -133,7 +133,7 @@ export default function MinistryDayEditor({
             />
           </label>
           <label>
-            Actual hours
+            Actual h
             <input
               type="number"
               min={0}
@@ -142,7 +142,7 @@ export default function MinistryDayEditor({
             />
           </label>
           <label>
-            Actual minutes
+            Actual m
             <input
               type="number"
               min={0}
@@ -159,7 +159,7 @@ export default function MinistryDayEditor({
             rows={5}
             value={notes}
             onChange={(event) => setNotes(event.target.value)}
-            placeholder="Optional note about the day, calls, return visits, or context."
+            placeholder="Note"
           />
         </label>
 
@@ -184,9 +184,9 @@ export default function MinistryDayEditor({
             className="secondary"
             type="button"
             disabled={saving}
-            onClick={() => onSave({ goalMinutes: null, actualMinutes: null, notes: null })}
+              onClick={() => onSave({ goalMinutes: null, actualMinutes: null, notes: null })}
           >
-            Clear day
+            Clear
           </button>
           <button
             className="primary"
@@ -200,7 +200,7 @@ export default function MinistryDayEditor({
               })
             }
           >
-            {saving ? "Saving..." : "Save day"}
+            {saving ? "Saving…" : "Save"}
           </button>
         </div>
       </div>

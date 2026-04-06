@@ -15,12 +15,10 @@ function getDefaultSelectedDate(board: SpiritualStreakBoardType, todayIso: strin
 }
 
 function getStatusCopy(board: SpiritualStreakBoardType, success: boolean | null, isFuture: boolean) {
-  if (isFuture) return "Future day";
-  if (success === true) return "Success day recorded";
+  if (isFuture) return "Future";
+  if (success === true) return "Done";
   if (success === false) {
-    return board.successRule === "clean_day"
-      ? "Marked as not a clean day"
-      : "Marked as not completed";
+    return board.successRule === "clean_day" ? "Not clean" : "Missed";
   }
   return board.emptyLabel;
 }
@@ -151,7 +149,7 @@ export default function SpiritualStreakBoard({
       {selectedCell ? (
         <div className="spiritual-streak-editor">
           <div className="spiritual-streak-editor-copy">
-            <span className="spiritual-streak-label">Selected day</span>
+            <span className="spiritual-streak-label">Day</span>
             <strong>{formatDisplayDate(selectedCell.date)}</strong>
             <p>{getStatusCopy(board, selectedCell.success, selectedCell.isFuture)}</p>
           </div>

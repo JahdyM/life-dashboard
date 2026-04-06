@@ -132,11 +132,11 @@ export default function MinistryHoursClient({
         }),
       }),
     onSuccess: async () => {
-      setFeedback("Monthly goal updated.");
+      setFeedback("Saved.");
       await queryClient.invalidateQueries({ queryKey: ["ministry-month", monthKey] });
     },
     onError: (error) => {
-      setFeedback(error instanceof Error ? error.message : "Could not save monthly goal.");
+      setFeedback(error instanceof Error ? error.message : "Couldn't save goal.");
     },
   });
 
@@ -161,12 +161,12 @@ export default function MinistryHoursClient({
         }),
       }),
     onSuccess: async () => {
-      setFeedback("Day updated.");
+      setFeedback("Saved.");
       setSelectedDate(null);
       await queryClient.invalidateQueries({ queryKey: ["ministry-month", monthKey] });
     },
     onError: (error) => {
-      setFeedback(error instanceof Error ? error.message : "Could not save that day.");
+      setFeedback(error instanceof Error ? error.message : "Couldn't save day.");
     },
   });
 
@@ -212,7 +212,7 @@ export default function MinistryHoursClient({
 
         <div className="ministry-target-panel">
           <div>
-            <p className="panel-kicker">Monthly target</p>
+            <p className="panel-kicker">Goal</p>
             <h2>{data?.summary.targetMinutes == null ? "Set your goal" : formatMinutes(data.summary.targetMinutes)}</h2>
             <p className="ministry-panel-copy">{planningMeta}</p>
           </div>
@@ -239,7 +239,7 @@ export default function MinistryHoursClient({
           </div>
           <div className="ministry-target-actions">
             <button className="primary" type="button" onClick={saveMonthlyGoal}>
-              {monthlyGoalMutation.isPending ? "Saving..." : "Save"}
+              {monthlyGoalMutation.isPending ? "Saving…" : "Save"}
             </button>
             <button
               className="secondary"
@@ -256,7 +256,7 @@ export default function MinistryHoursClient({
       {feedback ? <div className="query-status">{feedback}</div> : null}
       {monthQuery.isError ? (
         <div className="query-status error">
-          <span>Could not load this month.</span>
+          <span>Could not load month.</span>
           <button className="secondary" type="button" onClick={() => monthQuery.refetch()}>
             Retry
           </button>
@@ -283,7 +283,7 @@ export default function MinistryHoursClient({
           data.summary.activeGoalDays === 0 &&
           data.summary.totalCompletedMinutes === 0 ? (
             <div className="ministry-empty-banner">
-              <h3>Set a target or open a day.</h3>
+              <h3>Set a goal or open a day.</h3>
             </div>
           ) : null}
 
@@ -291,7 +291,7 @@ export default function MinistryHoursClient({
             <div className="ministry-calendar-head">
               <div>
                 <p className="panel-kicker">Calendar</p>
-                <h2>Planned vs completed</h2>
+                <h2>Plan vs done</h2>
               </div>
             </div>
 
@@ -358,7 +358,7 @@ export default function MinistryHoursClient({
         </>
       ) : (
         <div className="card">
-          <div className="query-status">Loading ministry month...</div>
+          <div className="query-status">Loading…</div>
         </div>
       )}
 

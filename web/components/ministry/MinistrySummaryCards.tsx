@@ -35,9 +35,9 @@ export default function MinistrySummaryCards({
 }) {
   const cards = [
     {
-      label: "Monthly goal",
+      label: "Goal",
       value: summary.targetMinutes == null ? "Not set" : formatMinutes(summary.targetMinutes),
-      meta: "Monthly target",
+      meta: "Target",
     },
     {
       label: "Planned",
@@ -54,7 +54,7 @@ export default function MinistrySummaryCards({
             : "warning",
     },
     {
-      label: "Completed",
+      label: "Done",
       value: formatMinutes(summary.totalCompletedMinutes),
       meta: "Logged",
     },
@@ -67,18 +67,18 @@ export default function MinistrySummaryCards({
       meta: "To target",
     },
     {
-      label: "Completion",
+      label: "%",
       value:
         summary.completionPercent == null ? "—" : `${summary.completionPercent.toFixed(1)}%`,
       meta: "Of target",
     },
     {
-      label: "Planned to date",
+      label: "Plan to date",
       value: formatMinutes(summary.accumulatedPlannedMinutes),
       meta: "Manual plan",
     },
     {
-      label: "Actual to date",
+      label: "Done to date",
       value: formatMinutes(summary.accumulatedActualMinutes),
       meta: "Logged",
     },

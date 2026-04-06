@@ -144,13 +144,13 @@ export default function SpiritualGoalsClient({
       ),
     onSuccess: ({ item }) => {
       updateCachedItem(item);
-      setFeedback("Staircase updated.");
+      setFeedback("Saved.");
       setConfigOpen(false);
       setSelectedCategory(item.category);
       setSelectedStepId(item.currentStepId || item.steps[0]?.id || null);
     },
     onError: (error) => {
-      setFeedback(error instanceof Error ? error.message : "Could not save staircase.");
+      setFeedback(error instanceof Error ? error.message : "Couldn't save.");
     },
   });
 
@@ -192,7 +192,7 @@ export default function SpiritualGoalsClient({
           }
         },
         onError: (error) => {
-          setFeedback(error instanceof Error ? error.message : "Could not update staircase.");
+          setFeedback(error instanceof Error ? error.message : "Couldn't update.");
         },
       }
     );
@@ -287,19 +287,19 @@ export default function SpiritualGoalsClient({
             onCompleteCurrent={() =>
               runAction(
                 { type: "complete_current" },
-                { followCurrent: true, successMessage: "Step completed." }
+                { followCurrent: true, successMessage: "Done." }
               )
             }
             onMoveBack={() =>
               runAction(
                 { type: "move_back" },
-                { followCurrent: true, successMessage: "Moved back one step." }
+                { followCurrent: true, successMessage: "Moved back." }
               )
             }
             onMoveToStep={(stepId) => {
               runAction(
                 { type: "move_to_step", step_id: stepId, confirmed: true },
-                { followCurrent: true, successMessage: "Character moved." }
+                { followCurrent: true, successMessage: "Moved." }
               );
             }}
             onToggleTask={(stepId, taskId, completed) =>
@@ -310,7 +310,7 @@ export default function SpiritualGoalsClient({
                   task_id: taskId,
                   completed,
                 },
-                { successMessage: "Task updated." }
+                { successMessage: "Saved." }
               )
             }
             onAddTask={(stepId, title) =>
@@ -320,7 +320,7 @@ export default function SpiritualGoalsClient({
                   step_id: stepId,
                   title,
                 },
-                { successMessage: "Task added." }
+                { successMessage: "Added." }
               )
             }
             onUpdateTask={(stepId, taskId, title) =>
@@ -331,7 +331,7 @@ export default function SpiritualGoalsClient({
                   task_id: taskId,
                   title,
                 },
-                { successMessage: "Task updated." }
+                { successMessage: "Saved." }
               )
             }
             onRemoveTask={(stepId, taskId) =>
@@ -341,7 +341,7 @@ export default function SpiritualGoalsClient({
                   step_id: stepId,
                   task_id: taskId,
                 },
-                { successMessage: "Task removed." }
+                { successMessage: "Removed." }
               )
             }
             onSaveStepNotes={(stepId, notes) =>
@@ -351,7 +351,7 @@ export default function SpiritualGoalsClient({
                   step_id: stepId,
                   notes,
                 },
-                { successMessage: "Step notes saved." }
+                { successMessage: "Saved." }
               )
             }
             onSaveGeneralNotes={(notes) =>
@@ -360,7 +360,7 @@ export default function SpiritualGoalsClient({
                   type: "save_general_notes",
                   notes,
                 },
-                { successMessage: "Staircase notes saved." }
+                { successMessage: "Saved." }
               )
             }
           />
