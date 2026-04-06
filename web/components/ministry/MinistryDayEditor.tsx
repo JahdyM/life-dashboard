@@ -80,7 +80,7 @@ export default function MinistryDayEditor({
       actual: nextActual,
       status,
     };
-  }, [actualHours, actualMinutes, goalHours, goalMinutes]);
+  }, [actualHours, actualMinutes, day?.isFuture, goalHours, goalMinutes]);
 
   if (!day) return null;
 
@@ -90,9 +90,14 @@ export default function MinistryDayEditor({
       role="dialog"
       aria-modal="true"
       aria-labelledby="ministry-day-editor-title"
-      onClick={onClose}
     >
-      <div className="ministry-editor-card" onClick={(event) => event.stopPropagation()}>
+      <button
+        type="button"
+        className="ministry-editor-backdrop"
+        aria-label="Close day editor"
+        onClick={onClose}
+      />
+      <div className="ministry-editor-card">
         <div className="ministry-editor-head">
           <div>
             <p className="panel-kicker">Day editor</p>

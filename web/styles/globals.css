@@ -2361,7 +2361,18 @@ button.link.danger {
   z-index: 90;
 }
 
+.ministry-editor-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
 .ministry-editor-card {
+  position: relative;
+  z-index: 1;
   width: min(620px, 100%);
   padding: 18px;
   display: grid;
