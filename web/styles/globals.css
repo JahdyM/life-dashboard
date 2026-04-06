@@ -3549,9 +3549,9 @@ button.icon-only {
 }
 
 .spiritual-streak-board .secondary.subtle.active.negative {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.14);
-  color: var(--text);
+  background: color-mix(in srgb, #b84b52 28%, rgba(255, 255, 255, 0.06));
+  border-color: color-mix(in srgb, #b84b52 52%, rgba(255, 255, 255, 0.12));
+  color: #fff4f2;
 }
 
 .spiritual-streak-weekdays,
@@ -3597,9 +3597,9 @@ button.icon-only {
 }
 
 .spiritual-streak-cell.failure {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.09);
-  color: rgba(255, 255, 255, 0.68);
+  background: color-mix(in srgb, #b84b52 36%, rgba(255, 255, 255, 0.04));
+  border-color: color-mix(in srgb, #b84b52 62%, rgba(255, 255, 255, 0.1));
+  color: #ffe5e1;
 }
 
 .spiritual-streak-cell.unmarked {
