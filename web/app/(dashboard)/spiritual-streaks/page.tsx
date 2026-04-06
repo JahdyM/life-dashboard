@@ -17,11 +17,7 @@ export default async function SpiritualStreaksPage() {
 
   return (
     <div className="route-stack">
-      <PageSectionIntro
-        eyebrow="Spiritual Streaks"
-        title="Keep consistency visible without turning it into noise."
-        description="Seven dedicated boards, one day per square, and respectful streak tracking that stays calm even for sensitive areas. Success days fill the month, while missed or unmarked days stay restrained and easy to review."
-      />
+      <PageSectionIntro title="Spiritual Streaks" />
       <ErrorBoundary name="Spiritual Streaks">
         <SpiritualStreaksClient initialData={initialData} />
       </ErrorBoundary>

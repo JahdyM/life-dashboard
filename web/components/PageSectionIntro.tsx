@@ -3,15 +3,15 @@ export default function PageSectionIntro({
   title,
   description,
 }: {
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
-  description: string;
+  description?: string;
 }) {
   return (
     <section className="page-intro">
-      <p className="page-intro-eyebrow">{eyebrow}</p>
+      {eyebrow ? <p className="page-intro-eyebrow">{eyebrow}</p> : null}
       <h2>{title}</h2>
-      <p className="page-intro-copy">{description}</p>
+      {description ? <p className="page-intro-copy">{description}</p> : null}
     </section>
   );
 }

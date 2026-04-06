@@ -8,11 +8,7 @@ export default async function CalendarPage() {
 
   return (
     <div className="route-stack">
-      <PageSectionIntro
-        eyebrow="Calendar"
-        title="Schedule the day without losing clarity."
-        description="Use the calendar for today&apos;s task flow, Google sync when you want it, and a cleaner split between pending work, completed work, and notes."
-      />
+      <PageSectionIntro title="Calendar" />
       <ErrorBoundary name="Calendar">
         <CalendarTab userEmail={userEmail} />
       </ErrorBoundary>

@@ -51,8 +51,8 @@ export function AppNav() {
       </div>
 
       <OverflowMenu
-        label="Open more pages"
-        buttonLabel="Open more pages"
+        label="More"
+        buttonLabel="More"
         buttonContent={<span className="app-nav-more-label">More</span>}
         className={`app-nav-more ${secondaryActive ? "active" : ""}`}
         menuClassName="app-nav-popover"

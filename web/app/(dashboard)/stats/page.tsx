@@ -8,11 +8,7 @@ export default async function StatsPage() {
 
   return (
     <div className="route-stack">
-      <PageSectionIntro
-        eyebrow="Stats"
-        title="See the signals without drowning in analysis."
-        description="The core time-series charts stay front and center, while deeper analytics remain available when you want to inspect patterns more carefully."
-      />
+      <PageSectionIntro title="Stats" />
       <ErrorBoundary name="Stats">
         <StatsTab userEmail={userEmail} />
       </ErrorBoundary>

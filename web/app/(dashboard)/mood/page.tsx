@@ -8,11 +8,7 @@ export default async function MoodPage() {
 
   return (
     <div className="route-stack">
-      <PageSectionIntro
-        eyebrow="Mood"
-        title="Capture emotional context while it is still easy to remember."
-        description="The goal here is not complexity. It is to make the day legible: mood, note, and emotional texture in a format that helps future reflection."
-      />
+      <PageSectionIntro title="Mood" />
       <ErrorBoundary name="Mood">
         <MoodTab userEmail={userEmail} />
       </ErrorBoundary>

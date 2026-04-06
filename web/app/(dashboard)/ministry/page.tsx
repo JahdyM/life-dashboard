@@ -12,11 +12,7 @@ export default async function MinistryPage() {
 
   return (
     <div className="route-stack">
-      <PageSectionIntro
-        eyebrow="Ministry hours"
-        title="Track the month without losing the meaning of each day."
-        description="Set one monthly target, enter manual goals only when you choose, and compare planned versus completed time with a clean month view."
-      />
+      <PageSectionIntro title="Ministry Hours" />
       <ErrorBoundary name="Ministry hours">
         <MinistryHoursClient initialData={initialData} />
       </ErrorBoundary>

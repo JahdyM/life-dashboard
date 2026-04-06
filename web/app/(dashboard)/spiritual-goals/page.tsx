@@ -15,11 +15,7 @@ export default async function SpiritualGoalsPage() {
 
   return (
     <div className="route-stack">
-      <PageSectionIntro
-        eyebrow="Spiritual Goals"
-        title="Small steps reach big goals."
-        description="Keep five meaningful journeys visible without turning them into a cluttered dashboard. Each staircase grows only from the steps you choose to define, and the detail stays gently tucked behind the visual."
-      />
+      <PageSectionIntro title="Spiritual Goals" />
       <ErrorBoundary name="Spiritual Goals">
         <SpiritualGoalsClient initialData={initialData} />
       </ErrorBoundary>

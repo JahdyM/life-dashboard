@@ -8,11 +8,7 @@ export default async function HabitsPage() {
 
   return (
     <div className="route-stack">
-      <PageSectionIntro
-        eyebrow="Habits"
-        title="Keep daily rhythm easy to review and easy to act on."
-        description="Track only what applies today, edit personal habits cleanly, and keep the daily metrics visible without crowding the rest of the dashboard."
-      />
+      <PageSectionIntro title="Habits" />
       <ErrorBoundary name="Habits">
         <HabitsTab userEmail={userEmail} />
       </ErrorBoundary>

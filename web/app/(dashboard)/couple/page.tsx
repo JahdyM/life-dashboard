@@ -8,11 +8,7 @@ export default async function CouplePage() {
 
   return (
     <div className="route-stack">
-      <PageSectionIntro
-        eyebrow="Couple"
-        title="Keep shared rhythms visible, gentle, and actionable."
-        description="This section should help both of you notice connection points, shared consistency, and small ways to support each other during the week."
-      />
+      <PageSectionIntro title="Couple" />
       <ErrorBoundary name="Couple">
         <CoupleTab userEmail={userEmail} />
       </ErrorBoundary>

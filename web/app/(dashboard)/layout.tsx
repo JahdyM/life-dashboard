@@ -32,11 +32,8 @@ export default async function DashboardLayout({
       <div className="shell-layout shell-layout-public">
         <header className="shell-topbar">
           <div className="shell-brand">
-            <p className="shell-kicker">Private control center</p>
             <h1>Life Dashboard</h1>
-            <p className="shell-copy">
-              Tasks, habits, mood, and shared rhythm in one calm daily surface.
-            </p>
+            <p className="shell-copy">Private daily dashboard.</p>
           </div>
           <div className="shell-public-actions">
             <Link href="/" className="page-link">
@@ -60,11 +57,8 @@ export default async function DashboardLayout({
       <div className="shell-layout">
         <header className="shell-topbar">
           <div className="shell-brand">
-            <p className="shell-kicker">Private control center</p>
             <h1>Life Dashboard</h1>
-            <p className="shell-copy">
-              A focused view of today, your momentum, and what deserves attention next.
-            </p>
+            <p className="shell-copy">Today, at a glance.</p>
           </div>
           <div className="shell-user">
             <div>
