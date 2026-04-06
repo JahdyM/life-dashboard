@@ -1,4 +1,6 @@
 :root {
+  --font-body: "Avenir Next", "Segoe UI", "Helvetica Neue", system-ui, sans-serif;
+  --font-heading: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
   --bg: #12100f;
   --bg-panel: rgba(24, 21, 19, 0.88);
   --bg-soft: rgba(255, 255, 255, 0.045);
@@ -21,7 +23,7 @@ html,
 body {
   margin: 0;
   padding: 0;
-  font-family: var(--font-body), system-ui, sans-serif;
+  font-family: var(--font-body);
   background:
     radial-gradient(circle at top left, rgba(210, 168, 105, 0.16), transparent 28%),
     radial-gradient(circle at top right, rgba(97, 127, 129, 0.12), transparent 26%),

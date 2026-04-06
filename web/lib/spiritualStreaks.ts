@@ -1,6 +1,7 @@
 import type {
   SpiritualStreakBoard,
   SpiritualStreakBoardKey,
+  SpiritualStreakDayCellState,
   SpiritualStreakEntry,
   SpiritualStreaksPageData,
 } from "./types";
@@ -230,6 +231,12 @@ export function buildSpiritualStreakBoard(
     const date = `${monthKey}-${String(dayNumber).padStart(2, "0")}`;
     const entry = entryMap.get(date) || null;
     const success = entry ? entry.success : null;
+    let state: SpiritualStreakDayCellState = "unmarked";
+    if (success === true) {
+      state = "success";
+    } else if (success === false) {
+      state = "failure";
+    }
     return {
       date,
       dayNumber,
@@ -237,7 +244,7 @@ export function buildSpiritualStreakBoard(
       note: entry?.note ?? null,
       isToday: date === todayIso,
       isFuture: date > todayIso,
-      state: success === true ? "success" : success === false ? "failure" : "unmarked",
+      state,
     };
   });
 

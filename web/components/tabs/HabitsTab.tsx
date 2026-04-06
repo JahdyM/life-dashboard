@@ -39,6 +39,7 @@ type MetricDrafts = {
 const EMPTY_CUSTOM_HABITS: CustomHabit[] = [];
 const EMPTY_DONE: Record<string, number> = {};
 const EMPTY_DAYS: number[] = [];
+const EMPTY_DAY_ENTRY = {} as DayEntry;
 
 function readMutationError(error: unknown, fallback: string) {
   if (error instanceof Error && error.message) {
@@ -156,12 +157,19 @@ const CustomHabitRow = memo(function CustomHabitRow({
   onDelete,
 }: CustomHabitRowProps) {
   const skipBlurRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const handleToggle = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => onToggle(habit.id, event.target.checked),
     [habit.id, onToggle]
   );
   const handleDelete = useCallback(() => onDelete(habit), [habit, onDelete]);
   const handleStartEdit = useCallback(() => onStartEdit(habit), [habit, onStartEdit]);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, [isEditing]);
 
   const handleKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLInputElement>) => {
@@ -193,12 +201,12 @@ const CustomHabitRow = memo(function CustomHabitRow({
 
       {isEditing ? (
         <input
+          ref={inputRef}
           className="inline-input"
           value={draftName}
           onChange={(event) => onDraftNameChange(event.target.value)}
           onKeyDown={handleKeyDown}
           onBlur={handleBlur}
-          autoFocus
           aria-label={`Rename ${habit.name}`}
         />
       ) : (
@@ -289,7 +297,10 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
     void familyDayQuery.refetch();
   }, [dayQuery, customHabitsQuery, customDoneQuery, meetingDaysQuery, familyDayQuery]);
 
-  const dayEntry = (dayQuery.data?.entry ?? {}) as DayEntry;
+  const dayEntry = useMemo(
+    () => dayQuery.data?.entry ?? EMPTY_DAY_ENTRY,
+    [dayQuery.data?.entry]
+  );
   const customHabitsRaw = useMemo(
     () => customHabitsQuery.data?.items ?? EMPTY_CUSTOM_HABITS,
     [customHabitsQuery.data?.items]

@@ -78,13 +78,9 @@ export default function OverflowMenu({
       {open ? (
         <div
           id={menuId}
-          role="menu"
           className={["overflow-menu-panel", `align-${align}`, menuClassName]
             .filter(Boolean)
             .join(" ")}
-          onClick={(event) => {
-            event.stopPropagation();
-          }}
           onClickCapture={(event) => {
             const target = event.target as HTMLElement | null;
             if (target?.closest("button, a")) {
