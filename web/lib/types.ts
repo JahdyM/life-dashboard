@@ -95,6 +95,31 @@ export type MoodEntry = {
   moodNote?: string | null;
 };
 
+export type MoodMomentEntry = {
+  id: string;
+  dayIso: string;
+  loggedAt: string;
+  moodCategory: string | null;
+  moodNote: string | null;
+  source: "moment" | "legacy_summary";
+};
+
+export type MoodDaySummary = {
+  date: string;
+  moodCategory: string | null;
+  moodNote: string | null;
+  totalEntries: number;
+  latestLoggedAt: string | null;
+  source: "moments" | "legacy";
+};
+
+export type MoodHistoryResponse = {
+  entries: MoodMomentEntry[];
+  dailySummaries: MoodDaySummary[];
+  historyStart: string | null;
+  historyEnd: string | null;
+};
+
 export type SharedStreakItem = {
   habit_key: string;
   label: string;

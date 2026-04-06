@@ -2182,23 +2182,107 @@ button.link.danger {
   gap: 4px;
 }
 
+.mood-page {
+  display: grid;
+  gap: 18px;
+}
+
+.mood-toolbar {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.mood-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  gap: 18px;
+}
+
+.mood-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.mood-section-head h3 {
+  margin: 0;
+}
+
+.mood-day-summary-line,
+.mood-day-count,
+.mood-empty-line,
+.mood-save-state {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.mood-calendar-head {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.mood-calendar-head span {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.mood-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.mood-calendar-blank {
+  min-height: 54px;
+}
+
 .mood-cell {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  padding-bottom: 100%;
+  aspect-ratio: 1 / 1;
+  padding: 0;
   border-radius: 4px;
   border: 1px solid var(--border-soft);
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .mood-cell.selected {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent);
+}
+
+.mood-cell.muted {
+  opacity: 0.45;
+}
+
+.mood-cell.empty {
+  background: rgba(255, 255, 255, 0.02) !important;
+  cursor: default;
+}
+
+.mood-cell:disabled {
+  cursor: default;
+}
+
+.mood-cell-day {
+  position: absolute;
+  top: 5px;
+  left: 6px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.78);
+  line-height: 1;
 }
 
 .mood-cell-emoji {
@@ -2251,6 +2335,107 @@ button.link.danger {
   gap: 10px;
 }
 
+.mood-log-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-soft);
+}
+
+.mood-log-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mood-log-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mood-timeline {
+  margin-top: 14px;
+}
+
+.mood-timeline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.mood-timeline-item {
+  display: grid;
+  grid-template-columns: 78px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.mood-timeline-item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.mood-timeline-time {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.mood-timeline-body {
+  display: grid;
+  gap: 4px;
+}
+
+.mood-timeline-body p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.mood-history-board {
+  display: grid;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.mood-history-head,
+.mood-history-row {
+  display: grid;
+  gap: 10px;
+  align-items: center;
+}
+
+.mood-history-head {
+  grid-template-columns: 90px repeat(31, minmax(16px, 1fr));
+  min-width: 720px;
+}
+
+.mood-history-row {
+  grid-template-columns: 90px minmax(620px, 1fr);
+}
+
+.mood-history-head {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.mood-history-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.mood-history-cells {
+  display: grid;
+  grid-template-columns: repeat(31, minmax(16px, 1fr));
+  gap: 4px;
+}
+
 .mood-editor {
   display: grid;
   gap: 10px;
@@ -2294,6 +2479,19 @@ button.link.danger {
 .mood-row-label {
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.metric-readonly-row {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
 }
 
 .suggestion-grid {
@@ -2977,6 +3175,16 @@ button.link.danger {
   }
   .chart-grid {
     grid-template-columns: 1fr;
+  }
+  .mood-layout {
+    grid-template-columns: 1fr;
+  }
+  .mood-log-row {
+    grid-template-columns: 1fr;
+  }
+  .mood-history-head,
+  .mood-history-row {
+    min-width: 720px;
   }
   .mood-editor-row {
     grid-template-columns: 1fr;

@@ -1,18 +1,9 @@
 import Link from "next/link";
 import PublicEntryExperience from "@/components/PublicEntryExperience";
 import PageSectionIntro from "@/components/PageSectionIntro";
-import { MOOD_PALETTE } from "@/lib/constants";
+import { getMoodMeta } from "@/lib/moods";
 import { getTodayOverviewData } from "@/lib/server/dashboard";
 import { getOptionalPageEmail } from "@/lib/server/pageAuth";
-
-const MOOD_LABELS_EN: Record<string, string> = {
-  peace: "Peace",
-  joy: "Joy",
-  anxiety: "Anxiety",
-  fear: "Fear",
-  anger: "Anger",
-  neutral: "Neutral",
-};
 
 function formatTaskMeta(time: string | null | undefined, minutes: number | null | undefined) {
   const parts: string[] = [];
@@ -80,8 +71,7 @@ export default async function TodayPage() {
   }
 
   const overview = await getTodayOverviewData(userEmail);
-  const moodMeta =
-    MOOD_PALETTE.find((item) => item.key === overview.moodCategory) || null;
+  const moodMeta = getMoodMeta(overview.moodCategory);
   const upcomingTasks = sortTasks(overview.pendingTasks).slice(0, 5);
   const completedItems = sortTasks(overview.completedItems).slice(0, 6);
   const notePreview = overview.quickNotesText.trim();
@@ -177,7 +167,7 @@ export default async function TodayPage() {
             <div className="today-mood-card">
               <p className="today-mood-value">
                 <span>{moodMeta.emoji}</span>
-                {MOOD_LABELS_EN[moodMeta.key] || moodMeta.label}
+                {moodMeta.label}
               </p>
               <p className="today-panel-copy">
                 {overview.moodNote?.trim() || "Logged."}

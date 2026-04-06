@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   memo,
   useCallback,
@@ -14,7 +15,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import InlineActionNotice from "@/components/common/InlineActionNotice";
 import { fetchJson } from "@/lib/client/api";
-import { FIXED_SHARED_HABITS, MOOD_PALETTE, WEEKDAY_LABELS_PT } from "@/lib/constants";
+import { FIXED_SHARED_HABITS, WEEKDAY_LABELS_PT } from "@/lib/constants";
+import { getMoodMeta } from "@/lib/moods";
 import type { CustomHabit, DayEntry } from "@/lib/types";
 
 type DayResponse = { entry: DayEntry };
@@ -921,17 +923,17 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
           </div>
           <div className="form-row">
             <label htmlFor="metric-mood">Mood</label>
-            <select
-              id="metric-mood"
-              value={dayEntry.moodCategory || "neutral"}
-              onChange={(event) => updateDay.mutate({ mood_category: event.target.value })}
-            >
-              {MOOD_PALETTE.map((mood) => (
-                <option key={mood.key} value={mood.key}>
-                  {mood.label}
-                </option>
-              ))}
-            </select>
+            <div id="metric-mood" className="metric-readonly-row">
+              <span>
+                {getMoodMeta(dayEntry.moodCategory)?.emoji
+                  ? `${getMoodMeta(dayEntry.moodCategory)?.emoji} `
+                  : ""}
+                {getMoodMeta(dayEntry.moodCategory)?.label || "No entries"}
+              </span>
+              <Link href="/mood" className="page-link inline muted">
+                Open
+              </Link>
+            </div>
           </div>
           <div className="form-row">
             <label htmlFor="metric-priority">Priority</label>

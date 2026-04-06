@@ -183,3 +183,18 @@ model MinistryDailyEntry {
   @@index([userEmail, date])
   @@map("daily_service_entries")
 }
+
+model MoodMomentEntry {
+  id           String  @id
+  userEmail    String  @map("user_email")
+  dayIso       String  @map("day_iso")
+  loggedAt     String  @map("logged_at")
+  moodCategory String  @map("mood_category")
+  moodNote     String? @map("mood_note")
+  createdAt    String  @map("created_at")
+  updatedAt    String  @map("updated_at")
+
+  @@index([userEmail, dayIso, loggedAt])
+  @@index([userEmail, loggedAt])
+  @@map("mood_moment_entries")
+}

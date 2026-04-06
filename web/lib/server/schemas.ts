@@ -229,6 +229,15 @@ export const quickNoteTextSchema = z
   })
   .strict();
 
+export const moodMomentCreateSchema = z
+  .object({
+    day_iso: isoDateSchema,
+    logged_time: z.string().regex(isoTimeRegex, "Time must be HH:mm"),
+    mood_category: z.string().trim().min(1).max(60),
+    mood_note: z.union([z.string().trim().max(2000), z.null()]).optional(),
+  })
+  .strict();
+
 export const ministryMonthlyGoalSchema = z
   .object({
     month: monthKeySchema,

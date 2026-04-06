@@ -1,6 +1,12 @@
 import { prisma } from "@/lib/db/prisma";
 import { format, parseISO, startOfWeek, endOfWeek, subDays, addDays } from "date-fns";
 import { ensureTaskCompletionColumns } from "@/lib/server/dbCompat";
+import {
+  canonicalMoodKey,
+  getMoodScore,
+  isMoodNegative,
+  isMoodPositive,
+} from "@/lib/moods";
 import type {
   AnxietyTrendResponse,
   CoupleComparisonResponse,
@@ -11,9 +17,6 @@ import type {
   WeeklyReportResponse,
 } from "@/lib/types";
 import { getAllowedEmails } from "@/lib/env";
-
-const POSITIVE_MOODS = new Set(["peace", "joy", "paz", "felicidade"]);
-const NEGATIVE_MOODS = new Set(["anxiety", "fear", "anger", "ansiedade", "medo", "raiva"]);
 
 const HABIT_FIELDS = [
   { key: "bible_reading", label: "Bible reading", field: "bibleReading" },
@@ -60,25 +63,13 @@ const average = (values: number[]) => {
 };
 
 const normalizeMood = (mood?: string | null) =>
-  String(mood || "")
-    .trim()
-    .toLowerCase();
-
-const isPositiveMood = (mood?: string | null) => POSITIVE_MOODS.has(normalizeMood(mood));
-const isNegativeMood = (mood?: string | null) => NEGATIVE_MOODS.has(normalizeMood(mood));
+  canonicalMoodKey(mood) || "";
 
 const habitCountForEntry = (entry: EntrySlice) =>
   HABIT_FIELDS.reduce((count, habit) => count + (entry[habit.field] ? 1 : 0), 0);
 
 const moodToScore = (mood?: string | null) => {
-  const key = normalizeMood(mood);
-  if (!key) return 55;
-  if (key === "peace" || key === "joy" || key === "paz" || key === "felicidade") return 100;
-  if (key === "neutral" || key === "neutro") return 60;
-  if (key === "anxiety" || key === "ansiedade") return 35;
-  if (key === "fear" || key === "medo") return 30;
-  if (key === "anger" || key === "raiva") return 20;
-  return 55;
+  return getMoodScore(mood);
 };
 
 const durationSleepScore = (sleepHours: number | null) => {
@@ -213,7 +204,7 @@ export async function getMoodHabitCorrelations(
 
   return {
     period,
-    positiveMoods: ["peace", "joy"],
+    positiveMoods: ["peaceful", "happy"],
     rows,
     insight,
   };

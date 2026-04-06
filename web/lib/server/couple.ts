@@ -1,5 +1,6 @@
 import { prisma } from "../db/prisma";
-import { FIXED_SHARED_HABITS, MOOD_PALETTE } from "../constants";
+import { FIXED_SHARED_HABITS } from "../constants";
+import { getMoodMeta } from "../moods";
 import { computeSharedHabitStreaks } from "./habits";
 import { getAllowedEmails } from "../env";
 
@@ -137,6 +138,5 @@ export async function getSharedStreaks(userEmail: string, todayIso: string) {
 
 export function getMoodColor(moodKey: string | null) {
   if (!moodKey) return "#9AA0A6";
-  const found = MOOD_PALETTE.find((item) => item.key === moodKey);
-  return found?.color || "#9AA0A6";
+  return getMoodMeta(moodKey)?.color || "#9AA0A6";
 }

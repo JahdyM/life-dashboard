@@ -2,23 +2,9 @@ import { ReactNode } from "react";
 import Link from "next/link";
 import { AppNav, LogoutButton } from "@/components/AppNav";
 import { Providers } from "@/app/providers";
-import { MOOD_PALETTE } from "@/lib/constants";
 import { getDashboardShellData } from "@/lib/server/dashboard";
+import { getMoodMeta } from "@/lib/moods";
 import { getOptionalPageEmail } from "@/lib/server/pageAuth";
-
-const MOOD_LABELS_EN: Record<string, string> = {
-  peace: "Peace",
-  joy: "Joy",
-  anxiety: "Anxiety",
-  fear: "Fear",
-  anger: "Anger",
-  neutral: "Neutral",
-};
-
-function getMoodMeta(key: string | null) {
-  if (!key) return null;
-  return MOOD_PALETTE.find((item) => item.key === key) || null;
-}
 
 export default async function DashboardLayout({
   children,
@@ -100,7 +86,8 @@ export default async function DashboardLayout({
               {shell.nextTask?.scheduledTime
                 ? `Starts ${shell.nextTask.scheduledTime}`
                 : moodMeta
-                  ? `${moodMeta.emoji} ${MOOD_LABELS_EN[moodMeta.key] || moodMeta.label}`
+                ? `${moodMeta.emoji} ${MOOD_LABELS_EN[moodMeta.key] || moodMeta.label}`
+                ? `${moodMeta.emoji} ${moodMeta.label}`
                   : "Add a task or mood."}
             </p>
           </article>

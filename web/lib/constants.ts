@@ -1,3 +1,5 @@
+import { MOOD_PALETTE as MOOD_DEFINITIONS_PALETTE } from "./moods";
+
 export const FIXED_SHARED_HABITS = [
   { key: "bible_reading", label: "Bible reading" },
   { key: "meeting_attended", label: "Meeting attended" },
@@ -16,14 +18,7 @@ export const PERSONAL_HABIT_KEYS = [
   { key: "scientific_writing", label: "Scientific writing" },
 ];
 
-export const MOOD_PALETTE = [
-  { key: "peace", label: "Paz", color: "#3772A6", emoji: "🕊️" },
-  { key: "joy", label: "Felicidade", color: "#8FB6D9", emoji: "😊" },
-  { key: "anxiety", label: "Ansiedade", color: "#D6D979", emoji: "😰" },
-  { key: "fear", label: "Medo", color: "#D9C979", emoji: "😟" },
-  { key: "anger", label: "Raiva", color: "#D95252", emoji: "😠" },
-  { key: "neutral", label: "Neutro", color: "#9AA0A6", emoji: "😐" },
-];
+export const MOOD_PALETTE = MOOD_DEFINITIONS_PALETTE;
 
 export const TASK_PRIORITIES = ["Low", "Medium", "High", "Critical"] as const;
 
