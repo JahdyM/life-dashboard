@@ -92,7 +92,7 @@ export default function SignInClient({
         <p className="signin-note">
           Only allowlisted accounts can enter this dashboard.
         </p>
-      </div>
+      </section>
     </div>
   );
 }
