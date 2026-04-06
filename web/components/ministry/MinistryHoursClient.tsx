@@ -103,25 +103,6 @@ export default function MinistryHoursClient({
     return "Future month";
   }, [monthKey, monthQuery.data]);
 
-  const planningMeta = useMemo(() => {
-    if (!monthQuery.data) return "Manual plan";
-    const difference = monthQuery.data.summary.plannedDifferenceFromTargetMinutes;
-
-    if (difference == null) {
-      return "Manual plan";
-    }
-
-    if (difference === 0) {
-      return "Target covered";
-    }
-
-    if (difference > 0) {
-      return `${formatMinutes(difference)} over`;
-    }
-
-    return `${formatMinutes(Math.abs(difference))} short`;
-  }, [monthQuery.data]);
-
   const monthlyGoalMutation = useMutation({
     mutationFn: async (targetMinutesValue: number | null) =>
       fetchJson<{ goal: unknown }>("/api/ministry/monthly-goal", {
@@ -214,7 +195,7 @@ export default function MinistryHoursClient({
           <div>
             <p className="panel-kicker">Goal</p>
             <h2>{data?.summary.targetMinutes == null ? "Set your goal" : formatMinutes(data.summary.targetMinutes)}</h2>
-            <p className="ministry-panel-copy">{planningMeta}</p>
+            <p className="ministry-panel-copy">Month target</p>
           </div>
           <div className="ministry-target-inputs">
             <label>
@@ -247,7 +228,7 @@ export default function MinistryHoursClient({
               disabled={monthlyGoalMutation.isPending}
               onClick={() => monthlyGoalMutation.mutate(null)}
             >
-              Clear target
+              Clear
             </button>
           </div>
         </div>
@@ -265,23 +246,10 @@ export default function MinistryHoursClient({
 
       {data ? (
         <>
-          <div className={`ministry-pace-banner ${data.summary.paceStatus}`}>
-            <div>
-              <p className="panel-kicker">Pace</p>
-              <h2>{data.summary.paceLabel}</h2>
-            </div>
-            <p className="ministry-panel-copy">
-              {formatMinutes(data.summary.accumulatedPlannedMinutes)} planned ·{" "}
-              {formatMinutes(data.summary.accumulatedActualMinutes)} actual ·{" "}
-              {formatDifference(data.summary.accumulatedDifferenceMinutes)}
-            </p>
-          </div>
-
           <MinistrySummaryCards summary={data.summary} />
 
           {data.summary.targetMinutes == null &&
-          data.summary.activeGoalDays === 0 &&
-          data.summary.totalCompletedMinutes === 0 ? (
+          data.summary.completedSoFarMinutes === 0 ? (
             <div className="ministry-empty-banner">
               <h3>Set a goal or open a day.</h3>
             </div>

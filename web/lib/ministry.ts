@@ -3,6 +3,7 @@ import {
   endOfMonth,
   endOfWeek,
   format,
+  getDaysInMonth,
   isAfter,
   isBefore,
   isSameDay,
@@ -97,10 +98,10 @@ export function deriveMinistryDayStatus(
 }
 
 export function paceLabelFromStatus(status: MinistryPaceStatus) {
-  if (status === "ahead") return "Ahead of plan";
-  if (status === "behind") return "Behind plan";
+  if (status === "ahead") return "Ahead";
+  if (status === "behind") return "Behind";
   if (status === "on_track") return "On track";
-  return "No daily plan yet";
+  return "No goal";
 }
 
 export function buildMinistryMonthPayload({
@@ -116,35 +117,21 @@ export function buildMinistryMonthPayload({
 }): MinistryMonthPayload {
   const { startIso, endIso, year, month } = monthKeyToRange(monthKey);
   const entryByDate = new Map(entries.map((entry) => [entry.date, entry]));
-  const totalPlannedMinutes = entries.reduce(
-    (sum, entry) => sum + Math.max(0, entry.goalMinutes || 0),
-    0
-  );
   const totalCompletedMinutes = entries.reduce(
     (sum, entry) => sum + Math.max(0, entry.actualMinutes || 0),
     0
   );
-  const plannedDifferenceFromTargetMinutes =
-    targetMinutes == null ? null : totalPlannedMinutes - targetMinutes;
-  const totalRemainingMinutes =
-    targetMinutes == null ? null : Math.max(targetMinutes - totalCompletedMinutes, 0);
-  const completionPercent =
-    targetMinutes && targetMinutes > 0
-      ? Number(((totalCompletedMinutes / targetMinutes) * 100).toFixed(1))
-      : null;
 
   const monthStart = parseISO(startIso);
   const monthEnd = parseISO(endIso);
   const todayDate = parseISO(todayIso);
   const cutoff =
     isBefore(todayDate, monthStart) ? null : isAfter(todayDate, monthEnd) ? monthEnd : todayDate;
+  const daysInMonth = getDaysInMonth(monthStart);
 
   const days: MinistryDayComputed[] = [];
   let cursor = monthStart;
-  let accumulatedPlannedMinutes = 0;
-  let accumulatedActualMinutes = 0;
-  let activeGoalDays = 0;
-  let completedGoalDays = 0;
+  let completedSoFarMinutes = 0;
 
   while (!isAfter(cursor, monthEnd)) {
     const date = format(cursor, "yyyy-MM-dd");
@@ -158,16 +145,8 @@ export function buildMinistryMonthPayload({
     const isFuture = isAfter(cursor, todayDate);
     const status = deriveMinistryDayStatus(goalMinutes, actualMinutes, { isFuture });
 
-    if (!isFuture && goalMinutes != null && goalMinutes > 0) {
-      activeGoalDays += 1;
-      if (status === "met" || status === "exceeded") {
-        completedGoalDays += 1;
-      }
-    }
-
     if (cutoff && !isAfter(cursor, cutoff)) {
-      accumulatedPlannedMinutes += Math.max(0, goalMinutes || 0);
-      accumulatedActualMinutes += Math.max(0, actualMinutes || 0);
+      completedSoFarMinutes += Math.max(0, actualMinutes || 0);
     }
 
     days.push({
@@ -185,13 +164,28 @@ export function buildMinistryMonthPayload({
     cursor = addDays(cursor, 1);
   }
 
-  const accumulatedDifferenceMinutes =
-    accumulatedActualMinutes - accumulatedPlannedMinutes;
+  const elapsedDaysInMonth =
+    cutoff == null
+      ? 0
+      : Math.round((cutoff.getTime() - monthStart.getTime()) / 86_400_000) + 1;
+  const dailyTargetMinutes =
+    targetMinutes && targetMinutes > 0 ? targetMinutes / daysInMonth : null;
+  const expectedByTodayMinutes =
+    dailyTargetMinutes == null ? null : dailyTargetMinutes * elapsedDaysInMonth;
+  const paceDifferenceMinutes =
+    expectedByTodayMinutes == null ? null : completedSoFarMinutes - expectedByTodayMinutes;
+  const totalRemainingMinutes =
+    targetMinutes == null ? null : Math.max(targetMinutes - completedSoFarMinutes, 0);
+  const completionPercent =
+    targetMinutes && targetMinutes > 0
+      ? Number(((completedSoFarMinutes / targetMinutes) * 100).toFixed(1))
+      : null;
+  const PACE_TOLERANCE_MINUTES = 15;
   let paceStatus: MinistryPaceStatus = "no_plan";
-  if (accumulatedPlannedMinutes > 0) {
-    if (accumulatedDifferenceMinutes > 15) {
+  if (paceDifferenceMinutes != null) {
+    if (paceDifferenceMinutes > PACE_TOLERANCE_MINUTES) {
       paceStatus = "ahead";
-    } else if (accumulatedDifferenceMinutes < -15) {
+    } else if (paceDifferenceMinutes < -PACE_TOLERANCE_MINUTES) {
       paceStatus = "behind";
     } else {
       paceStatus = "on_track";
@@ -201,18 +195,17 @@ export function buildMinistryMonthPayload({
   const summary: MinistryMonthSummary = {
     monthKey,
     targetMinutes,
-    totalPlannedMinutes,
-    plannedDifferenceFromTargetMinutes,
     totalCompletedMinutes,
+    completedSoFarMinutes,
     totalRemainingMinutes,
     completionPercent,
-    accumulatedPlannedMinutes,
-    accumulatedActualMinutes,
-    accumulatedDifferenceMinutes,
+    daysInMonth,
+    elapsedDaysInMonth,
+    dailyTargetMinutes,
+    expectedByTodayMinutes,
+    paceDifferenceMinutes,
     paceStatus,
     paceLabel: paceLabelFromStatus(paceStatus),
-    activeGoalDays,
-    completedGoalDays,
   };
 
   return {

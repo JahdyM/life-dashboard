@@ -334,18 +334,17 @@ export type MinistryDayComputed = {
 export type MinistryMonthSummary = {
   monthKey: string;
   targetMinutes: number | null;
-  totalPlannedMinutes: number;
-  plannedDifferenceFromTargetMinutes: number | null;
   totalCompletedMinutes: number;
+  completedSoFarMinutes: number;
   totalRemainingMinutes: number | null;
   completionPercent: number | null;
-  accumulatedPlannedMinutes: number;
-  accumulatedActualMinutes: number;
-  accumulatedDifferenceMinutes: number;
+  daysInMonth: number;
+  elapsedDaysInMonth: number;
+  dailyTargetMinutes: number | null;
+  expectedByTodayMinutes: number | null;
+  paceDifferenceMinutes: number | null;
   paceStatus: MinistryPaceStatus;
   paceLabel: string;
-  activeGoalDays: number;
-  completedGoalDays: number;
 };
 
 export type MinistryMonthPayload = {

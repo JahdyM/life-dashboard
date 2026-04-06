@@ -3,29 +3,16 @@
 import { formatMinutes } from "@/lib/ministry";
 import type { MinistryMonthSummary } from "@/lib/types";
 
-function formatDifference(minutes: number) {
-  if (minutes === 0) return "On plan";
-  const prefix = minutes > 0 ? "+" : "−";
-  return `${prefix}${formatMinutes(Math.abs(minutes))}`;
-}
-
-function formatPlanningMeta(
-  difference: number | null,
-  targetMinutes: number | null
-) {
-  if (targetMinutes == null || difference == null) {
-    return "Manual plan";
+function formatPaceMeta(summary: MinistryMonthSummary) {
+  if (summary.expectedByTodayMinutes == null || summary.paceDifferenceMinutes == null) {
+    return "Set a monthly goal";
   }
 
-  if (difference === 0) {
-    return "Target covered";
-  }
+  const difference = Math.round(summary.paceDifferenceMinutes);
+  const direction =
+    difference > 0 ? `${formatMinutes(difference)} ahead` : difference < 0 ? `${formatMinutes(Math.abs(difference))} behind` : "On pace";
 
-  if (difference > 0) {
-    return `${formatMinutes(difference)} over`;
-  }
-
-  return `${formatMinutes(Math.abs(difference))} short`;
+  return `Expected by today: ${formatMinutes(summary.expectedByTodayMinutes)} · ${direction}`;
 }
 
 export default function MinistrySummaryCards({
@@ -35,65 +22,24 @@ export default function MinistrySummaryCards({
 }) {
   const cards = [
     {
-      label: "Goal",
+      label: "Monthly goal",
       value: summary.targetMinutes == null ? "Not set" : formatMinutes(summary.targetMinutes),
-      meta: "Target",
+      meta: summary.targetMinutes == null ? "Set the month target" : `${summary.daysInMonth} days`,
     },
     {
-      label: "Planned",
-      value: formatMinutes(summary.totalPlannedMinutes),
-      meta: formatPlanningMeta(
-        summary.plannedDifferenceFromTargetMinutes,
-        summary.targetMinutes
-      ),
-      accent:
-        summary.plannedDifferenceFromTargetMinutes == null
-          ? "neutral"
-          : summary.plannedDifferenceFromTargetMinutes >= 0
-            ? "success"
-            : "warning",
+      label: "Completed so far",
+      value: formatMinutes(summary.completedSoFarMinutes),
+      meta: summary.completionPercent == null ? "So far" : `${summary.completionPercent.toFixed(1)}%`,
     },
     {
-      label: "Done",
-      value: formatMinutes(summary.totalCompletedMinutes),
-      meta: "Logged",
-    },
-    {
-      label: "Remaining",
-      value:
-        summary.totalRemainingMinutes == null
-          ? "No target"
-          : formatMinutes(summary.totalRemainingMinutes),
-      meta: "To target",
-    },
-    {
-      label: "%",
-      value:
-        summary.completionPercent == null ? "—" : `${summary.completionPercent.toFixed(1)}%`,
-      meta: "Of target",
-    },
-    {
-      label: "Plan to date",
-      value: formatMinutes(summary.accumulatedPlannedMinutes),
-      meta: "Manual plan",
-    },
-    {
-      label: "Done to date",
-      value: formatMinutes(summary.accumulatedActualMinutes),
-      meta: "Logged",
-    },
-    {
-      label: "Difference",
-      value: formatDifference(summary.accumulatedDifferenceMinutes),
-      meta: "Actual vs plan",
+      label: "Daily average",
+      value: summary.dailyTargetMinutes == null ? "—" : formatMinutes(summary.dailyTargetMinutes),
+      meta: summary.dailyTargetMinutes == null ? "Set the month target" : `${summary.daysInMonth} day month`,
     },
     {
       label: "Pace",
       value: summary.paceLabel,
-      meta:
-        summary.activeGoalDays > 0
-          ? `${summary.completedGoalDays}/${summary.activeGoalDays} due days`
-          : "No due days",
+      meta: formatPaceMeta(summary),
       accent:
         summary.paceStatus === "ahead"
           ? "success"
