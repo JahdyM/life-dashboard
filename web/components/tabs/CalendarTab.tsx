@@ -498,17 +498,17 @@ const DailyHabitRow = memo(function DailyHabitRow({
   onRemoveFromAgenda,
 }: DailyHabitRowProps) {
   const handleToggle = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) =>
+    (event: ChangeEvent<HTMLInputElement>) =>
       onToggleHabit(habit, event.target.checked),
     [habit, onToggleHabit]
   );
   const handleTime = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) =>
+    (event: ChangeEvent<HTMLInputElement>) =>
       onTimeChange(habit.id, event.target.value),
     [habit.id, onTimeChange]
   );
   const handleDuration = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
+    (event: ChangeEvent<HTMLInputElement>) => {
       const next = Math.max(5, Number(event.target.value || 30));
       onDurationChange(habit.id, next);
     },
