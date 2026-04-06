@@ -4,6 +4,8 @@ import { logServerEvent } from "./logger";
 const globalForCompat = globalThis as unknown as {
   taskColumnsEnsurePromise?: Promise<void>;
   taskColumnsEnsured?: boolean;
+  ministryTablesEnsurePromise?: Promise<void>;
+  ministryTablesEnsured?: boolean;
 };
 
 async function applyTaskCompletionColumnsMigration() {
@@ -40,4 +42,70 @@ export async function ensureTaskCompletionColumns() {
   }
 
   await globalForCompat.taskColumnsEnsurePromise;
+}
+
+async function applyMinistryTablesMigration() {
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS monthly_goals (
+      id TEXT PRIMARY KEY,
+      user_email TEXT NOT NULL,
+      year INTEGER NOT NULL,
+      month INTEGER NOT NULL,
+      target_minutes INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+  await prisma.$executeRawUnsafe(
+    "CREATE UNIQUE INDEX IF NOT EXISTS monthly_goals_user_email_year_month_key ON monthly_goals(user_email, year, month)"
+  );
+  await prisma.$executeRawUnsafe(
+    "CREATE INDEX IF NOT EXISTS monthly_goals_user_email_year_month_idx ON monthly_goals(user_email, year, month)"
+  );
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS daily_service_entries (
+      id TEXT PRIMARY KEY,
+      user_email TEXT NOT NULL,
+      date TEXT NOT NULL,
+      goal_minutes INTEGER,
+      actual_minutes INTEGER,
+      notes TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+  await prisma.$executeRawUnsafe(
+    "CREATE UNIQUE INDEX IF NOT EXISTS daily_service_entries_user_email_date_key ON daily_service_entries(user_email, date)"
+  );
+  await prisma.$executeRawUnsafe(
+    "CREATE INDEX IF NOT EXISTS daily_service_entries_user_email_date_idx ON daily_service_entries(user_email, date)"
+  );
+}
+
+export async function ensureMinistryTables() {
+  if (globalForCompat.ministryTablesEnsured) {
+    return;
+  }
+
+  if (!globalForCompat.ministryTablesEnsurePromise) {
+    globalForCompat.ministryTablesEnsurePromise = (async () => {
+      await applyMinistryTablesMigration();
+      globalForCompat.ministryTablesEnsured = true;
+      logServerEvent("info", {
+        endpoint: "db-compat",
+        message: "Ensured ministry hours tables",
+      });
+    })().catch((error) => {
+      globalForCompat.ministryTablesEnsurePromise = undefined;
+      logServerEvent("error", {
+        endpoint: "db-compat",
+        message: "Failed to ensure ministry hours tables",
+        error,
+      });
+      throw error;
+    });
+  }
+
+  await globalForCompat.ministryTablesEnsurePromise;
 }
