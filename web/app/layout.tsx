@@ -19,7 +19,7 @@ const bodyFont = Inter({
 
 export const metadata = {
   title: "Life Dashboard",
-  description: "Personal life dashboard",
+  description: "Private personal control center for habits, tasks, mood, and shared life rhythms.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
