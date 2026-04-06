@@ -356,3 +356,69 @@ export type MinistryMonthPayload = {
   days: MinistryDayComputed[];
   summary: MinistryMonthSummary;
 };
+
+export type SpiritualGoalCategory =
+  | "big_goals"
+  | "christian_qualities"
+  | "leaving_bad_habits"
+  | "ministry_skills"
+  | "prudence";
+
+export type SpiritualGoalAvatarStyle = "sprout" | "spark" | "compass" | "bookmark";
+
+export type SpiritualGoalStepTask = {
+  id: string;
+  title: string;
+  completed: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type SpiritualGoalStep = {
+  id: string;
+  title: string;
+  description: string | null;
+  notes: string | null;
+  completedAt: string | null;
+  tasks: SpiritualGoalStepTask[];
+};
+
+export type SpiritualGoalStaircase = {
+  category: SpiritualGoalCategory;
+  title: string;
+  ultimateGoal: string;
+  subtitle: string | null;
+  themeColor: string | null;
+  avatarStyle: SpiritualGoalAvatarStyle | null;
+  generalNotes: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  steps: SpiritualGoalStep[];
+};
+
+export type SpiritualGoalStepState = "locked" | "available" | "current" | "completed";
+
+export type SpiritualGoalComputedStep = SpiritualGoalStep & {
+  stepOrder: number;
+  state: SpiritualGoalStepState;
+  isCompleted: boolean;
+  isCurrent: boolean;
+  isAvailable: boolean;
+  isLocked: boolean;
+};
+
+export type SpiritualGoalComputedStaircase = Omit<SpiritualGoalStaircase, "steps"> & {
+  steps: SpiritualGoalComputedStep[];
+  accentColor: string;
+  totalSteps: number;
+  completedSteps: number;
+  progressPercent: number;
+  currentStepIndex: number | null;
+  currentStepId: string | null;
+  currentStepTitle: string | null;
+  summaryText: string;
+};
+
+export type SpiritualGoalsPageData = {
+  items: SpiritualGoalComputedStaircase[];
+};
