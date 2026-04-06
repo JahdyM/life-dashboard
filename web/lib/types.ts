@@ -422,3 +422,58 @@ export type SpiritualGoalComputedStaircase = Omit<SpiritualGoalStaircase, "steps
 export type SpiritualGoalsPageData = {
   items: SpiritualGoalComputedStaircase[];
 };
+
+export type SpiritualStreakBoardKey =
+  | "daily_text"
+  | "bible_reading"
+  | "pornography"
+  | "masturbation";
+
+export type SpiritualStreakSuccessRule = "completed_today" | "clean_day";
+
+export type SpiritualStreakEntry = {
+  date: string;
+  success: boolean;
+  note: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type SpiritualStreakDayCellState = "success" | "failure" | "unmarked";
+
+export type SpiritualStreakDayCell = {
+  date: string;
+  dayNumber: number;
+  success: boolean | null;
+  note: string | null;
+  isToday: boolean;
+  isFuture: boolean;
+  state: SpiritualStreakDayCellState;
+};
+
+export type SpiritualStreakBoard = {
+  key: SpiritualStreakBoardKey;
+  title: string;
+  accentColor: string;
+  successRule: SpiritualStreakSuccessRule;
+  quickPrompt: string;
+  yesLabel: string;
+  noLabel: string;
+  emptyLabel: string;
+  currentStreak: number;
+  bestStreak: number;
+  monthSuccessDays: number;
+  monthMarkedDays: number;
+  monthTotalDays: number;
+  firstWeekday: number;
+  summaryText: string;
+  todayStatus: boolean | null;
+  cells: SpiritualStreakDayCell[];
+};
+
+export type SpiritualStreaksPageData = {
+  monthKey: string;
+  monthLabel: string;
+  todayIso: string;
+  boards: SpiritualStreakBoard[];
+};

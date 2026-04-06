@@ -284,6 +284,40 @@ export const spiritualGoalStaircaseSchema = z
   })
   .strict();
 
+const spiritualStreakBoardKeys = [
+  "daily_text",
+  "bible_reading",
+  "pornography",
+  "masturbation",
+] as const;
+
+export const spiritualStreakBoardKeySchema = z.enum(spiritualStreakBoardKeys);
+
+export const spiritualStreakEntrySchema = z
+  .object({
+    date: isoDateSchema,
+    success: z.boolean(),
+    note: optionalTrimmedText(1200),
+    created_at: nullableIsoDateTimeSchema.optional(),
+    updated_at: nullableIsoDateTimeSchema.optional(),
+  })
+  .strict();
+
+export const spiritualStreakBoardStateSchema = z
+  .object({
+    entries: z.array(spiritualStreakEntrySchema).max(5000).default([]),
+  })
+  .strict();
+
+export const spiritualStreakUpdateSchema = z
+  .object({
+    month: monthKeySchema,
+    date: isoDateSchema,
+    success: z.union([z.boolean(), z.null()]),
+    note: optionalTrimmedText(1200).optional(),
+  })
+  .strict();
+
 export const spiritualGoalActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("complete_current") }).strict(),
   z
