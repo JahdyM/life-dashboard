@@ -428,6 +428,97 @@ a {
   gap: 10px;
 }
 
+.app-nav-primary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  flex: 1;
+}
+
+.app-nav-more {
+  margin-left: auto;
+}
+
+.app-nav-more-label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.app-nav-popover {
+  min-width: 230px;
+}
+
+.app-nav-popover-links {
+  display: grid;
+  gap: 4px;
+}
+
+.app-nav-popover-link {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: var(--text-muted);
+}
+
+.app-nav-popover-link.active,
+.app-nav-popover-link:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.today-panel-head-hero {
+  align-items: stretch;
+}
+
+.today-hero-copy {
+  display: grid;
+  gap: 12px;
+}
+
+.today-primary-actions {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.today-secondary-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.today-next-card {
+  align-self: start;
+  min-width: 220px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(210, 168, 105, 0.22);
+  background:
+    radial-gradient(circle at top right, rgba(210, 168, 105, 0.15), transparent 42%),
+    rgba(255, 255, 255, 0.04);
+  display: grid;
+  gap: 8px;
+}
+
+.today-next-label {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.today-task-state.quiet {
+  border-color: var(--border-soft);
+  color: var(--text-muted);
+}
+
+.today-note-preview {
+  margin: 0;
+  line-height: 1.6;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+}
+
 .today-task-state {
   white-space: nowrap;
   padding: 7px 10px;
@@ -978,6 +1069,82 @@ button.link.danger {
   gap: 12px;
 }
 
+.habits-primary-card {
+  display: grid;
+  gap: 18px;
+}
+
+.habits-setup-block {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.habits-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.habits-section-head h3,
+.calendar-section-head h3,
+.quick-note-head h3 {
+  margin: 6px 0 0;
+  font-size: 18px;
+}
+
+.habits-section-head.split {
+  align-items: end;
+}
+
+.section-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  max-width: 28ch;
+  text-align: right;
+}
+
+.custom-habit-row {
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.custom-habit-row:last-child {
+  border-bottom: 0;
+}
+
+.habit-name-button {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  padding: 0;
+}
+
+.habit-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.quiet-add-row {
+  margin-top: 6px;
+}
+
+.quiet-add-row input {
+  min-width: 0;
+}
+
 .calendar-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(460px, 0.9fr);
@@ -995,6 +1162,116 @@ button.link.danger {
   align-items: center;
   gap: 12px;
   justify-content: space-between;
+}
+
+.task-header.calm {
+  align-items: flex-start;
+}
+
+.task-header.calm h2 {
+  margin: 6px 0 0;
+  font-size: 24px;
+}
+
+.task-header-meta {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.task-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  align-items: center;
+}
+
+.calendar-status-rail {
+  display: grid;
+  gap: 10px;
+}
+
+.task-composer {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(circle at top right, rgba(210, 168, 105, 0.14), transparent 36%),
+    rgba(255, 255, 255, 0.04);
+}
+
+.task-composer-head,
+.task-composer-selection,
+.calendar-section-head,
+.quick-note-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.task-composer-head h3,
+.calendar-section-head h3 {
+  margin: 6px 0 0;
+  font-size: 18px;
+}
+
+.task-composer-primary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.task-composer-title-field {
+  min-width: 0;
+}
+
+.task-composer-title-field input {
+  width: 100%;
+}
+
+.task-composer-selection {
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(210, 168, 105, 0.22);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.task-composer-selection span,
+.task-composer-share-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.task-composer-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.task-composer-advanced {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.task-composer-share-row {
+  grid-column: 1 / -1;
+}
+
+.calendar-primary-section {
+  display: grid;
+  gap: 10px;
+}
+
+.calendar-section-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding-top: 4px;
 }
 
 .task-estimation-hint {
@@ -1104,6 +1381,13 @@ button.link.danger {
   padding-bottom: 6px;
 }
 
+.task-row-main {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  flex: 1;
+}
+
 .task-row-shared {
   background: rgba(76, 153, 226, 0.1);
   border-radius: 10px;
@@ -1164,6 +1448,7 @@ button.link.danger {
   gap: 10px;
   cursor: pointer;
   list-style: none;
+  min-width: 0;
 }
 
 .task-row summary::-webkit-details-marker {
@@ -1171,7 +1456,9 @@ button.link.danger {
 }
 
 .task-title {
-  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .task-share-badge {
@@ -1209,6 +1496,27 @@ button.link.danger {
   pointer-events: auto;
 }
 
+.task-row-state {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.task-row-state.success {
+  color: var(--success);
+}
+
+.task-row-menu {
+  margin-left: auto;
+  display: inline-flex;
+}
+
+.task-row-overflow .overflow-menu-trigger {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0 8px;
+}
+
 .task-confirm-btn:disabled {
   opacity: 0.45;
   pointer-events: none;
@@ -1225,6 +1533,12 @@ button.link.danger {
   gap: 4px;
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.task-detail-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-soft);
 }
 
 .task-confirm-inline {
@@ -1295,6 +1609,43 @@ button.link.danger {
   color: var(--text-muted);
 }
 
+.calendar-secondary-panel {
+  border: 1px solid var(--border-soft);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+}
+
+.calendar-secondary-panel summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.calendar-secondary-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.calendar-secondary-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.calendar-secondary-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.calendar-secondary-body {
+  display: grid;
+  gap: 10px;
+  padding: 0 16px 16px;
+}
+
 .quick-note-textarea {
   width: 100%;
   min-height: 180px;
@@ -1335,6 +1686,55 @@ button.link.danger {
 
 .completion-prompt-row input {
   width: 92px;
+}
+
+.completion-popover {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(210, 168, 105, 0.26);
+  background:
+    radial-gradient(circle at top right, rgba(210, 168, 105, 0.12), transparent 38%),
+    rgba(255, 255, 255, 0.04);
+}
+
+.completion-popover-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.completion-popover-copy p,
+.completion-popover-controls label {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.completion-popover-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.completion-popover-controls {
+  display: grid;
+  gap: 6px;
+}
+
+.completion-popover-controls input {
+  width: 120px;
+}
+
+.completion-popover-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
 }
 
 .calendar-panel {
@@ -1426,6 +1826,35 @@ button.link.danger {
   gap: 8px;
   font-size: 14px;
   margin-bottom: 10px;
+}
+
+.calendar-header-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.task-row-menu-list {
+  display: grid;
+  gap: 4px;
+}
+
+.task-row-menu-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.task-row-menu-action.danger {
+  color: #f2a29f;
 }
 
 .calendar-view-toggle {
@@ -2530,6 +2959,14 @@ button.link.danger {
     grid-column: auto;
   }
 
+  .task-composer-advanced {
+    grid-template-columns: 1fr;
+  }
+
+  .app-nav-more {
+    margin-left: 0;
+  }
+
   .header-summary {
     grid-template-columns: 1fr;
   }
@@ -2628,6 +3065,15 @@ button.link.danger {
     align-items: flex-start;
   }
 
+  .task-header-actions,
+  .task-composer-selection,
+  .calendar-section-head,
+  .quick-note-head,
+  .habits-section-head {
+    width: 100%;
+    align-items: flex-start;
+  }
+
   .shell-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2643,6 +3089,10 @@ button.link.danger {
   .app-nav {
     top: 8px;
     padding: 8px;
+  }
+
+  .app-nav-primary {
+    width: 100%;
   }
 
   .app-nav-link,
@@ -2797,6 +3247,10 @@ button.link.danger {
     justify-content: flex-start;
   }
 
+  .task-composer-primary {
+    grid-template-columns: 1fr;
+  }
+
   .calendar-layout {
     gap: 10px;
   }
@@ -2811,6 +3265,14 @@ button.link.danger {
 
   .task-row.habit-row-inline {
     grid-template-columns: 18px minmax(0, 1fr);
+  }
+
+  .task-row summary,
+  .custom-habit-row,
+  .spiritual-inline-confirm-actions,
+  .inline-action-notice {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .habit-time-input {
@@ -2831,6 +3293,13 @@ button.link.danger {
   .task-row.habit-row-inline .habit-remove-btn {
     grid-column: 2 / 3;
     justify-self: start;
+  }
+
+  .today-secondary-links,
+  .task-header-actions,
+  .inline-action-notice-actions {
+    width: 100%;
+    justify-content: flex-start;
   }
 }
 
@@ -3303,6 +3772,29 @@ button.link.danger {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
+}
+
+.spiritual-inline-confirm {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(210, 168, 105, 0.22);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.spiritual-inline-confirm p,
+.spiritual-notes-status {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.spiritual-inline-confirm-actions {
+  display: flex;
+  gap: 10px;
   align-items: center;
 }
 

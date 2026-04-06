@@ -972,7 +972,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   const applyTaskPatchToCache = useCallback(
     (taskId: string, patch: Record<string, string | number | null>) => {
-      queryClient.setQueryData(
+      queryClient.setQueryData<TaskListResponse | undefined>(
         ["tasks", range.start, range.end],
         (previous: TaskListResponse | undefined) => {
           if (!previous?.items) return previous;
@@ -980,29 +980,44 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             ...previous,
             items: previous.items.map((item) => {
               if (item.id !== taskId) return item;
+              const nextTitle =
+                typeof patch.title === "string" && patch.title
+                  ? patch.title
+                  : item.title;
+              const nextPriorityTag =
+                typeof patch.priority_tag === "string" || patch.priority_tag === null
+                  ? patch.priority_tag
+                  : item.priorityTag;
+              const nextScheduledTime =
+                typeof patch.scheduled_time === "string" || patch.scheduled_time === null
+                  ? patch.scheduled_time
+                  : item.scheduledTime;
+              const nextScheduledDate =
+                typeof patch.scheduled_date === "string" || patch.scheduled_date === null
+                  ? patch.scheduled_date
+                  : item.scheduledDate;
+              const nextEstimatedMinutes =
+                typeof patch.estimated_minutes === "number" || patch.estimated_minutes === null
+                  ? patch.estimated_minutes
+                  : item.estimatedMinutes;
+              const nextActualMinutes =
+                typeof patch.actual_minutes === "number" || patch.actual_minutes === null
+                  ? patch.actual_minutes
+                  : item.actualMinutes;
+              const nextCompletedAt =
+                typeof patch.completed_at === "string" || patch.completed_at === null
+                  ? patch.completed_at
+                  : item.completedAt;
               return {
                 ...item,
-                title: "title" in patch ? String(patch.title || item.title) : item.title,
+                title: nextTitle,
                 isDone: "is_done" in patch ? (patch.is_done ? 1 : 0) : item.isDone,
-                priorityTag: "priority_tag" in patch ? patch.priority_tag : item.priorityTag,
-                scheduledTime:
-                  "scheduled_time" in patch
-                    ? patch.scheduled_time || null
-                    : item.scheduledTime,
-                scheduledDate:
-                  "scheduled_date" in patch
-                    ? patch.scheduled_date || null
-                    : item.scheduledDate,
-                estimatedMinutes:
-                  "estimated_minutes" in patch
-                    ? patch.estimated_minutes
-                    : item.estimatedMinutes,
-                actualMinutes:
-                  "actual_minutes" in patch
-                    ? patch.actual_minutes
-                    : item.actualMinutes,
-                completedAt:
-                  "completed_at" in patch ? patch.completed_at : item.completedAt,
+                priorityTag: nextPriorityTag,
+                scheduledTime: nextScheduledTime,
+                scheduledDate: nextScheduledDate,
+                estimatedMinutes: nextEstimatedMinutes,
+                actualMinutes: nextActualMinutes,
+                completedAt: nextCompletedAt,
               };
             }),
           };
@@ -1540,7 +1555,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     checked: boolean,
     actualMinutes?: number | null
   ) => {
-    const cacheSnapshot = queryClient.getQueryData(["tasks", range.start, range.end]);
+    const cacheSnapshot = queryClient.getQueryData<TaskListResponse>([
+      "tasks",
+      range.start,
+      range.end,
+    ]);
     const patch: Record<string, string | number | null> = {
       is_done: checked ? 1 : 0,
       completed_at: checked ? new Date().toISOString() : null,
@@ -1566,7 +1585,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         },
         onError: (error) => {
           if (cacheSnapshot) {
-            queryClient.setQueryData(["tasks", range.start, range.end], cacheSnapshot);
+            queryClient.setQueryData<TaskListResponse>(
+              ["tasks", range.start, range.end],
+              cacheSnapshot
+            );
           }
           setTaskSaveError(
             readErrorMessage(error, "Could not mark task. Please try again.")
@@ -1944,11 +1966,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           disabled={createTask.isPending}
           submitLabel={createTask.isPending ? "Adding..." : calendarSelection ? "Add selected slot" : "Add task"}
           onSubmit={handleComposerSubmit}
-          onTitleChange={setNewTitle}
-          onDateChange={setNewDate}
-          onTimeChange={setNewTime}
-          onEstimateChange={setNewEst}
-          onShareChange={setShareOnCreate}
+          onTitleChange={(value) => setNewTitle(value)}
+          onDateChange={(value) => setNewDate(value)}
+          onTimeChange={(value) => setNewTime(value)}
+          onEstimateChange={(value) => setNewEst(value)}
+          onShareChange={(checked) => setShareOnCreate(checked)}
           onToggleAdvanced={() => setComposerAdvancedOpen((current) => !current)}
           onClearSelection={clearCalendarSelection}
           onCancel={handleComposerCancel}
@@ -1990,7 +2012,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           title={completionPrompt?.title || "task"}
           estimatedMinutes={completionPrompt?.estimatedMinutes || 0}
           actualMinutes={completionMinutes}
-          onActualMinutesChange={setCompletionMinutes}
+          onActualMinutesChange={(value) => setCompletionMinutes(value)}
           onConfirm={confirmCompletionMinutes}
           onSkip={skipCompletionMinutes}
           onClose={() => setCompletionPrompt(null)}

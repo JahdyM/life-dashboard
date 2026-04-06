@@ -395,7 +395,7 @@ export default function SpiritualGoalStepPanel({
             />
           </label>
           <p className="spiritual-notes-status">
-            {pending && stepNotesState !== "idle"
+            {stepNotesState === "saving"
               ? "Saving step notes…"
               : stepNotesState === "saved"
                 ? "Step notes saved"
@@ -412,7 +412,7 @@ export default function SpiritualGoalStepPanel({
             />
           </label>
           <p className="spiritual-notes-status">
-            {pending && generalNotesState !== "idle"
+            {generalNotesState === "saving"
               ? "Saving staircase notes…"
               : generalNotesState === "saved"
                 ? "Staircase notes saved"
