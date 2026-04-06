@@ -35,6 +35,9 @@ const validRange = (start: string, end: string) => start <= end;
 export const taskIdSchema = z.string().trim().min(1).max(100);
 export const subtaskIdSchema = z.string().trim().min(1).max(100);
 export const isoDateSchema = z.string().regex(isoDateRegex, "Date must be YYYY-MM-DD");
+export const monthKeySchema = z
+  .string()
+  .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "month must be YYYY-MM");
 
 export const dateParamSchema = z.object({
   date: isoDateSchema,
@@ -49,6 +52,12 @@ export const rangeQuerySchema = z
     message: "start must be before or equal to end",
     path: ["end"],
   });
+
+export const ministryMonthQuerySchema = z
+  .object({
+    month: monthKeySchema,
+  })
+  .strict();
 
 export const coupleMoodboardQuerySchema = z.object({
   range: z.enum(["month", "year"]).default("month"),
@@ -208,6 +217,21 @@ export const quickNoteTextSchema = z
       .string()
       .max(20000)
       .transform((value) => value.replace(/\r\n/g, "\n")),
+  })
+  .strict();
+
+export const ministryMonthlyGoalSchema = z
+  .object({
+    month: monthKeySchema,
+    target_minutes: z.union([z.number().int().min(0).max(60_000), z.null()]),
+  })
+  .strict();
+
+export const ministryDayEntrySchema = z
+  .object({
+    goal_minutes: z.union([z.number().int().min(0).max(1440), z.null()]),
+    actual_minutes: z.union([z.number().int().min(0).max(1440), z.null()]),
+    notes: z.union([z.string().trim().max(4000), z.null()]),
   })
   .strict();
 
