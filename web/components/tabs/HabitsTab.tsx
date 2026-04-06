@@ -155,6 +155,7 @@ const CustomHabitRow = memo(function CustomHabitRow({
   onCancelEdit,
   onDelete,
 }: CustomHabitRowProps) {
+  const skipBlurRef = useRef(false);
   const handleToggle = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => onToggle(habit.id, event.target.checked),
     [habit.id, onToggle]
@@ -171,6 +172,7 @@ const CustomHabitRow = memo(function CustomHabitRow({
       }
       if (event.key === "Escape") {
         event.preventDefault();
+        skipBlurRef.current = true;
         onCancelEdit();
       }
     },
@@ -178,6 +180,10 @@ const CustomHabitRow = memo(function CustomHabitRow({
   );
 
   const handleBlur = useCallback(() => {
+    if (skipBlurRef.current) {
+      skipBlurRef.current = false;
+      return;
+    }
     onSubmitEdit(habit);
   }, [habit, onSubmitEdit]);
 
@@ -283,7 +289,7 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
     void familyDayQuery.refetch();
   }, [dayQuery, customHabitsQuery, customDoneQuery, meetingDaysQuery, familyDayQuery]);
 
-  const dayEntry = dayQuery.data?.entry || {};
+  const dayEntry = (dayQuery.data?.entry ?? {}) as DayEntry;
   const customHabitsRaw = useMemo(
     () => customHabitsQuery.data?.items ?? EMPTY_CUSTOM_HABITS,
     [customHabitsQuery.data?.items]

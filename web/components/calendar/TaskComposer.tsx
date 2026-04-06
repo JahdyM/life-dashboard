@@ -1,6 +1,6 @@
 "use client";
 
-import type { FormEvent } from "react";
+import type { FormEvent, KeyboardEvent } from "react";
 import { CalendarRange, ChevronDown, ChevronUp, Sparkles, X } from "lucide-react";
 
 type TaskComposerProps = {
@@ -21,6 +21,7 @@ type TaskComposerProps = {
   onShareChange: (checked: boolean) => void;
   onToggleAdvanced: () => void;
   onClearSelection: () => void;
+  onCancel?: () => void;
 };
 
 export default function TaskComposer({
@@ -41,11 +42,20 @@ export default function TaskComposer({
   onShareChange,
   onToggleAdvanced,
   onClearSelection,
+  onCancel,
 }: TaskComposerProps) {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!title.trim() || disabled) return;
     onSubmit();
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onCancel?.();
+      event.currentTarget.blur();
+    }
   };
 
   return (
@@ -68,6 +78,7 @@ export default function TaskComposer({
             id="calendar-task-title"
             value={title}
             onChange={(event) => onTitleChange(event.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder="What needs attention next?"
           />
         </label>

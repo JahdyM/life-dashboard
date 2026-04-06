@@ -11,7 +11,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, ChevronDown, ChevronUp, Plus, Share2, Trash2 } from "lucide-react";
+import { CalendarClock, Share2, Trash2 } from "lucide-react";
 import InlineActionNotice from "@/components/common/InlineActionNotice";
 import OverflowMenu from "@/components/common/OverflowMenu";
 import CompletionPopover from "@/components/calendar/CompletionPopover";
@@ -584,7 +584,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [taskSaveError, setTaskSaveError] = useState<string | null>(null);
   const [completionPrompt, setCompletionPrompt] = useState<CompletionPromptState | null>(null);
   const [completionMinutes, setCompletionMinutes] = useState(0);
-  const [showEstimationEditor, setShowEstimationEditor] = useState(false);
   const [estimationDrafts, setEstimationDrafts] = useState<
     Record<string, { estimatedMinutes: number; actualMinutes: number }>
   >({});
@@ -1914,47 +1913,372 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   return (
     <div className="calendar-layout">
       <div className="task-list">
-        <div className="task-header">
+        <div className="task-header calm">
           <div>
-            <h2>Daily tasks list</h2>
-            <p>
-              {completedTasks.length}/{tasksForDay.length} done
+            <p className="panel-kicker">Today&apos;s agenda</p>
+            <h2>Keep the day moving with one clear list.</h2>
+            <p className="task-header-meta">
+              {completedTasks.length}/{tasksForDay.length} tasks finished
             </p>
           </div>
-          <button className="secondary" onClick={syncNow}>
-            Sync now
-          </button>
-          <span className={`sync-status ${syncStatus}`}>{syncStatus}</span>
+          <div className="task-header-actions">
+            {syncStatus !== "idle" ? (
+              <span className={`sync-status ${syncStatus}`}>
+                {syncStatus === "syncing" ? "Syncing…" : "Sync failed"}
+              </span>
+            ) : null}
+            <button className="secondary subtle" type="button" onClick={syncNow}>
+              Sync calendar
+            </button>
+          </div>
         </div>
-        {estimationHint ? (
-          <button
-            type="button"
-            className="task-estimation-hint task-estimation-toggle"
-            onClick={() => setShowEstimationEditor((value) => !value)}
-          >
-            <span>{estimationHint}</span>
-            <span className="task-estimation-toggle-meta">
-              {showEstimationEditor
-                ? "Hide tasks used in this calculation"
-                : "Click to view/edit tasks used in this calculation"}
-            </span>
-          </button>
-        ) : null}
-        {showEstimationEditor ? (
-          <div className="estimation-editor">
-            <div className="estimation-editor-title">
-              Tasks used in estimation (completed with estimated + actual minutes)
+
+        <TaskComposer
+          title={newTitle}
+          date={newDate}
+          time={newTime}
+          estimate={newEst}
+          shareWithPartner={shareOnCreate}
+          advancedOpen={composerAdvancedOpen}
+          selectionLabel={composerSelectionLabel}
+          disabled={createTask.isPending}
+          submitLabel={createTask.isPending ? "Adding..." : calendarSelection ? "Add selected slot" : "Add task"}
+          onSubmit={handleComposerSubmit}
+          onTitleChange={setNewTitle}
+          onDateChange={setNewDate}
+          onTimeChange={setNewTime}
+          onEstimateChange={setNewEst}
+          onShareChange={setShareOnCreate}
+          onToggleAdvanced={() => setComposerAdvancedOpen((current) => !current)}
+          onClearSelection={clearCalendarSelection}
+          onCancel={handleComposerCancel}
+        />
+
+        <div className="calendar-status-rail">
+          {tasksQuery.isPending ? (
+            <div className="query-status quiet">Loading tasks…</div>
+          ) : null}
+          {tasksQuery.isError ? (
+            <InlineActionNotice
+              tone="error"
+              title="Could not load tasks"
+              body="The calendar is still here, but the agenda needs a refresh."
+              actionLabel="Retry"
+              onAction={() => {
+                void tasksQuery.refetch();
+              }}
+            />
+          ) : null}
+          {syncWarning && !reconnectRequired ? (
+            <InlineActionNotice tone="warning" body={syncWarning} />
+          ) : null}
+          {reconnectRequired ? (
+            <InlineActionNotice
+              tone="warning"
+              title="Google Calendar needs reconnection"
+              body="Your local list still works, but syncing needs a quick reconnect."
+              actionLabel={reconnectingGoogle ? "Redirecting..." : "Reconnect Google"}
+              onAction={triggerGoogleReconnect}
+            />
+          ) : null}
+          {taskSaveError ? <InlineActionNotice tone="warning" body={taskSaveError} /> : null}
+          {taskShareNotice ? <InlineActionNotice tone="success" body={taskShareNotice} /> : null}
+        </div>
+
+        <CompletionPopover
+          open={Boolean(completionPrompt)}
+          title={completionPrompt?.title || "task"}
+          estimatedMinutes={completionPrompt?.estimatedMinutes || 0}
+          actualMinutes={completionMinutes}
+          onActualMinutesChange={setCompletionMinutes}
+          onConfirm={confirmCompletionMinutes}
+          onSkip={skipCompletionMinutes}
+          onClose={() => setCompletionPrompt(null)}
+        />
+
+        <section className="calendar-primary-section">
+          <div className="calendar-section-head">
+            <div>
+              <p className="panel-kicker">Agenda</p>
+              <h3>What still needs attention today</h3>
             </div>
+            <span className="calendar-section-count">{pendingTasks.length} pending</span>
+          </div>
+          {pendingTasks.length ? (
+            <div className="task-items">
+              {pendingTasks.map((task) => {
+                const draft = readTaskDraft(task);
+                const shareUi = getTaskSharePresentation(task);
+                return (
+                  <EditableTaskRow
+                    key={task.id}
+                    task={task}
+                    draft={draft}
+                    saving={savingTaskId === task.id}
+                    saved={savedTaskId === task.id}
+                    onToggleDone={requestToggleTaskDone}
+                    onSave={confirmTaskUpdate}
+                    onSetDraft={setTaskDraft}
+                    onReset={resetTaskDraft}
+                    onDelete={handleDeleteTask}
+                    onShare={shareUi.canToggle ? handleShareTask : undefined}
+                    sharing={sharingTaskId === task.id}
+                    shareLabel={shareUi.label}
+                    shareActionLabel={shareUi.actionLabel}
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <div className="line-empty">No pending tasks here right now. Let the schedule stay quiet unless you need a new next step.</div>
+          )}
+        </section>
+
+        <section className="calendar-primary-section">
+          <div className="calendar-section-head">
+            <div>
+              <p className="panel-kicker">Remembered tasks</p>
+              <h3>Loose tasks waiting to be anchored</h3>
+            </div>
+            <span className="calendar-section-count">{unscheduledTasks.length}</span>
+          </div>
+          {unscheduledTasks.length ? (
+            <div className="task-items">
+              {unscheduledTasks.map((task) => {
+                const shareUi = getTaskSharePresentation(task);
+                return (
+                  <SimpleTaskRow
+                    key={task.id}
+                    task={task}
+                    draft={readTaskDraft(task)}
+                    onToggleDone={requestToggleTaskDone}
+                    onScheduleToday={handleScheduleToday}
+                    onShare={shareUi.canToggle ? handleShareTask : undefined}
+                    sharing={sharingTaskId === task.id}
+                    shareLabel={shareUi.label}
+                    shareActionLabel={shareUi.actionLabel}
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <div className="line-empty">No remembered tasks waiting outside the schedule.</div>
+          )}
+        </section>
+
+        <section className="calendar-primary-section">
+          <div className="calendar-section-head">
+            <div>
+              <p className="panel-kicker">Completed</p>
+              <h3>Proof of progress for this day</h3>
+            </div>
+            <span className="calendar-section-count">{completedTasks.length + completedHabits.length}</span>
+          </div>
+          <div className="calendar-completed">
+            {completedTasks.length === 0 && completedHabits.length === 0 ? (
+              <div className="line-empty">Nothing completed yet. As the day moves, this becomes the quiet record of what is already done.</div>
+            ) : null}
+            {completedTasks.map((task) => {
+              const shareUi = getTaskSharePresentation(task);
+              return (
+                <CompletedTaskRow
+                  key={`done-task-${task.id}`}
+                  task={task}
+                  draft={readTaskDraft(task)}
+                  saving={savingTaskId === task.id}
+                  onToggleDone={requestToggleTaskDone}
+                  onSetDraft={setTaskDraft}
+                  onSave={confirmTaskUpdate}
+                  onReset={resetTaskDraft}
+                  onShare={shareUi.canToggle ? handleShareTask : undefined}
+                  sharing={sharingTaskId === task.id}
+                  shareLabel={shareUi.label}
+                  shareActionLabel={shareUi.actionLabel}
+                />
+              );
+            })}
+            {completedHabits.map((habit) => (
+              <div key={`done-habit-${habit.id}`} className="calendar-completed-item">
+                <span className="calendar-completed-mark">✓</span>
+                <span className="calendar-completed-title">{habit.label}</span>
+                <span className="calendar-completed-badge">habit</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="quick-note-block">
+          <div className="quick-note-head">
+            <div>
+              <p className="panel-kicker">Notes</p>
+              <h3>Keep the loose thoughts nearby</h3>
+            </div>
+            <div className="quick-note-actions">
+              <span className="quick-note-status">
+                {quickNoteQuery.isPending
+                  ? "Loading…"
+                  : saveQuickNote.isPending
+                    ? "Saving…"
+                    : quickNoteSavedAt
+                      ? "Saved"
+                      : "Autosave"}
+              </span>
+              <button
+                type="button"
+                className="page-link inline muted"
+                onClick={handleSaveQuickNoteNow}
+                disabled={saveQuickNote.isPending || quickNoteQuery.isPending}
+              >
+                Save now
+              </button>
+            </div>
+          </div>
+          {quickNoteQuery.isError ? (
+            <InlineActionNotice
+              tone="error"
+              body="Could not load notes."
+              actionLabel="Retry"
+              onAction={() => {
+                void quickNoteQuery.refetch();
+              }}
+            />
+          ) : null}
+          <textarea
+            className="quick-note-textarea"
+            value={quickNoteText}
+            onChange={(event) => setQuickNoteText(event.target.value.slice(0, 20000))}
+            placeholder="Write freely here..."
+            disabled={quickNoteQuery.isPending}
+          />
+        </section>
+
+        <details className="calendar-secondary-panel" open={pendingTaskShares.length > 0}>
+          <summary>
+            <span className="calendar-secondary-title">Shared tasks waiting for a reply</span>
+            <span className="calendar-secondary-meta">{pendingTaskShares.length}</span>
+          </summary>
+          <div className="calendar-secondary-body">
+            {taskSharesQuery.isPending ? (
+              <div className="query-status quiet">Loading shared invites…</div>
+            ) : null}
+            {taskSharesQuery.isError ? (
+              <InlineActionNotice
+                tone="error"
+                body="Could not load shared invites."
+                actionLabel="Retry"
+                onAction={() => {
+                  void taskSharesQuery.refetch();
+                }}
+              />
+            ) : null}
+            {!taskSharesQuery.isPending && !taskSharesQuery.isError ? (
+              pendingTaskShares.length === 0 ? (
+                <div className="line-empty">No shared tasks waiting for your answer.</div>
+              ) : (
+                pendingTaskShares.map((invite) => (
+                  <div key={`share-invite-${invite.id}`} className="share-invite-row">
+                    <div className="share-invite-meta">
+                      <strong>{invite.title}</strong>
+                      <span>
+                        From {emailHandle(invite.fromEmail)}
+                        {invite.scheduledDate
+                          ? ` • ${invite.scheduledDate} ${invite.scheduledTime || ""}`.trim()
+                          : ""}
+                      </span>
+                    </div>
+                    <div className="share-invite-actions">
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={respondingShareId === invite.id}
+                        onClick={() => handleAcceptShare(invite.id)}
+                      >
+                        {respondingShareId === invite.id ? "Working..." : "Accept"}
+                      </button>
+                      <button
+                        type="button"
+                        className="page-link inline muted"
+                        disabled={respondingShareId === invite.id}
+                        onClick={() => handleDeclineShare(invite.id)}
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )
+            ) : null}
+          </div>
+        </details>
+
+        <details className="calendar-secondary-panel">
+          <summary>
+            <span className="calendar-secondary-title">Daily habits to add</span>
+            <span className="calendar-secondary-meta">{visibleDailyHabits.length}</span>
+          </summary>
+          <div className="calendar-secondary-body">
+            {habitsLoading ? (
+              <div className="query-status quiet">Loading habits for this day…</div>
+            ) : null}
+            {habitsError ? (
+              <InlineActionNotice
+                tone="error"
+                body="Could not load daily habits."
+                actionLabel="Retry"
+                onAction={() => {
+                  void dayQuery.refetch();
+                  void customHabitsQuery.refetch();
+                  void customDoneQuery.refetch();
+                  void meetingDaysQuery.refetch();
+                  void familyDayQuery.refetch();
+                }}
+              />
+            ) : null}
+            {!habitsLoading && !habitsError
+              ? visibleDailyHabits.length === 0
+                ? <div className="line-empty">All habits are already done, in the agenda, or hidden for today.</div>
+                : visibleDailyHabits.map((habit) => (
+                    <DailyHabitRow
+                      key={habit.id}
+                      habit={habit}
+                      timeValue={habitTimeDrafts[habit.id] || ""}
+                      durationValue={Math.max(5, Number(habitDurationDrafts[habit.id] || 30))}
+                      saving={
+                        updateDayHabit.isPending ||
+                        updateCustomHabitDone.isPending ||
+                        createHabitTask.isPending ||
+                        removeHabitTasks.isPending
+                      }
+                      onToggleHabit={handleToggleHabit}
+                      onTimeChange={handleHabitTimeChange}
+                      onDurationChange={handleHabitDurationChange}
+                      onAddToAgenda={handleAddHabitToAgenda}
+                      onRemoveFromAgenda={handleRemoveHabitFromAgenda}
+                    />
+                  ))
+              : null}
+          </div>
+        </details>
+
+        <details className="calendar-secondary-panel">
+          <summary>
+            <span className="calendar-secondary-title">Estimation editor</span>
+            <span className="calendar-secondary-meta">{estimationPoints.length} rows</span>
+          </summary>
+          <div className="calendar-secondary-body">
+            {estimationHint ? <p className="task-estimation-hint">{estimationHint}</p> : null}
             {estimationHintQuery.isPending ? (
-              <div className="query-status">Loading estimation rows...</div>
+              <div className="query-status quiet">Loading estimation rows…</div>
             ) : null}
             {estimationHintQuery.isError ? (
-              <div className="query-status error">
-                <span>Could not load estimation rows.</span>
-                <button className="secondary" onClick={() => estimationHintQuery.refetch()}>
-                  Retry
-                </button>
-              </div>
+              <InlineActionNotice
+                tone="error"
+                body="Could not load estimation rows."
+                actionLabel="Retry"
+                onAction={() => {
+                  void estimationHintQuery.refetch();
+                }}
+              />
             ) : null}
             {!estimationHintQuery.isPending && !estimationHintQuery.isError ? (
               estimationPoints.length === 0 ? (
@@ -1988,10 +2312,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                           value={draft.estimatedMinutes}
                           onChange={(event) =>
                             setEstimationDraft(point.taskId, {
-                              estimatedMinutes: Math.max(
-                                0,
-                                Number(event.target.value || 0)
-                              ),
+                              estimatedMinutes: Math.max(0, Number(event.target.value || 0)),
                             })
                           }
                           aria-label={`Estimated minutes for ${point.title}`}
@@ -2029,298 +2350,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               )
             ) : null}
           </div>
-        ) : null}
-        {tasksQuery.isPending && (
-          <div className="query-status">Loading tasks...</div>
-        )}
-        {tasksQuery.isError && (
-          <div className="query-status error">
-            <span>Could not load tasks for this range.</span>
-            <button className="secondary" onClick={() => tasksQuery.refetch()}>
-              Retry
-            </button>
-          </div>
-        )}
-        {syncWarning && <div className="warning">{syncWarning}</div>}
-        {reconnectRequired ? (
-          <div className="query-status warning">
-            <span>Google Calendar needs reconnection.</span>
-            <button
-              className="secondary"
-              type="button"
-              disabled={reconnectingGoogle}
-              onClick={() => {
-                triggerGoogleReconnect();
-              }}
-            >
-              {reconnectingGoogle ? "Redirecting..." : "Reconnect Google"}
-            </button>
-          </div>
-        ) : null}
-        {taskSaveError && <div className="warning">{taskSaveError}</div>}
-        {taskShareNotice ? <div className="query-status">{taskShareNotice}</div> : null}
-        <div className="task-remembered">
-          <h3>Shared tasks pending your answer</h3>
-          {taskSharesQuery.isPending ? (
-            <div className="query-status">Loading shared invites...</div>
-          ) : null}
-          {taskSharesQuery.isError ? (
-            <div className="query-status error">
-              <span>Could not load shared invites.</span>
-              <button className="secondary" onClick={() => taskSharesQuery.refetch()}>
-                Retry
-              </button>
-            </div>
-          ) : null}
-          {!taskSharesQuery.isPending && !taskSharesQuery.isError ? (
-            pendingTaskShares.length === 0 ? (
-              <div className="line-empty">No shared tasks waiting for your acceptance.</div>
-            ) : (
-              pendingTaskShares.map((invite) => (
-                <div key={`share-invite-${invite.id}`} className="share-invite-row">
-                  <div className="share-invite-meta">
-                    <strong>{invite.title}</strong>
-                    <span>
-                      From {emailHandle(invite.fromEmail)}
-                      {invite.scheduledDate
-                        ? ` • ${invite.scheduledDate} ${invite.scheduledTime || ""}`.trim()
-                        : ""}
-                    </span>
-                  </div>
-                  <div className="share-invite-actions">
-                    <button
-                      type="button"
-                      className="task-confirm-btn visible"
-                      disabled={respondingShareId === invite.id}
-                      onClick={() => handleAcceptShare(invite.id)}
-                    >
-                      {respondingShareId === invite.id ? "..." : "Accept"}
-                    </button>
-                    <button
-                      type="button"
-                      className="link"
-                      disabled={respondingShareId === invite.id}
-                      onClick={() => handleDeclineShare(invite.id)}
-                    >
-                      Decline
-                    </button>
-                  </div>
-                </div>
-              ))
-            )
-          ) : null}
-        </div>
-        <div className="task-remembered">
-          <h3>Daily habits to add</h3>
-          {habitsLoading ? (
-            <div className="query-status">Loading habits for this day...</div>
-          ) : null}
-          {habitsError ? (
-            <div className="query-status error">
-              <span>Could not load daily habits.</span>
-              <button
-                className="secondary"
-                onClick={() => {
-                  dayQuery.refetch();
-                  customHabitsQuery.refetch();
-                  customDoneQuery.refetch();
-                  meetingDaysQuery.refetch();
-                  familyDayQuery.refetch();
-                }}
-              >
-                Retry
-              </button>
-            </div>
-          ) : null}
-          {!habitsLoading && !habitsError
-            ? visibleDailyHabits.length === 0
-              ? <div className="line-empty">All habits are already done, in the agenda, or hidden for today.</div>
-              : visibleDailyHabits.map((habit) => (
-                  <DailyHabitRow
-                    key={habit.id}
-                    habit={habit}
-                    timeValue={habitTimeDrafts[habit.id] || ""}
-                    durationValue={Math.max(5, Number(habitDurationDrafts[habit.id] || 30))}
-                    saving={
-                      updateDayHabit.isPending ||
-                      updateCustomHabitDone.isPending ||
-                      createHabitTask.isPending ||
-                      removeHabitTasks.isPending
-                    }
-                    onToggleHabit={handleToggleHabit}
-                    onTimeChange={handleHabitTimeChange}
-                    onDurationChange={handleHabitDurationChange}
-                    onAddToAgenda={handleAddHabitToAgenda}
-                    onRemoveFromAgenda={handleRemoveHabitFromAgenda}
-                  />
-                ))
-            : null}
-        </div>
-        {completionPrompt ? (
-          <div className="completion-prompt">
-            <div className="completion-prompt-title">
-              Complete &ldquo;{completionPrompt.title}&rdquo;
-            </div>
-            <div className="completion-prompt-row">
-              <label htmlFor="completion-minutes">
-                Actual minutes (estimated {completionPrompt.estimatedMinutes})
-              </label>
-              <input
-                id="completion-minutes"
-                type="number"
-                min={0}
-                value={completionMinutes}
-                onChange={(event) => setCompletionMinutes(Number(event.target.value || 0))}
-              />
-              <button className="secondary" onClick={confirmCompletionMinutes}>
-                Confirm
-              </button>
-              <button className="link" onClick={skipCompletionMinutes}>
-                Skip time
-              </button>
-              <button className="link danger" onClick={() => setCompletionPrompt(null)}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : null}
-        <div className="task-items">
-          {pendingTasks.map((task) => {
-            const draft = readTaskDraft(task);
-            const shareUi = getTaskSharePresentation(task);
-            return (
-              <EditableTaskRow
-                key={task.id}
-                task={task}
-                draft={draft}
-                hasChanges={hasTaskChanges(task)}
-                saving={savingTaskId === task.id}
-                saved={savedTaskId === task.id}
-                onToggleDone={requestToggleTaskDone}
-                onConfirm={confirmTaskUpdate}
-                onSetDraft={setTaskDraft}
-                onDelete={handleDeleteTask}
-                onShare={shareUi.canToggle ? handleShareTask : undefined}
-                sharing={sharingTaskId === task.id}
-                shareLabel={shareUi.label}
-                shareActionLabel={shareUi.actionLabel}
-              />
-            );
-          })}
-        </div>
-        {unscheduledTasks.length > 0 && (
-          <div className="task-remembered">
-            <h3>Remembered tasks</h3>
-            {unscheduledTasks.map((task) => {
-              const shareUi = getTaskSharePresentation(task);
-              return (
-              <SimpleTaskRow
-                key={task.id}
-                task={task}
-                draft={readTaskDraft(task)}
-                hasChanges={hasTaskChanges(task)}
-                saving={savingTaskId === task.id}
-                onToggleDone={requestToggleTaskDone}
-                onConfirm={confirmTaskUpdate}
-                onScheduleToday={handleScheduleToday}
-                onShare={shareUi.canToggle ? handleShareTask : undefined}
-                sharing={sharingTaskId === task.id}
-                shareLabel={shareUi.label}
-                shareActionLabel={shareUi.actionLabel}
-              />
-              );
-            })}
-          </div>
-        )}
-        <div className="task-form">
-          <h3>Add activity</h3>
-          <div className="form-row">
-            <label htmlFor="new-task-title">Title</label>
-            <input
-              id="new-task-title"
-              value={newTitle}
-              onChange={(event) => setNewTitle(event.target.value)}
-            />
-          </div>
-          <div className="form-row">
-            <label htmlFor="new-task-date">Date</label>
-            <input
-              id="new-task-date"
-              type="date"
-              value={newDate}
-              onChange={(event) => setNewDate(event.target.value)}
-            />
-          </div>
-          <div className="form-row">
-            <label htmlFor="new-task-time">Start time</label>
-            <input
-              id="new-task-time"
-              type="time"
-              value={newTime}
-              onChange={(event) => setNewTime(event.target.value)}
-            />
-          </div>
-          <div className="form-row">
-            <label htmlFor="new-task-est">Est. minutes</label>
-            <input
-              id="new-task-est"
-              type="number"
-              value={newEst}
-              onChange={(event) => setNewEst(Number(event.target.value))}
-            />
-          </div>
-          <label className="habit-row">
-            <input
-              type="checkbox"
-              checked={shareOnCreate}
-              onChange={(event) => setShareOnCreate(event.target.checked)}
-            />
-            <span>Share this new task with partner</span>
-          </label>
-          <button className="primary" onClick={() => createTask.mutate()}>
-            Confirm task
-          </button>
-        </div>
+        </details>
       </div>
 
       <div className="calendar-panel">
-        <div className="calendar-quick-add">
-          <div className="calendar-quick-title">Add directly from calendar</div>
-          <div className="calendar-quick-row">
-            <input
-              className="calendar-quick-input"
-              placeholder="Task title from selected slot..."
-              value={calendarDraftTitle}
-              onChange={(event) => setCalendarDraftTitle(event.target.value)}
-            />
-            <button
-              className="secondary"
-              disabled={!calendarSelection}
-              onClick={() => createTaskFromCalendar.mutate()}
-            >
-              {createTaskFromCalendar.isPending ? "Adding..." : "Add"}
-            </button>
-          </div>
-          <label className="habit-row">
-            <input
-              type="checkbox"
-              checked={shareOnCalendarCreate}
-              onChange={(event) => setShareOnCalendarCreate(event.target.checked)}
-            />
-            <span>Share this calendar-created task with partner</span>
-          </label>
-          {calendarSelection ? (
-            <div className="calendar-selection-meta">
-              Selected: {calendarSelection.date} {calendarSelection.time} ({calendarSelection.estimatedMinutes}m)
-            </div>
-          ) : (
-            <div className="calendar-selection-meta">
-              Click or drag a time slot to prefill task creation.
-            </div>
-          )}
-        </div>
         <div className="calendar-header">
           <button
+            type="button"
             onClick={() =>
               setSelectedDate(
                 addDays(selectedDate, calendarView === "timeGridWeek" ? -7 : -1)
@@ -2329,8 +2365,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           >
             Prev
           </button>
-          <div>{format(selectedDate, "MMMM dd, yyyy")}</div>
+          <div className="calendar-header-date">
+            <CalendarClock size={16} />
+            {format(selectedDate, "MMMM dd, yyyy")}
+          </div>
           <button
+            type="button"
             onClick={() =>
               setSelectedDate(
                 addDays(selectedDate, calendarView === "timeGridWeek" ? 7 : 1)
@@ -2394,77 +2434,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             });
           }}
         />
-        <div className="calendar-completed">
-          <h3>Completed</h3>
-          {completedTasks.length === 0 && completedHabits.length === 0 ? (
-            <div className="line-empty">No completed items for this day yet.</div>
-          ) : null}
-          {completedTasks.map((task) => {
-            const shareUi = getTaskSharePresentation(task);
-            return (
-            <CompletedTaskRow
-              key={`done-task-${task.id}`}
-              task={task}
-              draft={readTaskDraft(task)}
-              hasChanges={hasTaskChanges(task)}
-              saving={savingTaskId === task.id}
-              onToggleDone={requestToggleTaskDone}
-              onSetDraft={setTaskDraft}
-              onConfirm={confirmTaskUpdate}
-              onShare={shareUi.canToggle ? handleShareTask : undefined}
-              sharing={sharingTaskId === task.id}
-              shareLabel={shareUi.label}
-              shareActionLabel={shareUi.actionLabel}
-            />
-            );
-          })}
-          {completedHabits.map((habit) => (
-            <div key={`done-habit-${habit.id}`} className="calendar-completed-item">
-              <span className="calendar-completed-mark">✓</span>
-              <span className="calendar-completed-title">{habit.label}</span>
-              <span className="calendar-completed-badge">habit</span>
-            </div>
-          ))}
-        </div>
-        <div className="quick-note-block">
-          <div className="quick-note-head">
-            <h3>Notes</h3>
-            <div className="quick-note-actions">
-              <span className="quick-note-status">
-                {quickNoteQuery.isPending
-                  ? "Loading..."
-                  : saveQuickNote.isPending
-                  ? "Saving..."
-                  : quickNoteSavedAt
-                  ? "Saved"
-                  : "Autosave"}
-              </span>
-              <button
-                type="button"
-                className="secondary"
-                onClick={handleSaveQuickNoteNow}
-                disabled={saveQuickNote.isPending || quickNoteQuery.isPending}
-              >
-                Save now
-              </button>
-            </div>
-          </div>
-          {quickNoteQuery.isError ? (
-            <div className="query-status error">
-              <span>Could not load notes.</span>
-              <button className="secondary" onClick={() => quickNoteQuery.refetch()}>
-                Retry
-              </button>
-            </div>
-          ) : null}
-          <textarea
-            className="quick-note-textarea"
-            value={quickNoteText}
-            onChange={(event) => setQuickNoteText(event.target.value.slice(0, 20000))}
-            placeholder="Write freely here..."
-            disabled={quickNoteQuery.isPending}
-          />
-        </div>
       </div>
     </div>
   );
