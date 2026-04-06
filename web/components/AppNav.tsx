@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { href: "/today", label: "Today" },
   { href: "/habits", label: "Habits" },
   { href: "/calendar", label: "Calendar" },
+  { href: "/ministry", label: "Ministry" },
   { href: "/stats", label: "Stats" },
   { href: "/mood", label: "Mood" },
   { href: "/couple", label: "Couple" },
