@@ -233,7 +233,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
         {shareLabel ? <span className="task-share-badge">{shareLabel}</span> : null}
         {saving ? <span className="task-row-state">Saving…</span> : null}
         {!saving && saved ? <span className="task-row-state success">Saved</span> : null}
-        <div className="task-row-menu" onClick={(event) => event.stopPropagation()}>
+        <div className="task-row-menu">
           <OverflowMenu className="task-row-overflow" align="right">
             <div className="task-row-menu-list">
               {onShare ? (
@@ -963,12 +963,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     }
     return patch;
   }, []);
-
-  const hasTaskChanges = useCallback(
-    (task: TodoTask) =>
-      Object.keys(buildTaskPatch(task, taskDrafts[task.id])).length > 0,
-    [buildTaskPatch, taskDrafts]
-  );
 
   const applyTaskPatchToCache = useCallback(
     (taskId: string, patch: Record<string, string | number | null>) => {

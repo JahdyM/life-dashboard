@@ -65,7 +65,13 @@ export default function OverflowMenu({
         aria-expanded={open}
         aria-controls={menuId}
         aria-label={buttonLabel || label}
-        onClick={() => setOpen((current) => !current)}
+        onMouseDown={(event) => {
+          event.stopPropagation();
+        }}
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((current) => !current);
+        }}
       >
         {buttonContent || <MoreHorizontal size={16} />}
       </button>
@@ -76,6 +82,9 @@ export default function OverflowMenu({
           className={["overflow-menu-panel", `align-${align}`, menuClassName]
             .filter(Boolean)
             .join(" ")}
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
           onClickCapture={(event) => {
             const target = event.target as HTMLElement | null;
             if (target?.closest("button, a")) {
