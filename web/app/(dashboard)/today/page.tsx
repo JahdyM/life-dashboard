@@ -4,6 +4,15 @@ import { getTodayOverviewData } from "@/lib/server/dashboard";
 import { getAuthenticatedPageEmail } from "@/lib/server/pageAuth";
 import PageSectionIntro from "@/components/PageSectionIntro";
 
+const MOOD_LABELS_EN: Record<string, string> = {
+  peace: "Peace",
+  joy: "Joy",
+  anxiety: "Anxiety",
+  fear: "Fear",
+  anger: "Anger",
+  neutral: "Neutral",
+};
+
 function formatTaskMeta(time: string | null | undefined, minutes: number | null | undefined) {
   const parts = [];
   if (time) parts.push(time);
@@ -93,7 +102,7 @@ export default async function TodayPage() {
             <div className="today-mood-card">
               <p className="today-mood-value">
                 <span>{moodMeta.emoji}</span>
-                {moodMeta.label}
+                {MOOD_LABELS_EN[moodMeta.key] || moodMeta.label}
               </p>
               <p className="today-panel-copy">
                 {overview.moodNote?.trim() ||

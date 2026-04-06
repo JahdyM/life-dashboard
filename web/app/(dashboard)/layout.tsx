@@ -4,6 +4,15 @@ import { MOOD_PALETTE } from "@/lib/constants";
 import { getDashboardShellData } from "@/lib/server/dashboard";
 import { getAuthenticatedPageEmail } from "@/lib/server/pageAuth";
 
+const MOOD_LABELS_EN: Record<string, string> = {
+  peace: "Peace",
+  joy: "Joy",
+  anxiety: "Anxiety",
+  fear: "Fear",
+  anger: "Anger",
+  neutral: "Neutral",
+};
+
 function getMoodMeta(key: string | null) {
   if (!key) return null;
   return MOOD_PALETTE.find((item) => item.key === key) || null;
@@ -72,10 +81,10 @@ export default async function DashboardLayout({
             {shell.nextTask?.title || "Nothing scheduled next"}
           </p>
           <p className="shell-summary-meta">
-            {shell.nextTask?.scheduledTime
-              ? `Starts at ${shell.nextTask.scheduledTime}`
-              : moodMeta
-                ? `Mood check: ${moodMeta.emoji} ${moodMeta.label}`
+              {shell.nextTask?.scheduledTime
+                ? `Starts at ${shell.nextTask.scheduledTime}`
+                : moodMeta
+                ? `Mood check: ${moodMeta.emoji} ${MOOD_LABELS_EN[moodMeta.key] || moodMeta.label}`
                 : "Add a task or log your mood to shape the rest of the day."}
           </p>
         </article>
