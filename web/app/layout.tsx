@@ -1,5 +1,6 @@
 import "../styles/globals.css";
 import { ReactNode } from "react";
+import type { Metadata } from "next";
 import { Cormorant_Garamond, Inter } from "next/font/google";
 import AtomCursor from "@/components/AtomCursor";
 import "@/lib/env";
@@ -16,9 +17,19 @@ const bodyFont = Inter({
   variable: "--font-body",
 });
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Life Dashboard",
   description: "Private personal control center for habits, tasks, mood, and shared life rhythms.",
+  icons: {
+    icon: [
+      {
+        url: "/icon.svg",
+        type: "image/svg+xml",
+      },
+    ],
+    shortcut: "/icon.svg",
+  },
+  themeColor: "#111215",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
