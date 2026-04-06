@@ -21,6 +21,9 @@ const binaryDoneValueSchema = z
 
 const hasInvalidHtmlTags = (value: string) => /<[^>]*>/g.test(value);
 
+const optionalTrimmedText = (max: number) =>
+  z.union([z.string().trim().max(max), z.null()]);
+
 const intlAny = Intl as unknown as {
   supportedValuesOf?: (key: string) => string[];
 };
@@ -54,6 +57,12 @@ export const rangeQuerySchema = z
   });
 
 export const ministryMonthQuerySchema = z
+  .object({
+    month: monthKeySchema,
+  })
+  .strict();
+
+export const spiritualStreakMonthQuerySchema = z
   .object({
     month: monthKeySchema,
   })
@@ -243,9 +252,6 @@ const spiritualGoalCategories = [
   "prudence",
 ] as const;
 
-const optionalTrimmedText = (max: number) =>
-  z.union([z.string().trim().max(max), z.null()]);
-
 export const spiritualGoalCategorySchema = z.enum(spiritualGoalCategories);
 
 export const spiritualGoalTaskSchema = z
@@ -297,7 +303,7 @@ export const spiritualStreakEntrySchema = z
   .object({
     date: isoDateSchema,
     success: z.boolean(),
-    note: optionalTrimmedText(1200),
+    note: optionalTrimmedText(1200).optional(),
     created_at: nullableIsoDateTimeSchema.optional(),
     updated_at: nullableIsoDateTimeSchema.optional(),
   })

@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { requireUserEmail } from "@/lib/server/auth";
 import { logServerEvent } from "@/lib/server/logger";
 import { handleAuthError, jsonError, jsonOk, zodErrorMessage } from "@/lib/server/response";
-import { ministryMonthQuerySchema } from "@/lib/server/schemas";
+import { spiritualStreakMonthQuerySchema } from "@/lib/server/schemas";
 import { getSpiritualStreaksPageData } from "@/lib/server/spiritualStreaks";
 import { getTodayIsoForUser } from "@/lib/server/settings";
 
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const userEmail = await requireUserEmail();
     const { searchParams } = new URL(request.url);
     const fallbackMonth = (await getTodayIsoForUser(userEmail)).slice(0, 7);
-    const parsed = ministryMonthQuerySchema.safeParse({
+    const parsed = spiritualStreakMonthQuerySchema.safeParse({
       month: searchParams.get("month") || fallbackMonth,
     });
     if (!parsed.success) return jsonError(zodErrorMessage(parsed.error), 400);

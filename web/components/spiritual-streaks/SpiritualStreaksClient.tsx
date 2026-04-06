@@ -39,8 +39,7 @@ export default function SpiritualStreaksClient({
     queryKey: ["spiritual-streaks", monthKey],
     queryFn: () =>
       fetchJson<SpiritualStreaksPageData>(`/api/spiritual-streaks?month=${monthKey}`),
-    initialData,
-    placeholderData: (previous) => previous,
+    initialData: monthKey === initialData.monthKey ? initialData : undefined,
   });
 
   const updateMutation = useMutation({
@@ -64,14 +63,14 @@ export default function SpiritualStreaksClient({
       }),
   });
 
-  const data = streaksQuery.data;
+  const data = monthKey === initialData.monthKey ? streaksQuery.data ?? initialData : streaksQuery.data;
 
   return (
     <div className="route-stack spiritual-streaks-shell">
       <section className="spiritual-streaks-toolbar card">
         <div>
           <p className="panel-kicker">Consistency board</p>
-          <h3>{data.monthLabel}</h3>
+          <h3>{data?.monthLabel || monthKey}</h3>
           <p className="page-intro-copy small">
             Four focused boards, one calm month view, and a respectful way to keep daily spiritual consistency visible.
           </p>
@@ -89,7 +88,9 @@ export default function SpiritualStreaksClient({
           <input
             type="month"
             value={monthKey}
-            onChange={(event) => setMonthKey(event.target.value)}
+            onChange={(event) => {
+              if (event.target.value) setMonthKey(event.target.value);
+            }}
             aria-label="Select month"
           />
           <button
@@ -114,41 +115,44 @@ export default function SpiritualStreaksClient({
       ) : null}
       {feedback ? <div className="warning">{feedback}</div> : null}
 
-      <section className="spiritual-streaks-grid" aria-label="Spiritual streak boards">
-        {data.boards.map((board) => (
-          <SpiritualStreakBoardCard
-            key={board.key}
-            board={board}
-            todayIso={data.todayIso}
-            pending={updateMutation.isPending && pendingBoardKey === board.key}
-            onMark={({ boardKey, date, success }) => {
-              setFeedback(null);
-              setPendingBoardKey(boardKey);
-              updateMutation.mutate(
-                { boardKey, date, success },
-                {
-                  onSuccess: ({ item }) => {
-                    queryClient.setQueryData<SpiritualStreaksPageData | undefined>(
-                      ["spiritual-streaks", monthKey],
-                      (current) => patchBoard(current, item)
-                    );
-                  },
-                  onError: (error) => {
-                    setFeedback(
-                      error instanceof Error
-                        ? error.message
-                        : "Could not update spiritual streak."
-                    );
-                  },
-                  onSettled: () => {
-                    setPendingBoardKey(null);
-                  },
-                }
-              );
-            }}
-          />
-        ))}
-      </section>
+      {data ? (
+        <section className="spiritual-streaks-grid" aria-label="Spiritual streak boards">
+          {data.boards.map((board) => (
+            <SpiritualStreakBoardCard
+              key={board.key}
+              board={board}
+              todayIso={data.todayIso}
+              pending={updateMutation.isPending && pendingBoardKey === board.key}
+              onMark={({ boardKey, date, success }) => {
+                setFeedback(null);
+                setPendingBoardKey(boardKey);
+                updateMutation.mutate(
+                  { boardKey, date, success },
+                  {
+                    onSuccess: ({ item }) => {
+                      queryClient.setQueryData<SpiritualStreaksPageData | undefined>(
+                        ["spiritual-streaks", monthKey],
+                        (current) => patchBoard(current, item)
+                      );
+                      void queryClient.invalidateQueries({ queryKey: ["spiritual-streaks"] });
+                    },
+                    onError: (error) => {
+                      setFeedback(
+                        error instanceof Error
+                          ? error.message
+                          : "Could not update spiritual streak."
+                      );
+                    },
+                    onSettled: () => {
+                      setPendingBoardKey(null);
+                    },
+                  }
+                );
+              }}
+            />
+          ))}
+        </section>
+      ) : null}
     </div>
   );
 }
