@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { addMonths, format } from "date-fns";
+import { addMonths, format, getDate, getDaysInMonth } from "date-fns";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { MinistryDayComputed, MinistryMonthPayload } from "@/lib/types";
 import {
@@ -24,6 +24,7 @@ function formatDifference(value: number | null) {
 
 function readStatusLabel(status: MinistryDayComputed["status"]) {
   if (status === "no_goal") return "No goal";
+  if (status === "planned") return "Planned";
   if (status === "missed") return "Below goal";
   if (status === "partial") return "Partial";
   if (status === "met") return "Met";
@@ -85,6 +86,41 @@ export default function MinistryHoursClient({
       monthQuery.data ? buildMinistryCalendarWeeks(monthQuery.data.days, monthKey) : [],
     [monthKey, monthQuery.data]
   );
+
+  const monthContextCopy = useMemo(() => {
+    if (!monthQuery.data) return "";
+    const todayMonthKey = monthQuery.data.todayIso.slice(0, 7);
+    const viewedMonthDate = monthKeyToDate(monthKey);
+
+    if (monthKey === todayMonthKey) {
+      return `Today is day ${getDate(new Date(`${monthQuery.data.todayIso}T12:00:00`))} of ${getDaysInMonth(viewedMonthDate)}. Future goal days stay neutral until their date arrives.`;
+    }
+
+    if (monthKey < todayMonthKey) {
+      return "This is a past month, so every planned goal day is already due.";
+    }
+
+    return "This is a future month. Your monthly plan is visible now, and pace will start once the month begins.";
+  }, [monthKey, monthQuery.data]);
+
+  const planningMeta = useMemo(() => {
+    if (!monthQuery.data) return "Only manual daily goals count toward this number.";
+    const difference = monthQuery.data.summary.plannedDifferenceFromTargetMinutes;
+
+    if (difference == null) {
+      return "Only manual daily goals count toward this number.";
+    }
+
+    if (difference === 0) {
+      return "Your planned month matches the monthly target exactly.";
+    }
+
+    if (difference > 0) {
+      return `Your plan is ${formatMinutes(difference)} above the monthly target.`;
+    }
+
+    return `Your plan is still missing ${formatMinutes(Math.abs(difference))} to cover the monthly target.`;
+  }, [monthQuery.data]);
 
   const monthlyGoalMutation = useMutation({
     mutationFn: async (targetMinutesValue: number | null) =>
@@ -163,6 +199,7 @@ export default function MinistryHoursClient({
           <p className="ministry-panel-copy">
             Daily goals stay fully manual. The month respects exactly what you plan for each day.
           </p>
+          <p className="ministry-panel-copy">{monthContextCopy}</p>
           <div className="ministry-month-actions">
             <button className="secondary" type="button" onClick={() => changeMonth(-1)}>
               Previous
@@ -183,6 +220,7 @@ export default function MinistryHoursClient({
             <p className="ministry-panel-copy">
               Stored internally in minutes. No automatic distribution across days.
             </p>
+            <p className="ministry-panel-copy">{planningMeta}</p>
           </div>
           <div className="ministry-target-inputs">
             <label>
@@ -241,7 +279,7 @@ export default function MinistryHoursClient({
             <p className="ministry-panel-copy">
               Planned through today: {formatMinutes(data.summary.accumulatedPlannedMinutes)} ·
               Actual through today: {formatMinutes(data.summary.accumulatedActualMinutes)} ·
-              Difference: {formatDifference(data.summary.accumulatedDifferenceMinutes)}
+              Difference: {formatDifference(data.summary.accumulatedDifferenceMinutes)} · Pace only counts days up to today.
             </p>
           </div>
 
