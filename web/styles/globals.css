@@ -3386,6 +3386,259 @@ button.secondary.subtle.danger {
   font-size: 12px;
 }
 
+
+.page-intro-copy.small {
+  max-width: 46ch;
+  font-size: 14px;
+}
+
+.spiritual-streaks-shell {
+  gap: 18px;
+}
+
+.spiritual-streaks-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 20px;
+  padding: 22px 24px;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 250, 243, 0.08), rgba(255, 255, 255, 0.03)),
+    rgba(13, 11, 16, 0.92);
+}
+
+.spiritual-streaks-toolbar h3 {
+  margin: 6px 0 8px;
+  font-size: clamp(1.5rem, 2.6vw, 2rem);
+}
+
+.spiritual-streaks-month-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.spiritual-streaks-month-controls input[type="month"] {
+  min-width: 176px;
+}
+
+button.icon-only {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spiritual-streaks-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.spiritual-streak-board {
+  --streak-accent: var(--accent);
+  position: relative;
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 28px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--streak-accent) 18%, transparent), transparent 38%),
+    linear-gradient(180deg, rgba(255, 250, 243, 0.08), rgba(255, 255, 255, 0.03)),
+    rgba(15, 12, 18, 0.94);
+  box-shadow: 0 20px 42px rgba(0, 0, 0, 0.18);
+}
+
+.spiritual-streak-board-head,
+.spiritual-streak-quick-row,
+.spiritual-streak-editor {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.spiritual-streak-board h3 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.spiritual-streak-board-summary {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.spiritual-streak-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.spiritual-streak-metric-pill {
+  min-width: 86px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.045);
+  display: grid;
+  gap: 2px;
+}
+
+.spiritual-streak-metric-pill.subtle {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.spiritual-streak-metric-value {
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.spiritual-streak-metric-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.spiritual-streak-quick-row {
+  padding: 14px 16px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.035);
+  align-items: center;
+}
+
+.spiritual-streak-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.spiritual-streak-inline-actions,
+.spiritual-streak-editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.spiritual-streak-board .secondary.subtle {
+  min-height: 38px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.spiritual-streak-board .secondary.subtle.active {
+  background: color-mix(in srgb, var(--streak-accent) 40%, rgba(255, 255, 255, 0.08));
+  border-color: color-mix(in srgb, var(--streak-accent) 62%, rgba(255, 255, 255, 0.1));
+  color: #150f0a;
+}
+
+.spiritual-streak-board .secondary.subtle.active.negative {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--text);
+}
+
+.spiritual-streak-weekdays,
+.spiritual-streak-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.spiritual-streak-weekdays span {
+  font-size: 11px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.spiritual-streak-grid-spacer {
+  aspect-ratio: 1;
+}
+
+.spiritual-streak-cell {
+  aspect-ratio: 1;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 6px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, opacity 0.18s ease;
+}
+
+.spiritual-streak-cell span {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.spiritual-streak-cell.success {
+  background: color-mix(in srgb, var(--streak-accent) 72%, rgba(255, 255, 255, 0.12));
+  border-color: color-mix(in srgb, var(--streak-accent) 84%, rgba(255, 255, 255, 0.1));
+  color: #16110d;
+}
+
+.spiritual-streak-cell.failure {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.spiritual-streak-cell.unmarked {
+  background: rgba(255, 255, 255, 0.018);
+  border-style: dashed;
+}
+
+.spiritual-streak-cell.today {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.spiritual-streak-cell.selected {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--streak-accent) 56%, rgba(255, 255, 255, 0.1));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--streak-accent) 32%, transparent);
+}
+
+.spiritual-streak-cell.future {
+  opacity: 0.42;
+  filter: saturate(0.8);
+}
+
+.spiritual-streak-editor {
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  align-items: center;
+}
+
+.spiritual-streak-editor-copy strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.spiritual-streak-editor-copy p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
 @media (max-width: 1280px) {
   .spiritual-overview-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3398,6 +3651,10 @@ button.secondary.subtle.danger {
   }
 
   .spiritual-focus-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .spiritual-streaks-grid {
     grid-template-columns: 1fr;
   }
 
@@ -3431,6 +3688,38 @@ button.secondary.subtle.danger {
 @media (max-width: 760px) {
   .spiritual-overview-grid {
     grid-template-columns: 1fr;
+  }
+
+  .spiritual-streaks-toolbar,
+  .spiritual-streak-board-head,
+  .spiritual-streak-quick-row,
+  .spiritual-streak-editor {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .spiritual-streaks-toolbar,
+  .spiritual-streak-board {
+    border-radius: 22px;
+  }
+
+  .spiritual-streaks-month-controls {
+    width: 100%;
+  }
+
+  .spiritual-streaks-month-controls input[type="month"] {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .spiritual-streak-weekdays,
+  .spiritual-streak-grid {
+    gap: 6px;
+  }
+
+  .spiritual-streak-cell {
+    border-radius: 12px;
+    padding: 5px;
   }
 
   .spiritual-config-overlay {
