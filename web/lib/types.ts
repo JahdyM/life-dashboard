@@ -292,6 +292,7 @@ export type MinistryPaceStatus = "ahead" | "on_track" | "behind" | "no_plan";
 
 export type MinistryDayStatus =
   | "no_goal"
+  | "planned"
   | "missed"
   | "partial"
   | "met"
@@ -333,6 +334,8 @@ export type MinistryDayComputed = {
 export type MinistryMonthSummary = {
   monthKey: string;
   targetMinutes: number | null;
+  totalPlannedMinutes: number;
+  plannedDifferenceFromTargetMinutes: number | null;
   totalCompletedMinutes: number;
   totalRemainingMinutes: number | null;
   completionPercent: number | null;

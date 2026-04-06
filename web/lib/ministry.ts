@@ -72,12 +72,18 @@ export function hoursMinutesToTotalMinutes(hours: number, minutes: number) {
 
 export function deriveMinistryDayStatus(
   goalMinutes: number | null,
-  actualMinutes: number | null
+  actualMinutes: number | null,
+  options?: {
+    isFuture?: boolean;
+  }
 ): MinistryDayStatus {
   if (goalMinutes == null || goalMinutes <= 0) {
     return "no_goal";
   }
   const actual = Math.max(0, actualMinutes || 0);
+  if (options?.isFuture && actual === 0) {
+    return "planned";
+  }
   if (actual === 0) {
     return "missed";
   }
@@ -110,10 +116,16 @@ export function buildMinistryMonthPayload({
 }): MinistryMonthPayload {
   const { startIso, endIso, year, month } = monthKeyToRange(monthKey);
   const entryByDate = new Map(entries.map((entry) => [entry.date, entry]));
+  const totalPlannedMinutes = entries.reduce(
+    (sum, entry) => sum + Math.max(0, entry.goalMinutes || 0),
+    0
+  );
   const totalCompletedMinutes = entries.reduce(
     (sum, entry) => sum + Math.max(0, entry.actualMinutes || 0),
     0
   );
+  const plannedDifferenceFromTargetMinutes =
+    targetMinutes == null ? null : totalPlannedMinutes - targetMinutes;
   const totalRemainingMinutes =
     targetMinutes == null ? null : Math.max(targetMinutes - totalCompletedMinutes, 0);
   const completionPercent =
@@ -141,12 +153,12 @@ export function buildMinistryMonthPayload({
     const actualMinutes = entry?.actualMinutes ?? null;
     const differenceMinutes =
       goalMinutes == null ? null : Math.max(0, actualMinutes || 0) - goalMinutes;
-    const status = deriveMinistryDayStatus(goalMinutes, actualMinutes);
     const isToday = isSameDay(cursor, todayDate);
     const isPast = isBefore(cursor, todayDate) && !isToday;
     const isFuture = isAfter(cursor, todayDate);
+    const status = deriveMinistryDayStatus(goalMinutes, actualMinutes, { isFuture });
 
-    if (goalMinutes != null && goalMinutes > 0) {
+    if (!isFuture && goalMinutes != null && goalMinutes > 0) {
       activeGoalDays += 1;
       if (status === "met" || status === "exceeded") {
         completedGoalDays += 1;
@@ -189,6 +201,8 @@ export function buildMinistryMonthPayload({
   const summary: MinistryMonthSummary = {
     monthKey,
     targetMinutes,
+    totalPlannedMinutes,
+    plannedDifferenceFromTargetMinutes,
     totalCompletedMinutes,
     totalRemainingMinutes,
     completionPercent,
