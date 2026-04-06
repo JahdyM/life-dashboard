@@ -39,21 +39,20 @@ function buildPrimaryAction(args: {
   if (args.hasPendingTasks) {
     return {
       href: "/calendar",
-      label: "Open calendar",
-      eyebrow: args.nextTaskTitle ? "Next scheduled step" : "Next focus",
+      label: "Calendar",
+      eyebrow: "Next",
       description: args.nextTaskTitle
-        ? `Start with ${args.nextTaskTitle}. The calendar is the fastest path back into the day.`
-        : "Your agenda already has something waiting. Open the calendar and continue from there.",
+        ? `Start with ${args.nextTaskTitle}.`
+        : "Your next task is waiting.",
     };
   }
 
   if (!args.hasMood) {
     return {
       href: "/mood",
-      label: "Log mood",
-      eyebrow: "Ground the day",
-      description:
-        "A quick emotional check-in gives the rest of the dashboard better context without adding noise.",
+      label: "Mood",
+      eyebrow: "Mood",
+      description: "Log a quick check-in.",
     };
   }
 
@@ -61,18 +60,16 @@ function buildPrimaryAction(args: {
     return {
       href: "/calendar",
       label: "Plan the day",
-      eyebrow: "Set the shape",
-      description:
-        "Nothing is anchored yet. Add the next task or a quick note so the day has a clear starting point.",
+      eyebrow: "Plan",
+      description: "Set one next step.",
     };
   }
 
   return {
     href: "/calendar",
-    label: "Review calendar",
-    eyebrow: "Stay oriented",
-    description:
-      "The essentials are already moving. Review the day calmly and adjust only what needs attention.",
+    label: "Review",
+    eyebrow: "Review",
+    description: "Check the day.",
   };
 }
 
@@ -96,25 +93,21 @@ export default async function TodayPage() {
     nextTaskTitle: upcomingTasks[0]?.title || null,
   });
   const secondaryLinks = [
-    { href: "/habits", label: "Update habits" },
-    { href: "/mood", label: "Open mood board" },
-    { href: "/couple", label: "Couple pulse" },
+    { href: "/habits", label: "Habits" },
+    { href: "/mood", label: "Mood" },
+    { href: "/couple", label: "Couple" },
   ].filter((item) => item.href !== primaryAction.href);
 
   return (
     <div className="route-stack">
-      <PageSectionIntro
-        eyebrow="Today overview"
-        title="Know what matters next in one calm glance."
-        description="Use this page as the quiet launchpad for the day: one clear next move, the essentials already in motion, and only the sections that deserve attention now."
-      />
+      <PageSectionIntro title="Today" />
 
       <section className="today-grid">
         <article className="today-panel today-panel-hero">
           <div className="today-panel-head today-panel-head-hero">
             <div className="today-hero-copy">
               <p className="panel-kicker">{primaryAction.eyebrow}</p>
-              <h2>{upcomingTasks[0]?.title || "What deserves attention now"}</h2>
+              <h2>{upcomingTasks[0]?.title || "Start here"}</h2>
               <p className="today-panel-copy">{primaryAction.description}</p>
               <div className="today-primary-actions">
                 <Link href={primaryAction.href} className="page-link primary">
@@ -139,13 +132,13 @@ export default async function TodayPage() {
                     {formatTaskMeta(
                       upcomingTasks[0].scheduledTime,
                       upcomingTasks[0].estimatedMinutes
-                    ) || "No time assigned yet"}
+                    ) || "No time set"}
                   </p>
                 </>
               ) : (
                 <>
-                  <strong>The day is still open.</strong>
-                  <p>Use the next action to anchor one useful step and let the rest stay quiet for now.</p>
+                  <strong>The day is open.</strong>
+                  <p>Set one next step.</p>
                 </>
               )}
             </div>
@@ -158,8 +151,7 @@ export default async function TodayPage() {
                   <div>
                     <p className="today-task-title">{task.title}</p>
                     <p className="today-task-meta">
-                      {formatTaskMeta(task.scheduledTime, task.estimatedMinutes) ||
-                        "No time assigned yet"}
+                      {formatTaskMeta(task.scheduledTime, task.estimatedMinutes) || "No time set"}
                     </p>
                   </div>
                   <span className="today-task-state">Pending</span>
@@ -167,10 +159,7 @@ export default async function TodayPage() {
               ))}
             </ul>
           ) : (
-            <div className="today-empty">
-              <p>No pending tasks for today yet.</p>
-              <span>Add one in Calendar, or bring a habit into today&apos;s agenda.</span>
-            </div>
+            <div className="today-empty"><p>No tasks for today.</p></div>
           )}
         </article>
 
@@ -178,10 +167,10 @@ export default async function TodayPage() {
           <div className="today-panel-head compact">
             <div>
               <p className="panel-kicker">Mood</p>
-              <h2>Emotional check-in</h2>
+              <h2>Mood</h2>
             </div>
             <Link href="/mood" className="page-link inline muted">
-              Open mood board
+              Mood
             </Link>
           </div>
           {moodMeta ? (
@@ -196,10 +185,7 @@ export default async function TodayPage() {
               </p>
             </div>
           ) : (
-            <div className="today-empty">
-              <p>No mood logged yet.</p>
-              <span>A quick note here makes the rest of the dashboard more useful.</span>
-            </div>
+            <div className="today-empty"><p>No mood yet.</p></div>
           )}
         </article>
 
@@ -207,10 +193,10 @@ export default async function TodayPage() {
           <div className="today-panel-head compact">
             <div>
               <p className="panel-kicker">Completed</p>
-              <h2>Already done today</h2>
+              <h2>Done</h2>
             </div>
             <Link href="/calendar" className="page-link inline muted">
-              Review tasks
+              Tasks
             </Link>
           </div>
           {completedTasks.length ? (
@@ -223,10 +209,7 @@ export default async function TodayPage() {
               ))}
             </ul>
           ) : (
-            <div className="today-empty">
-              <p>No completed tasks yet.</p>
-              <span>As you finish tasks, this list becomes the day&apos;s proof of progress.</span>
-            </div>
+            <div className="today-empty"><p>Nothing done yet.</p></div>
           )}
         </article>
 
@@ -234,30 +217,27 @@ export default async function TodayPage() {
           <div className="today-panel-head compact">
             <div>
               <p className="panel-kicker">Notes</p>
-              <h2>Today&apos;s scratchpad</h2>
+              <h2>Notes</h2>
             </div>
             <Link href="/calendar" className="page-link inline muted">
-              Open notes pad
+              Notes
             </Link>
           </div>
           {notePreview ? (
             <p className="today-note-preview">{notePreview}</p>
           ) : (
-            <div className="today-empty">
-              <p>Your notes pad is empty.</p>
-              <span>Use it for loose thoughts, errands, or context you want near the schedule.</span>
-            </div>
+            <div className="today-empty"><p>No notes yet.</p></div>
           )}
         </article>
 
         <article className="today-panel today-panel-wide">
           <div className="today-panel-head compact">
             <div>
-              <p className="panel-kicker">Shared rhythm</p>
-              <h2>Streaks that matter to both of you</h2>
+              <p className="panel-kicker">Shared</p>
+              <h2>Streaks</h2>
             </div>
             <Link href="/couple" className="page-link inline muted">
-              Open couple view
+              Couple
             </Link>
           </div>
           {overview.streaks.items.length ? (
@@ -276,10 +256,7 @@ export default async function TodayPage() {
               ))}
             </div>
           ) : (
-            <div className="today-empty">
-              <p>No shared streaks available yet.</p>
-              <span>Once shared habits are active, this section becomes the couple pulse.</span>
-            </div>
+            <div className="today-empty"><p>No shared streaks yet.</p></div>
           )}
         </article>
       </section>
