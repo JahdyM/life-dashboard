@@ -1,10 +1,20 @@
 "use client";
 
-import { memo, useCallback, useMemo, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
+import InlineActionNotice from "@/components/common/InlineActionNotice";
 import { fetchJson } from "@/lib/client/api";
 import { FIXED_SHARED_HABITS, MOOD_PALETTE, WEEKDAY_LABELS_PT } from "@/lib/constants";
-import { format } from "date-fns";
 import type { CustomHabit, DayEntry } from "@/lib/types";
 
 type DayResponse = { entry: DayEntry };
@@ -12,6 +22,20 @@ type CustomHabitsResponse = { items: CustomHabit[] };
 type CustomDoneResponse = { done: Record<string, number> };
 type MeetingDaysResponse = { days: number[] };
 type FamilyDayResponse = { day: number };
+
+type PendingDeleteState = {
+  habit: CustomHabit;
+  index: number;
+};
+
+type MetricDrafts = {
+  sleep_hours: string;
+  anxiety_level: string;
+  work_hours: string;
+  boredom_minutes: string;
+  priority_label: string;
+};
+
 const EMPTY_CUSTOM_HABITS: CustomHabit[] = [];
 const EMPTY_DONE: Record<string, number> = {};
 const EMPTY_DAYS: number[] = [];
@@ -41,6 +65,16 @@ const weekdayFromIso = (iso: string) => {
   return new Date(year, month - 1, day).getDay();
 };
 
+function buildMetricDrafts(entry: DayEntry): MetricDrafts {
+  return {
+    sleep_hours: String(entry.sleepHours ?? 0),
+    anxiety_level: String(entry.anxietyLevel ?? 1),
+    work_hours: String(entry.workHours ?? 0),
+    boredom_minutes: String(entry.boredomMinutes ?? 0),
+    priority_label: entry.priorityLabel ?? "",
+  };
+}
+
 type MeetingDayChipProps = {
   label: string;
   index: number;
@@ -56,7 +90,11 @@ const MeetingDayChip = memo(function MeetingDayChip({
 }: MeetingDayChipProps) {
   const handleClick = useCallback(() => onToggle(index), [index, onToggle]);
   return (
-    <button className={`chip ${active ? "active" : ""}`} onClick={handleClick}>
+    <button
+      type="button"
+      className={`chip ${active ? "active" : ""}`}
+      onClick={handleClick}
+    >
       {label}
     </button>
   );
@@ -78,10 +116,10 @@ const FixedHabitRow = memo(function FixedHabitRow({
   onToggle,
 }: FixedHabitRowProps) {
   const handleChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) =>
-      onToggle(habitKey, event.target.checked),
+    (event: ChangeEvent<HTMLInputElement>) => onToggle(habitKey, event.target.checked),
     [habitKey, onToggle]
   );
+
   return (
     <label className={`habit-row ${disabled ? "disabled" : ""}`}>
       <input type="checkbox" checked={checked} onChange={handleChange} disabled={disabled} />
@@ -94,77 +132,108 @@ type CustomHabitRowProps = {
   habit: CustomHabit;
   checked: boolean;
   isEditing: boolean;
-  editingName: string;
+  draftName: string;
+  busy: boolean;
   onToggle: (id: string, checked: boolean) => void;
   onStartEdit: (habit: CustomHabit) => void;
-  onEditNameChange: (value: string) => void;
-  onSaveEdit: (id: string) => void;
+  onDraftNameChange: (value: string) => void;
+  onSubmitEdit: (habit: CustomHabit) => void;
   onCancelEdit: () => void;
-  onDelete: (id: string) => void;
+  onDelete: (habit: CustomHabit) => void;
 };
 
 const CustomHabitRow = memo(function CustomHabitRow({
   habit,
   checked,
   isEditing,
-  editingName,
+  draftName,
+  busy,
   onToggle,
   onStartEdit,
-  onEditNameChange,
-  onSaveEdit,
+  onDraftNameChange,
+  onSubmitEdit,
   onCancelEdit,
   onDelete,
 }: CustomHabitRowProps) {
   const handleToggle = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) =>
-      onToggle(habit.id, event.target.checked),
+    (event: ChangeEvent<HTMLInputElement>) => onToggle(habit.id, event.target.checked),
     [habit.id, onToggle]
   );
+  const handleDelete = useCallback(() => onDelete(habit), [habit, onDelete]);
   const handleStartEdit = useCallback(() => onStartEdit(habit), [habit, onStartEdit]);
-  const handleSave = useCallback(() => onSaveEdit(habit.id), [habit.id, onSaveEdit]);
-  const handleDelete = useCallback(() => onDelete(habit.id), [habit.id, onDelete]);
-  const handleCancel = useCallback(() => onCancelEdit(), [onCancelEdit]);
-  const handleNameChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) =>
-      onEditNameChange(event.target.value),
-    [onEditNameChange]
+
+  const handleKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        onSubmitEdit(habit);
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCancelEdit();
+      }
+    },
+    [habit, onCancelEdit, onSubmitEdit]
   );
 
+  const handleBlur = useCallback(() => {
+    onSubmitEdit(habit);
+  }, [habit, onSubmitEdit]);
+
   return (
-    <div className="habit-row">
-      <input type="checkbox" checked={checked} onChange={handleToggle} />
+    <div className={`habit-row custom-habit-row ${busy ? "busy" : ""}`}>
+      <input type="checkbox" checked={checked} onChange={handleToggle} disabled={busy} />
+
       {isEditing ? (
-        <>
-          <input className="inline-input" value={editingName} onChange={handleNameChange} />
-          <button className="icon-btn" onClick={handleSave}>
-            ✓
-          </button>
-          <button className="icon-btn" onClick={handleCancel}>
-            ✕
-          </button>
-        </>
+        <input
+          className="inline-input"
+          value={draftName}
+          onChange={(event) => onDraftNameChange(event.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={handleBlur}
+          autoFocus
+          aria-label={`Rename ${habit.name}`}
+        />
       ) : (
-        <>
-          <span>{habit.name}</span>
-          <button className="icon-btn" onClick={handleStartEdit}>
-            ✎
-          </button>
-          <button className="icon-btn" onClick={handleDelete}>
-            🗑
-          </button>
-        </>
+        <button
+          type="button"
+          className="habit-name-button"
+          onClick={handleStartEdit}
+          disabled={busy}
+        >
+          {habit.name}
+        </button>
       )}
+
+      <div className="habit-row-actions">
+        <button type="button" className="icon-btn" onClick={handleStartEdit} disabled={busy}>
+          Edit
+        </button>
+        <button type="button" className="icon-btn danger" onClick={handleDelete} disabled={busy}>
+          Remove
+        </button>
+      </div>
     </div>
   );
 });
 
 export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string }) {
   const queryClient = useQueryClient();
+  const deleteTimeoutRef = useRef<number | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [newHabit, setNewHabit] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<PendingDeleteState | null>(null);
+  const [metricDrafts, setMetricDrafts] = useState<MetricDrafts>({
+    sleep_hours: "0",
+    anxiety_level: "1",
+    work_hours: "0",
+    boredom_minutes: "0",
+    priority_label: "",
+  });
 
   const dayQuery = useQuery({
     queryKey: ["day", selectedDate],
@@ -187,12 +256,21 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
     queryFn: () => fetchJson<FamilyDayResponse>("/api/settings/family-worship-day"),
   });
 
+  const hasBlockingData =
+    Boolean(dayQuery.data) &&
+    Boolean(customHabitsQuery.data) &&
+    Boolean(customDoneQuery.data) &&
+    Boolean(meetingDaysQuery.data) &&
+    Boolean(familyDayQuery.data);
+
   const queryLoading =
-    dayQuery.isPending ||
-    customHabitsQuery.isPending ||
-    customDoneQuery.isPending ||
-    meetingDaysQuery.isPending ||
-    familyDayQuery.isPending;
+    !hasBlockingData &&
+    (dayQuery.isPending ||
+      customHabitsQuery.isPending ||
+      customDoneQuery.isPending ||
+      meetingDaysQuery.isPending ||
+      familyDayQuery.isPending);
+
   const queryError =
     dayQuery.isError ||
     customHabitsQuery.isError ||
@@ -201,11 +279,11 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
     familyDayQuery.isError;
 
   const retryAllQueries = useCallback(() => {
-    dayQuery.refetch();
-    customHabitsQuery.refetch();
-    customDoneQuery.refetch();
-    meetingDaysQuery.refetch();
-    familyDayQuery.refetch();
+    void dayQuery.refetch();
+    void customHabitsQuery.refetch();
+    void customDoneQuery.refetch();
+    void meetingDaysQuery.refetch();
+    void familyDayQuery.refetch();
   }, [dayQuery, customHabitsQuery, customDoneQuery, meetingDaysQuery, familyDayQuery]);
 
   const dayEntry = dayQuery.data?.entry || {};
@@ -219,6 +297,18 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
     [meetingDaysQuery.data?.days]
   );
   const familyDay = familyDayQuery.data?.day ?? 6;
+
+  useEffect(() => {
+    setMetricDrafts(buildMetricDrafts(dayEntry));
+  }, [dayEntry]);
+
+  useEffect(() => {
+    return () => {
+      if (deleteTimeoutRef.current) {
+        window.clearTimeout(deleteTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const meetingDays = useMemo(() => {
     const unique = Array.from(new Set(meetingDaysRaw));
@@ -249,8 +339,17 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
     return dayIndex === familyDay;
   }, [familyDay, selectedDate]);
 
+  const patchCustomHabitsCache = useCallback(
+    (updater: (items: CustomHabit[]) => CustomHabit[]) => {
+      queryClient.setQueryData<CustomHabitsResponse | undefined>(["custom-habits"], (current) => ({
+        items: updater(current?.items ?? EMPTY_CUSTOM_HABITS),
+      }));
+    },
+    [queryClient]
+  );
+
   const updateDay = useMutation({
-    mutationFn: (payload: Record<string, number | string>) =>
+    mutationFn: (payload: Record<string, number | string | null>) =>
       fetchJson<DayResponse>(`/api/day/${selectedDate}`, {
         method: "PATCH",
         body: JSON.stringify(payload),
@@ -260,7 +359,13 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
       await queryClient.cancelQueries({ queryKey: ["day", selectedDate] });
       const previous = queryClient.getQueryData<DayResponse>(["day", selectedDate]);
       queryClient.setQueryData(["day", selectedDate], (old: DayResponse | undefined) => ({
-        entry: { ...(old?.entry || {}), ...payload },
+        entry: {
+          ...(old?.entry || {}),
+          ...Object.entries(payload).reduce((acc, [key, value]) => {
+            acc[toCamel(key)] = value;
+            return acc;
+          }, {} as Record<string, string | number | null>),
+        },
       }));
       return { previous };
     },
@@ -269,9 +374,6 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
         queryClient.setQueryData(["day", selectedDate], context.previous);
       }
       setMutationError(readMutationError(error, "Could not update daily fields."));
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["day", selectedDate] });
     },
   });
 
@@ -297,20 +399,18 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
       }
       setMutationError(readMutationError(error, "Could not update custom habit state."));
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["custom-habits-done", selectedDate] });
-    },
   });
 
   const addHabit = useMutation({
     mutationFn: (name: string) =>
-      fetchJson("/api/habits/custom", {
+      fetchJson<{ habit: CustomHabit }>("/api/habits/custom", {
         method: "POST",
         body: JSON.stringify({ name }),
       }),
-    onSuccess: () => {
+    onSuccess: ({ habit }) => {
       setMutationError(null);
-      queryClient.invalidateQueries({ queryKey: ["custom-habits"] });
+      patchCustomHabitsCache((items) => [...items, habit]);
+      setNewHabit("");
     },
     onError: (error) => {
       setMutationError(readMutationError(error, "Could not add habit."));
@@ -353,29 +453,49 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
         method: "PATCH",
         body: JSON.stringify({ name: payload.name }),
       }),
-    onSuccess: () => {
+    onMutate: async (payload) => {
       setMutationError(null);
-      queryClient.invalidateQueries({ queryKey: ["custom-habits"] });
+      await queryClient.cancelQueries({ queryKey: ["custom-habits"] });
+      const previous = queryClient.getQueryData<CustomHabitsResponse>(["custom-habits"]);
+      patchCustomHabitsCache((items) =>
+        items.map((habit) =>
+          habit.id === payload.id ? { ...habit, name: payload.name } : habit
+        )
+      );
+      return { previous };
+    },
+    onSuccess: () => {
       setEditingId(null);
       setEditingName("");
     },
-    onError: (error) => {
+    onError: (error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["custom-habits"], context.previous);
+      }
       setMutationError(readMutationError(error, "Could not rename habit."));
     },
   });
 
   const deleteHabit = useMutation({
-    mutationFn: (id: string) => fetchJson(`/api/habits/custom/${id}`, { method: "DELETE" }),
+    mutationFn: ({ id }: { id: string; restore: PendingDeleteState }) =>
+      fetchJson(`/api/habits/custom/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       setMutationError(null);
-      queryClient.invalidateQueries({ queryKey: ["custom-habits"] });
     },
-    onError: (error) => {
-      setMutationError(readMutationError(error, "Could not delete habit."));
+    onError: (error, variables) => {
+      patchCustomHabitsCache((items) => {
+        if (items.some((item) => item.id === variables.restore.habit.id)) {
+          return items;
+        }
+        const next = [...items];
+        next.splice(Math.min(variables.restore.index, next.length), 0, variables.restore.habit);
+        return next;
+      });
+      setMutationError(readMutationError(error, "Could not remove habit."));
     },
   });
 
-  const mutationSaving =
+  const mutationBusy =
     updateDay.isPending ||
     updateCustomDone.isPending ||
     addHabit.isPending ||
@@ -384,12 +504,37 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
     updateHabit.isPending ||
     deleteHabit.isPending;
 
-  const handleDateChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      setSelectedDate(event.target.value);
-    },
-    []
-  );
+  const commitPendingDelete = useCallback(() => {
+    if (!pendingDelete) return;
+    if (deleteTimeoutRef.current) {
+      window.clearTimeout(deleteTimeoutRef.current);
+      deleteTimeoutRef.current = null;
+    }
+    const restore = pendingDelete;
+    setPendingDelete(null);
+    deleteHabit.mutate({ id: restore.habit.id, restore });
+  }, [deleteHabit, pendingDelete]);
+
+  const undoPendingDelete = useCallback(() => {
+    if (!pendingDelete) return;
+    if (deleteTimeoutRef.current) {
+      window.clearTimeout(deleteTimeoutRef.current);
+      deleteTimeoutRef.current = null;
+    }
+    patchCustomHabitsCache((items) => {
+      if (items.some((item) => item.id === pendingDelete.habit.id)) {
+        return items;
+      }
+      const next = [...items];
+      next.splice(Math.min(pendingDelete.index, next.length), 0, pendingDelete.habit);
+      return next;
+    });
+    setPendingDelete(null);
+  }, [patchCustomHabitsCache, pendingDelete]);
+
+  const handleDateChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setSelectedDate(event.target.value);
+  }, []);
 
   const handleMeetingDayToggle = useCallback(
     (index: number) => {
@@ -402,7 +547,7 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
   );
 
   const handleFamilyDayChange = useCallback(
-    (event: React.ChangeEvent<HTMLSelectElement>) => {
+    (event: ChangeEvent<HTMLSelectElement>) => {
       updateFamilyDay.mutate(Number(event.target.value));
     },
     [updateFamilyDay]
@@ -428,103 +573,215 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
     setEditingName(habit.name);
   }, []);
 
-  const handleEditNameChange = useCallback((value: string) => {
+  const handleDraftNameChange = useCallback((value: string) => {
     setEditingName(value);
   }, []);
-
-  const handleSaveEdit = useCallback(
-    (id: string) => {
-      if (!editingName.trim()) return;
-      updateHabit.mutate({ id, name: editingName.trim() });
-    },
-    [editingName, updateHabit]
-  );
 
   const handleCancelEdit = useCallback(() => {
     setEditingId(null);
     setEditingName("");
   }, []);
 
-  const handleDeleteHabit = useCallback(
-    (id: string) => {
-      if (confirm("Excluir este hábito?")) {
-        deleteHabit.mutate(id);
+  const handleSubmitEdit = useCallback(
+    (habit: CustomHabit) => {
+      const next = editingName.trim();
+      if (editingId !== habit.id) return;
+      if (!next) {
+        setEditingName(habit.name);
+        setEditingId(null);
+        return;
       }
+      if (next === habit.name) {
+        setEditingId(null);
+        setEditingName("");
+        return;
+      }
+      updateHabit.mutate({ id: habit.id, name: next });
     },
-    [deleteHabit]
+    [editingId, editingName, updateHabit]
   );
 
-  const handleNewHabitChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      setNewHabit(event.target.value);
+  const handleDeleteHabit = useCallback(
+    (habit: CustomHabit) => {
+      if (pendingDelete) {
+        commitPendingDelete();
+      }
+
+      const currentItems = customHabitsQuery.data?.items ?? EMPTY_CUSTOM_HABITS;
+      const index = currentItems.findIndex((item) => item.id === habit.id);
+      if (index === -1) return;
+
+      patchCustomHabitsCache((items) => items.filter((item) => item.id !== habit.id));
+      setPendingDelete({ habit, index });
+      setEditingId((current) => (current === habit.id ? null : current));
+      setEditingName((current) => (editingId === habit.id ? "" : current));
+
+      deleteTimeoutRef.current = window.setTimeout(() => {
+        setPendingDelete((current) => {
+          if (!current || current.habit.id !== habit.id) return current;
+          deleteTimeoutRef.current = null;
+          deleteHabit.mutate({ id: current.habit.id, restore: current });
+          return null;
+        });
+      }, 4200);
     },
-    []
+    [commitPendingDelete, customHabitsQuery.data?.items, deleteHabit, editingId, patchCustomHabitsCache, pendingDelete]
   );
+
+  const handleNewHabitChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    setNewHabit(event.target.value);
+  }, []);
 
   const submitNewHabit = useCallback(() => {
     const value = newHabit.trim();
-    if (!value) return;
+    if (!value || addHabit.isPending) return;
     addHabit.mutate(value);
-    setNewHabit("");
-  }, [newHabit, addHabit]);
+  }, [addHabit, newHabit]);
 
   const handleNewHabitKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLInputElement>) => {
-      if (event.key !== "Enter") return;
-      event.preventDefault();
-      submitNewHabit();
+    (event: ReactKeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        submitNewHabit();
+      }
+      if (event.key === "Escape") {
+        setNewHabit("");
+      }
     },
     [submitNewHabit]
   );
 
+  const commitMetric = useCallback(
+    (field: keyof MetricDrafts) => {
+      const current = metricDrafts[field];
+      if (field === "priority_label") {
+        const nextValue = current.trim();
+        const existingValue = dayEntry.priorityLabel?.trim() || "";
+        if (nextValue === existingValue) return;
+        updateDay.mutate({ priority_label: nextValue || null });
+        return;
+      }
+
+      const numericValue = Math.max(0, Number(current || 0));
+      const currentValueByField: Record<Exclude<keyof MetricDrafts, "priority_label">, number> = {
+        sleep_hours: Number(dayEntry.sleepHours ?? 0),
+        anxiety_level: Number(dayEntry.anxietyLevel ?? 1),
+        work_hours: Number(dayEntry.workHours ?? 0),
+        boredom_minutes: Number(dayEntry.boredomMinutes ?? 0),
+      };
+      if (numericValue === currentValueByField[field]) return;
+      updateDay.mutate({ [field]: numericValue });
+    },
+    [dayEntry, metricDrafts, updateDay]
+  );
+
+  const resetMetric = useCallback(
+    (field: keyof MetricDrafts) => {
+      setMetricDrafts((current) => ({
+        ...current,
+        [field]: buildMetricDrafts(dayEntry)[field],
+      }));
+    },
+    [dayEntry]
+  );
+
+  const handleMetricChange = useCallback(
+    (field: keyof MetricDrafts, value: string) => {
+      setMetricDrafts((current) => ({ ...current, [field]: value }));
+    },
+    []
+  );
+
+  const handleMetricKeyDown = useCallback(
+    (field: keyof MetricDrafts, event: ReactKeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commitMetric(field);
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        resetMetric(field);
+        (event.currentTarget as HTMLInputElement).blur();
+      }
+    },
+    [commitMetric, resetMetric]
+  );
+
   return (
     <div className="tab-grid">
-      <div className="card">
-        {queryLoading ? <div className="query-status">Loading habits data...</div> : null}
+      <div className="card habits-primary-card">
+        {queryLoading ? <div className="query-status quiet">Loading habits...</div> : null}
         {queryError ? (
-          <div className="query-status error">
-            <span>Could not load habits data.</span>
-            <button className="secondary" onClick={retryAllQueries}>
-              Retry
-            </button>
-          </div>
+          <InlineActionNotice
+            tone="error"
+            title="Could not load habits right now"
+            body="The page is still intact, but some sections need a refresh."
+            actionLabel="Retry"
+            onAction={retryAllQueries}
+          />
         ) : null}
-        {mutationSaving ? <div className="query-status">Saving changes...</div> : null}
-        {mutationError ? <div className="warning">{mutationError}</div> : null}
+        {mutationError ? (
+          <InlineActionNotice tone="warning" body={mutationError} />
+        ) : null}
+        {pendingDelete ? (
+          <InlineActionNotice
+            tone="default"
+            title="Habit removed"
+            body={`“${pendingDelete.habit.name}” will be hidden unless you undo.`}
+            actionLabel="Undo"
+            onAction={undoPendingDelete}
+            secondaryLabel="Remove now"
+            onSecondary={commitPendingDelete}
+          />
+        ) : null}
 
-        <div className="form-row">
-          <label htmlFor="habits-date">Date</label>
-          <input id="habits-date" type="date" value={selectedDate} onChange={handleDateChange} />
-        </div>
-
-        <div className="form-row">
-          <div id="meeting-days-label">Weekly meeting days</div>
-          <div className="chip-row" role="group" aria-labelledby="meeting-days-label">
-            {WEEKDAY_LABELS_PT.map((label, index) => (
-              <MeetingDayChip
-                key={label}
-                label={label}
-                index={index}
-                active={meetingDays.includes(index)}
-                onToggle={handleMeetingDayToggle}
-              />
-            ))}
+        <section className="habits-setup-block">
+          <div className="habits-section-head">
+            <div>
+              <p className="panel-kicker">Setup</p>
+              <h3>Choose what applies this week</h3>
+            </div>
           </div>
-        </div>
 
-        <div className="form-row">
-          <label htmlFor="family-day-select">Adoração em família (dia)</label>
-          <select id="family-day-select" value={familyDay} onChange={handleFamilyDayChange}>
-            {WEEKDAY_LABELS_PT.map((label, index) => (
-              <option key={label} value={index}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
+          <div className="form-row">
+            <label htmlFor="habits-date">Date</label>
+            <input id="habits-date" type="date" value={selectedDate} onChange={handleDateChange} />
+          </div>
 
-        <div className="section">
-          <h3>Fixed shared habits</h3>
+          <div className="form-row">
+            <div id="meeting-days-label">Weekly meeting days</div>
+            <div className="chip-row" role="group" aria-labelledby="meeting-days-label">
+              {WEEKDAY_LABELS_PT.map((label, index) => (
+                <MeetingDayChip
+                  key={label}
+                  label={label}
+                  index={index}
+                  active={meetingDays.includes(index)}
+                  onToggle={handleMeetingDayToggle}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="form-row">
+            <label htmlFor="family-day-select">Adoração em família (dia)</label>
+            <select id="family-day-select" value={familyDay} onChange={handleFamilyDayChange}>
+              {WEEKDAY_LABELS_PT.map((label, index) => (
+                <option key={label} value={index}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </section>
+
+        <section className="section">
+          <div className="habits-section-head">
+            <div>
+              <p className="panel-kicker">Today</p>
+              <h3>Fixed shared habits</h3>
+            </div>
+          </div>
           <div className="habit-list">
             {FIXED_SHARED_HABITS.map((habit) => {
               const isMeetingHabit =
@@ -544,10 +801,17 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
               );
             })}
           </div>
-        </div>
+        </section>
 
-        <div className="section">
-          <h3>Personal habits (custom)</h3>
+        <section className="section">
+          <div className="habits-section-head split">
+            <div>
+              <p className="panel-kicker">Personal</p>
+              <h3>Custom habits</h3>
+            </div>
+            <p className="section-hint">Enter adds or saves. Escape cancels inline editing.</p>
+          </div>
+
           <div className="habit-list">
             {uniqueCustomHabits.map((habit) => (
               <CustomHabitRow
@@ -555,17 +819,19 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
                 habit={habit}
                 checked={Boolean(customDone[habit.id])}
                 isEditing={editingId === habit.id}
-                editingName={editingName}
+                draftName={editingId === habit.id ? editingName : habit.name}
+                busy={mutationBusy}
                 onToggle={handleCustomToggle}
                 onStartEdit={handleStartEdit}
-                onEditNameChange={handleEditNameChange}
-                onSaveEdit={handleSaveEdit}
+                onDraftNameChange={handleDraftNameChange}
+                onSubmitEdit={handleSubmitEdit}
                 onCancelEdit={handleCancelEdit}
                 onDelete={handleDeleteHabit}
               />
             ))}
           </div>
-          <div className="form-row add-row">
+
+          <div className="form-row add-row quiet-add-row">
             <input
               type="text"
               placeholder="Add habit"
@@ -573,14 +839,22 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
               onChange={handleNewHabitChange}
               onKeyDown={handleNewHabitKeyDown}
             />
-            <button className="secondary" onClick={submitNewHabit}>
-              Add
+            <button className="secondary subtle" type="button" onClick={submitNewHabit} disabled={addHabit.isPending || !newHabit.trim()}>
+              {addHabit.isPending ? "Adding..." : "Add"}
             </button>
           </div>
-        </div>
+        </section>
       </div>
 
       <div className="card">
+        <div className="habits-section-head">
+          <div>
+            <p className="panel-kicker">Daily metrics</p>
+            <h3>Capture only what matters for today</h3>
+          </div>
+          <p className="section-hint">Blur or press Enter to save. Escape restores the current value.</p>
+        </div>
+
         <div className="metrics-grid">
           <div className="form-row">
             <label htmlFor="metric-sleep">Sleep hours</label>
@@ -588,8 +862,10 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
               id="metric-sleep"
               type="number"
               step="0.5"
-              value={dayEntry.sleepHours || 0}
-              onChange={(event) => updateDay.mutate({ sleep_hours: Number(event.target.value) })}
+              value={metricDrafts.sleep_hours}
+              onChange={(event) => handleMetricChange("sleep_hours", event.target.value)}
+              onBlur={() => commitMetric("sleep_hours")}
+              onKeyDown={(event) => handleMetricKeyDown("sleep_hours", event)}
             />
           </div>
           <div className="form-row">
@@ -599,8 +875,10 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
               type="number"
               min="1"
               max="10"
-              value={dayEntry.anxietyLevel || 1}
-              onChange={(event) => updateDay.mutate({ anxiety_level: Number(event.target.value) })}
+              value={metricDrafts.anxiety_level}
+              onChange={(event) => handleMetricChange("anxiety_level", event.target.value)}
+              onBlur={() => commitMetric("anxiety_level")}
+              onKeyDown={(event) => handleMetricKeyDown("anxiety_level", event)}
             />
           </div>
           <div className="form-row">
@@ -609,8 +887,10 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
               id="metric-work"
               type="number"
               step="0.5"
-              value={dayEntry.workHours || 0}
-              onChange={(event) => updateDay.mutate({ work_hours: Number(event.target.value) })}
+              value={metricDrafts.work_hours}
+              onChange={(event) => handleMetricChange("work_hours", event.target.value)}
+              onBlur={() => commitMetric("work_hours")}
+              onKeyDown={(event) => handleMetricKeyDown("work_hours", event)}
             />
           </div>
           <div className="form-row">
@@ -619,10 +899,10 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
               id="metric-boredom"
               type="number"
               min="0"
-              value={dayEntry.boredomMinutes || 0}
-              onChange={(event) =>
-                updateDay.mutate({ boredom_minutes: Number(event.target.value) })
-              }
+              value={metricDrafts.boredom_minutes}
+              onChange={(event) => handleMetricChange("boredom_minutes", event.target.value)}
+              onBlur={() => commitMetric("boredom_minutes")}
+              onKeyDown={(event) => handleMetricKeyDown("boredom_minutes", event)}
             />
           </div>
           <div className="form-row">
@@ -644,8 +924,10 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
             <input
               id="metric-priority"
               type="text"
-              value={dayEntry.priorityLabel || ""}
-              onChange={(event) => updateDay.mutate({ priority_label: event.target.value })}
+              value={metricDrafts.priority_label}
+              onChange={(event) => handleMetricChange("priority_label", event.target.value)}
+              onBlur={() => commitMetric("priority_label")}
+              onKeyDown={(event) => handleMetricKeyDown("priority_label", event)}
             />
           </div>
           <label className="habit-row">
