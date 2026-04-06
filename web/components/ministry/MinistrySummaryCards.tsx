@@ -14,18 +14,18 @@ function formatPlanningMeta(
   targetMinutes: number | null
 ) {
   if (targetMinutes == null || difference == null) {
-    return "Total manual goal entered in the month";
+    return "Manual plan";
   }
 
   if (difference === 0) {
-    return "Your plan fully covers the monthly target";
+    return "Target covered";
   }
 
   if (difference > 0) {
-    return `${formatMinutes(difference)} above the target`;
+    return `${formatMinutes(difference)} over`;
   }
 
-  return `${formatMinutes(Math.abs(difference))} still missing in the plan`;
+  return `${formatMinutes(Math.abs(difference))} short`;
 }
 
 export default function MinistrySummaryCards({
@@ -37,10 +37,10 @@ export default function MinistrySummaryCards({
     {
       label: "Monthly goal",
       value: summary.targetMinutes == null ? "Not set" : formatMinutes(summary.targetMinutes),
-      meta: "Manual monthly target",
+      meta: "Monthly target",
     },
     {
-      label: "Planned in month",
+      label: "Planned",
       value: formatMinutes(summary.totalPlannedMinutes),
       meta: formatPlanningMeta(
         summary.plannedDifferenceFromTargetMinutes,
@@ -56,7 +56,7 @@ export default function MinistrySummaryCards({
     {
       label: "Completed",
       value: formatMinutes(summary.totalCompletedMinutes),
-      meta: "Total actual time logged",
+      meta: "Logged",
     },
     {
       label: "Remaining",
@@ -64,36 +64,36 @@ export default function MinistrySummaryCards({
         summary.totalRemainingMinutes == null
           ? "No target"
           : formatMinutes(summary.totalRemainingMinutes),
-      meta: "Target minus total completed",
+      meta: "To target",
     },
     {
       label: "Completion",
       value:
         summary.completionPercent == null ? "—" : `${summary.completionPercent.toFixed(1)}%`,
-      meta: "Progress toward the month",
+      meta: "Of target",
     },
     {
-      label: "Planned through today",
+      label: "Planned to date",
       value: formatMinutes(summary.accumulatedPlannedMinutes),
-      meta: "Only manual daily goals count",
+      meta: "Manual plan",
     },
     {
-      label: "Actual through today",
+      label: "Actual to date",
       value: formatMinutes(summary.accumulatedActualMinutes),
-      meta: "Logged time up to today",
+      meta: "Logged",
     },
     {
-      label: "Difference through today",
+      label: "Difference",
       value: formatDifference(summary.accumulatedDifferenceMinutes),
-      meta: "Actual minus planned",
+      meta: "Actual vs plan",
     },
     {
       label: "Pace",
       value: summary.paceLabel,
       meta:
         summary.activeGoalDays > 0
-          ? `${summary.completedGoalDays}/${summary.activeGoalDays} due goal days met so far`
-          : "No goal day is due yet",
+          ? `${summary.completedGoalDays}/${summary.activeGoalDays} due days`
+          : "No due days",
       accent:
         summary.paceStatus === "ahead"
           ? "success"

@@ -93,33 +93,33 @@ export default function MinistryHoursClient({
     const viewedMonthDate = monthKeyToDate(monthKey);
 
     if (monthKey === todayMonthKey) {
-      return `Today is day ${getDate(new Date(`${monthQuery.data.todayIso}T12:00:00`))} of ${getDaysInMonth(viewedMonthDate)}. Future goal days stay neutral until their date arrives.`;
+      return `Day ${getDate(new Date(`${monthQuery.data.todayIso}T12:00:00`))} of ${getDaysInMonth(viewedMonthDate)}`;
     }
 
     if (monthKey < todayMonthKey) {
-      return "This is a past month, so every planned goal day is already due.";
+      return "Past month";
     }
 
-    return "This is a future month. Your monthly plan is visible now, and pace will start once the month begins.";
+    return "Future month";
   }, [monthKey, monthQuery.data]);
 
   const planningMeta = useMemo(() => {
-    if (!monthQuery.data) return "Only manual daily goals count toward this number.";
+    if (!monthQuery.data) return "Manual plan";
     const difference = monthQuery.data.summary.plannedDifferenceFromTargetMinutes;
 
     if (difference == null) {
-      return "Only manual daily goals count toward this number.";
+      return "Manual plan";
     }
 
     if (difference === 0) {
-      return "Your planned month matches the monthly target exactly.";
+      return "Target covered";
     }
 
     if (difference > 0) {
-      return `Your plan is ${formatMinutes(difference)} above the monthly target.`;
+      return `${formatMinutes(difference)} over`;
     }
 
-    return `Your plan is still missing ${formatMinutes(Math.abs(difference))} to cover the monthly target.`;
+    return `${formatMinutes(Math.abs(difference))} short`;
   }, [monthQuery.data]);
 
   const monthlyGoalMutation = useMutation({
@@ -196,16 +196,13 @@ export default function MinistryHoursClient({
         <div className="ministry-month-panel">
           <p className="panel-kicker">Ministry hours</p>
           <h2>{format(monthKeyToDate(monthKey), "MMMM yyyy")}</h2>
-          <p className="ministry-panel-copy">
-            Daily goals stay fully manual. The month respects exactly what you plan for each day.
-          </p>
           <p className="ministry-panel-copy">{monthContextCopy}</p>
           <div className="ministry-month-actions">
             <button className="secondary" type="button" onClick={() => changeMonth(-1)}>
-              Previous
+              Prev
             </button>
             <button className="secondary" type="button" onClick={goToCurrentMonth}>
-              Current month
+              Current
             </button>
             <button className="secondary" type="button" onClick={() => changeMonth(1)}>
               Next
@@ -217,9 +214,6 @@ export default function MinistryHoursClient({
           <div>
             <p className="panel-kicker">Monthly target</p>
             <h2>{data?.summary.targetMinutes == null ? "Set your goal" : formatMinutes(data.summary.targetMinutes)}</h2>
-            <p className="ministry-panel-copy">
-              Stored internally in minutes. No automatic distribution across days.
-            </p>
             <p className="ministry-panel-copy">{planningMeta}</p>
           </div>
           <div className="ministry-target-inputs">
@@ -245,7 +239,7 @@ export default function MinistryHoursClient({
           </div>
           <div className="ministry-target-actions">
             <button className="primary" type="button" onClick={saveMonthlyGoal}>
-              {monthlyGoalMutation.isPending ? "Saving..." : "Save monthly goal"}
+              {monthlyGoalMutation.isPending ? "Saving..." : "Save"}
             </button>
             <button
               className="secondary"
@@ -262,7 +256,7 @@ export default function MinistryHoursClient({
       {feedback ? <div className="query-status">{feedback}</div> : null}
       {monthQuery.isError ? (
         <div className="query-status error">
-          <span>Could not load ministry hours for this month.</span>
+          <span>Could not load this month.</span>
           <button className="secondary" type="button" onClick={() => monthQuery.refetch()}>
             Retry
           </button>
@@ -277,9 +271,9 @@ export default function MinistryHoursClient({
               <h2>{data.summary.paceLabel}</h2>
             </div>
             <p className="ministry-panel-copy">
-              Planned through today: {formatMinutes(data.summary.accumulatedPlannedMinutes)} ·
-              Actual through today: {formatMinutes(data.summary.accumulatedActualMinutes)} ·
-              Difference: {formatDifference(data.summary.accumulatedDifferenceMinutes)} · Pace only counts days up to today.
+              {formatMinutes(data.summary.accumulatedPlannedMinutes)} planned ·{" "}
+              {formatMinutes(data.summary.accumulatedActualMinutes)} actual ·{" "}
+              {formatDifference(data.summary.accumulatedDifferenceMinutes)}
             </p>
           </div>
 
@@ -289,23 +283,16 @@ export default function MinistryHoursClient({
           data.summary.activeGoalDays === 0 &&
           data.summary.totalCompletedMinutes === 0 ? (
             <div className="ministry-empty-banner">
-              <h3>Start with the monthly target or any individual day.</h3>
-              <p>
-                Nothing is auto-filled here. You decide the month goal and each day&apos;s plan
-                manually.
-              </p>
+              <h3>Set a target or open a day.</h3>
             </div>
           ) : null}
 
           <section className="ministry-calendar card">
             <div className="ministry-calendar-head">
               <div>
-                <p className="panel-kicker">Monthly calendar</p>
+                <p className="panel-kicker">Calendar</p>
                 <h2>Planned vs completed</h2>
               </div>
-              <p className="ministry-panel-copy">
-                Tap any day to enter a manual goal, actual time, and note.
-              </p>
             </div>
 
             <div className="ministry-weekdays">

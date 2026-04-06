@@ -1977,7 +1977,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           {tasksQuery.isError ? (
             <InlineActionNotice
               tone="error"
-              title="Couldn&apos;t load tasks"
+              title="Couldn't load tasks"
               body="Refresh to try again."
               actionLabel="Retry"
               onAction={() => {

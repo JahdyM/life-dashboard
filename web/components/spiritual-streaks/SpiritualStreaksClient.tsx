@@ -106,7 +106,7 @@ export default function SpiritualStreaksClient({
       {streaksQuery.isPending ? <div className="query-status">Loading…</div> : null}
       {streaksQuery.isError ? (
         <div className="query-status error">
-          <span>Couldn&apos;t load streaks.</span>
+          <span>Couldn't load streaks.</span>
           <button className="secondary" onClick={() => streaksQuery.refetch()}>
             Retry
           </button>

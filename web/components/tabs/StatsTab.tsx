@@ -458,13 +458,9 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
       </div>
 
       <div className="section stats-simple-mode">
-        <h3>Modo simples</h3>
-        <p className="stats-helper">
-          Mantive os 4 gráficos principais e deixei as análises avançadas como opcionais para
-          ficar mais fácil de interpretar.
-        </p>
+        <h3>Simple</h3>
         <button className="secondary" onClick={() => setShowAdvanced((value) => !value)}>
-          {showAdvanced ? "Ocultar análises avançadas" : "Mostrar análises avançadas"}
+          {showAdvanced ? "Hide more" : "Show more"}
         </button>
       </div>
 

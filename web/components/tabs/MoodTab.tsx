@@ -257,11 +257,11 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
             </div>
           </div>
           <div className="form-row">
-            <label htmlFor="mood-feeling">Specific feeling for this day</label>
+            <label htmlFor="mood-feeling">Feeling</label>
             <input
               id="mood-feeling"
               type="text"
-              placeholder="Ex: confiante, sensível, sobrecarregada..."
+              placeholder="Optional note"
               value={editorFeeling}
               onChange={(event) => setEditorFeeling(event.target.value)}
             />
@@ -278,10 +278,10 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
               }
               disabled={saveMoodDay.isPending}
             >
-              {saveMoodDay.isPending ? "Saving..." : "Save mood"}
+              {saveMoodDay.isPending ? "Saving..." : "Save"}
             </button>
             <span className="mood-editor-hint">
-              {selectedEntry?.moodNote ? `Current note: ${selectedEntry.moodNote}` : "No custom feeling saved yet."}
+              {selectedEntry?.moodNote ? `Note: ${selectedEntry.moodNote}` : "No note."}
             </span>
           </div>
         </div>

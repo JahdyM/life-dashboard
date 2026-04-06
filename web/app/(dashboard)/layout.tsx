@@ -108,7 +108,7 @@ export default async function DashboardLayout({
                 ? `Starts at ${shell.nextTask.scheduledTime}`
                 : moodMeta
                   ? `Mood check: ${moodMeta.emoji} ${MOOD_LABELS_EN[moodMeta.key] || moodMeta.label}`
-                  : "Add a task or log your mood to shape the rest of the day."}
+                  : "Add a task or mood."}
             </p>
           </article>
         </section>
@@ -117,7 +117,7 @@ export default async function DashboardLayout({
           <div className="shell-streak-head">
             <div>
               <p className="shell-kicker">Shared streaks</p>
-              <h2>Keep the shared habits visible without opening another section.</h2>
+              <h2>Shared streaks</h2>
             </div>
             {shell.streaks.warning ? (
               <p className="shell-streak-warning">{shell.streaks.warning}</p>

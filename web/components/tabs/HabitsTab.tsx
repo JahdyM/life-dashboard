@@ -728,7 +728,7 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
         {queryError ? (
           <InlineActionNotice
             tone="error"
-            title="Couldn&apos;t load habits"
+            title="Couldn't load habits"
             body="Refresh to try again."
             actionLabel="Retry"
             onAction={retryAllQueries}
