@@ -68,6 +68,14 @@ type CompletionPromptState = {
   estimatedMinutes: number;
 };
 
+type CreateTaskInput = {
+  title: string;
+  scheduledDate: string;
+  scheduledTime: string | null;
+  estimatedMinutes: number;
+  shareWithPartner: boolean;
+};
+
 type CalendarViewMode = "timeGridDay" | "timeGridWeek";
 
 function readErrorMessage(error: unknown, fallback: string) {
@@ -1089,27 +1097,39 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     });
 
   const createTask = useMutation({
-    mutationFn: () =>
+    mutationFn: (input: CreateTaskInput) =>
       fetchJson<{ task: TodoTask }>("/api/tasks", {
         method: "POST",
         body: JSON.stringify({
-          title: newTitle.trim(),
-          scheduled_date: newDate,
-          scheduled_time: newTime || null,
-          estimated_minutes: newEst,
+          title: input.title,
+          scheduled_date: input.scheduledDate,
+          scheduled_time: input.scheduledTime,
+          estimated_minutes: input.estimatedMinutes,
           sync_google: true,
         }),
       }),
-    onSuccess: (payload) => {
+    onSuccess: (payload, variables) => {
       setTaskSaveError(null);
-      setNewTitle("");
-      setCalendarSelection(null);
-      if (shareOnCreate && payload?.task?.id) {
+      queryClient.setQueryData<TaskListResponse | undefined>(
+        ["tasks", range.start, range.end],
+        (current) => {
+          if (!payload?.task) return current;
+          if (!current) {
+            return { items: [payload.task], warning: null };
+          }
+          if (current.items.some((item) => item.id === payload.task.id)) {
+            return current;
+          }
+          return {
+            ...current,
+            items: [...current.items, payload.task],
+          };
+        }
+      );
+      if (variables.shareWithPartner && payload?.task?.id) {
         shareTaskWithPartner.mutate(payload.task.id);
       }
-      setShareOnCreate(false);
-      setComposerAdvancedOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
+      void queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
     },
     onError: (error) => {
       setTaskSaveError(readErrorMessage(error, "Couldn't add task."));
@@ -1740,9 +1760,25 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   }, [quickNoteText, saveQuickNoteMutation]);
 
   const handleComposerSubmit = useCallback(() => {
-    if (!newTitle.trim() || createTask.isPending) return;
-    createTask.mutate();
-  }, [createTask, newTitle]);
+    const title = newTitle.trim();
+    if (!title) return;
+
+    const payload: CreateTaskInput = {
+      title,
+      scheduledDate: newDate,
+      scheduledTime: newTime || null,
+      estimatedMinutes: newEst,
+      shareWithPartner: shareOnCreate,
+    };
+
+    setTaskSaveError(null);
+    setNewTitle("");
+    setShareOnCreate(false);
+    setCalendarSelection(null);
+    setComposerAdvancedOpen(false);
+
+    createTask.mutate(payload);
+  }, [createTask, newDate, newEst, newTime, newTitle, shareOnCreate]);
 
   const handleComposerCancel = useCallback(() => {
     setComposerAdvancedOpen(false);
@@ -1954,8 +1990,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           shareWithPartner={shareOnCreate}
           advancedOpen={composerAdvancedOpen}
           selectionLabel={composerSelectionLabel}
-          disabled={createTask.isPending}
-          submitLabel={createTask.isPending ? "Adding…" : "Add"}
+          pending={createTask.isPending}
           onSubmit={handleComposerSubmit}
           onTitleChange={(value) => setNewTitle(value)}
           onDateChange={(value) => setNewDate(value)}

@@ -11,8 +11,7 @@ type TaskComposerProps = {
   shareWithPartner: boolean;
   advancedOpen: boolean;
   selectionLabel: string | null;
-  disabled: boolean;
-  submitLabel: string;
+  pending: boolean;
   onSubmit: () => void;
   onTitleChange: (value: string) => void;
   onDateChange: (value: string) => void;
@@ -32,8 +31,7 @@ export default function TaskComposer({
   shareWithPartner,
   advancedOpen,
   selectionLabel,
-  disabled,
-  submitLabel,
+  pending,
   onSubmit,
   onTitleChange,
   onDateChange,
@@ -46,11 +44,17 @@ export default function TaskComposer({
 }: TaskComposerProps) {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!title.trim() || disabled) return;
+    if (!title.trim()) return;
     onSubmit();
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      if (!title.trim()) return;
+      onSubmit();
+      return;
+    }
     if (event.key === "Escape") {
       event.preventDefault();
       onCancel?.();
@@ -80,12 +84,13 @@ export default function TaskComposer({
             onChange={(event) => onTitleChange(event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Add task"
+            aria-label="Add task"
           />
         </label>
-        <button type="submit" className="primary" disabled={disabled || !title.trim()}>
-          {submitLabel}
-        </button>
       </div>
+      <button type="submit" className="sr-only" aria-hidden="true" tabIndex={-1}>
+        Add task
+      </button>
 
       {selectionLabel ? (
         <div className="task-composer-selection">
@@ -99,7 +104,7 @@ export default function TaskComposer({
           </button>
         </div>
       ) : (
-        <p className="task-composer-hint">Pick a slot.</p>
+        <p className="task-composer-hint">{pending ? "Saving…" : "Enter adds."}</p>
       )}
 
       {advancedOpen ? (
@@ -111,6 +116,7 @@ export default function TaskComposer({
               type="date"
               value={date}
               onChange={(event) => onDateChange(event.target.value)}
+              onKeyDown={handleKeyDown}
             />
           </div>
           <div className="form-row">
@@ -120,6 +126,7 @@ export default function TaskComposer({
               type="time"
               value={time}
               onChange={(event) => onTimeChange(event.target.value)}
+              onKeyDown={handleKeyDown}
             />
           </div>
           <div className="form-row">
@@ -131,6 +138,7 @@ export default function TaskComposer({
               step={5}
               value={estimate}
               onChange={(event) => onEstimateChange(Math.max(5, Number(event.target.value || 30)))}
+              onKeyDown={handleKeyDown}
             />
           </div>
           <label className="habit-row task-composer-share-row">
