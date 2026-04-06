@@ -1,6 +1,6 @@
 import { prisma } from "../db/prisma";
 import { FIXED_SHARED_HABITS } from "../constants";
-import { computeSharedHabitStreaks, habitKeyToField } from "./habits";
+import { habitKeyToField } from "./habits";
 import {
   getCustomHabitDone,
   getCustomHabits,
@@ -47,7 +47,6 @@ export async function buildHeaderSnapshot(userEmail: string, dateIso: string) {
     customDone,
     meetingDaysRaw,
     familyWorshipDayRaw,
-    streaks,
   ] = await Promise.all([
     prisma.dailyEntryUser.findUnique({
       where: { userEmail_date: { userEmail, date: dateIso } },
@@ -56,7 +55,6 @@ export async function buildHeaderSnapshot(userEmail: string, dateIso: string) {
     getCustomHabitDone(userEmail, dateIso),
     getMeetingDays(userEmail),
     getFamilyWorshipDay(userEmail),
-    computeSharedHabitStreaks(userEmail, dateIso),
   ]);
 
   const meetingDays = Array.from(
@@ -98,6 +96,5 @@ export async function buildHeaderSnapshot(userEmail: string, dateIso: string) {
     habits_completed: counts.completed,
     habits_total: counts.total,
     habits_percent: percent,
-    shared_streaks: streaks,
   };
 }

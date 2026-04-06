@@ -25,7 +25,7 @@ function isPublicPath(pathname: string): boolean {
 }
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, search } = request.nextUrl;
   if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
@@ -44,7 +44,7 @@ export async function middleware(request: NextRequest) {
   }
 
   const signinUrl = new URL("/signin", request.url);
-  signinUrl.searchParams.set("callbackUrl", pathname);
+  signinUrl.searchParams.set("callbackUrl", `${pathname}${search}`);
   return NextResponse.redirect(signinUrl);
 }
 

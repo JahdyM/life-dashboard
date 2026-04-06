@@ -1,8 +1,9 @@
+import { cache } from "react";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions, isAllowedEmail } from "@/lib/auth";
 
-export default async function HomePage() {
+export const getAuthenticatedPageEmail = cache(async () => {
   const session = await getServerSession(authOptions);
   const email = session?.user?.email?.toLowerCase();
 
@@ -10,5 +11,5 @@ export default async function HomePage() {
     redirect("/signin");
   }
 
-  redirect("/today");
-}
+  return email;
+});
