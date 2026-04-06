@@ -74,7 +74,7 @@ export default function MinistryDayEditor({
       actualHoursValue == null && actualMinutesValue == null
         ? null
         : hoursMinutesToTotalMinutes(actualHoursValue || 0, actualMinutesValue || 0);
-    const status = deriveMinistryDayStatus(nextGoal, nextActual);
+    const status = deriveMinistryDayStatus(nextGoal, nextActual, { isFuture: day.isFuture });
     return {
       goal: nextGoal,
       actual: nextActual,
@@ -161,6 +161,8 @@ export default function MinistryDayEditor({
           <span className={`ministry-status-badge ${preview.status}`}>
             {preview.status === "no_goal"
               ? "No goal set"
+              : preview.status === "planned"
+                ? "Planned"
               : preview.status === "missed"
                 ? "Below goal"
                 : preview.status === "partial"
