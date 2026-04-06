@@ -109,6 +109,17 @@ a {
   color: var(--accent);
 }
 
+.signin-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(210, 168, 105, 0.24);
+  background: rgba(210, 168, 105, 0.1);
+}
+
 .shell-copy,
 .page-intro-copy,
 .today-panel-copy,
@@ -398,6 +409,11 @@ a {
 .today-mood-value {
   display: inline-flex;
   align-items: center;
+  gap: 10px;
+}
+
+.today-mood-card {
+  display: grid;
   gap: 10px;
 }
 

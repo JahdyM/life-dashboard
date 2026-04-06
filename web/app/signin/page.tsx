@@ -16,6 +16,7 @@ function normalizeCallbackUrl(value: string | string[] | undefined) {
   if (!candidate) return "/today";
   if (!candidate.startsWith("/")) return "/today";
   if (candidate.startsWith("//")) return "/today";
+  if (candidate === "/signin") return "/today";
   return candidate;
 }
 
