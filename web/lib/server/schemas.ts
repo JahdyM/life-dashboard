@@ -235,6 +235,110 @@ export const ministryDayEntrySchema = z
   })
   .strict();
 
+const spiritualGoalCategories = [
+  "big_goals",
+  "christian_qualities",
+  "leaving_bad_habits",
+  "ministry_skills",
+  "prudence",
+] as const;
+
+const optionalTrimmedText = (max: number) =>
+  z.union([z.string().trim().max(max), z.null()]);
+
+export const spiritualGoalCategorySchema = z.enum(spiritualGoalCategories);
+
+export const spiritualGoalTaskSchema = z
+  .object({
+    id: z.string().trim().min(1).max(120),
+    title: z.string().trim().min(1).max(100),
+    completed: z.boolean(),
+    created_at: nullableIsoDateTimeSchema.optional(),
+    updated_at: nullableIsoDateTimeSchema.optional(),
+  })
+  .strict();
+
+export const spiritualGoalStepSchema = z
+  .object({
+    id: z.string().trim().min(1).max(120),
+    title: z.string().trim().min(1).max(60),
+    description: optionalTrimmedText(1600),
+    notes: optionalTrimmedText(2500),
+    completed_at: nullableIsoDateTimeSchema.optional(),
+    tasks: z.array(spiritualGoalTaskSchema).max(24),
+  })
+  .strict();
+
+export const spiritualGoalStaircaseSchema = z
+  .object({
+    category: spiritualGoalCategorySchema,
+    title: z.string().trim().min(1).max(80),
+    ultimate_goal: z.string().trim().min(1).max(220),
+    subtitle: optionalTrimmedText(220),
+    theme_color: z
+      .union([z.string().trim().regex(/^#([0-9a-fA-F]{6})$/, "Use a hex color"), z.null()])
+      .optional(),
+    avatar_style: z.enum(["sprout", "spark", "compass", "bookmark"]).nullable().optional(),
+    general_notes: optionalTrimmedText(4000),
+    steps: z.array(spiritualGoalStepSchema).max(12),
+  })
+  .strict();
+
+export const spiritualGoalActionSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("complete_current") }).strict(),
+  z
+    .object({
+      type: z.literal("move_to_step"),
+      step_id: z.string().trim().min(1).max(120),
+      confirmed: z.boolean(),
+    })
+    .strict(),
+  z.object({ type: z.literal("move_back") }).strict(),
+  z
+    .object({
+      type: z.literal("toggle_task"),
+      step_id: z.string().trim().min(1).max(120),
+      task_id: z.string().trim().min(1).max(120),
+      completed: z.boolean(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("add_task"),
+      step_id: z.string().trim().min(1).max(120),
+      title: z.string().trim().min(1).max(100),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("update_task"),
+      step_id: z.string().trim().min(1).max(120),
+      task_id: z.string().trim().min(1).max(120),
+      title: z.string().trim().min(1).max(100),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("remove_task"),
+      step_id: z.string().trim().min(1).max(120),
+      task_id: z.string().trim().min(1).max(120),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("save_step_notes"),
+      step_id: z.string().trim().min(1).max(120),
+      notes: optionalTrimmedText(2500),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("save_general_notes"),
+      notes: optionalTrimmedText(4000),
+    })
+    .strict(),
+]);
+
 export const customHabitSchema = z
   .object({
     name: z
