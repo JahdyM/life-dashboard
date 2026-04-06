@@ -10,7 +10,7 @@ import type {
   SleepScoreResponse,
   WeeklyReportResponse,
 } from "@/lib/types";
-import { allowedEmails } from "@/lib/env";
+import { getAllowedEmails } from "@/lib/env";
 
 const POSITIVE_MOODS = new Set(["peace", "joy", "paz", "felicidade"]);
 const NEGATIVE_MOODS = new Set(["anxiety", "fear", "anger", "ansiedade", "medo", "raiva"]);
@@ -818,6 +818,7 @@ export async function getCoupleComparison(
   userEmail: string,
   periodDays = 30
 ): Promise<CoupleComparisonResponse> {
+  const allowedEmails = getAllowedEmails();
   const partnerEmail = allowedEmails.find((email) => email !== userEmail) || null;
   if (!partnerEmail) {
     return {

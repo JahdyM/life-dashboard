@@ -1,12 +1,11 @@
 import crypto from "crypto";
-import { env } from "./env";
-const RAW_KEY = env.GOOGLE_TOKEN_ENCRYPTION_KEY;
 
 function getKey(): Buffer {
-  if (!RAW_KEY) {
+  const rawKey = process.env.GOOGLE_TOKEN_ENCRYPTION_KEY || "";
+  if (!rawKey) {
     throw new Error("Missing GOOGLE_TOKEN_ENCRYPTION_KEY");
   }
-  return crypto.createHash("sha256").update(RAW_KEY, "utf8").digest();
+  return crypto.createHash("sha256").update(rawKey, "utf8").digest();
 }
 
 export function encryptToken(value: string): string {

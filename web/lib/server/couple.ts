@@ -1,9 +1,10 @@
 import { prisma } from "../db/prisma";
 import { FIXED_SHARED_HABITS, MOOD_PALETTE } from "../constants";
 import { computeSharedHabitStreaks } from "./habits";
-import { allowedEmails } from "../env";
+import { getAllowedEmails } from "../env";
 
 function getPartnerEmail(userEmail: string) {
+  const allowedEmails = getAllowedEmails();
   if (allowedEmails.length < 2) return null;
   return allowedEmails.find((email) => email !== userEmail) || null;
 }

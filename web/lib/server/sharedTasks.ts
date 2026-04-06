@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { prisma } from "../db/prisma";
-import { allowedEmails } from "../env";
+import { getAllowedEmails } from "../env";
 import {
   addGoogleEventAttendee,
   createGoogleEvent,
@@ -74,6 +74,7 @@ function parseInvitePayload(value: string | null): TaskShareInvite | null {
 }
 
 function resolveRecipient(senderEmail: string, requestedRecipient?: string | null) {
+  const allowedEmails = getAllowedEmails();
   const sender = senderEmail.toLowerCase();
   const normalizedRequested = requestedRecipient?.trim().toLowerCase() || null;
   if (normalizedRequested) {

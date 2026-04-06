@@ -1,5 +1,4 @@
 import { PrismaClient } from "@prisma/client";
-import { env } from "../env";
 
 const withConnectionLimit = (url: string) => {
   try {
@@ -13,7 +12,8 @@ const withConnectionLimit = (url: string) => {
   }
 };
 
-const databaseUrl = withConnectionLimit(env.DATABASE_URL);
+const FALLBACK_DATABASE_URL = "postgresql://placeholder:placeholder@127.0.0.1:5432/life_dashboard";
+const databaseUrl = withConnectionLimit(process.env.DATABASE_URL || FALLBACK_DATABASE_URL);
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 

@@ -2,13 +2,18 @@ import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "./db/prisma";
 import { encryptToken } from "./encryption";
-import { allowedEmails, env } from "./env";
+import { getAllowedEmails } from "./env";
+
+const googleClientId = process.env.GOOGLE_CLIENT_ID || "build-placeholder-google-client-id";
+const googleClientSecret =
+  process.env.GOOGLE_CLIENT_SECRET || "build-placeholder-google-client-secret";
+const nextAuthSecret = process.env.NEXTAUTH_SECRET || "build-placeholder-nextauth-secret";
 
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
-      clientId: env.GOOGLE_CLIENT_ID,
-      clientSecret: env.GOOGLE_CLIENT_SECRET,
+      clientId: googleClientId,
+      clientSecret: googleClientSecret,
       authorization: {
         params: {
           scope:
@@ -22,9 +27,11 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
   },
+  secret: nextAuthSecret,
   callbacks: {
     async signIn({ user, account }) {
       const email = user.email?.toLowerCase();
+      const allowedEmails = getAllowedEmails();
       if (!email || (allowedEmails.length > 0 && !allowedEmails.includes(email))) {
         return false;
       }
@@ -112,5 +119,6 @@ export const authOptions: NextAuthOptions = {
 
 export function isAllowedEmail(email?: string | null): boolean {
   if (!email) return false;
+  const allowedEmails = getAllowedEmails();
   return allowedEmails.includes(email.toLowerCase());
 }

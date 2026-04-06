@@ -3,7 +3,6 @@ import { ReactNode } from "react";
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Inter } from "next/font/google";
 import AtomCursor from "@/components/AtomCursor";
-import "@/lib/env";
 
 const headingFont = Cormorant_Garamond({
   subsets: ["latin"],

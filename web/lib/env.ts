@@ -13,21 +13,56 @@ const envSchema = z.object({
   ALLOWED_EMAILS: z.string().min(1, "ALLOWED_EMAILS is required"),
 });
 
-const parsed = envSchema.safeParse(process.env);
+type Env = z.infer<typeof envSchema>;
 
-if (!parsed.success) {
-  const issues = parsed.error.issues
+let cachedEnv: Env | null = null;
+let cachedAllowedEmails: string[] | null = null;
+
+function formatEnvIssues() {
+  const parsed = envSchema.safeParse(process.env);
+  if (parsed.success) {
+    return null;
+  }
+
+  return parsed.error.issues
     .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
     .join("; ");
-  throw new Error(`Invalid environment configuration: ${issues}`);
 }
 
-export const env = parsed.data;
+export function getEnv(): Env {
+  if (cachedEnv) {
+    return cachedEnv;
+  }
 
-export const allowedEmails = env.ALLOWED_EMAILS.split(",")
-  .map((email) => email.trim().toLowerCase())
-  .filter(Boolean);
+  const parsed = envSchema.safeParse(process.env);
+  if (!parsed.success) {
+    const issues = formatEnvIssues();
+    throw new Error(`Invalid environment configuration: ${issues}`);
+  }
 
-if (allowedEmails.length === 0) {
-  throw new Error("Invalid ALLOWED_EMAILS: provide at least one allowed email");
+  cachedEnv = parsed.data;
+  return cachedEnv;
 }
+
+export function getAllowedEmails() {
+  if (cachedAllowedEmails) {
+    return cachedAllowedEmails;
+  }
+
+  const raw = process.env.ALLOWED_EMAILS || "";
+  const emails = raw
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+
+  cachedAllowedEmails = emails;
+  return emails;
+}
+
+export const env = new Proxy({} as Env, {
+  get(_target, prop) {
+    const key = String(prop) as keyof Env;
+    return getEnv()[key];
+  },
+});
+
