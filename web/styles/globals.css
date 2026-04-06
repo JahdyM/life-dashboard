@@ -2143,7 +2143,7 @@ button.link.danger {
 
 .ministry-summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -2243,6 +2243,11 @@ button.link.danger {
   background: rgba(255, 255, 255, 0.025);
 }
 
+.ministry-day-card.planned {
+  border-color: rgba(147, 171, 214, 0.3);
+  background: rgba(147, 171, 214, 0.07);
+}
+
 .ministry-day-card.partial {
   border-color: rgba(241, 197, 122, 0.3);
   background: rgba(241, 197, 122, 0.07);
@@ -2283,6 +2288,11 @@ button.link.danger {
 
 .ministry-status-badge.no_goal {
   border-color: var(--border-soft);
+}
+
+.ministry-status-badge.planned {
+  border-color: rgba(147, 171, 214, 0.3);
+  color: rgba(209, 220, 246, 0.9);
 }
 
 .ministry-status-badge.partial {
