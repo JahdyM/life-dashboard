@@ -137,12 +137,12 @@ type EditableTaskRowProps = {
     estimatedMinutes: number;
     actualMinutes: number;
   };
-  hasChanges: boolean;
   saving: boolean;
   saved: boolean;
   onToggleDone: (task: TodoTask, checked: boolean) => void;
-  onConfirm: (task: TodoTask) => void;
+  onSave: (task: TodoTask) => void;
   onSetDraft: (taskId: string, patch: TaskDraft) => void;
+  onReset: (taskId: string) => void;
   onDelete: (taskId: string) => void;
   onShare?: (taskId: string) => void;
   sharing: boolean;
@@ -153,12 +153,12 @@ type EditableTaskRowProps = {
 const EditableTaskRow = memo(function EditableTaskRow({
   task,
   draft,
-  hasChanges,
   saving,
   saved,
   onToggleDone,
-  onConfirm,
+  onSave,
   onSetDraft,
+  onReset,
   onDelete,
   onShare,
   sharing,
@@ -166,35 +166,27 @@ const EditableTaskRow = memo(function EditableTaskRow({
   shareActionLabel = "Share with partner",
 }: EditableTaskRowProps) {
   const handleToggle = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) =>
+    (event: ChangeEvent<HTMLInputElement>) =>
       onToggleDone(task, event.target.checked),
     [onToggleDone, task]
   );
-  const handleConfirm = useCallback(
-    (event?: React.MouseEvent) => {
-      event?.preventDefault();
-      event?.stopPropagation();
-      onConfirm(task);
-    },
-    [onConfirm, task]
-  );
   const handlePriority = useCallback(
-    (event: React.ChangeEvent<HTMLSelectElement>) =>
+    (event: ChangeEvent<HTMLSelectElement>) =>
       onSetDraft(task.id, { priorityTag: event.target.value }),
     [onSetDraft, task.id]
   );
   const handleTitle = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) =>
+    (event: ChangeEvent<HTMLInputElement>) =>
       onSetDraft(task.id, { title: event.target.value }),
     [onSetDraft, task.id]
   );
   const handleTime = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) =>
+    (event: ChangeEvent<HTMLInputElement>) =>
       onSetDraft(task.id, { scheduledTime: event.target.value }),
     [onSetDraft, task.id]
   );
   const handleEstimate = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) =>
+    (event: ChangeEvent<HTMLInputElement>) =>
       onSetDraft(task.id, { estimatedMinutes: Number(event.target.value || 0) }),
     [onSetDraft, task.id]
   );
@@ -203,31 +195,80 @@ const EditableTaskRow = memo(function EditableTaskRow({
     if (!onShare) return;
     onShare(task.id);
   }, [onShare, task.id]);
+  const handleSave = useCallback(() => onSave(task), [onSave, task]);
+  const handleReset = useCallback(() => onReset(task.id), [onReset, task.id]);
+  const handleFieldKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLInputElement | HTMLSelectElement>) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        handleSave();
+        event.currentTarget.blur();
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        handleReset();
+        event.currentTarget.blur();
+      }
+    },
+    [handleReset, handleSave]
+  );
+  const summaryMeta = [draft.scheduledTime, draft.estimatedMinutes ? `${draft.estimatedMinutes} min` : null]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
-    <details className={`task-row ${hasChanges ? "dirty" : ""} ${shareLabel ? "task-row-shared" : ""}`}>
+    <details className={`task-row task-row-editable ${shareLabel ? "task-row-shared" : ""}`}>
       <summary>
-        <input type="checkbox" checked={draft.isDone} onChange={handleToggle} />
-        <span className="task-title">{draft.title}</span>
+        <input
+          type="checkbox"
+          checked={draft.isDone}
+          onChange={handleToggle}
+          onClick={(event) => event.stopPropagation()}
+        />
+        <div className="task-row-main">
+          <span className="task-title">{draft.title}</span>
+          {summaryMeta ? <span className="task-time">{summaryMeta}</span> : null}
+        </div>
         {shareLabel ? <span className="task-share-badge">{shareLabel}</span> : null}
-        {draft.scheduledTime ? <span className="task-time">{draft.scheduledTime}</span> : null}
-        <button
-          className={`task-confirm-btn ${hasChanges || saved ? "visible" : ""}`}
-          onClick={handleConfirm}
-          disabled={!hasChanges || saving}
-          title="Confirm task changes"
-        >
-          {saving ? "..." : saved ? "✓" : "ok"}
-        </button>
+        {saving ? <span className="task-row-state">Saving…</span> : null}
+        {!saving && saved ? <span className="task-row-state success">Saved</span> : null}
+        <div className="task-row-menu" onClick={(event) => event.stopPropagation()}>
+          <OverflowMenu className="task-row-overflow" align="right">
+            <div className="task-row-menu-list">
+              {onShare ? (
+                <button type="button" className="task-row-menu-action" onClick={handleShare} disabled={sharing}>
+                  <Share2 size={15} />
+                  {sharing ? "Working..." : shareActionLabel}
+                </button>
+              ) : null}
+              <button type="button" className="task-row-menu-action danger" onClick={handleDelete}>
+                <Trash2 size={15} />
+                Delete task
+              </button>
+            </div>
+          </OverflowMenu>
+        </div>
       </summary>
       <div className="task-details">
         <label>
           Title
-          <input type="text" value={draft.title} onChange={handleTitle} />
+          <input
+            type="text"
+            value={draft.title}
+            onChange={handleTitle}
+            onBlur={handleSave}
+            onKeyDown={handleFieldKeyDown}
+          />
         </label>
         <label>
           Priority
-          <select value={draft.priorityTag} onChange={handlePriority}>
+          <select
+            value={draft.priorityTag}
+            onChange={handlePriority}
+            onBlur={handleSave}
+            onKeyDown={handleFieldKeyDown}
+          >
             <option value="Low">Low</option>
             <option value="Medium">Medium</option>
             <option value="High">High</option>
@@ -236,27 +277,27 @@ const EditableTaskRow = memo(function EditableTaskRow({
         </label>
         <label>
           Start time
-          <input type="time" value={draft.scheduledTime} onChange={handleTime} />
+          <input
+            type="time"
+            value={draft.scheduledTime}
+            onChange={handleTime}
+            onBlur={handleSave}
+            onKeyDown={handleFieldKeyDown}
+          />
         </label>
         <label>
           Est. minutes
-          <input type="number" value={draft.estimatedMinutes} onChange={handleEstimate} />
+          <input
+            type="number"
+            min={0}
+            step={5}
+            value={draft.estimatedMinutes}
+            onChange={handleEstimate}
+            onBlur={handleSave}
+            onKeyDown={handleFieldKeyDown}
+          />
         </label>
-        <button
-          className="task-confirm-inline"
-          onClick={() => onConfirm(task)}
-          disabled={!hasChanges || saving}
-        >
-          {saving ? "Saving..." : "Confirm changes"}
-        </button>
-        <button className="link danger" onClick={handleDelete}>
-          Delete
-        </button>
-        {onShare ? (
-          <button className="link" onClick={handleShare} disabled={sharing}>
-            {sharing ? "..." : shareActionLabel}
-          </button>
-        ) : null}
+        <p className="task-detail-hint">Press Enter to save this field, or Escape to cancel your unsaved edits.</p>
       </div>
     </details>
   );
@@ -272,10 +313,7 @@ type SimpleTaskRowProps = {
     estimatedMinutes: number;
     actualMinutes: number;
   };
-  hasChanges: boolean;
-  saving: boolean;
   onToggleDone: (task: TodoTask, checked: boolean) => void;
-  onConfirm: (task: TodoTask) => void;
   onScheduleToday?: (taskId: string) => void;
   onShare?: (taskId: string) => void;
   sharing?: boolean;
@@ -287,10 +325,7 @@ type SimpleTaskRowProps = {
 const SimpleTaskRow = memo(function SimpleTaskRow({
   task,
   draft,
-  hasChanges,
-  saving,
   onToggleDone,
-  onConfirm,
   onScheduleToday,
   onShare,
   sharing = false,
@@ -299,11 +334,10 @@ const SimpleTaskRow = memo(function SimpleTaskRow({
   shareActionLabel = "Share",
 }: SimpleTaskRowProps) {
   const handleToggle = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) =>
+    (event: ChangeEvent<HTMLInputElement>) =>
       onToggleDone(task, event.target.checked),
     [onToggleDone, task]
   );
-  const handleConfirm = useCallback(() => onConfirm(task), [onConfirm, task]);
   const handleSchedule = useCallback(() => {
     if (!onScheduleToday) return;
     onScheduleToday(task.id);
@@ -316,27 +350,26 @@ const SimpleTaskRow = memo(function SimpleTaskRow({
   return (
     <div className={`task-row ${completed ? "completed" : ""} ${shareLabel ? "task-row-shared" : ""}`}>
       <input type="checkbox" checked={draft.isDone} onChange={handleToggle} />
-      <span className="task-title">{draft.title}</span>
+      <div className="task-row-main">
+        <span className="task-title">{draft.title}</span>
+        <span className="task-time">{completed ? "Completed outside the agenda" : "Not scheduled yet"}</span>
+      </div>
       {shareLabel ? <span className="task-share-badge">{shareLabel}</span> : null}
-      {draft.scheduledTime ? <span className="task-time">{draft.scheduledTime}</span> : null}
-      <button
-        className={`task-confirm-btn ${hasChanges ? "visible" : ""}`}
-        onClick={handleConfirm}
-        disabled={!hasChanges || saving}
-        title="Confirm task changes"
-      >
-        {saving ? "..." : "ok"}
-      </button>
       {onScheduleToday ? (
-        <button className="link" onClick={handleSchedule}>
+        <button className="secondary subtle" type="button" onClick={handleSchedule}>
           Schedule today
         </button>
       ) : null}
-      {onShare ? (
-        <button className="link" onClick={handleShare} disabled={sharing}>
-          {sharing ? "..." : shareActionLabel}
-        </button>
-      ) : null}
+      <OverflowMenu className="task-row-overflow" align="right">
+        <div className="task-row-menu-list">
+          {onShare ? (
+            <button type="button" className="task-row-menu-action" onClick={handleShare} disabled={sharing}>
+              <Share2 size={15} />
+              {sharing ? "Working..." : shareActionLabel}
+            </button>
+          ) : null}
+        </div>
+      </OverflowMenu>
     </div>
   );
 });
@@ -351,11 +384,11 @@ type CompletedTaskRowProps = {
     estimatedMinutes: number;
     actualMinutes: number;
   };
-  hasChanges: boolean;
   saving: boolean;
   onToggleDone: (task: TodoTask, checked: boolean) => void;
   onSetDraft: (taskId: string, patch: TaskDraft) => void;
-  onConfirm: (task: TodoTask) => void;
+  onSave: (task: TodoTask) => void;
+  onReset: (taskId: string) => void;
   onShare?: (taskId: string) => void;
   sharing: boolean;
   shareLabel?: string | null;
@@ -365,32 +398,49 @@ type CompletedTaskRowProps = {
 const CompletedTaskRow = memo(function CompletedTaskRow({
   task,
   draft,
-  hasChanges,
   saving,
   onToggleDone,
   onSetDraft,
-  onConfirm,
+  onSave,
+  onReset,
   onShare,
   sharing,
   shareLabel,
   shareActionLabel = "share",
 }: CompletedTaskRowProps) {
   const handleToggle = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) =>
+    (event: ChangeEvent<HTMLInputElement>) =>
       onToggleDone(task, event.target.checked),
     [onToggleDone, task]
   );
   const handleActual = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
+    (event: ChangeEvent<HTMLInputElement>) => {
       onSetDraft(task.id, { actualMinutes: Math.max(0, Number(event.target.value || 0)) });
     },
     [onSetDraft, task.id]
   );
-  const handleConfirm = useCallback(() => onConfirm(task), [onConfirm, task]);
+  const handleSave = useCallback(() => onSave(task), [onSave, task]);
+  const handleReset = useCallback(() => onReset(task.id), [onReset, task.id]);
   const handleShare = useCallback(() => {
     if (!onShare) return;
     onShare(task.id);
   }, [onShare, task.id]);
+  const handleKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        handleSave();
+        event.currentTarget.blur();
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        handleReset();
+        event.currentTarget.blur();
+      }
+    },
+    [handleReset, handleSave]
+  );
 
   return (
     <div className={`calendar-completed-item editable ${shareLabel ? "task-row-shared" : ""}`}>
@@ -405,21 +455,20 @@ const CompletedTaskRow = memo(function CompletedTaskRow({
           step={5}
           value={draft.actualMinutes}
           onChange={handleActual}
+          onBlur={handleSave}
+          onKeyDown={handleKeyDown}
         />
-        <button
-          className={`task-confirm-btn ${hasChanges ? "visible" : ""}`}
-          disabled={!hasChanges || saving}
-          onClick={handleConfirm}
-          title="Save actual minutes"
-          type="button"
-        >
-          {saving ? "..." : "save"}
-        </button>
-        {onShare ? (
-          <button className="link" type="button" onClick={handleShare} disabled={sharing}>
-            {sharing ? "..." : shareActionLabel}
-          </button>
-        ) : null}
+        {saving ? <span className="task-row-state">Saving…</span> : null}
+        <OverflowMenu className="task-row-overflow" align="right">
+          <div className="task-row-menu-list">
+            {onShare ? (
+              <button className="task-row-menu-action" type="button" onClick={handleShare} disabled={sharing}>
+                <Share2 size={15} />
+                {sharing ? "Working..." : shareActionLabel}
+              </button>
+            ) : null}
+          </div>
+        </OverflowMenu>
       </div>
     </div>
   );
@@ -523,8 +572,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [newTime, setNewTime] = useState("");
   const [newEst, setNewEst] = useState(30);
   const [shareOnCreate, setShareOnCreate] = useState(false);
-  const [calendarDraftTitle, setCalendarDraftTitle] = useState("");
-  const [shareOnCalendarCreate, setShareOnCalendarCreate] = useState(false);
+  const [composerAdvancedOpen, setComposerAdvancedOpen] = useState(false);
   const [calendarSelection, setCalendarSelection] = useState<{
     date: string;
     time: string;
@@ -942,6 +990,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   "scheduled_time" in patch
                     ? patch.scheduled_time || null
                     : item.scheduledTime,
+                scheduledDate:
+                  "scheduled_date" in patch
+                    ? patch.scheduled_date || null
+                    : item.scheduledDate,
                 estimatedMinutes:
                   "estimated_minutes" in patch
                     ? patch.estimated_minutes
@@ -1033,7 +1085,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       fetchJson<{ task: TodoTask }>("/api/tasks", {
         method: "POST",
         body: JSON.stringify({
-          title: newTitle,
+          title: newTitle.trim(),
           scheduled_date: newDate,
           scheduled_time: newTime || null,
           estimated_minutes: newEst,
@@ -1043,11 +1095,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     onSuccess: (payload) => {
       setTaskSaveError(null);
       setNewTitle("");
-      setNewTime("");
+      setCalendarSelection(null);
       if (shareOnCreate && payload?.task?.id) {
         shareTaskWithPartner.mutate(payload.task.id);
       }
       setShareOnCreate(false);
+      setComposerAdvancedOpen(false);
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
     },
     onError: (error) => {
@@ -1238,36 +1291,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   });
   const saveQuickNoteMutation = saveQuickNote.mutate;
 
-  const createTaskFromCalendar = useMutation({
-    mutationFn: () => {
-      if (!calendarSelection) return Promise.resolve<{ task: TodoTask } | null>(null);
-      return fetchJson<{ task: TodoTask }>("/api/tasks", {
-        method: "POST",
-        body: JSON.stringify({
-          title: (calendarDraftTitle || newTitle || "New task").trim(),
-          scheduled_date: calendarSelection.date,
-          scheduled_time: calendarSelection.time || null,
-          estimated_minutes: calendarSelection.estimatedMinutes || newEst || 30,
-          sync_google: true,
-        }),
-      });
-    },
-    onSuccess: (payload) => {
-      setTaskSaveError(null);
-      setCalendarDraftTitle("");
-      if (shareOnCalendarCreate && payload?.task?.id) {
-        shareTaskWithPartner.mutate(payload.task.id);
-      }
-      setShareOnCalendarCreate(false);
-      queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
-    },
-    onError: (error) => {
-      setTaskSaveError(
-        readErrorMessage(error, "Could not create task from calendar slot.")
-      );
-    },
-  });
-
   const updateTask = useMutation({
     mutationFn: ({
       id,
@@ -1455,6 +1478,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     setNewDate(nextDate);
     setNewTime(nextTime);
     setNewEst(estimatedMinutes);
+    setComposerAdvancedOpen(true);
     setCalendarSelection({
       date: nextDate,
       time: nextTime,
@@ -1462,31 +1486,55 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     });
   };
 
-  const confirmTaskUpdate = useCallback((task: TodoTask) => {
-    const patch = buildTaskPatch(task, taskDrafts[task.id]);
-    if (!Object.keys(patch).length) return;
-    setSavingTaskId(task.id);
-    updateTask.mutate(
-      { id: task.id, data: patch },
-      {
-        onSuccess: () => {
-          setTaskSaveError(null);
-          clearTaskDraft(task.id);
-          setSavingTaskId(null);
-          setSavedTaskId(task.id);
-          window.setTimeout(() => {
-            setSavedTaskId((prev) => (prev === task.id ? null : prev));
-          }, 1400);
-        },
-        onError: (error) => {
-          setTaskSaveError(
-            readErrorMessage(error, "Could not save task changes. Please try again.")
-          );
-          setSavingTaskId(null);
-        },
+  const clearCalendarSelection = useCallback(() => {
+    setCalendarSelection(null);
+    setComposerAdvancedOpen(false);
+  }, []);
+
+  const composerSelectionLabel = useMemo(() => {
+    if (!calendarSelection) return null;
+    return `${calendarSelection.date}${calendarSelection.time ? ` • ${calendarSelection.time}` : ""} • ${calendarSelection.estimatedMinutes} min`;
+  }, [calendarSelection]);
+
+  const resetTaskDraft = useCallback(
+    (taskId: string) => {
+      clearTaskDraft(taskId);
+      setSavedTaskId((current) => (current === taskId ? null : current));
+    },
+    [clearTaskDraft]
+  );
+
+  const confirmTaskUpdate = useCallback(
+    (task: TodoTask) => {
+      const patch = buildTaskPatch(task, taskDrafts[task.id]);
+      if (!Object.keys(patch).length) {
+        clearTaskDraft(task.id);
+        return;
       }
-    );
-  }, [buildTaskPatch, taskDrafts, updateTask, clearTaskDraft]);
+      setSavingTaskId(task.id);
+      updateTask.mutate(
+        { id: task.id, data: patch },
+        {
+          onSuccess: () => {
+            setTaskSaveError(null);
+            clearTaskDraft(task.id);
+            setSavingTaskId(null);
+            setSavedTaskId(task.id);
+            window.setTimeout(() => {
+              setSavedTaskId((prev) => (prev === task.id ? null : prev));
+            }, 1400);
+          },
+          onError: (error) => {
+            setTaskSaveError(
+              readErrorMessage(error, "Could not save task changes. Please try again.")
+            );
+            setSavingTaskId(null);
+          },
+        }
+      );
+    },
+    [buildTaskPatch, clearTaskDraft, taskDrafts, updateTask]
+  );
 
   const toggleTaskDoneNow = useCallback((
     task: TodoTask,
@@ -1675,6 +1723,16 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const handleSaveQuickNoteNow = useCallback(() => {
     saveQuickNoteMutation(quickNoteText);
   }, [quickNoteText, saveQuickNoteMutation]);
+
+  const handleComposerSubmit = useCallback(() => {
+    if (!newTitle.trim() || createTask.isPending) return;
+    createTask.mutate();
+  }, [createTask, newTitle]);
+
+  const handleComposerCancel = useCallback(() => {
+    setComposerAdvancedOpen(false);
+    setCalendarSelection(null);
+  }, []);
 
   const handleToggleHabit = useCallback(
     (habit: DailyHabitItem, checked: boolean) => {
