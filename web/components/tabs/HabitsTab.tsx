@@ -182,7 +182,7 @@ const CustomHabitRow = memo(function CustomHabitRow({
   }, [habit, onSubmitEdit]);
 
   return (
-    <div className={`habit-row custom-habit-row ${busy ? "busy" : ""}`}>
+    <div className={`habit-row custom-habit-row ${busy ? "busy" : ""} ${isEditing ? "editing" : ""}`}>
       <input type="checkbox" checked={checked} onChange={handleToggle} disabled={busy} />
 
       {isEditing ? (
@@ -207,9 +207,6 @@ const CustomHabitRow = memo(function CustomHabitRow({
       )}
 
       <div className="habit-row-actions">
-        <button type="button" className="icon-btn" onClick={handleStartEdit} disabled={busy}>
-          Edit
-        </button>
         <button type="button" className="icon-btn danger" onClick={handleDelete} disabled={busy}>
           Remove
         </button>
@@ -614,7 +611,7 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
       patchCustomHabitsCache((items) => items.filter((item) => item.id !== habit.id));
       setPendingDelete({ habit, index });
       setEditingId((current) => (current === habit.id ? null : current));
-      setEditingName((current) => (editingId === habit.id ? "" : current));
+      setEditingName("");
 
       deleteTimeoutRef.current = window.setTimeout(() => {
         setPendingDelete((current) => {
@@ -625,7 +622,7 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
         });
       }, 4200);
     },
-    [commitPendingDelete, customHabitsQuery.data?.items, deleteHabit, editingId, patchCustomHabitsCache, pendingDelete]
+    [commitPendingDelete, customHabitsQuery.data?.items, deleteHabit, patchCustomHabitsCache, pendingDelete]
   );
 
   const handleNewHabitChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {

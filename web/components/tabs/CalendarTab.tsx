@@ -1,7 +1,21 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { CalendarClock, ChevronDown, ChevronUp, Plus, Share2, Trash2 } from "lucide-react";
+import InlineActionNotice from "@/components/common/InlineActionNotice";
+import OverflowMenu from "@/components/common/OverflowMenu";
+import CompletionPopover from "@/components/calendar/CompletionPopover";
+import TaskComposer from "@/components/calendar/TaskComposer";
 import { fetchJson } from "@/lib/client/api";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
