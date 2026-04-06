@@ -62,6 +62,7 @@ export default function MinistryDayEditor({
   }, [day, onClose]);
 
   const preview = useMemo(() => {
+    const isFuture = day?.isFuture ?? false;
     const goalHoursValue = toNullableNumber(goalHours);
     const goalMinutesValue = toNullableNumber(goalMinutes);
     const actualHoursValue = toNullableNumber(actualHours);
@@ -74,7 +75,7 @@ export default function MinistryDayEditor({
       actualHoursValue == null && actualMinutesValue == null
         ? null
         : hoursMinutesToTotalMinutes(actualHoursValue || 0, actualMinutesValue || 0);
-    const status = deriveMinistryDayStatus(nextGoal, nextActual, { isFuture: day.isFuture });
+    const status = deriveMinistryDayStatus(nextGoal, nextActual, { isFuture });
     return {
       goal: nextGoal,
       actual: nextActual,
