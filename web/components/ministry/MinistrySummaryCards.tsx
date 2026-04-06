@@ -9,6 +9,25 @@ function formatDifference(minutes: number) {
   return `${prefix}${formatMinutes(Math.abs(minutes))}`;
 }
 
+function formatPlanningMeta(
+  difference: number | null,
+  targetMinutes: number | null
+) {
+  if (targetMinutes == null || difference == null) {
+    return "Total manual goal entered in the month";
+  }
+
+  if (difference === 0) {
+    return "Your plan fully covers the monthly target";
+  }
+
+  if (difference > 0) {
+    return `${formatMinutes(difference)} above the target`;
+  }
+
+  return `${formatMinutes(Math.abs(difference))} still missing in the plan`;
+}
+
 export default function MinistrySummaryCards({
   summary,
 }: {
@@ -19,6 +38,20 @@ export default function MinistrySummaryCards({
       label: "Monthly goal",
       value: summary.targetMinutes == null ? "Not set" : formatMinutes(summary.targetMinutes),
       meta: "Manual monthly target",
+    },
+    {
+      label: "Planned in month",
+      value: formatMinutes(summary.totalPlannedMinutes),
+      meta: formatPlanningMeta(
+        summary.plannedDifferenceFromTargetMinutes,
+        summary.targetMinutes
+      ),
+      accent:
+        summary.plannedDifferenceFromTargetMinutes == null
+          ? "neutral"
+          : summary.plannedDifferenceFromTargetMinutes >= 0
+            ? "success"
+            : "warning",
     },
     {
       label: "Completed",
@@ -59,8 +92,8 @@ export default function MinistrySummaryCards({
       value: summary.paceLabel,
       meta:
         summary.activeGoalDays > 0
-          ? `${summary.completedGoalDays}/${summary.activeGoalDays} goal days met`
-          : "No manual goal days yet",
+          ? `${summary.completedGoalDays}/${summary.activeGoalDays} due goal days met so far`
+          : "No goal day is due yet",
       accent:
         summary.paceStatus === "ahead"
           ? "success"
