@@ -84,7 +84,7 @@ a {
 }
 
 .shell-brand h1,
-.page-intro h1,
+.page-intro h2,
 .today-panel h2,
 .signin-hero h1,
 .signin-card h2 {
@@ -297,7 +297,7 @@ a {
   max-width: 68ch;
 }
 
-.page-intro h1 {
+.page-intro h2 {
   font-size: clamp(1.85rem, 3vw, 2.7rem);
 }
 
@@ -1922,13 +1922,16 @@ button.link.danger {
     align-items: stretch;
   }
 
-  .shell-summary-grid,
-  .shell-loading-grid,
-  .shell-streak-grid,
   .today-grid,
   .tab-grid,
   .calendar-layout {
     grid-template-columns: 1fr;
+  }
+
+  .shell-summary-grid,
+  .shell-loading-grid,
+  .shell-streak-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .today-panel-hero,
@@ -2112,7 +2115,7 @@ button.link.danger {
     font-size: clamp(2.2rem, 10vw, 3rem);
   }
 
-  .page-intro h1,
+  .page-intro h2,
   .today-panel h2,
   .signin-card h2 {
     font-size: clamp(1.5rem, 7vw, 2rem);
