@@ -112,7 +112,6 @@ export default async function TodayPage() {
   const secondaryLinks = [
     { href: "/habits", label: "Habits" },
     { href: "/mood", label: "Mood" },
-    { href: "/couple", label: "Couple" },
   ].filter((item) => item.href !== primaryAction.href);
 
   return (
@@ -264,35 +263,6 @@ export default async function TodayPage() {
           )}
         </article>
 
-        <article className="today-panel today-panel-wide">
-          <div className="today-panel-head compact">
-            <div>
-              <p className="panel-kicker">Shared</p>
-              <h2>Streaks</h2>
-            </div>
-            <Link href="/couple" className="page-link inline muted">
-              Couple
-            </Link>
-          </div>
-          {overview.streaks.items.length ? (
-            <div className="today-streak-list">
-              {overview.streaks.items.slice(0, 4).map((item) => (
-                <div key={item.habit_key} className="today-streak-item">
-                  <div>
-                    <strong>{item.label}</strong>
-                    <p>
-                      {item.user.email.split("@")[0]} {item.user.streak}d ·{" "}
-                      {item.partner.email.split("@")[0]} {item.partner.streak}d
-                    </p>
-                  </div>
-                  <span className="today-task-state quiet">Shared</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="today-empty"><p>No shared streaks yet.</p></div>
-          )}
-        </article>
       </section>
     </div>
   );

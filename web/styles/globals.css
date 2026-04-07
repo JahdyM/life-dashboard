@@ -249,6 +249,10 @@ a {
   gap: 14px;
 }
 
+.shell-streak-panel-tail {
+  margin-top: 4px;
+}
+
 .shell-streak-head {
   display: flex;
   justify-content: space-between;

@@ -97,7 +97,9 @@ export default async function DashboardLayout({
           <WordOfDayWidget dateIso={shell.todayIso} />
         </section>
 
-        <section className="shell-streak-panel" aria-label="Shared streak overview">
+        <main className="shell-main">{children}</main>
+
+        <section className="shell-streak-panel shell-streak-panel-tail" aria-label="Shared streak overview">
           <div className="shell-streak-head">
             <div>
               <h2>Shared</h2>
@@ -123,8 +125,6 @@ export default async function DashboardLayout({
             ))}
           </div>
         </section>
-
-        <main className="shell-main">{children}</main>
       </div>
     </Providers>
   );
