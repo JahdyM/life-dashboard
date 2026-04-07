@@ -502,6 +502,31 @@ a {
   gap: 8px;
 }
 
+.today-next-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.today-next-list-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+  color: var(--text);
+}
+
+.today-next-list-item small,
+.today-next-single-title {
+  color: var(--text-muted);
+}
+
+.today-next-single-title {
+  margin: 0;
+}
+
 .today-next-label {
   font-size: 11px;
   letter-spacing: 0.12em;

@@ -76,6 +76,7 @@ export function deriveMinistryDayStatus(
   actualMinutes: number | null,
   options?: {
     isFuture?: boolean;
+    isToday?: boolean;
   }
 ): MinistryDayStatus {
   if (goalMinutes == null || goalMinutes <= 0) {
@@ -83,6 +84,9 @@ export function deriveMinistryDayStatus(
   }
   const actual = Math.max(0, actualMinutes || 0);
   if (options?.isFuture && actual === 0) {
+    return "planned";
+  }
+  if (options?.isToday && actual === 0) {
     return "planned";
   }
   if (actual === 0) {
@@ -143,7 +147,10 @@ export function buildMinistryMonthPayload({
     const isToday = isSameDay(cursor, todayDate);
     const isPast = isBefore(cursor, todayDate) && !isToday;
     const isFuture = isAfter(cursor, todayDate);
-    const status = deriveMinistryDayStatus(goalMinutes, actualMinutes, { isFuture });
+    const status = deriveMinistryDayStatus(goalMinutes, actualMinutes, {
+      isFuture,
+      isToday,
+    });
 
     if (cutoff && !isAfter(cursor, cutoff)) {
       completedSoFarMinutes += Math.max(0, actualMinutes || 0);

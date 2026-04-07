@@ -20,6 +20,29 @@ function sortTasks<T extends { scheduledTime?: string | null }>(tasks: T[]) {
   });
 }
 
+function getNextTaskGroup<T extends { title: string; scheduledTime?: string | null }>(tasks: T[]) {
+  const sorted = sortTasks(tasks);
+  const first = sorted[0];
+  if (!first) {
+    return {
+      time: null as string | null,
+      items: [] as T[],
+    };
+  }
+
+  if (!first.scheduledTime) {
+    return {
+      time: null,
+      items: [first],
+    };
+  }
+
+  return {
+    time: first.scheduledTime,
+    items: sorted.filter((task) => task.scheduledTime === first.scheduledTime),
+  };
+}
+
 function buildPrimaryAction(args: {
   hasPendingTasks: boolean;
   hasMood: boolean;
@@ -73,6 +96,7 @@ export default async function TodayPage() {
   const overview = await getTodayOverviewData(userEmail);
   const moodMeta = getMoodMeta(overview.moodCategory);
   const upcomingTasks = sortTasks(overview.pendingTasks).slice(0, 5);
+  const nextTaskGroup = getNextTaskGroup(upcomingTasks);
   const completedItems = sortTasks(overview.completedItems).slice(0, 6);
   const notePreview = overview.quickNotesText.trim();
   const primaryAction = buildPrimaryAction({
@@ -80,7 +104,10 @@ export default async function TodayPage() {
     hasMood: Boolean(moodMeta),
     hasNotes: Boolean(notePreview),
     hasCompletedItems: completedItems.length > 0,
-    nextTaskTitle: upcomingTasks[0]?.title || null,
+    nextTaskTitle:
+      nextTaskGroup.items.length > 1 && nextTaskGroup.time
+        ? `${nextTaskGroup.items.length} tasks at ${nextTaskGroup.time}`
+        : nextTaskGroup.items[0]?.title || null,
   });
   const secondaryLinks = [
     { href: "/habits", label: "Habits" },
@@ -97,7 +124,11 @@ export default async function TodayPage() {
           <div className="today-panel-head today-panel-head-hero">
             <div className="today-hero-copy">
               <p className="panel-kicker">{primaryAction.eyebrow}</p>
-              <h2>{upcomingTasks[0]?.title || "Start here"}</h2>
+              <h2>
+                {nextTaskGroup.items.length > 1 && nextTaskGroup.time
+                  ? `${nextTaskGroup.items.length} tasks at ${nextTaskGroup.time}`
+                  : nextTaskGroup.items[0]?.title || "Start here"}
+              </h2>
               <p className="today-panel-copy">{primaryAction.description}</p>
               <div className="today-primary-actions">
                 <Link href={primaryAction.href} className="page-link primary">
@@ -115,15 +146,29 @@ export default async function TodayPage() {
 
             <div className="today-next-card">
               <span className="today-next-label">Next</span>
-              {upcomingTasks[0] ? (
+              {nextTaskGroup.items.length ? (
                 <>
-                  <strong>{upcomingTasks[0].title}</strong>
+                  <strong>{nextTaskGroup.time || "Open time"}</strong>
                   <p>
-                    {formatTaskMeta(
-                      upcomingTasks[0].scheduledTime,
-                      upcomingTasks[0].estimatedMinutes
-                    ) || "No time set"}
+                    {nextTaskGroup.items.length === 1
+                      ? formatTaskMeta(
+                          nextTaskGroup.items[0].scheduledTime,
+                          nextTaskGroup.items[0].estimatedMinutes
+                        ) || "No time set"
+                      : `${nextTaskGroup.items.length} tasks`}
                   </p>
+                  {nextTaskGroup.items.length > 1 ? (
+                    <ul className="today-next-list">
+                      {nextTaskGroup.items.map((task) => (
+                        <li key={task.id} className="today-next-list-item">
+                          <span>{task.title}</span>
+                          <small>{task.estimatedMinutes ? `${task.estimatedMinutes} min` : ""}</small>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="today-next-single-title">{nextTaskGroup.items[0].title}</p>
+                  )}
                 </>
               ) : (
                 <>
