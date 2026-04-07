@@ -177,11 +177,11 @@ export async function getMoodHabitCorrelations(
     const withHabit = moodEntries.filter((entry) => Boolean(entry[habit.field]));
     const withoutHabit = moodEntries.filter((entry) => !entry[habit.field]);
     const withRate = withHabit.length
-      ? (withHabit.filter((entry) => isPositiveMood(entry.moodCategory)).length / withHabit.length) *
+      ? (withHabit.filter((entry) => isMoodPositive(entry.moodCategory)).length / withHabit.length) *
         100
       : null;
     const withoutRate = withoutHabit.length
-      ? (withoutHabit.filter((entry) => isPositiveMood(entry.moodCategory)).length / withoutHabit.length) *
+      ? (withoutHabit.filter((entry) => isMoodPositive(entry.moodCategory)).length / withoutHabit.length) *
         100
       : null;
     const impact =
@@ -368,7 +368,7 @@ function computeWeekMetrics(entries: EntrySlice[], startIso: string, endIso: str
     moodCounts.size > 0
       ? Array.from(moodCounts.entries()).sort((a, b) => b[1] - a[1])[0][0]
       : null;
-  const negativeMoodDays = weekEntries.filter((entry) => isNegativeMood(entry.moodCategory)).length;
+  const negativeMoodDays = weekEntries.filter((entry) => isMoodNegative(entry.moodCategory)).length;
   const workHoursTotal = weekEntries.reduce((sum, entry) => sum + Number(entry.workHours || 0), 0);
   const topHabits = HABIT_FIELDS.map((habit) => {
     const value = weekEntries.reduce((sum, entry) => sum + (entry[habit.field] ? 1 : 0), 0);

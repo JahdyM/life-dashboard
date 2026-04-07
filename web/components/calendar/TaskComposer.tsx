@@ -66,7 +66,6 @@ export default function TaskComposer({
     <form className="task-composer" onSubmit={handleSubmit}>
       <div className="task-composer-head">
         <div>
-          <p className="panel-kicker">Add</p>
           <h3>Task</h3>
         </div>
         <button type="button" className="secondary subtle" onClick={onToggleAdvanced}>

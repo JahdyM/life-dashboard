@@ -73,11 +73,11 @@ export async function POST(request: NextRequest) {
     }
     const payload = parsed.data;
     const title = payload.title;
-    const timezone = (await getUserTimeZone(userEmail)) || DEFAULT_TIME_ZONE;
     let googleEventId: string | null = null;
     let warning: string | null = null;
     if (payload.sync_google && payload.scheduled_date) {
       try {
+        const timezone = (await getUserTimeZone(userEmail)) || DEFAULT_TIME_ZONE;
         const event = await createGoogleEvent(userEmail, "primary", {
           title,
           scheduledDate: payload.scheduled_date,

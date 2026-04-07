@@ -31,7 +31,7 @@ export async function middleware(request: NextRequest) {
   }
 
   const token = await getToken({
-    req: request,
+    req: request as unknown as Parameters<typeof getToken>[0]["req"],
     secret: process.env.NEXTAUTH_SECRET,
   });
 

@@ -571,6 +571,7 @@ const DailyHabitRow = memo(function DailyHabitRow({
 export default function CalendarTab({ userEmail: _userEmail }: { userEmail: string }) {
   const queryClient = useQueryClient();
   const calendarRef = useRef<FullCalendar | null>(null);
+  const lastCreateAttemptRef = useRef<CreateTaskInput | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "failed">("idle");
@@ -1105,10 +1106,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           scheduled_date: input.scheduledDate,
           scheduled_time: input.scheduledTime,
           estimated_minutes: input.estimatedMinutes,
-          sync_google: true,
+          sync_google: false,
         }),
       }),
     onSuccess: (payload, variables) => {
+      lastCreateAttemptRef.current = null;
       setTaskSaveError(payload.warning || null);
       queryClient.setQueryData<TaskListResponse | undefined>(
         ["tasks", range.start, range.end],
@@ -1132,6 +1134,15 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       void queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
     },
     onError: (error) => {
+      const lastAttempt = lastCreateAttemptRef.current;
+      if (lastAttempt) {
+        setNewTitle((current) => current || lastAttempt.title);
+        setNewDate(lastAttempt.scheduledDate);
+        setNewTime(lastAttempt.scheduledTime || "");
+        setNewEst(lastAttempt.estimatedMinutes);
+        setShareOnCreate(lastAttempt.shareWithPartner);
+        lastCreateAttemptRef.current = null;
+      }
       setTaskSaveError(readErrorMessage(error, "Couldn't add task."));
     },
   });
@@ -1221,7 +1232,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           scheduled_date: selectedDayIso,
           scheduled_time: scheduledTime || null,
           estimated_minutes: estimatedMinutes || 30,
-          sync_google: true,
+          sync_google: false,
         }),
       }),
     onSuccess: (payload) => {
@@ -1773,6 +1784,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     };
 
     setTaskSaveError(null);
+    lastCreateAttemptRef.current = payload;
     setNewTitle("");
     setShareOnCreate(false);
     setCalendarSelection(null);

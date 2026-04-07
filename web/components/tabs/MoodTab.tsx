@@ -49,7 +49,7 @@ const MoodCell = memo(function MoodCell({
       }`}
       style={{ background: moodColor }}
       title={label}
-      onClick={isInteractive ? () => onPick(dayKey) : undefined}
+      onClick={isInteractive ? () => onPick?.(dayKey) : undefined}
       disabled={!isInteractive}
     >
       {showDayNumber ? <span className="mood-cell-day">{Number(dayKey.slice(-2))}</span> : null}
