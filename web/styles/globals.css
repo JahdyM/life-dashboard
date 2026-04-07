@@ -2937,6 +2937,32 @@ button.link.danger {
   line-height: 1.2;
 }
 
+.ministry-summary-split {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.ministry-summary-side {
+  display: grid;
+  gap: 2px;
+  text-align: right;
+}
+
+.ministry-summary-side span {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.ministry-summary-side strong {
+  font-size: 1rem;
+  line-height: 1.2;
+  color: var(--text);
+}
+
 .ministry-summary-meta {
   margin: 0;
   color: var(--text-muted);

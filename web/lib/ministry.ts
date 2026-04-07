@@ -125,6 +125,10 @@ export function buildMinistryMonthPayload({
     (sum, entry) => sum + Math.max(0, entry.actualMinutes || 0),
     0
   );
+  const totalPlannedMinutes = entries.reduce(
+    (sum, entry) => sum + Math.max(0, entry.goalMinutes || 0),
+    0
+  );
 
   const monthStart = parseISO(startIso);
   const monthEnd = parseISO(endIso);
@@ -183,6 +187,8 @@ export function buildMinistryMonthPayload({
     expectedByTodayMinutes == null ? null : completedSoFarMinutes - expectedByTodayMinutes;
   const totalRemainingMinutes =
     targetMinutes == null ? null : Math.max(targetMinutes - completedSoFarMinutes, 0);
+  const plannedDifferenceFromTargetMinutes =
+    targetMinutes == null ? null : totalPlannedMinutes - targetMinutes;
   const completionPercent =
     targetMinutes && targetMinutes > 0
       ? Number(((completedSoFarMinutes / targetMinutes) * 100).toFixed(1))
@@ -202,6 +208,8 @@ export function buildMinistryMonthPayload({
   const summary: MinistryMonthSummary = {
     monthKey,
     targetMinutes,
+    totalPlannedMinutes,
+    plannedDifferenceFromTargetMinutes,
     totalCompletedMinutes,
     completedSoFarMinutes,
     totalRemainingMinutes,

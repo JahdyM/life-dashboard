@@ -359,6 +359,8 @@ export type MinistryDayComputed = {
 export type MinistryMonthSummary = {
   monthKey: string;
   targetMinutes: number | null;
+  totalPlannedMinutes: number;
+  plannedDifferenceFromTargetMinutes: number | null;
   totalCompletedMinutes: number;
   completedSoFarMinutes: number;
   totalRemainingMinutes: number | null;
