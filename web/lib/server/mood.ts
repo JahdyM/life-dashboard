@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db/prisma";
 import { canonicalMoodKey } from "@/lib/moods";
+import { ensureMoodMomentTables } from "@/lib/server/dbCompat";
 import type { MoodDaySummary, MoodHistoryResponse, MoodMomentEntry } from "@/lib/types";
 
 type RawMoodMoment = {
@@ -125,6 +126,7 @@ async function loadMoodMoments(
   startIso?: string,
   endIso?: string
 ): Promise<RawMoodMoment[]> {
+  await ensureMoodMomentTables();
   return prisma.moodMomentEntry.findMany({
     where: {
       userEmail,
@@ -277,6 +279,7 @@ export async function createMoodMoment(
     moodNote?: string | null;
   }
 ) {
+  await ensureMoodMomentTables();
   const moodCategory = canonicalMoodKey(input.moodCategory);
   if (!moodCategory) {
     throw new Error("Mood is required");

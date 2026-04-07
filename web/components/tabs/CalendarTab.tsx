@@ -606,6 +606,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [dismissedHabitsByDay, setDismissedHabitsByDay] = useState<Record<string, string[]>>({});
   const [quickNoteText, setQuickNoteText] = useState("");
   const [quickNoteSavedAt, setQuickNoteSavedAt] = useState<number | null>(null);
+  const [quickNoteDrafts, setQuickNoteDrafts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     try {
@@ -817,8 +818,21 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   useEffect(() => {
     if (quickNoteQuery.isPending) return;
     if (quickNoteQuery.isError) return;
-    setQuickNoteText(quickNoteQuery.data?.text || "");
-  }, [quickNoteQuery.data?.text, quickNoteQuery.isError, quickNoteQuery.isPending, selectedDayIso]);
+    setQuickNoteText((current) => {
+      if (Object.prototype.hasOwnProperty.call(quickNoteDrafts, selectedDayIso)) {
+        return quickNoteDrafts[selectedDayIso] ?? "";
+      }
+      const serverText = quickNoteQuery.data?.text || "";
+      if (serverText) return serverText;
+      return current;
+    });
+  }, [
+    quickNoteDrafts,
+    quickNoteQuery.data?.text,
+    quickNoteQuery.isError,
+    quickNoteQuery.isPending,
+    selectedDayIso,
+  ]);
   const activeSentShareByTaskId = useMemo(() => {
     const map = new Map<
       string,
@@ -1310,6 +1324,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         selectedDayIso,
       ]);
       queryClient.setQueryData(["quick-note", selectedDayIso], { text });
+      setQuickNoteDrafts((prev) => ({ ...prev, [selectedDayIso]: text }));
       return { previous };
     },
     onError: (error, _text, context) => {
@@ -2206,7 +2221,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           <textarea
             className="quick-note-textarea"
             value={quickNoteText}
-            onChange={(event) => setQuickNoteText(event.target.value.slice(0, 20000))}
+            onChange={(event) => {
+              const value = event.target.value.slice(0, 20000);
+              setQuickNoteText(value);
+              setQuickNoteDrafts((prev) => ({ ...prev, [selectedDayIso]: value }));
+            }}
             placeholder="Write freely here..."
             disabled={quickNoteQuery.isPending}
           />

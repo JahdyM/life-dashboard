@@ -6,6 +6,8 @@ const globalForCompat = globalThis as unknown as {
   taskColumnsEnsured?: boolean;
   ministryTablesEnsurePromise?: Promise<void>;
   ministryTablesEnsured?: boolean;
+  moodTablesEnsurePromise?: Promise<void>;
+  moodTablesEnsured?: boolean;
 };
 
 async function applyTaskCompletionColumnsMigration() {
@@ -108,4 +110,52 @@ export async function ensureMinistryTables() {
   }
 
   await globalForCompat.ministryTablesEnsurePromise;
+}
+
+async function applyMoodMomentTablesMigration() {
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS mood_moment_entries (
+      id TEXT PRIMARY KEY,
+      user_email TEXT NOT NULL,
+      day_iso TEXT NOT NULL,
+      logged_at TEXT NOT NULL,
+      mood_category TEXT NOT NULL,
+      mood_note TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+  await prisma.$executeRawUnsafe(
+    "CREATE INDEX IF NOT EXISTS mood_moment_entries_user_day_logged_idx ON mood_moment_entries(user_email, day_iso, logged_at)"
+  );
+  await prisma.$executeRawUnsafe(
+    "CREATE INDEX IF NOT EXISTS mood_moment_entries_user_logged_idx ON mood_moment_entries(user_email, logged_at)"
+  );
+}
+
+export async function ensureMoodMomentTables() {
+  if (globalForCompat.moodTablesEnsured) {
+    return;
+  }
+
+  if (!globalForCompat.moodTablesEnsurePromise) {
+    globalForCompat.moodTablesEnsurePromise = (async () => {
+      await applyMoodMomentTablesMigration();
+      globalForCompat.moodTablesEnsured = true;
+      logServerEvent("info", {
+        endpoint: "db-compat",
+        message: "Ensured mood moment tables",
+      });
+    })().catch((error) => {
+      globalForCompat.moodTablesEnsurePromise = undefined;
+      logServerEvent("error", {
+        endpoint: "db-compat",
+        message: "Failed to ensure mood moment tables",
+        error,
+      });
+      throw error;
+    });
+  }
+
+  await globalForCompat.moodTablesEnsurePromise;
 }
