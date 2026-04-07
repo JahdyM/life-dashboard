@@ -3,6 +3,17 @@
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
+import {
+  BookHeart,
+  BookOpenText,
+  CalendarDays,
+  ChartNoAxesCombined,
+  HeartHandshake,
+  MoonStar,
+  Sparkles,
+  Telescope,
+  TimerReset,
+} from "lucide-react";
 import OverflowMenu from "@/components/common/OverflowMenu";
 
 const PRIMARY_NAV_ITEMS = [
@@ -25,9 +36,24 @@ function isActivePath(pathname: string, href: string) {
 }
 
 function NavLink({ href, label, active }: { href: string; label: string; active: boolean }) {
+  const iconMap: Record<string, JSX.Element> = {
+    "/today": <Sparkles size={14} />,
+    "/calendar": <CalendarDays size={14} />,
+    "/habits": <TimerReset size={14} />,
+    "/ministry": <BookOpenText size={14} />,
+    "/mood": <MoonStar size={14} />,
+    "/spiritual-goals": <Telescope size={14} />,
+    "/spiritual-streaks": <BookHeart size={14} />,
+    "/stats": <ChartNoAxesCombined size={14} />,
+    "/couple": <HeartHandshake size={14} />,
+  };
+
   return (
     <Link href={href} className={`app-nav-link ${active ? "active" : ""}`}>
-      {label}
+      <span className="app-nav-link-icon" aria-hidden="true">
+        {iconMap[href]}
+      </span>
+      <span className="app-nav-link-text">{label}</span>
     </Link>
   );
 }

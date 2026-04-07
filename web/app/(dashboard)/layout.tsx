@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import Link from "next/link";
 import { AppNav, LogoutButton } from "@/components/AppNav";
+import WordOfDayWidget from "@/components/WordOfDayWidget";
 import { Providers } from "@/app/providers";
 import { getDashboardShellData } from "@/lib/server/dashboard";
 import { getMoodMeta } from "@/lib/moods";
@@ -90,6 +91,10 @@ export default async function DashboardLayout({
                   : "Add a task or mood."}
             </p>
           </article>
+        </section>
+
+        <section className="shell-study-strip" aria-label="Daily study widgets">
+          <WordOfDayWidget dateIso={shell.todayIso} />
         </section>
 
         <section className="shell-streak-panel" aria-label="Shared streak overview">

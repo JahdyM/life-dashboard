@@ -4599,3 +4599,271 @@ button.icon-only {
     align-items: stretch;
   }
 }
+
+/* Observatory design system override */
+:root {
+  --font-body: "Avenir Next", "Manrope", "Segoe UI", system-ui, sans-serif;
+  --font-heading: "Iowan Old Style", "Baskerville", "Times New Roman", serif;
+  --bg: #0f1217;
+  --bg-panel: rgba(22, 27, 34, 0.88);
+  --bg-soft: rgba(252, 240, 220, 0.05);
+  --text: #f3ebde;
+  --text-muted: #c3b8a6;
+  --accent: #d3ad70;
+  --accent-soft: rgba(211, 173, 112, 0.2);
+  --border: rgba(226, 213, 191, 0.2);
+  --border-soft: rgba(215, 199, 176, 0.12);
+  --success: #8ec7a5;
+  --warning: #ddc084;
+  --danger: #cb8880;
+}
+
+html,
+body {
+  background:
+    radial-gradient(circle at 14% 12%, rgba(203, 136, 128, 0.14), transparent 28%),
+    radial-gradient(circle at 85% 0%, rgba(129, 149, 185, 0.12), transparent 34%),
+    radial-gradient(circle at 50% 110%, rgba(211, 173, 112, 0.1), transparent 35%),
+    linear-gradient(180deg, #12161e 0%, #0d1016 52%, #090c12 100%);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 241, 221, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 241, 221, 0.02) 1px, transparent 1px);
+  background-size: 28px 28px;
+  opacity: 0.26;
+  mix-blend-mode: screen;
+}
+
+.shell-layout,
+.landing-shell,
+.signin-shell {
+  width: min(1360px, calc(100% - 42px));
+}
+
+.shell-brand h1 {
+  letter-spacing: 0.01em;
+  color: #f7f0e2;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.28);
+}
+
+.shell-copy,
+.page-intro-copy,
+.today-panel-copy {
+  color: #bbaea0;
+}
+
+.app-nav {
+  border-radius: 22px;
+  border: 1px solid rgba(222, 206, 181, 0.2);
+  background:
+    radial-gradient(circle at top right, rgba(211, 173, 112, 0.15), transparent 38%),
+    rgba(19, 24, 31, 0.78);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+}
+
+.app-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid transparent;
+}
+
+.app-nav-link-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #cdb183;
+}
+
+.app-nav-link.active {
+  color: var(--text);
+  border-color: rgba(211, 173, 112, 0.34);
+  background:
+    radial-gradient(circle at top, rgba(211, 173, 112, 0.2), transparent 75%),
+    rgba(255, 245, 229, 0.07);
+}
+
+.app-nav-popover,
+.app-nav-popover-links {
+  background: rgba(19, 24, 31, 0.96);
+  border-color: rgba(222, 206, 181, 0.2);
+}
+
+.card,
+.today-panel,
+.shell-summary-card,
+.shell-streak-panel,
+.signin-card,
+.landing-copy,
+.landing-pillar {
+  border: 1px solid rgba(219, 202, 177, 0.2);
+  background:
+    radial-gradient(circle at top right, rgba(211, 173, 112, 0.09), transparent 45%),
+    linear-gradient(180deg, rgba(255, 248, 238, 0.05), rgba(255, 248, 238, 0.025));
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.26),
+    inset 0 1px 0 rgba(255, 245, 230, 0.06);
+}
+
+.page-intro {
+  padding: 6px 2px;
+}
+
+.page-intro h2 {
+  font-size: clamp(2rem, 3.2vw, 3rem);
+  letter-spacing: 0.01em;
+}
+
+.page-intro-eyebrow {
+  color: #e3bf85;
+}
+
+.today-task-item,
+.today-streak-item,
+.today-compact-list li,
+.streak-card,
+.spiritual-streak-board,
+.spiritual-overview-button,
+.spiritual-detail-panel,
+.spiritual-support-card,
+.spiritual-visual-card,
+.ministry-day-card {
+  background: rgba(255, 245, 228, 0.04);
+  border-color: rgba(214, 196, 170, 0.16);
+}
+
+.shell-study-strip {
+  display: grid;
+  gap: 14px;
+}
+
+.study-widget-card {
+  border-radius: 20px;
+  border: 1px solid rgba(220, 201, 172, 0.22);
+  padding: 16px 18px;
+  background:
+    radial-gradient(circle at top right, rgba(143, 171, 200, 0.16), transparent 38%),
+    radial-gradient(circle at bottom left, rgba(211, 173, 112, 0.14), transparent 42%),
+    rgba(255, 249, 239, 0.04);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+  display: grid;
+  gap: 12px;
+}
+
+.study-widget-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.study-widget-kicker {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #d7b77d;
+}
+
+.study-widget-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #c9baa4;
+  border: 1px solid rgba(220, 201, 172, 0.24);
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: rgba(255, 248, 238, 0.06);
+  text-transform: capitalize;
+}
+
+.study-widget-main {
+  display: grid;
+  gap: 5px;
+}
+
+.study-widget-main h3 {
+  margin: 0;
+  font-family: var(--font-heading), serif;
+  font-size: 1.45rem;
+}
+
+.study-widget-pronunciation,
+.study-widget-meaning,
+.study-widget-example {
+  margin: 0;
+  color: #c3b8a7;
+  line-height: 1.45;
+}
+
+.study-widget-pronunciation {
+  font-size: 0.9rem;
+}
+
+.study-widget-example {
+  font-style: italic;
+  color: #b6aa99;
+}
+
+input,
+select,
+textarea {
+  background: rgba(244, 230, 208, 0.07);
+  border: 1px solid rgba(220, 200, 169, 0.2);
+  color: var(--text);
+}
+
+button.primary {
+  background: linear-gradient(180deg, #d7b67d, #cfa564);
+  color: #201a12;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24);
+}
+
+button.secondary,
+.page-link {
+  border-color: rgba(220, 200, 169, 0.2);
+  background: rgba(247, 236, 216, 0.06);
+}
+
+.query-status {
+  border-radius: 14px;
+  border: 1px solid rgba(220, 200, 169, 0.18);
+  background: rgba(248, 239, 224, 0.05);
+}
+
+.signin-hero,
+.signin-card {
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at top right, rgba(211, 173, 112, 0.12), transparent 45%),
+    rgba(255, 249, 238, 0.04);
+}
+
+.signin-chip {
+  border-color: rgba(220, 200, 169, 0.28);
+  background: rgba(211, 173, 112, 0.12);
+}
+
+.mood-cell,
+.spiritual-streak-cell {
+  box-shadow: inset 0 1px 0 rgba(255, 242, 222, 0.12);
+}
+
+@media (max-width: 900px) {
+  .shell-layout,
+  .landing-shell,
+  .signin-shell {
+    width: min(1360px, calc(100% - 26px));
+  }
+
+  .study-widget-card {
+    border-radius: 18px;
+  }
+}
