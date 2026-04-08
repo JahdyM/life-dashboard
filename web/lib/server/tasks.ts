@@ -363,6 +363,17 @@ export async function deleteTask(userEmail: string, taskId: string) {
   if (!ownedTask) {
     throw new Error("RESOURCE_NOT_FOUND");
   }
+  const nowIso = new Date().toISOString();
+  // Some legacy databases enforce delete policies on unfinished tasks.
+  // Mark as completed first so hard-delete remains reliable for all task states.
+  await prisma.todoTask.update({
+    where: { id: taskId },
+    data: {
+      isDone: 1,
+      completedAt: nowIso,
+      updatedAt: nowIso,
+    },
+  });
   await prisma.$transaction([
     prisma.todoTaskDetail.deleteMany({
       where: { taskId },

@@ -1950,6 +1950,20 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     [deleteTask]
   );
 
+  const handleDeleteTaskFromDetails = useCallback(
+    (taskId: string) => {
+      handleDeleteTask(taskId);
+      setDetailTaskId(null);
+      setTaskDrafts((current) => {
+        if (!current[taskId]) return current;
+        const next = { ...current };
+        delete next[taskId];
+        return next;
+      });
+    },
+    [handleDeleteTask]
+  );
+
   const handleScheduleToday = useCallback(
     (taskId: string) => {
       updateTask.mutate({
@@ -2550,10 +2564,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           onSetDraft={setTaskDraft}
           onSave={confirmTaskUpdate}
           onReset={resetTaskDraft}
-          onDelete={(taskId) => {
-            handleDeleteTask(taskId);
-            handleCloseTaskDetails();
-          }}
+          onDelete={handleDeleteTaskFromDetails}
           onToggleDone={(task, checked) => requestToggleTaskDone(task, checked)}
           onShare={handleShareTask}
           onCreateSubtask={handleCreateSubtask}
