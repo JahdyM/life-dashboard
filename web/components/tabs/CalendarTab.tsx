@@ -178,7 +178,7 @@ type EditableTaskRowProps = {
   saving: boolean;
   saved: boolean;
   onToggleDone: (task: TodoTask, checked: boolean) => void;
-  onToggleExpanded: (taskId: string) => void;
+  onToggleExpanded: (taskId: string, currentlyExpanded: boolean) => void;
   onToggleSubtaskDone: (task: TodoTask, subtaskId: string, checked: boolean) => void;
   onOpenDetails: (taskId: string) => void;
   onScheduleToday?: (taskId: string) => void;
@@ -221,6 +221,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
     [subtasks]
   );
   const hasSubtasks = subtasks.length > 0;
+  const allSubtasksDone = hasSubtasks && completedSubtasks === subtasks.length;
   const metadataSummary = summarizeTaskMetadata(draft);
 
   const handleToggle = useCallback(
@@ -229,7 +230,10 @@ const EditableTaskRow = memo(function EditableTaskRow({
     [onToggleDone, task]
   );
   const handleOpen = useCallback(() => onOpenDetails(task.id), [onOpenDetails, task.id]);
-  const handleToggleExpanded = useCallback(() => onToggleExpanded(task.id), [onToggleExpanded, task.id]);
+  const handleToggleExpanded = useCallback(
+    () => onToggleExpanded(task.id, expanded),
+    [expanded, onToggleExpanded, task.id]
+  );
   const handleScheduleToday = useCallback(() => {
     if (!onScheduleToday) return;
     onScheduleToday(task.id);
@@ -241,7 +245,9 @@ const EditableTaskRow = memo(function EditableTaskRow({
   }, [onShare, task.id]);
 
   return (
-    <article className={`task-row task-row-editable ${active ? "active" : ""} ${shareLabel ? "task-row-shared" : ""}`}>
+    <article
+      className={`task-row task-row-editable ${active ? "active" : ""} ${allSubtasksDone && !draft.isDone ? "task-row-ready" : ""} ${shareLabel ? "task-row-shared" : ""}`}
+    >
       <div className="task-row-compact-head">
         <input
           type="checkbox"
@@ -257,6 +263,9 @@ const EditableTaskRow = memo(function EditableTaskRow({
               <span className="task-subtask-summary">
                 {completedSubtasks}/{subtasks.length} subtasks
               </span>
+            ) : null}
+            {allSubtasksDone && !draft.isDone ? (
+              <span className="task-ready-badge">Ready</span>
             ) : null}
           </div>
         </button>
@@ -659,6 +668,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     };
   }, [taskDrafts]);
 
+  const isTaskExpanded = useCallback(
+    (task: TodoTask) =>
+      expandedTasks[task.id] ?? Boolean(task.subtasks && task.subtasks.length > 0),
+    [expandedTasks]
+  );
+
   const pendingTasks = tasksForDay.filter((task) => !readTaskDraft(task).isDone);
   const completedTasks = tasksForDay.filter((task) => readTaskDraft(task).isDone);
   const pendingTaskShares = useMemo(
@@ -690,12 +705,19 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       const ids = new Set(tasks.map((task) => task.id));
       const next = Object.entries(previous).reduce<Record<string, boolean>>(
         (acc, [taskId, expanded]) => {
-          if (expanded && ids.has(taskId)) acc[taskId] = true;
+          if (ids.has(taskId)) acc[taskId] = expanded;
           return acc;
         },
         {}
       );
-      if (Object.keys(next).length === Object.keys(previous).length) return previous;
+      const nextKeys = Object.keys(next);
+      const previousKeys = Object.keys(previous);
+      if (
+        nextKeys.length === previousKeys.length &&
+        nextKeys.every((key) => next[key] === previous[key])
+      ) {
+        return previous;
+      }
       return next;
     });
   }, [tasks]);
@@ -1705,10 +1727,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     setDetailTaskId(null);
   }, [confirmTaskUpdate, detailTask]);
 
-  const handleToggleTaskExpanded = useCallback((taskId: string) => {
+  const handleToggleTaskExpanded = useCallback((taskId: string, currentlyExpanded: boolean) => {
     setExpandedTasks((previous) => ({
       ...previous,
-      [taskId]: !previous[taskId],
+      [taskId]: !currentlyExpanded,
     }));
   }, []);
 
@@ -1731,11 +1753,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           },
         }
       );
-      if (!expandedTasks[task.id]) {
+      if (!isTaskExpanded(task)) {
         setExpandedTasks((previous) => ({ ...previous, [task.id]: true }));
       }
     },
-    [expandedTasks, updateSubtaskMutation]
+    [isTaskExpanded, updateSubtaskMutation]
   );
 
   const handleCreateSubtask = useCallback(
