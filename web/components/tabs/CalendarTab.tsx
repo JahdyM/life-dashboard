@@ -3039,7 +3039,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                         segment.midAngle
                       );
                       const labelMaxLength =
-                        segment.span >= 72 ? 14 : segment.span >= 45 ? 12 : 10;
+                        segment.span >= 72 ? 11 : segment.span >= 45 ? 9 : 8;
                       const label = truncateWheelLabel(segment.task.title, labelMaxLength);
                       const canRenderLabel = segment.span >= 28;
 

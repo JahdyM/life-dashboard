@@ -2080,13 +2080,15 @@ button.link.danger {
 
 .activity-wheel-slice-label {
   fill: #f8f1e4;
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: 600;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
   paint-order: stroke;
   stroke: rgba(10, 14, 20, 0.52);
   stroke-width: 1.3px;
   pointer-events: none;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
 }
 
 .activity-wheel-rim {
