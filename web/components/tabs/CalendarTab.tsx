@@ -2263,7 +2263,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     key={task.id}
                     task={task}
                     draft={draft}
-                    expanded={Boolean(expandedTasks[task.id])}
+                    expanded={isTaskExpanded(task)}
                     active={detailTaskId === task.id}
                     saving={savingTaskId === task.id}
                     saved={savedTaskId === task.id}
@@ -2304,7 +2304,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     key={task.id}
                     task={task}
                     draft={draft}
-                    expanded={Boolean(expandedTasks[task.id])}
+                    expanded={isTaskExpanded(task)}
                     active={detailTaskId === task.id}
                     saving={savingTaskId === task.id}
                     saved={savedTaskId === task.id}
@@ -2348,7 +2348,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   key={`done-task-${task.id}`}
                   task={task}
                   draft={draft}
-                  expanded={Boolean(expandedTasks[task.id])}
+                  expanded={isTaskExpanded(task)}
                   active={detailTaskId === task.id}
                   saving={savingTaskId === task.id}
                   saved={savedTaskId === task.id}
