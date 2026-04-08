@@ -1626,12 +1626,61 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       fetchJson(`/api/tasks/${id}`, {
         method: "DELETE",
       }),
+    onMutate: async (taskId) => {
+      setTaskSaveError(null);
+      await queryClient.cancelQueries({ queryKey: ["tasks", range.start, range.end] });
+      const previous = queryClient.getQueryData<TaskListResponse>([
+        "tasks",
+        range.start,
+        range.end,
+      ]);
+      queryClient.setQueryData(
+        ["tasks", range.start, range.end],
+        (old: TaskListResponse | undefined) => {
+          if (!old?.items) return old;
+          return {
+            ...old,
+            items: old.items.filter((item) => item.id !== taskId),
+          };
+        }
+      );
+      setTaskDrafts((current) => {
+        if (!current[taskId]) return current;
+        const next = { ...current };
+        delete next[taskId];
+        return next;
+      });
+      setExpandedTasks((current) => {
+        if (!(taskId in current)) return current;
+        const next = { ...current };
+        delete next[taskId];
+        return next;
+      });
+      if (detailTaskId === taskId) {
+        setDetailTaskId(null);
+      }
+      if (wheelResultTaskId === taskId) {
+        setWheelResultTaskId(null);
+      }
+      if (wheelLastTaskId === taskId) {
+        setWheelLastTaskId(null);
+      }
+      return { previous };
+    },
     onSuccess: () => {
       setTaskSaveError(null);
-      queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
     },
-    onError: (error) => {
+    onError: (error, _taskId, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          ["tasks", range.start, range.end],
+          context.previous
+        );
+      }
       setTaskSaveError(readErrorMessage(error, "Couldn't delete task."));
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
     },
   });
 

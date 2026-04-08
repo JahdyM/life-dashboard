@@ -143,6 +143,9 @@ export async function DELETE(
     });
     const authError = handleAuthError(err);
     if (authError) return authError;
+    if (err instanceof Error && err.message === "RESOURCE_NOT_FOUND") {
+      return jsonError("Task not found", 404);
+    }
     return jsonError("Failed to delete task", 500);
   }
 }

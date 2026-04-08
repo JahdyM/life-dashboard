@@ -356,20 +356,24 @@ export async function updateTask(
 
 export async function deleteTask(userEmail: string, taskId: string) {
   await ensureTaskCompletionColumns();
-  const [, , deletedTask] = await prisma.$transaction([
-    prisma.todoTaskDetail.deleteMany({
-      where: { userEmail, taskId },
-    }),
-    prisma.todoSubtask.deleteMany({
-      where: { userEmail, taskId },
-    }),
-    prisma.todoTask.deleteMany({
-      where: { id: taskId, userEmail },
-    }),
-  ]);
-  if (!deletedTask.count) {
+  const ownedTask = await prisma.todoTask.findFirst({
+    where: { id: taskId, userEmail },
+    select: { id: true },
+  });
+  if (!ownedTask) {
     throw new Error("RESOURCE_NOT_FOUND");
   }
+  await prisma.$transaction([
+    prisma.todoTaskDetail.deleteMany({
+      where: { taskId },
+    }),
+    prisma.todoSubtask.deleteMany({
+      where: { taskId },
+    }),
+    prisma.todoTask.delete({
+      where: { id: taskId },
+    }),
+  ]);
 }
 
 export async function createSubtask(
