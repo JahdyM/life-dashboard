@@ -17,6 +17,24 @@ async function applyTaskCompletionColumnsMigration() {
   await prisma.$executeRawUnsafe(
     "ALTER TABLE todo_subtasks ADD COLUMN IF NOT EXISTS completed_at TEXT"
   );
+  await prisma.$executeRawUnsafe(
+    "ALTER TABLE todo_subtasks ADD COLUMN IF NOT EXISTS sort_order INTEGER"
+  );
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS todo_task_details (
+      task_id TEXT PRIMARY KEY,
+      user_email TEXT NOT NULL,
+      planned_time TEXT,
+      start_time TEXT,
+      end_time TEXT,
+      notes TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )
+  `);
+  await prisma.$executeRawUnsafe(
+    "CREATE INDEX IF NOT EXISTS todo_task_details_user_email_idx ON todo_task_details(user_email)"
+  );
 }
 
 export async function ensureTaskCompletionColumns() {
@@ -30,13 +48,13 @@ export async function ensureTaskCompletionColumns() {
       globalForCompat.taskColumnsEnsured = true;
       logServerEvent("info", {
         endpoint: "db-compat",
-        message: "Ensured completed_at columns for task tables",
+        message: "Ensured task compatibility columns and tables",
       });
     })().catch((error) => {
       globalForCompat.taskColumnsEnsurePromise = undefined;
       logServerEvent("error", {
         endpoint: "db-compat",
-        message: "Failed to ensure completed_at compatibility columns",
+        message: "Failed to ensure task compatibility columns and tables",
         error,
       });
       throw error;

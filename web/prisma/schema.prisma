@@ -71,6 +71,7 @@ model TodoSubtask {
   taskId           String  @map("task_id")
   userEmail        String  @map("user_email")
   title            String
+  sortOrder        Int?    @map("sort_order")
   priorityTag      String? @map("priority_tag")
   estimatedMinutes Int?    @map("estimated_minutes")
   actualMinutes    Int?    @map("actual_minutes")
@@ -83,6 +84,20 @@ model TodoSubtask {
 
   @@index([userEmail, taskId])
   @@map("todo_subtasks")
+}
+
+model TodoTaskDetail {
+  taskId      String  @id @map("task_id")
+  userEmail   String  @map("user_email")
+  plannedTime String? @map("planned_time")
+  startTime   String? @map("start_time")
+  endTime     String? @map("end_time")
+  notes       String?
+  createdAt   String  @map("created_at")
+  updatedAt   String  @map("updated_at")
+
+  @@index([userEmail])
+  @@map("todo_task_details")
 }
 
 model Setting {

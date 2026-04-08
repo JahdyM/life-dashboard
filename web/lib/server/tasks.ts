@@ -3,6 +3,11 @@ import { randomUUID } from "crypto";
 import { format, parseISO, subDays } from "date-fns";
 import { ensureTaskCompletionColumns } from "./dbCompat";
 import { getTodayIsoForUser } from "./settings";
+import type {
+  TodoSubtask as PrismaTodoSubtask,
+  TodoTask as PrismaTodoTask,
+  TodoTaskDetail as PrismaTodoTaskDetail,
+} from "@prisma/client";
 
 export type TaskPayload = {
   title: string;
@@ -10,6 +15,10 @@ export type TaskPayload = {
   externalEventKey?: string | null;
   scheduledDate?: string | null;
   scheduledTime?: string | null;
+  plannedTime?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  notes?: string | null;
   priorityTag?: string | null;
   estimatedMinutes?: number | null;
   actualMinutes?: number | null;
@@ -18,6 +27,81 @@ export type TaskPayload = {
   googleCalendarId?: string | null;
   googleEventId?: string | null;
 };
+
+type TaskWithSubtasks = PrismaTodoTask & { subtasks?: PrismaTodoSubtask[] };
+
+function normalizeTaskNotes(value: string | null | undefined) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const next = value.trim();
+  return next ? next : null;
+}
+
+function normalizeTaskDetailRow(
+  task: PrismaTodoTask,
+  detail: PrismaTodoTaskDetail | null | undefined
+) {
+  const plannedTime =
+    detail?.plannedTime ?? task.scheduledTime ?? null;
+  return {
+    plannedTime,
+    startTime: detail?.startTime ?? null,
+    endTime: detail?.endTime ?? null,
+    notes: detail?.notes ?? null,
+  };
+}
+
+function normalizeSubtasks(subtasks: PrismaTodoSubtask[] | undefined) {
+  if (!subtasks?.length) return [];
+  return [...subtasks]
+    .sort((left, right) => {
+      const leftOrder = left.sortOrder ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder = right.sortOrder ?? Number.MAX_SAFE_INTEGER;
+      if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+      return String(left.createdAt).localeCompare(String(right.createdAt));
+    })
+    .map((subtask, index) => ({
+      ...subtask,
+      order: subtask.sortOrder ?? index + 1,
+    }));
+}
+
+function mergeTaskWithDetail(
+  task: TaskWithSubtasks,
+  detail: PrismaTodoTaskDetail | null | undefined
+) {
+  return {
+    ...task,
+    ...normalizeTaskDetailRow(task, detail),
+    subtasks: normalizeSubtasks(task.subtasks),
+  };
+}
+
+async function loadTaskDetailMap(userEmail: string, taskIds: string[]) {
+  if (!taskIds.length) return new Map<string, PrismaTodoTaskDetail>();
+  const rows = await prisma.todoTaskDetail.findMany({
+    where: {
+      userEmail,
+      taskId: { in: taskIds },
+    },
+  });
+  return new Map(rows.map((row) => [row.taskId, row]));
+}
+
+function shouldPersistTaskDetail(
+  task: PrismaTodoTask,
+  detail: { plannedTime: string | null; startTime: string | null; endTime: string | null; notes: string | null }
+) {
+  const hasDifferentPlannedTime =
+    detail.plannedTime !== null &&
+    detail.plannedTime !== (task.scheduledTime || null);
+  return Boolean(
+    hasDifferentPlannedTime ||
+      detail.startTime ||
+      detail.endTime ||
+      detail.notes
+  );
+}
 
 export async function listTasks(
   userEmail: string,
@@ -59,11 +143,15 @@ export async function listTasks(
     ],
     include: {
       subtasks: {
-        orderBy: { createdAt: "asc" },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       },
     },
   });
-  return tasks;
+  const detailMap = await loadTaskDetailMap(
+    userEmail,
+    tasks.map((task) => task.id)
+  );
+  return tasks.map((task) => mergeTaskWithDetail(task, detailMap.get(task.id)));
 }
 
 async function rollPendingTasksFromYesterday(userEmail: string, targetDateIso: string) {
@@ -88,6 +176,7 @@ async function rollPendingTasksFromYesterday(userEmail: string, targetDateIso: s
 export async function createTask(userEmail: string, payload: TaskPayload) {
   await ensureTaskCompletionColumns();
   const nowIso = new Date().toISOString();
+  const normalizedNotes = normalizeTaskNotes(payload.notes) ?? null;
   const task = await prisma.todoTask.create({
     data: {
       id: randomUUID(),
@@ -111,7 +200,45 @@ export async function createTask(userEmail: string, payload: TaskPayload) {
       updatedAt: nowIso,
     },
   });
-  return task;
+  const detail = {
+    plannedTime: payload.plannedTime ?? payload.scheduledTime ?? null,
+    startTime: payload.startTime ?? null,
+    endTime: payload.endTime ?? null,
+    notes: normalizedNotes,
+  };
+  if (shouldPersistTaskDetail(task, detail)) {
+    await prisma.todoTaskDetail.upsert({
+      where: { taskId: task.id },
+      create: {
+        taskId: task.id,
+        userEmail,
+        plannedTime: detail.plannedTime,
+        startTime: detail.startTime,
+        endTime: detail.endTime,
+        notes: detail.notes,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      update: {
+        plannedTime: detail.plannedTime,
+        startTime: detail.startTime,
+        endTime: detail.endTime,
+        notes: detail.notes,
+        updatedAt: nowIso,
+      },
+    });
+    return mergeTaskWithDetail(task, {
+      taskId: task.id,
+      userEmail,
+      plannedTime: detail.plannedTime,
+      startTime: detail.startTime,
+      endTime: detail.endTime,
+      notes: detail.notes,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    });
+  }
+  return mergeTaskWithDetail(task, null);
 }
 
 export async function updateTask(
@@ -123,7 +250,7 @@ export async function updateTask(
   const nowIso = new Date().toISOString();
   const existing = await prisma.todoTask.findFirst({
     where: { id: taskId, userEmail },
-    select: { id: true, isDone: true, completedAt: true },
+    select: { id: true, isDone: true },
   });
   if (!existing) {
     throw new Error("RESOURCE_NOT_FOUND");
@@ -161,18 +288,78 @@ export async function updateTask(
   if (!updateResult.count) {
     throw new Error("RESOURCE_NOT_FOUND");
   }
+  const detailPatchProvided =
+    payload.plannedTime !== undefined ||
+    payload.startTime !== undefined ||
+    payload.endTime !== undefined ||
+    payload.notes !== undefined;
+
   const task = await prisma.todoTask.findFirst({
     where: { id: taskId, userEmail },
+    include: { subtasks: true },
   });
   if (!task) {
     throw new Error("RESOURCE_NOT_FOUND");
   }
-  return task;
+
+  let detail = await prisma.todoTaskDetail.findUnique({ where: { taskId } });
+
+  if (detailPatchProvided) {
+    const nextDetail = {
+      plannedTime:
+        payload.plannedTime !== undefined
+          ? payload.plannedTime
+          : detail?.plannedTime ?? task.scheduledTime ?? null,
+      startTime:
+        payload.startTime !== undefined
+          ? payload.startTime
+          : detail?.startTime ?? null,
+      endTime:
+        payload.endTime !== undefined ? payload.endTime : detail?.endTime ?? null,
+      notes:
+        payload.notes !== undefined
+          ? normalizeTaskNotes(payload.notes) ?? null
+          : detail?.notes ?? null,
+    };
+
+    if (shouldPersistTaskDetail(task, nextDetail)) {
+      detail = await prisma.todoTaskDetail.upsert({
+        where: { taskId },
+        create: {
+          taskId,
+          userEmail,
+          plannedTime: nextDetail.plannedTime,
+          startTime: nextDetail.startTime,
+          endTime: nextDetail.endTime,
+          notes: nextDetail.notes,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        },
+        update: {
+          plannedTime: nextDetail.plannedTime,
+          startTime: nextDetail.startTime,
+          endTime: nextDetail.endTime,
+          notes: nextDetail.notes,
+          updatedAt: nowIso,
+        },
+      });
+    } else {
+      await prisma.todoTaskDetail.deleteMany({
+        where: { taskId, userEmail },
+      });
+      detail = null;
+    }
+  }
+
+  return mergeTaskWithDetail(task, detail);
 }
 
 export async function deleteTask(userEmail: string, taskId: string) {
   await ensureTaskCompletionColumns();
-  const [, deletedTask] = await prisma.$transaction([
+  const [, , deletedTask] = await prisma.$transaction([
+    prisma.todoTaskDetail.deleteMany({
+      where: { userEmail, taskId },
+    }),
     prisma.todoSubtask.deleteMany({
       where: { userEmail, taskId },
     }),
@@ -188,29 +375,46 @@ export async function deleteTask(userEmail: string, taskId: string) {
 export async function createSubtask(
   userEmail: string,
   taskId: string,
-  title: string
+  title: string,
+  order?: number | null
 ) {
   await ensureTaskCompletionColumns();
-  const ownedTask = await prisma.todoTask.findFirst({
-    where: { id: taskId, userEmail },
-    select: { id: true },
-  });
+  const [ownedTask, existingSubtasks] = await Promise.all([
+    prisma.todoTask.findFirst({
+      where: { id: taskId, userEmail },
+      select: { id: true },
+    }),
+    prisma.todoSubtask.findMany({
+      where: { taskId, userEmail },
+      select: { sortOrder: true },
+    }),
+  ]);
   if (!ownedTask) {
     throw new Error("RESOURCE_NOT_FOUND");
   }
+  const maxSortOrder = existingSubtasks.reduce((max, row) => {
+    const value = Number(row.sortOrder || 0);
+    return value > max ? value : max;
+  }, 0);
+  const nextSortOrder = Math.max(1, Number(order || maxSortOrder + 1));
   const nowIso = new Date().toISOString();
-  return prisma.todoSubtask.create({
+  const subtask = await prisma.todoSubtask.create({
     data: {
       id: randomUUID(),
       taskId,
       userEmail,
       title: title.trim(),
+      sortOrder: nextSortOrder,
       priorityTag: "Medium",
       isDone: 0,
       createdAt: nowIso,
       updatedAt: nowIso,
     },
   });
+  return {
+    ...subtask,
+    order: subtask.sortOrder ?? nextSortOrder,
+  };
 }
 
 export async function updateSubtask(
@@ -218,6 +422,7 @@ export async function updateSubtask(
   subtaskId: string,
   data: Partial<{
     title: string;
+    order: number | null;
     priorityTag: string;
     estimatedMinutes: number | null;
     actualMinutes: number | null;
@@ -229,7 +434,7 @@ export async function updateSubtask(
   const nowIso = new Date().toISOString();
   const existing = await prisma.todoSubtask.findFirst({
     where: { id: subtaskId, userEmail },
-    select: { id: true, isDone: true },
+    select: { id: true, isDone: true, sortOrder: true },
   });
   if (!existing) {
     throw new Error("RESOURCE_NOT_FOUND");
@@ -246,10 +451,14 @@ export async function updateSubtask(
     completedAtPatch = data.completedAt ?? null;
   }
 
+  const nextSortOrder =
+    data.order !== undefined ? Math.max(1, Number(data.order || 1)) : undefined;
+
   const updateResult = await prisma.todoSubtask.updateMany({
     where: { id: subtaskId, userEmail },
     data: {
       title: data.title?.trim(),
+      sortOrder: nextSortOrder,
       priorityTag: data.priorityTag,
       estimatedMinutes: data.estimatedMinutes,
       actualMinutes: data.actualMinutes,
@@ -267,7 +476,10 @@ export async function updateSubtask(
   if (!subtask) {
     throw new Error("RESOURCE_NOT_FOUND");
   }
-  return subtask;
+  return {
+    ...subtask,
+    order: subtask.sortOrder ?? 1,
+  };
 }
 
 export async function deleteSubtask(userEmail: string, subtaskId: string) {

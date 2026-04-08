@@ -40,7 +40,26 @@ export async function PATCH(
     const updatePayload: Partial<TaskPayload> = {};
     if (payload.title !== undefined) updatePayload.title = payload.title;
     if (payload.scheduled_date !== undefined) updatePayload.scheduledDate = payload.scheduled_date;
-    if (payload.scheduled_time !== undefined) updatePayload.scheduledTime = payload.scheduled_time;
+    const hasScheduledTimePatch =
+      payload.scheduled_time !== undefined || payload.planned_time !== undefined;
+    const nextScheduledTime =
+      payload.scheduled_time !== undefined
+        ? payload.scheduled_time
+        : payload.planned_time !== undefined
+          ? payload.planned_time
+          : undefined;
+    if (hasScheduledTimePatch) {
+      updatePayload.scheduledTime = nextScheduledTime ?? null;
+      if (payload.planned_time === undefined) {
+        updatePayload.plannedTime = nextScheduledTime ?? null;
+      }
+    }
+    if (payload.planned_time !== undefined) {
+      updatePayload.plannedTime = payload.planned_time ?? null;
+    }
+    if (payload.start_time !== undefined) updatePayload.startTime = payload.start_time ?? null;
+    if (payload.end_time !== undefined) updatePayload.endTime = payload.end_time ?? null;
+    if (payload.notes !== undefined) updatePayload.notes = payload.notes ?? null;
     if (payload.priority_tag !== undefined) updatePayload.priorityTag = payload.priority_tag;
     if (payload.estimated_minutes !== undefined) {
       updatePayload.estimatedMinutes = payload.estimated_minutes;
@@ -63,8 +82,8 @@ export async function PATCH(
       if (payload.scheduled_date !== undefined && payload.scheduled_date !== null) {
         googlePatch.scheduledDate = payload.scheduled_date;
       }
-      if (payload.scheduled_time !== undefined) {
-        googlePatch.scheduledTime = payload.scheduled_time;
+      if (hasScheduledTimePatch) {
+        googlePatch.scheduledTime = nextScheduledTime ?? null;
       }
       if (payload.estimated_minutes !== undefined) {
         googlePatch.estimatedMinutes = payload.estimated_minutes;

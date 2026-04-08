@@ -29,7 +29,12 @@ export async function POST(request: NextRequest) {
       select: { id: true },
     });
     if (!taskExists) return jsonError("Task not found", 404);
-    const subtask = await createSubtask(userEmail, parsed.data.task_id, parsed.data.title);
+    const subtask = await createSubtask(
+      userEmail,
+      parsed.data.task_id,
+      parsed.data.title,
+      parsed.data.order ?? null
+    );
     return jsonOk({ subtask }, 201);
   } catch (err) {
     logServerEvent("error", {

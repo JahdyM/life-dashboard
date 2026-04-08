@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
     }
     const payload = parsed.data;
     const title = payload.title;
+    const scheduledTimeInput = payload.scheduled_time ?? payload.planned_time ?? null;
     let googleEventId: string | null = null;
     let warning: string | null = null;
     if (payload.sync_google && payload.scheduled_date) {
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
         const event = await createGoogleEvent(userEmail, "primary", {
           title,
           scheduledDate: payload.scheduled_date,
-          scheduledTime: payload.scheduled_time || null,
+          scheduledTime: scheduledTimeInput,
           estimatedMinutes: payload.estimated_minutes || null,
           timeZone: timezone,
         });
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
           error,
           meta: {
             scheduledDate: payload.scheduled_date,
-            scheduledTime: payload.scheduled_time || null,
+            scheduledTime: scheduledTimeInput,
           },
         });
       }
@@ -105,7 +106,11 @@ export async function POST(request: NextRequest) {
       source: payload.source || "manual",
       externalEventKey: googleEventId ? `google:primary:${googleEventId}` : null,
       scheduledDate: payload.scheduled_date || null,
-      scheduledTime: payload.scheduled_time || null,
+      scheduledTime: scheduledTimeInput,
+      plannedTime: payload.planned_time ?? scheduledTimeInput,
+      startTime: payload.start_time ?? null,
+      endTime: payload.end_time ?? null,
+      notes: payload.notes ?? null,
       priorityTag: payload.priority_tag || "Medium",
       estimatedMinutes: payload.estimated_minutes || null,
       actualMinutes: payload.actual_minutes || null,

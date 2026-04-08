@@ -137,6 +137,10 @@ export const taskCreateSchema = z
     source: z.string().trim().min(1).max(32).optional(),
     scheduled_date: nullableIsoDateSchema.optional(),
     scheduled_time: nullableIsoTimeSchema.optional(),
+    planned_time: nullableIsoTimeSchema.optional(),
+    start_time: nullableIsoTimeSchema.optional(),
+    end_time: nullableIsoTimeSchema.optional(),
+    notes: z.union([z.string().max(4000), z.null()]).optional(),
     priority_tag: z.enum(TASK_PRIORITIES).optional(),
     estimated_minutes: nullableBoundedInt(0, 480).optional(),
     actual_minutes: nullableBoundedInt(0, 1440).optional(),
@@ -151,6 +155,10 @@ export const taskPatchSchema = z
     title: z.string().trim().min(1).max(200).optional(),
     scheduled_date: nullableIsoDateSchema.optional(),
     scheduled_time: nullableIsoTimeSchema.optional(),
+    planned_time: nullableIsoTimeSchema.optional(),
+    start_time: nullableIsoTimeSchema.optional(),
+    end_time: nullableIsoTimeSchema.optional(),
+    notes: z.union([z.string().max(4000), z.null()]).optional(),
     priority_tag: z.enum(TASK_PRIORITIES).optional(),
     estimated_minutes: nullableBoundedInt(0, 480).optional(),
     actual_minutes: nullableBoundedInt(0, 1440).optional(),
@@ -424,12 +432,14 @@ export const subtaskCreateSchema = z
   .object({
     task_id: taskIdSchema,
     title: z.string().trim().min(1).max(200),
+    order: z.coerce.number().int().min(1).max(9999).optional(),
   })
   .strict();
 
 export const subtaskPatchSchema = z
   .object({
     title: z.string().trim().min(1).max(200).optional(),
+    order: z.coerce.number().int().min(1).max(9999).optional(),
     priority_tag: z.enum(TASK_PRIORITIES).optional(),
     estimated_minutes: nullableBoundedInt(0, 480).optional(),
     actual_minutes: nullableBoundedInt(0, 1440).optional(),

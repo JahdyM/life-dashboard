@@ -31,6 +31,7 @@ export async function PATCH(
     const payload = parsed.data;
     const nextPayload: Parameters<typeof updateSubtask>[2] = {};
     if (payload.title !== undefined) nextPayload.title = payload.title;
+    if (payload.order !== undefined) nextPayload.order = payload.order ?? null;
     if (payload.priority_tag !== undefined) nextPayload.priorityTag = payload.priority_tag;
     if (payload.estimated_minutes !== undefined) {
       nextPayload.estimatedMinutes = payload.estimated_minutes ?? null;

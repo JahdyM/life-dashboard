@@ -60,6 +60,7 @@ export type TodoSubtask = {
   taskId: string;
   userEmail: string;
   title: string;
+  order?: number | null;
   priorityTag: PriorityTag | string | null;
   estimatedMinutes: number | null;
   actualMinutes: number | null;
@@ -77,6 +78,10 @@ export type TodoTask = {
   externalEventKey?: string | null;
   scheduledDate?: string | null;
   scheduledTime?: string | null;
+  plannedTime?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  notes?: string | null;
   priorityTag?: PriorityTag | string | null;
   estimatedMinutes?: number | null;
   actualMinutes?: number | null;
