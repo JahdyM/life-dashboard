@@ -1,6 +1,8 @@
 import { prisma } from "../db/prisma";
 import { randomUUID } from "crypto";
+import { format, parseISO, subDays } from "date-fns";
 import { ensureTaskCompletionColumns } from "./dbCompat";
+import { getTodayIsoForUser } from "./settings";
 
 export type TaskPayload = {
   title: string;
@@ -24,6 +26,10 @@ export async function listTasks(
   includeUnscheduled = false
 ) {
   await ensureTaskCompletionColumns();
+  const todayIso = await getTodayIsoForUser(userEmail);
+  if (startIso <= todayIso && endIso >= todayIso) {
+    await rollPendingTasksFromYesterday(userEmail, todayIso);
+  }
   const whereClause = includeUnscheduled
     ? {
         userEmail,
@@ -58,6 +64,25 @@ export async function listTasks(
     },
   });
   return tasks;
+}
+
+async function rollPendingTasksFromYesterday(userEmail: string, targetDateIso: string) {
+  const previousDateIso = format(subDays(parseISO(`${targetDateIso}T12:00:00`), 1), "yyyy-MM-dd");
+  const nowIso = new Date().toISOString();
+
+  await prisma.todoTask.updateMany({
+    where: {
+      userEmail,
+      source: { not: "habit" },
+      scheduledDate: previousDateIso,
+      OR: [{ isDone: 0 }, { isDone: null }],
+    },
+    data: {
+      scheduledDate: targetDateIso,
+      scheduledTime: null,
+      updatedAt: nowIso,
+    },
+  });
 }
 
 export async function createTask(userEmail: string, payload: TaskPayload) {
