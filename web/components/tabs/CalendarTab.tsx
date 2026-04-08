@@ -85,6 +85,27 @@ type CreateTaskInput = {
 
 type CalendarViewMode = "timeGridDay" | "timeGridWeek";
 
+type WheelSegment = {
+  task: TodoTask;
+  weight: number;
+  startAngle: number;
+  endAngle: number;
+  midAngle: number;
+  span: number;
+  color: string;
+};
+
+const WHEEL_SLICE_COLORS = [
+  "#81623a",
+  "#54677a",
+  "#77558a",
+  "#4f745e",
+  "#9a6a56",
+  "#5e6f90",
+  "#8a5d73",
+  "#627854",
+];
+
 function readErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error && error.message) {
     return `${fallback} ${error.message}`;
@@ -166,6 +187,50 @@ function taskPriorityWeight(priorityTag: string | null | undefined) {
   if (normalized === "medium") return 2;
   if (normalized === "high" || normalized === "critical") return 3;
   return 1;
+}
+
+function polar(cx: number, cy: number, radius: number, angleDegFromTop: number) {
+  const radians = (Math.PI / 180) * angleDegFromTop;
+  return {
+    x: cx + radius * Math.sin(radians),
+    y: cy - radius * Math.cos(radians),
+  };
+}
+
+function describeWheelSlice(
+  cx: number,
+  cy: number,
+  radius: number,
+  startAngle: number,
+  endAngle: number
+) {
+  const start = polar(cx, cy, radius, startAngle);
+  const end = polar(cx, cy, radius, endAngle);
+  const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+  return [
+    `M ${cx} ${cy}`,
+    `L ${start.x} ${start.y}`,
+    `A ${radius} ${radius} 0 ${largeArc} 1 ${end.x} ${end.y}`,
+    "Z",
+  ].join(" ");
+}
+
+function truncateWheelLabel(text: string, maxLength: number) {
+  const cleaned = String(text || "").trim();
+  if (!cleaned) return "Task";
+  if (cleaned.length <= maxLength) return cleaned;
+  return `${cleaned.slice(0, maxLength - 1)}…`;
+}
+
+function findWheelSegmentAtPointer(segments: WheelSegment[], rotationDeg: number) {
+  if (!segments.length) return null;
+  const pointerAngle = ((-rotationDeg % 360) + 360) % 360;
+  return (
+    segments.find(
+      (segment) =>
+        pointerAngle >= segment.startAngle && pointerAngle < segment.endAngle
+    ) || segments[segments.length - 1]
+  );
 }
 
 type EditableTaskRowProps = {
@@ -720,6 +785,32 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     const filtered = pendingTaskPool.filter((task) => task.id !== wheelLastTaskId);
     return filtered.length ? filtered : pendingTaskPool;
   }, [pendingTaskPool, wheelAvoidRepeat, wheelLastTaskId]);
+  const wheelSegments = useMemo<WheelSegment[]>(() => {
+    if (!wheelEligibleTasks.length) return [];
+    const totalWeight = wheelEligibleTasks.reduce(
+      (sum, task) => sum + taskPriorityWeight(task.priorityTag),
+      0
+    );
+    if (totalWeight <= 0) return [];
+
+    let cursor = 0;
+    return wheelEligibleTasks.map((task, index) => {
+      const weight = taskPriorityWeight(task.priorityTag);
+      const span = (weight / totalWeight) * 360;
+      const startAngle = cursor;
+      const endAngle = cursor + span;
+      cursor = endAngle;
+      return {
+        task,
+        weight,
+        startAngle,
+        endAngle,
+        midAngle: startAngle + span / 2,
+        span,
+        color: WHEEL_SLICE_COLORS[index % WHEEL_SLICE_COLORS.length],
+      };
+    });
+  }, [wheelEligibleTasks]);
   const wheelResultTask = useMemo(
     () => tasks.find((task) => task.id === wheelResultTaskId) || null,
     [tasks, wheelResultTaskId]
@@ -729,8 +820,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     [readTaskDraft, wheelResultTask]
   );
   const wheelTotalWeight = useMemo(
-    () => wheelEligibleTasks.reduce((sum, task) => sum + taskPriorityWeight(task.priorityTag), 0),
-    [wheelEligibleTasks]
+    () => wheelSegments.reduce((sum, segment) => sum + segment.weight, 0),
+    [wheelSegments]
   );
 
   useEffect(() => {
@@ -1914,33 +2005,57 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   const spinActivityWheel = useCallback(() => {
     if (wheelSpinning) return;
-    if (!wheelEligibleTasks.length || wheelTotalWeight <= 0) {
+    if (!wheelSegments.length || wheelTotalWeight <= 0) {
       setWheelResultTaskId(null);
       return;
     }
+    if (wheelSegments.length === 1) {
+      const single = wheelSegments[0];
+      setWheelResultTaskId(single.task.id);
+      setWheelLastTaskId(single.task.id);
+      setWheelRotation((previous) => previous + 360);
+      return;
+    }
 
-    let cursor = Math.random() * wheelTotalWeight;
-    let selectedTask = wheelEligibleTasks[wheelEligibleTasks.length - 1];
-
-    for (const task of wheelEligibleTasks) {
-      cursor -= taskPriorityWeight(task.priorityTag);
-      if (cursor <= 0) {
-        selectedTask = task;
+    let weightCursor = Math.random() * wheelTotalWeight;
+    let selectedSegment = wheelSegments[wheelSegments.length - 1];
+    for (const segment of wheelSegments) {
+      weightCursor -= segment.weight;
+      if (weightCursor <= 0) {
+        selectedSegment = segment;
         break;
       }
     }
 
+    const safeMargin = Math.min(
+      8,
+      Math.max(1.5, selectedSegment.span * 0.18)
+    );
+    const minStop = selectedSegment.startAngle + safeMargin;
+    const maxStop = selectedSegment.endAngle - safeMargin;
+    const stopAngle =
+      maxStop > minStop
+        ? minStop + Math.random() * (maxStop - minStop)
+        : selectedSegment.midAngle;
+
     setWheelSpinning(true);
-    setWheelRotation((previous) => previous + 1080 + Math.floor(Math.random() * 360));
+    const currentRotation = ((wheelRotation % 360) + 360) % 360;
+    const targetRotationMod = (360 - stopAngle + 360) % 360;
+    let delta = targetRotationMod - currentRotation;
+    if (delta < 0) delta += 360;
+    const finalRotation = wheelRotation + 1800 + delta;
+    setWheelRotation(finalRotation);
     if (wheelSpinTimeoutRef.current) {
       window.clearTimeout(wheelSpinTimeoutRef.current);
     }
     wheelSpinTimeoutRef.current = window.setTimeout(() => {
-      setWheelResultTaskId(selectedTask.id);
-      setWheelLastTaskId(selectedTask.id);
+      const resultSegment = findWheelSegmentAtPointer(wheelSegments, finalRotation);
+      const resultTaskId = resultSegment?.task.id || selectedSegment.task.id;
+      setWheelResultTaskId(resultTaskId);
+      setWheelLastTaskId(resultTaskId);
       setWheelSpinning(false);
     }, 920);
-  }, [wheelEligibleTasks, wheelSpinning, wheelTotalWeight]);
+  }, [wheelRotation, wheelSegments, wheelSpinning, wheelTotalWeight]);
 
   const wheelDialStyle = useMemo(
     () =>
