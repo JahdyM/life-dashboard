@@ -174,6 +174,7 @@ type EditableTaskRowProps = {
     notes: string;
   };
   expanded: boolean;
+  active?: boolean;
   saving: boolean;
   saved: boolean;
   onToggleDone: (task: TodoTask, checked: boolean) => void;
@@ -193,6 +194,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
   task,
   draft,
   expanded,
+  active = false,
   saving,
   saved,
   onToggleDone,
@@ -239,7 +241,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
   }, [onShare, task.id]);
 
   return (
-    <article className={`task-row task-row-editable ${shareLabel ? "task-row-shared" : ""}`}>
+    <article className={`task-row task-row-editable ${active ? "active" : ""} ${shareLabel ? "task-row-shared" : ""}`}>
       <div className="task-row-compact-head">
         <input
           type="checkbox"
@@ -258,16 +260,20 @@ const EditableTaskRow = memo(function EditableTaskRow({
             ) : null}
           </div>
         </button>
-        {hasSubtasks ? (
-          <button
-            type="button"
-            className="task-subtask-toggle"
-            onClick={handleToggleExpanded}
-            aria-label={expanded ? "Collapse subtasks" : "Expand subtasks"}
-          >
-            {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-          </button>
-        ) : null}
+        <button
+          type="button"
+          className="task-subtask-toggle"
+          onClick={hasSubtasks ? handleToggleExpanded : handleOpen}
+          aria-label={
+            hasSubtasks
+              ? expanded
+                ? "Collapse subtasks"
+                : "Expand subtasks"
+              : "Open task details"
+          }
+        >
+          {hasSubtasks && expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+        </button>
         {shareLabel ? <span className="task-share-badge">{shareLabel}</span> : null}
         {saving ? <span className="task-row-state">Saving…</span> : null}
         {!saving && saved ? <span className="task-row-state success">Saved</span> : null}
@@ -2236,6 +2242,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     task={task}
                     draft={draft}
                     expanded={Boolean(expandedTasks[task.id])}
+                    active={detailTaskId === task.id}
                     saving={savingTaskId === task.id}
                     saved={savedTaskId === task.id}
                     onToggleDone={requestToggleTaskDone}
@@ -2276,6 +2283,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     task={task}
                     draft={draft}
                     expanded={Boolean(expandedTasks[task.id])}
+                    active={detailTaskId === task.id}
                     saving={savingTaskId === task.id}
                     saved={savedTaskId === task.id}
                     onToggleDone={requestToggleTaskDone}
@@ -2319,6 +2327,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   task={task}
                   draft={draft}
                   expanded={Boolean(expandedTasks[task.id])}
+                  active={detailTaskId === task.id}
                   saving={savingTaskId === task.id}
                   saved={savedTaskId === task.id}
                   onToggleDone={requestToggleTaskDone}

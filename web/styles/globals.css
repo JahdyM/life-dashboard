@@ -1410,16 +1410,30 @@ button.link.danger {
 .task-row {
   border: 1px solid var(--border-soft);
   border-radius: 14px;
-  padding: 8px 10px;
+  padding: 6px 9px;
   background: rgba(255, 255, 255, 0.03);
   display: grid;
-  gap: 8px;
+  gap: 6px;
+  color: var(--text);
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.task-row:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.task-row:focus-within,
+.task-row.active {
+  border-color: rgba(210, 168, 105, 0.46);
+  background: rgba(210, 168, 105, 0.11);
+  box-shadow: 0 0 0 1px rgba(210, 168, 105, 0.18);
 }
 
 .task-row-main {
   min-width: 0;
   display: grid;
-  gap: 3px;
+  gap: 2px;
   flex: 1;
 }
 
@@ -1437,7 +1451,17 @@ button.link.danger {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr) auto auto auto auto;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
+}
+
+.task-row-compact-head > input[type="checkbox"],
+.task-subtask-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  outline: 1px solid rgba(255, 255, 255, 0.24);
+  outline-offset: 1px;
+  border-radius: 4px;
 }
 
 .task-row-open {
@@ -1448,23 +1472,36 @@ button.link.danger {
   width: 100%;
   padding: 0;
   cursor: pointer;
+  color: var(--text);
+  border-radius: 10px;
+}
+
+.task-row-open:focus-visible {
+  outline-offset: 3px;
 }
 
 .task-subtask-toggle {
-  border: 0;
-  background: transparent;
-  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #ddd3c2;
   width: 28px;
   height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.task-subtask-toggle:hover {
+  border-color: rgba(210, 168, 105, 0.36);
+  color: var(--text);
+  background: rgba(210, 168, 105, 0.16);
 }
 
 .task-subtask-summary {
   font-size: 11px;
-  color: var(--text-soft);
+  color: #bfb6a7;
 }
 
 .task-subtasks {
@@ -1538,6 +1575,9 @@ button.link.danger {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: #f8f2e9;
+  font-weight: 560;
+  letter-spacing: 0.01em;
 }
 
 .task-share-badge {
@@ -1552,8 +1592,8 @@ button.link.danger {
 }
 
 .task-time {
-  font-size: 12px;
-  color: var(--text-muted);
+  font-size: 11.5px;
+  color: #cec5b6;
 }
 
 .task-confirm-btn {
@@ -1576,8 +1616,8 @@ button.link.danger {
 }
 
 .task-row-state {
-  font-size: 11px;
-  color: var(--text-muted);
+  font-size: 10.5px;
+  color: #d5cbbb;
   white-space: nowrap;
 }
 
@@ -1591,9 +1631,11 @@ button.link.danger {
 }
 
 .task-row-overflow .overflow-menu-trigger {
-  min-width: 34px;
-  min-height: 34px;
-  padding: 0 8px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0 6px;
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #ded3c3;
 }
 
 .task-confirm-btn:disabled {
@@ -3719,10 +3761,6 @@ button.link.danger {
     gap: 10px;
   }
 
-  .task-row summary {
-    gap: 8px;
-  }
-
   .task-time {
     font-size: 11px;
   }
@@ -3731,7 +3769,6 @@ button.link.danger {
     grid-template-columns: 18px minmax(0, 1fr);
   }
 
-  .task-row summary,
   .custom-habit-row,
   .spiritual-inline-confirm-actions,
   .inline-action-notice {
