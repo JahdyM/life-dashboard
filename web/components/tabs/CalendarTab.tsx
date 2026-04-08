@@ -105,6 +105,10 @@ const WHEEL_SLICE_COLORS = [
   "#8a5d73",
   "#627854",
 ];
+const WHEEL_CENTER = 130;
+const WHEEL_RADIUS = 118;
+const WHEEL_LABEL_RADIUS = 78;
+const WHEEL_SPIN_DURATION_MS = 2600;
 
 function readErrorMessage(error: unknown, fallback: string) {
   if (error instanceof Error && error.message) {
@@ -2054,13 +2058,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       setWheelResultTaskId(resultTaskId);
       setWheelLastTaskId(resultTaskId);
       setWheelSpinning(false);
-    }, 920);
+    }, WHEEL_SPIN_DURATION_MS);
   }, [wheelRotation, wheelSegments, wheelSpinning, wheelTotalWeight]);
 
-  const wheelDialStyle = useMemo(
+  const wheelRotorStyle = useMemo(
     () =>
       ({
-        "--wheel-rotation": `${wheelRotation}deg`,
+        transform: `rotate(${wheelRotation}deg)`,
+        transition: `transform ${WHEEL_SPIN_DURATION_MS}ms cubic-bezier(0.12, 0.88, 0.16, 1)`,
       }) as CSSProperties,
     [wheelRotation]
   );
@@ -2934,7 +2939,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             <div>
               <p className="panel-kicker">Focus</p>
               <h3>Activity Wheel</h3>
-              <p className="activity-wheel-copy">Spin and get your next task.</p>
+              <p className="activity-wheel-copy">Not sure what to do next? Spin the wheel.</p>
             </div>
             <button
               type="button"
@@ -2971,7 +2976,82 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           <div className="activity-wheel-stage">
             <div className={`activity-wheel-dial-wrap ${wheelSpinning ? "spinning" : ""}`}>
               <span className="activity-wheel-pointer" aria-hidden="true" />
-              <div className="activity-wheel-dial" style={wheelDialStyle}>
+              <div className="activity-wheel-dial-shell">
+                <svg
+                  className="activity-wheel-dial"
+                  viewBox="0 0 260 260"
+                  role="img"
+                  aria-label="Roulette wheel with pending tasks"
+                >
+                  <g
+                    className={`activity-wheel-rotor ${wheelSpinning ? "spinning" : ""}`}
+                    style={wheelRotorStyle}
+                  >
+                    {wheelSegments.map((segment) => {
+                      const labelPoint = polar(
+                        WHEEL_CENTER,
+                        WHEEL_CENTER,
+                        WHEEL_LABEL_RADIUS,
+                        segment.midAngle
+                      );
+                      const angle = ((segment.midAngle % 360) + 360) % 360;
+                      const flipLabel = angle > 90 && angle < 270;
+                      const labelRotation = flipLabel ? angle + 180 : angle;
+                      const labelMaxLength =
+                        segment.span >= 55 ? 17 : segment.span >= 35 ? 13 : segment.span >= 20 ? 10 : 6;
+                      const label =
+                        segment.span < 11
+                          ? "•"
+                          : truncateWheelLabel(segment.task.title, labelMaxLength);
+
+                      return (
+                        <g key={segment.task.id}>
+                          <path
+                            d={describeWheelSlice(
+                              WHEEL_CENTER,
+                              WHEEL_CENTER,
+                              WHEEL_RADIUS,
+                              segment.startAngle,
+                              segment.endAngle
+                            )}
+                            className="activity-wheel-slice"
+                            style={{ fill: segment.color }}
+                          >
+                            <title>{segment.task.title}</title>
+                          </path>
+                          <text
+                            x={labelPoint.x}
+                            y={labelPoint.y}
+                            className="activity-wheel-slice-label"
+                            transform={`rotate(${labelRotation} ${labelPoint.x} ${labelPoint.y})`}
+                            dominantBaseline="middle"
+                            textAnchor="middle"
+                          >
+                            {label}
+                          </text>
+                        </g>
+                      );
+                    })}
+                    <circle
+                      cx={WHEEL_CENTER}
+                      cy={WHEEL_CENTER}
+                      r={WHEEL_RADIUS}
+                      className="activity-wheel-rim"
+                    />
+                  </g>
+                  <circle
+                    cx={WHEEL_CENTER}
+                    cy={WHEEL_CENTER}
+                    r="31"
+                    className="activity-wheel-hub"
+                  />
+                  <circle
+                    cx={WHEEL_CENTER}
+                    cy={WHEEL_CENTER}
+                    r="6"
+                    className="activity-wheel-hub-dot"
+                  />
+                </svg>
                 <span className="activity-wheel-center">{wheelSpinning ? "..." : "Spin"}</span>
               </div>
             </div>
