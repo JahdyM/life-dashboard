@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ChangeEvent,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -157,6 +158,14 @@ function summarizeTaskMetadata(draft: {
   if (draft.actualMinutes > 0) pieces.push(`actual ${draft.actualMinutes} min`);
   if (draft.priorityTag && draft.priorityTag !== "Medium") pieces.push(draft.priorityTag);
   return pieces.join(" · ");
+}
+
+function taskPriorityWeight(priorityTag: string | null | undefined) {
+  const normalized = String(priorityTag || "").trim().toLowerCase();
+  if (!normalized || normalized === "low") return 1;
+  if (normalized === "medium") return 2;
+  if (normalized === "high" || normalized === "critical") return 3;
+  return 1;
 }
 
 type EditableTaskRowProps = {
@@ -437,6 +446,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [newEst, setNewEst] = useState(30);
   const [shareOnCreate, setShareOnCreate] = useState(false);
   const [composerAdvancedOpen, setComposerAdvancedOpen] = useState(false);
+  const [wheelOnlyToday, setWheelOnlyToday] = useState(true);
+  const [wheelAvoidRepeat, setWheelAvoidRepeat] = useState(true);
+  const [wheelSpinning, setWheelSpinning] = useState(false);
+  const [wheelRotation, setWheelRotation] = useState(0);
+  const [wheelResultTaskId, setWheelResultTaskId] = useState<string | null>(null);
+  const [wheelLastTaskId, setWheelLastTaskId] = useState<string | null>(null);
+  const wheelSpinTimeoutRef = useRef<number | null>(null);
   const [calendarSelection, setCalendarSelection] = useState<{
     date: string;
     time: string;
@@ -547,6 +563,15 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
+
+  useEffect(
+    () => () => {
+      if (wheelSpinTimeoutRef.current) {
+        window.clearTimeout(wheelSpinTimeoutRef.current);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     const api = calendarRef.current?.getApi();
@@ -676,6 +701,45 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   const pendingTasks = tasksForDay.filter((task) => !readTaskDraft(task).isDone);
   const completedTasks = tasksForDay.filter((task) => readTaskDraft(task).isDone);
+  const pendingTaskPool = useMemo(
+    () =>
+      tasks.filter((task) => {
+        if (readTaskDraft(task).isDone) return false;
+        if (wheelOnlyToday) {
+          return task.scheduledDate === selectedDayIso;
+        }
+        if (!task.scheduledDate) return true;
+        return task.scheduledDate >= range.start && task.scheduledDate <= range.end;
+      }),
+    [range.end, range.start, readTaskDraft, selectedDayIso, tasks, wheelOnlyToday]
+  );
+  const wheelEligibleTasks = useMemo(() => {
+    if (!wheelAvoidRepeat || !wheelLastTaskId || pendingTaskPool.length <= 1) {
+      return pendingTaskPool;
+    }
+    const filtered = pendingTaskPool.filter((task) => task.id !== wheelLastTaskId);
+    return filtered.length ? filtered : pendingTaskPool;
+  }, [pendingTaskPool, wheelAvoidRepeat, wheelLastTaskId]);
+  const wheelResultTask = useMemo(
+    () => tasks.find((task) => task.id === wheelResultTaskId) || null,
+    [tasks, wheelResultTaskId]
+  );
+  const wheelResultDraft = useMemo(
+    () => (wheelResultTask ? readTaskDraft(wheelResultTask) : null),
+    [readTaskDraft, wheelResultTask]
+  );
+  const wheelTotalWeight = useMemo(
+    () => wheelEligibleTasks.reduce((sum, task) => sum + taskPriorityWeight(task.priorityTag), 0),
+    [wheelEligibleTasks]
+  );
+
+  useEffect(() => {
+    if (!wheelResultTaskId) return;
+    if (!pendingTaskPool.some((task) => task.id === wheelResultTaskId)) {
+      setWheelResultTaskId(null);
+    }
+  }, [pendingTaskPool, wheelResultTaskId]);
+
   const pendingTaskShares = useMemo(
     () => taskSharesQuery.data?.items || [],
     [taskSharesQuery.data?.items]
@@ -1848,6 +1912,49 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     [updateSubtaskMutation]
   );
 
+  const spinActivityWheel = useCallback(() => {
+    if (wheelSpinning) return;
+    if (!wheelEligibleTasks.length || wheelTotalWeight <= 0) {
+      setWheelResultTaskId(null);
+      return;
+    }
+
+    let cursor = Math.random() * wheelTotalWeight;
+    let selectedTask = wheelEligibleTasks[wheelEligibleTasks.length - 1];
+
+    for (const task of wheelEligibleTasks) {
+      cursor -= taskPriorityWeight(task.priorityTag);
+      if (cursor <= 0) {
+        selectedTask = task;
+        break;
+      }
+    }
+
+    setWheelSpinning(true);
+    setWheelRotation((previous) => previous + 1080 + Math.floor(Math.random() * 360));
+    if (wheelSpinTimeoutRef.current) {
+      window.clearTimeout(wheelSpinTimeoutRef.current);
+    }
+    wheelSpinTimeoutRef.current = window.setTimeout(() => {
+      setWheelResultTaskId(selectedTask.id);
+      setWheelLastTaskId(selectedTask.id);
+      setWheelSpinning(false);
+    }, 920);
+  }, [wheelEligibleTasks, wheelSpinning, wheelTotalWeight]);
+
+  const wheelDialStyle = useMemo(
+    () =>
+      ({
+        "--wheel-rotation": `${wheelRotation}deg`,
+      }) as CSSProperties,
+    [wheelRotation]
+  );
+
+  const handleOpenWheelResult = useCallback(() => {
+    if (!wheelResultTask) return;
+    handleOpenTaskDetails(wheelResultTask.id);
+  }, [handleOpenTaskDetails, wheelResultTask]);
+
   const handleShareTask = useCallback(
     (taskId: string) => {
       const activeShare = activeSentShareByTaskId.get(taskId);
@@ -2706,6 +2813,90 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             });
           }}
         />
+
+        <section className="activity-wheel">
+          <div className="activity-wheel-head">
+            <div>
+              <p className="panel-kicker">Focus</p>
+              <h3>Activity Wheel</h3>
+              <p className="activity-wheel-copy">Spin and get your next task.</p>
+            </div>
+            <button
+              type="button"
+              className="secondary"
+              onClick={spinActivityWheel}
+              disabled={wheelSpinning || wheelEligibleTasks.length === 0}
+            >
+              {wheelSpinning ? "Spinning..." : "Spin"}
+            </button>
+          </div>
+
+          <div className="activity-wheel-controls">
+            <label className="activity-wheel-toggle">
+              <input
+                type="checkbox"
+                checked={wheelOnlyToday}
+                onChange={(event) => setWheelOnlyToday(event.target.checked)}
+              />
+              <span>Only today</span>
+            </label>
+            <label className="activity-wheel-toggle">
+              <input
+                type="checkbox"
+                checked={wheelAvoidRepeat}
+                onChange={(event) => setWheelAvoidRepeat(event.target.checked)}
+              />
+              <span>Avoid repeat</span>
+            </label>
+            <span className="activity-wheel-meta">
+              {wheelEligibleTasks.length} tasks · weight {wheelTotalWeight}
+            </span>
+          </div>
+
+          <div className="activity-wheel-stage">
+            <div className={`activity-wheel-dial-wrap ${wheelSpinning ? "spinning" : ""}`}>
+              <span className="activity-wheel-pointer" aria-hidden="true" />
+              <div className="activity-wheel-dial" style={wheelDialStyle}>
+                <span className="activity-wheel-center">{wheelSpinning ? "..." : "Spin"}</span>
+              </div>
+            </div>
+
+            <div className="activity-wheel-result">
+              {wheelEligibleTasks.length === 0 ? (
+                <p className="line-empty">No pending tasks in this scope.</p>
+              ) : wheelResultTask && wheelResultDraft ? (
+                <article className="activity-wheel-result-card">
+                  <strong>{wheelResultTask.title}</strong>
+                  <p>
+                    {wheelResultDraft.estimatedMinutes > 0
+                      ? `${wheelResultDraft.estimatedMinutes} min`
+                      : "No estimate"}
+                    {wheelResultTask.priorityTag
+                      ? ` · ${wheelResultTask.priorityTag}`
+                      : ""}
+                  </p>
+                  <div className="activity-wheel-result-actions">
+                    <button type="button" className="secondary" onClick={handleOpenWheelResult}>
+                      Open
+                    </button>
+                    <button
+                      type="button"
+                      className="page-link inline muted"
+                      onClick={spinActivityWheel}
+                      disabled={wheelSpinning}
+                    >
+                      Spin again
+                    </button>
+                  </div>
+                </article>
+              ) : (
+                <p className="activity-wheel-placeholder">
+                  Ready when you are.
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );

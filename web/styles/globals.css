@@ -1961,6 +1961,154 @@ button.link.danger {
   line-height: 1.45;
 }
 
+.activity-wheel {
+  margin-top: 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 18px;
+  padding: 14px;
+  background:
+    radial-gradient(circle at top right, rgba(210, 168, 105, 0.12), transparent 38%),
+    rgba(255, 255, 255, 0.03);
+  display: grid;
+  gap: 12px;
+}
+
+.activity-wheel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.activity-wheel-head h3 {
+  margin: 6px 0 0;
+  font-size: 18px;
+}
+
+.activity-wheel-copy {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.activity-wheel-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.activity-wheel-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.activity-wheel-toggle input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+}
+
+.activity-wheel-meta {
+  margin-left: auto;
+  font-size: 11px;
+  color: #cabfae;
+}
+
+.activity-wheel-stage {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+
+.activity-wheel-dial-wrap {
+  position: relative;
+  width: 148px;
+  height: 148px;
+  display: grid;
+  place-items: center;
+}
+
+.activity-wheel-pointer {
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 12px solid #f6e4c5;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3));
+}
+
+.activity-wheel-dial {
+  width: 132px;
+  height: 132px;
+  border-radius: 999px;
+  border: 1px solid rgba(210, 168, 105, 0.4);
+  background:
+    conic-gradient(
+      from 0deg,
+      rgba(210, 168, 105, 0.3) 0deg,
+      rgba(146, 169, 181, 0.24) 120deg,
+      rgba(170, 131, 178, 0.25) 240deg,
+      rgba(210, 168, 105, 0.3) 360deg
+    );
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.22);
+  transform: rotate(var(--wheel-rotation, 0deg));
+  transition: transform 920ms cubic-bezier(0.18, 0.82, 0.26, 1);
+  display: grid;
+  place-items: center;
+}
+
+.activity-wheel-center {
+  width: 54px;
+  height: 54px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(12, 16, 23, 0.78);
+  font-size: 12px;
+  color: #f4ecde;
+}
+
+.activity-wheel-result {
+  min-width: 0;
+}
+
+.activity-wheel-result-card {
+  border: 1px solid rgba(210, 168, 105, 0.28);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.activity-wheel-result-card strong {
+  color: #f8f2e9;
+  font-size: 14px;
+}
+
+.activity-wheel-result-card p,
+.activity-wheel-placeholder {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.activity-wheel-result-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .task-form {
   display: grid;
   gap: 10px;
@@ -3698,6 +3846,15 @@ button.link.danger {
 
   .estimation-breakdown {
     grid-template-columns: 1fr;
+  }
+
+  .activity-wheel-stage {
+    grid-template-columns: 1fr;
+    justify-items: flex-start;
+  }
+
+  .activity-wheel-meta {
+    margin-left: 0;
   }
 
   .task-detail-sheet {
