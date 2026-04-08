@@ -2031,26 +2031,6 @@ button.link.danger {
   aspect-ratio: 1 / 1;
   display: grid;
   place-items: center;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
-  transition: transform 160ms ease, filter 180ms ease;
-}
-
-.activity-wheel-dial-wrap:disabled {
-  cursor: not-allowed;
-  opacity: 0.78;
-}
-
-.activity-wheel-dial-wrap:hover:not(:disabled) {
-  transform: translateY(-2px);
-}
-
-.activity-wheel-dial-wrap:focus-visible {
-  outline: 2px solid rgba(214, 179, 120, 0.9);
-  outline-offset: 4px;
-  border-radius: 999px;
 }
 
 .activity-wheel-dial-shell {
@@ -2100,12 +2080,12 @@ button.link.danger {
 
 .activity-wheel-slice-label {
   fill: #f8f1e4;
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.01em;
   paint-order: stroke;
-  stroke: rgba(10, 14, 20, 0.38);
-  stroke-width: 1.1px;
+  stroke: rgba(10, 14, 20, 0.52);
+  stroke-width: 1.3px;
   pointer-events: none;
 }
 
@@ -2126,19 +2106,41 @@ button.link.danger {
   opacity: 0.95;
 }
 
-.activity-wheel-center {
+.activity-wheel-hub-button {
   position: absolute;
-  width: 54px;
-  height: 54px;
+  width: 66px;
+  height: 66px;
   border-radius: 999px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(10, 14, 22, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  background:
+    radial-gradient(circle at 35% 25%, rgba(245, 222, 181, 0.24), rgba(10, 14, 22, 0.92));
   font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   color: #f4ecde;
   z-index: 2;
-  pointer-events: none;
+  cursor: pointer;
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 180ms ease;
+  box-shadow:
+    0 6px 16px rgba(3, 7, 11, 0.42),
+    inset 0 1px 8px rgba(0, 0, 0, 0.32);
+}
+
+.activity-wheel-hub-button:hover:not(:disabled) {
+  transform: translateY(-1px) scale(1.02);
+  border-color: rgba(244, 215, 161, 0.78);
+}
+
+.activity-wheel-hub-button:focus-visible {
+  outline: 2px solid rgba(214, 179, 120, 0.95);
+  outline-offset: 3px;
+}
+
+.activity-wheel-hub-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
 }
 
 .activity-wheel-result {
@@ -2172,8 +2174,55 @@ button.link.danger {
   gap: 10px;
 }
 
-.activity-wheel-shuffle {
-  margin-left: 4px;
+.activity-wheel-summary-card {
+  border: 1px solid rgba(210, 168, 105, 0.2);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.activity-wheel-summary-title {
+  margin: 0;
+  font-size: 12px;
+  color: #f2e8d8;
+}
+
+.activity-wheel-task-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.activity-wheel-task-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: #ece3d5;
+}
+
+.activity-wheel-task-list li span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-wheel-task-list li small {
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: lowercase;
+}
+
+.activity-wheel-more,
+.activity-wheel-tip {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 .task-form {
@@ -3928,9 +3977,9 @@ button.link.danger {
     width: min(100%, 320px);
   }
 
-  .activity-wheel-center {
-    width: 48px;
-    height: 48px;
+  .activity-wheel-hub-button {
+    width: 58px;
+    height: 58px;
     font-size: 11px;
   }
 

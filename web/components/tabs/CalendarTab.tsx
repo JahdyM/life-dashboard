@@ -2985,6 +2985,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               <h3>Activity Wheel</h3>
               <p className="activity-wheel-copy">Not sure what to do next? Spin the wheel.</p>
             </div>
+            <button
+              type="button"
+              className="secondary"
+              onClick={shuffleWheelStart}
+              disabled={wheelSpinning || wheelEligibleTasks.length <= 1}
+            >
+              Shuffle
+            </button>
           </div>
 
           <div className="activity-wheel-controls">
@@ -3004,33 +3012,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               />
               <span>Avoid repeat</span>
             </label>
-            <button
-              type="button"
-              className="page-link inline muted activity-wheel-shuffle"
-              onClick={shuffleWheelStart}
-              disabled={wheelSpinning || wheelEligibleTasks.length <= 1}
-            >
-              Shuffle start
-            </button>
             <span className="activity-wheel-meta">
               {wheelEligibleTasks.length} tasks · weight {wheelTotalWeight}
             </span>
           </div>
 
           <div className="activity-wheel-stage">
-            <button
-              type="button"
-              className={`activity-wheel-dial-wrap ${wheelSpinning ? "spinning" : ""}`}
-              onClick={spinActivityWheel}
-              disabled={wheelSpinning || wheelEligibleTasks.length === 0}
-              aria-label={
-                wheelSpinning
-                  ? "Wheel spinning"
-                  : wheelEligibleTasks.length === 0
-                    ? "No pending tasks to spin"
-                    : "Spin activity wheel"
-              }
-            >
+            <div className={`activity-wheel-dial-wrap ${wheelSpinning ? "spinning" : ""}`}>
               <span className="activity-wheel-pointer" aria-hidden="true" />
               <div className="activity-wheel-dial-shell">
                 <svg
@@ -3050,12 +3038,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                         WHEEL_LABEL_RADIUS,
                         segment.midAngle
                       );
-                      const angle = ((segment.midAngle % 360) + 360) % 360;
-                      const flipLabel = angle > 90 && angle < 270;
-                      const labelRotation = flipLabel ? angle + 180 : angle;
                       const labelMaxLength =
-                        segment.span >= 55 ? 20 : segment.span >= 35 ? 16 : segment.span >= 20 ? 12 : 8;
+                        segment.span >= 72 ? 14 : segment.span >= 45 ? 12 : 10;
                       const label = truncateWheelLabel(segment.task.title, labelMaxLength);
+                      const canRenderLabel = segment.span >= 28;
 
                       return (
                         <g key={segment.task.id}>
@@ -3076,16 +3062,17 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                           >
                             <title>{segment.task.title}</title>
                           </path>
-                          <text
-                            x={labelPoint.x}
-                            y={labelPoint.y}
-                            className="activity-wheel-slice-label"
-                            transform={`rotate(${labelRotation} ${labelPoint.x} ${labelPoint.y})`}
-                            dominantBaseline="middle"
-                            textAnchor="middle"
-                          >
-                            {label}
-                          </text>
+                          {canRenderLabel ? (
+                            <text
+                              x={labelPoint.x}
+                              y={labelPoint.y}
+                              className="activity-wheel-slice-label"
+                              dominantBaseline="middle"
+                              textAnchor="middle"
+                            >
+                              {label}
+                            </text>
+                          ) : null}
                         </g>
                       );
                     })}
@@ -3109,9 +3096,23 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     className="activity-wheel-hub-dot"
                   />
                 </svg>
-                <span className="activity-wheel-center">{wheelSpinning ? "..." : "Tap"}</span>
+                <button
+                  type="button"
+                  className="activity-wheel-hub-button"
+                  onClick={spinActivityWheel}
+                  disabled={wheelSpinning || wheelEligibleTasks.length === 0}
+                  aria-label={
+                    wheelSpinning
+                      ? "Wheel spinning"
+                      : wheelEligibleTasks.length === 0
+                        ? "No pending tasks to spin"
+                        : "Spin activity wheel"
+                  }
+                >
+                  {wheelSpinning ? "..." : "Spin"}
+                </button>
               </div>
-            </button>
+            </div>
 
             <div className="activity-wheel-result">
               {wheelEligibleTasks.length === 0 ? (
@@ -3131,12 +3132,32 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     <button type="button" className="secondary" onClick={handleOpenWheelResult}>
                       Open
                     </button>
+                    <button
+                      type="button"
+                      className="page-link inline muted"
+                      onClick={spinActivityWheel}
+                      disabled={wheelSpinning}
+                    >
+                      Spin again
+                    </button>
                   </div>
                 </article>
               ) : (
-                <p className="activity-wheel-placeholder">
-                  Ready when you are.
-                </p>
+                <article className="activity-wheel-summary-card">
+                  <p className="activity-wheel-summary-title">In this wheel</p>
+                  <ul className="activity-wheel-task-list">
+                    {wheelOrderedTasks.slice(0, 8).map((task) => (
+                      <li key={task.id} title={task.title}>
+                        <span>{truncateWheelLabel(task.title, 28)}</span>
+                        <small>{task.priorityTag || "Default"}</small>
+                      </li>
+                    ))}
+                  </ul>
+                  {wheelOrderedTasks.length > 8 ? (
+                    <p className="activity-wheel-more">+{wheelOrderedTasks.length - 8} more</p>
+                  ) : null}
+                  <p className="activity-wheel-tip">Tap the center hub to spin.</p>
+                </article>
               )}
             </div>
           </div>
