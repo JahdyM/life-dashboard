@@ -2020,17 +2020,37 @@ button.link.danger {
 
 .activity-wheel-stage {
   display: grid;
-  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
   align-items: center;
   gap: 14px;
 }
 
 .activity-wheel-dial-wrap {
   position: relative;
-  width: min(100%, 280px);
+  width: min(100%, 360px);
   aspect-ratio: 1 / 1;
   display: grid;
   place-items: center;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 160ms ease, filter 180ms ease;
+}
+
+.activity-wheel-dial-wrap:disabled {
+  cursor: not-allowed;
+  opacity: 0.78;
+}
+
+.activity-wheel-dial-wrap:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.activity-wheel-dial-wrap:focus-visible {
+  outline: 2px solid rgba(214, 179, 120, 0.9);
+  outline-offset: 4px;
+  border-radius: 999px;
 }
 
 .activity-wheel-dial-shell {
@@ -2073,9 +2093,14 @@ button.link.danger {
   stroke-width: 1.2;
 }
 
+.activity-wheel-slice.is-result {
+  stroke: rgba(248, 223, 174, 0.92);
+  stroke-width: 2.2;
+}
+
 .activity-wheel-slice-label {
   fill: #f8f1e4;
-  font-size: 8.8px;
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.01em;
   paint-order: stroke;
@@ -2145,6 +2170,10 @@ button.link.danger {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+}
+
+.activity-wheel-shuffle {
+  margin-left: 4px;
 }
 
 .task-form {
@@ -3896,7 +3925,7 @@ button.link.danger {
   }
 
   .activity-wheel-dial-wrap {
-    width: min(100%, 240px);
+    width: min(100%, 320px);
   }
 
   .activity-wheel-center {
