@@ -14,7 +14,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarClock, ChevronDown, ChevronRight, Share2, SquarePen, Trash2 } from "lucide-react";
 import InlineActionNotice from "@/components/common/InlineActionNotice";
 import OverflowMenu from "@/components/common/OverflowMenu";
-import CompletionPopover from "@/components/calendar/CompletionPopover";
 import TaskComposer from "@/components/calendar/TaskComposer";
 import TaskDetailSheet from "@/components/calendar/TaskDetailSheet";
 import { fetchJson } from "@/lib/client/api";
@@ -68,12 +67,6 @@ type DailyHabitItem = {
 };
 
 type TodoSubtaskItem = NonNullable<TodoTask["subtasks"]>[number];
-
-type CompletionPromptState = {
-  taskId: string;
-  title: string;
-  estimatedMinutes: number;
-};
 
 type CreateTaskInput = {
   title: string;
@@ -562,8 +555,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [savingSubtaskId, setSavingSubtaskId] = useState<string | null>(null);
   const [savedTaskId, setSavedTaskId] = useState<string | null>(null);
   const [taskSaveError, setTaskSaveError] = useState<string | null>(null);
-  const [completionPrompt, setCompletionPrompt] = useState<CompletionPromptState | null>(null);
-  const [completionMinutes, setCompletionMinutes] = useState(0);
   const [estimationDrafts, setEstimationDrafts] = useState<
     Record<string, { estimatedMinutes: number; actualMinutes: number }>
   >({});
@@ -1871,7 +1862,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           setTaskSaveError(null);
           clearDoneDraft(task.id);
           setSavingTaskId(null);
-          setCompletionPrompt(null);
           setSavedTaskId(task.id);
           window.setTimeout(() => {
             setSavedTaskId((prev) => (prev === task.id ? null : prev));
@@ -1904,44 +1894,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   const requestToggleTaskDone = useCallback(
     (task: TodoTask, checked: boolean) => {
-      if (checked) {
-        const estimated = Number(task.estimatedMinutes || 0);
-        if (estimated > 0) {
-          setCompletionPrompt({
-            taskId: task.id,
-            title: task.title,
-            estimatedMinutes: estimated,
-          });
-          setCompletionMinutes(estimated);
-          return;
-        }
-      }
-      setCompletionPrompt(null);
       toggleTaskDoneNow(task, checked);
     },
     [toggleTaskDoneNow]
   );
-
-  const confirmCompletionMinutes = useCallback(() => {
-    if (!completionPrompt) return;
-    const task = tasks.find((item) => item.id === completionPrompt.taskId);
-    if (!task) {
-      setCompletionPrompt(null);
-      return;
-    }
-    const minutes = Math.max(0, Number(completionMinutes || 0));
-    toggleTaskDoneNow(task, true, minutes);
-  }, [completionPrompt, completionMinutes, tasks, toggleTaskDoneNow]);
-
-  const skipCompletionMinutes = useCallback(() => {
-    if (!completionPrompt) return;
-    const task = tasks.find((item) => item.id === completionPrompt.taskId);
-    if (!task) {
-      setCompletionPrompt(null);
-      return;
-    }
-    toggleTaskDoneNow(task, true);
-  }, [completionPrompt, tasks, toggleTaskDoneNow]);
 
   const handleDeleteTask = useCallback(
     (taskId: string) => {
@@ -2538,17 +2494,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           {taskSaveError ? <InlineActionNotice tone="warning" body={taskSaveError} /> : null}
           {taskShareNotice ? <InlineActionNotice tone="success" body={taskShareNotice} /> : null}
         </div>
-
-        <CompletionPopover
-          open={Boolean(completionPrompt)}
-          title={completionPrompt?.title || "task"}
-          estimatedMinutes={completionPrompt?.estimatedMinutes || 0}
-          actualMinutes={completionMinutes}
-          onActualMinutesChange={(value) => setCompletionMinutes(value)}
-          onConfirm={confirmCompletionMinutes}
-          onSkip={skipCompletionMinutes}
-          onClose={() => setCompletionPrompt(null)}
-        />
 
         <TaskDetailSheet
           open={Boolean(detailTask && detailTaskDraft)}
