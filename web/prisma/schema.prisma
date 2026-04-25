@@ -93,10 +93,12 @@ model TodoTaskDetail {
   startTime   String? @map("start_time")
   endTime     String? @map("end_time")
   notes       String?
+  focusOrder  Int?    @map("focus_order")
   createdAt   String  @map("created_at")
   updatedAt   String  @map("updated_at")
 
   @@index([userEmail])
+  @@index([userEmail, focusOrder])
   @@map("todo_task_details")
 }
 

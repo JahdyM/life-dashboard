@@ -15,6 +15,7 @@ const nullableIsoDateTimeSchema = z.union([
 ]);
 const nullableBoundedInt = (min: number, max: number) =>
   z.union([z.number().int().min(min).max(max), z.null()]);
+const nullableFocusOrder = z.union([z.number().int().min(1).max(1000), z.null()]);
 const binaryDoneValueSchema = z
   .union([z.number().int().min(0).max(1), z.boolean()])
   .transform((value) => (typeof value === "boolean" ? (value ? 1 : 0) : value));
@@ -144,6 +145,7 @@ export const taskCreateSchema = z
     priority_tag: z.enum(TASK_PRIORITIES).optional(),
     estimated_minutes: nullableBoundedInt(0, 480).optional(),
     actual_minutes: nullableBoundedInt(0, 1440).optional(),
+    focus_order: nullableFocusOrder.optional(),
     is_done: boolishSchema.optional(),
     completed_at: nullableIsoDateTimeSchema.optional(),
     sync_google: z.boolean().optional(),
@@ -162,6 +164,7 @@ export const taskPatchSchema = z
     priority_tag: z.enum(TASK_PRIORITIES).optional(),
     estimated_minutes: nullableBoundedInt(0, 480).optional(),
     actual_minutes: nullableBoundedInt(0, 1440).optional(),
+    focus_order: nullableFocusOrder.optional(),
     is_done: boolishSchema.optional(),
     completed_at: nullableIsoDateTimeSchema.optional(),
     sync_google: z.boolean().optional(),

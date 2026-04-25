@@ -44,9 +44,19 @@ function getDisplayName(userEmail: string) {
 }
 
 function selectNextTask(tasks: TodoTask[]) {
-  const pending = tasks.filter((task) => !task.isDone);
+  const pending = tasks
+    .filter((task) => !task.isDone)
+    .sort((left, right) => {
+      const leftFocus = Number(left.focusOrder || Number.MAX_SAFE_INTEGER);
+      const rightFocus = Number(right.focusOrder || Number.MAX_SAFE_INTEGER);
+      if (leftFocus !== rightFocus) return leftFocus - rightFocus;
+      const leftTime = left.scheduledTime || "99:99";
+      const rightTime = right.scheduledTime || "99:99";
+      if (leftTime !== rightTime) return leftTime.localeCompare(rightTime);
+      return String(left.createdAt).localeCompare(String(right.createdAt));
+    });
   const scheduled = pending.find((task) => task.scheduledTime);
-  return scheduled || pending[0] || null;
+  return pending.find((task) => task.focusOrder) || scheduled || pending[0] || null;
 }
 
 const getTodayBaseData = cache(async (userEmail: string) => {

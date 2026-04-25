@@ -19,6 +19,7 @@ export type TaskPayload = {
   startTime?: string | null;
   endTime?: string | null;
   notes?: string | null;
+  focusOrder?: number | null;
   priorityTag?: string | null;
   estimatedMinutes?: number | null;
   actualMinutes?: number | null;
@@ -48,6 +49,7 @@ function normalizeTaskDetailRow(
     startTime: detail?.startTime ?? null,
     endTime: detail?.endTime ?? null,
     notes: detail?.notes ?? null,
+    focusOrder: detail?.focusOrder ?? null,
   };
 }
 
@@ -90,7 +92,13 @@ async function loadTaskDetailMap(userEmail: string, taskIds: string[]) {
 
 function shouldPersistTaskDetail(
   task: PrismaTodoTask,
-  detail: { plannedTime: string | null; startTime: string | null; endTime: string | null; notes: string | null }
+  detail: {
+    plannedTime: string | null;
+    startTime: string | null;
+    endTime: string | null;
+    notes: string | null;
+    focusOrder: number | null;
+  }
 ) {
   const hasDifferentPlannedTime =
     detail.plannedTime !== null &&
@@ -99,8 +107,25 @@ function shouldPersistTaskDetail(
     hasDifferentPlannedTime ||
       detail.startTime ||
       detail.endTime ||
-      detail.notes
+      detail.notes ||
+      detail.focusOrder !== null
   );
+}
+
+function compareTasksForFocus(left: ReturnType<typeof mergeTaskWithDetail>, right: ReturnType<typeof mergeTaskWithDetail>) {
+  const leftDate = left.scheduledDate || "9999-12-31";
+  const rightDate = right.scheduledDate || "9999-12-31";
+  if (leftDate !== rightDate) return leftDate.localeCompare(rightDate);
+
+  const leftFocus = left.focusOrder ?? Number.MAX_SAFE_INTEGER;
+  const rightFocus = right.focusOrder ?? Number.MAX_SAFE_INTEGER;
+  if (leftFocus !== rightFocus) return leftFocus - rightFocus;
+
+  const leftTime = left.scheduledTime || "99:99";
+  const rightTime = right.scheduledTime || "99:99";
+  if (leftTime !== rightTime) return leftTime.localeCompare(rightTime);
+
+  return String(left.createdAt).localeCompare(String(right.createdAt));
 }
 
 export async function listTasks(
@@ -151,7 +176,9 @@ export async function listTasks(
     userEmail,
     tasks.map((task) => task.id)
   );
-  return tasks.map((task) => mergeTaskWithDetail(task, detailMap.get(task.id)));
+  return tasks
+    .map((task) => mergeTaskWithDetail(task, detailMap.get(task.id)))
+    .sort(compareTasksForFocus);
 }
 
 async function rollPendingTasksFromYesterday(userEmail: string, targetDateIso: string) {
@@ -205,6 +232,7 @@ export async function createTask(userEmail: string, payload: TaskPayload) {
     startTime: payload.startTime ?? null,
     endTime: payload.endTime ?? null,
     notes: normalizedNotes,
+    focusOrder: payload.focusOrder ?? null,
   };
   if (shouldPersistTaskDetail(task, detail)) {
     await prisma.todoTaskDetail.upsert({
@@ -216,6 +244,7 @@ export async function createTask(userEmail: string, payload: TaskPayload) {
         startTime: detail.startTime,
         endTime: detail.endTime,
         notes: detail.notes,
+        focusOrder: detail.focusOrder,
         createdAt: nowIso,
         updatedAt: nowIso,
       },
@@ -224,6 +253,7 @@ export async function createTask(userEmail: string, payload: TaskPayload) {
         startTime: detail.startTime,
         endTime: detail.endTime,
         notes: detail.notes,
+        focusOrder: detail.focusOrder,
         updatedAt: nowIso,
       },
     });
@@ -234,6 +264,7 @@ export async function createTask(userEmail: string, payload: TaskPayload) {
       startTime: detail.startTime,
       endTime: detail.endTime,
       notes: detail.notes,
+      focusOrder: detail.focusOrder,
       createdAt: nowIso,
       updatedAt: nowIso,
     });
@@ -292,7 +323,8 @@ export async function updateTask(
     payload.plannedTime !== undefined ||
     payload.startTime !== undefined ||
     payload.endTime !== undefined ||
-    payload.notes !== undefined;
+    payload.notes !== undefined ||
+    payload.focusOrder !== undefined;
 
   const task = await prisma.todoTask.findFirst({
     where: { id: taskId, userEmail },
@@ -320,6 +352,10 @@ export async function updateTask(
         payload.notes !== undefined
           ? normalizeTaskNotes(payload.notes) ?? null
           : detail?.notes ?? null,
+      focusOrder:
+        payload.focusOrder !== undefined
+          ? payload.focusOrder
+          : detail?.focusOrder ?? null,
     };
 
     if (shouldPersistTaskDetail(task, nextDetail)) {
@@ -332,6 +368,7 @@ export async function updateTask(
           startTime: nextDetail.startTime,
           endTime: nextDetail.endTime,
           notes: nextDetail.notes,
+          focusOrder: nextDetail.focusOrder,
           createdAt: nowIso,
           updatedAt: nowIso,
         },
@@ -340,6 +377,7 @@ export async function updateTask(
           startTime: nextDetail.startTime,
           endTime: nextDetail.endTime,
           notes: nextDetail.notes,
+          focusOrder: nextDetail.focusOrder,
           updatedAt: nowIso,
         },
       });

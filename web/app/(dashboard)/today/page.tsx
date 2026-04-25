@@ -12,21 +12,42 @@ function formatTaskMeta(time: string | null | undefined, minutes: number | null 
   return parts.join(" · ");
 }
 
-function sortTasks<T extends { scheduledTime?: string | null }>(tasks: T[]) {
+function getFocusOrder(task: { focusOrder?: number | null }) {
+  const value = Number(task.focusOrder);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function sortTasks<T extends { scheduledTime?: string | null; focusOrder?: number | null; createdAt?: string }>(tasks: T[]) {
   return [...tasks].sort((left, right) => {
+    const leftFocus = getFocusOrder(left) ?? Number.MAX_SAFE_INTEGER;
+    const rightFocus = getFocusOrder(right) ?? Number.MAX_SAFE_INTEGER;
+    if (leftFocus !== rightFocus) return leftFocus - rightFocus;
+
     const leftTime = left.scheduledTime || "99:99";
     const rightTime = right.scheduledTime || "99:99";
+    if (leftTime !== rightTime) return leftTime.localeCompare(rightTime);
+
+    if (left.createdAt && right.createdAt) {
+      return left.createdAt.localeCompare(right.createdAt);
+    }
     return leftTime.localeCompare(rightTime);
   });
 }
 
-function getNextTaskGroup<T extends { title: string; scheduledTime?: string | null }>(tasks: T[]) {
+function getNextTaskGroup<T extends { title: string; scheduledTime?: string | null; focusOrder?: number | null }>(tasks: T[]) {
   const sorted = sortTasks(tasks);
   const first = sorted[0];
   if (!first) {
     return {
       time: null as string | null,
       items: [] as T[],
+    };
+  }
+
+  if (getFocusOrder(first)) {
+    return {
+      time: null,
+      items: [first],
     };
   }
 
@@ -147,13 +168,19 @@ export default async function TodayPage() {
               <span className="today-next-label">Next</span>
               {nextTaskGroup.items.length ? (
                 <>
-                  <strong>{nextTaskGroup.time || "Open time"}</strong>
+                  <strong>
+                    {nextTaskGroup.time ||
+                      (getFocusOrder(nextTaskGroup.items[0]) ? "Focus" : "Open time")}
+                  </strong>
                   <p>
                     {nextTaskGroup.items.length === 1
                       ? formatTaskMeta(
                           nextTaskGroup.items[0].scheduledTime,
                           nextTaskGroup.items[0].estimatedMinutes
-                        ) || "No time set"
+                        ) ||
+                        (getFocusOrder(nextTaskGroup.items[0])
+                          ? "Focus"
+                          : "No time set")
                       : `${nextTaskGroup.items.length} tasks`}
                   </p>
                   {nextTaskGroup.items.length > 1 ? (
@@ -185,7 +212,8 @@ export default async function TodayPage() {
                   <div>
                     <p className="today-task-title">{task.title}</p>
                     <p className="today-task-meta">
-                      {formatTaskMeta(task.scheduledTime, task.estimatedMinutes) || "No time set"}
+                      {formatTaskMeta(task.scheduledTime, task.estimatedMinutes) ||
+                        (getFocusOrder(task) ? "Focus" : "No time set")}
                     </p>
                   </div>
                   <span className="today-task-state">Pending</span>

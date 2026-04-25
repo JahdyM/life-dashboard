@@ -82,6 +82,7 @@ export type TodoTask = {
   startTime?: string | null;
   endTime?: string | null;
   notes?: string | null;
+  focusOrder?: number | null;
   priorityTag?: PriorityTag | string | null;
   estimatedMinutes?: number | null;
   actualMinutes?: number | null;

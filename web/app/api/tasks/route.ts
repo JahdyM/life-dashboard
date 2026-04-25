@@ -111,6 +111,7 @@ export async function POST(request: NextRequest) {
       startTime: payload.start_time ?? null,
       endTime: payload.end_time ?? null,
       notes: payload.notes ?? null,
+      focusOrder: payload.focus_order ?? null,
       priorityTag: payload.priority_tag || "Medium",
       estimatedMinutes: payload.estimated_minutes || null,
       actualMinutes: payload.actual_minutes || null,

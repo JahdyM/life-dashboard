@@ -1504,6 +1504,18 @@ button.link.danger {
   color: #bfb6a7;
 }
 
+.task-focus-badge {
+  width: fit-content;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #f7e3b9;
+  border: 1px solid rgba(238, 197, 126, 0.42);
+  border-radius: 999px;
+  padding: 1px 6px;
+  background: rgba(238, 197, 126, 0.16);
+}
+
 .task-ready-badge {
   width: fit-content;
   font-size: 10px;
@@ -2429,6 +2441,11 @@ button.link.danger {
 
 .task-row-menu-action.danger {
   color: #f2a29f;
+}
+
+.task-row-menu-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
 }
 
 .calendar-view-toggle {

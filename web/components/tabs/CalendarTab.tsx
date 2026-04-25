@@ -11,7 +11,16 @@ import {
   type ChangeEvent,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, ChevronDown, ChevronRight, Share2, SquarePen, Trash2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  CalendarClock,
+  ChevronDown,
+  ChevronRight,
+  Share2,
+  SquarePen,
+  Trash2,
+} from "lucide-react";
 import InlineActionNotice from "@/components/common/InlineActionNotice";
 import OverflowMenu from "@/components/common/OverflowMenu";
 import TaskComposer from "@/components/calendar/TaskComposer";
@@ -74,6 +83,14 @@ type CreateTaskInput = {
   scheduledTime: string | null;
   estimatedMinutes: number;
   shareWithPartner: boolean;
+};
+
+type FocusOrderUpdate = {
+  id: string;
+  focusOrder: number | null;
+  scheduledDate?: string | null;
+  scheduledTime?: string | null;
+  plannedTime?: string | null;
 };
 
 type CalendarViewMode = "timeGridDay" | "timeGridWeek";
@@ -257,6 +274,23 @@ function findWheelSegmentAtPointer(segments: WheelSegment[], rotationDeg: number
   );
 }
 
+function getTaskFocusOrder(task: Pick<TodoTask, "focusOrder">) {
+  const value = Number(task.focusOrder);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function compareTasksForExecution(left: TodoTask, right: TodoTask) {
+  const leftFocus = getTaskFocusOrder(left) ?? Number.MAX_SAFE_INTEGER;
+  const rightFocus = getTaskFocusOrder(right) ?? Number.MAX_SAFE_INTEGER;
+  if (leftFocus !== rightFocus) return leftFocus - rightFocus;
+
+  const leftTime = left.scheduledTime || "99:99";
+  const rightTime = right.scheduledTime || "99:99";
+  if (leftTime !== rightTime) return leftTime.localeCompare(rightTime);
+
+  return String(left.createdAt).localeCompare(String(right.createdAt));
+}
+
 type EditableTaskRowProps = {
   task: TodoTask;
   draft: {
@@ -280,9 +314,14 @@ type EditableTaskRowProps = {
   onToggleSubtaskDone: (task: TodoTask, subtaskId: string, checked: boolean) => void;
   onOpenDetails: (taskId: string) => void;
   onScheduleToday?: (taskId: string) => void;
+  onSetNext: (taskId: string) => void;
+  onMoveFocus: (taskId: string, direction: "up" | "down") => void;
   onDelete: (taskId: string) => void;
   onShare?: (taskId: string) => void;
   sharing: boolean;
+  focusPosition?: number | null;
+  canMoveFocusUp?: boolean;
+  canMoveFocusDown?: boolean;
   subtaskSavingId?: string | null;
   shareLabel?: string | null;
   shareActionLabel?: string;
@@ -300,9 +339,14 @@ const EditableTaskRow = memo(function EditableTaskRow({
   onToggleSubtaskDone,
   onOpenDetails,
   onScheduleToday,
+  onSetNext,
+  onMoveFocus,
   onDelete,
   onShare,
   sharing,
+  focusPosition = null,
+  canMoveFocusUp = false,
+  canMoveFocusDown = false,
   subtaskSavingId,
   shareLabel,
   shareActionLabel = "Share",
@@ -336,6 +380,15 @@ const EditableTaskRow = memo(function EditableTaskRow({
     if (!onScheduleToday) return;
     onScheduleToday(task.id);
   }, [onScheduleToday, task.id]);
+  const handleSetNext = useCallback(() => onSetNext(task.id), [onSetNext, task.id]);
+  const handleMoveFocusUp = useCallback(
+    () => onMoveFocus(task.id, "up"),
+    [onMoveFocus, task.id]
+  );
+  const handleMoveFocusDown = useCallback(
+    () => onMoveFocus(task.id, "down"),
+    [onMoveFocus, task.id]
+  );
   const handleDelete = useCallback(() => onDelete(task.id), [onDelete, task.id]);
   const handleShare = useCallback(() => {
     if (!onShare) return;
@@ -360,6 +413,11 @@ const EditableTaskRow = memo(function EditableTaskRow({
             {hasSubtasks ? (
               <span className="task-subtask-summary">
                 {completedSubtasks}/{subtasks.length} subtasks
+              </span>
+            ) : null}
+            {focusPosition ? (
+              <span className="task-focus-badge">
+                {focusPosition === 1 ? "Next" : `Focus #${focusPosition}`}
               </span>
             ) : null}
             {allSubtasksDone && !draft.isDone ? (
@@ -396,6 +454,32 @@ const EditableTaskRow = memo(function EditableTaskRow({
                   <CalendarClock size={15} />
                   Today
                 </button>
+              ) : null}
+              {!draft.isDone ? (
+                <>
+                  <button type="button" className="task-row-menu-action" onClick={handleSetNext}>
+                    <ArrowUp size={15} />
+                    Next
+                  </button>
+                  <button
+                    type="button"
+                    className="task-row-menu-action"
+                    onClick={handleMoveFocusUp}
+                    disabled={!canMoveFocusUp}
+                  >
+                    <ArrowUp size={15} />
+                    Up
+                  </button>
+                  <button
+                    type="button"
+                    className="task-row-menu-action"
+                    onClick={handleMoveFocusDown}
+                    disabled={!canMoveFocusDown}
+                  >
+                    <ArrowDown size={15} />
+                    Down
+                  </button>
+                </>
               ) : null}
               {onShare ? (
                 <button type="button" className="task-row-menu-action" onClick={handleShare} disabled={sharing}>
@@ -742,7 +826,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   );
 
   const tasksForDay = tasks.filter((task) => task.scheduledDate === selectedDayIso);
-  const unscheduledTasks = tasks.filter((task) => !task.scheduledDate);
+  const unscheduledTasks = tasks
+    .filter((task) => !task.scheduledDate)
+    .sort(compareTasksForExecution);
 
   const setTaskDraft = useCallback((taskId: string, patch: TaskDraft) => {
     setTaskDrafts((prev) => ({
@@ -787,8 +873,19 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     [expandedTasks]
   );
 
-  const pendingTasks = tasksForDay.filter((task) => !readTaskDraft(task).isDone);
-  const completedTasks = tasksForDay.filter((task) => readTaskDraft(task).isDone);
+  const pendingTasks = tasksForDay
+    .filter((task) => !readTaskDraft(task).isDone)
+    .sort(compareTasksForExecution);
+  const completedTasks = tasksForDay
+    .filter((task) => readTaskDraft(task).isDone)
+    .sort(compareTasksForExecution);
+  const focusModeActive = pendingTasks.some((task) => getTaskFocusOrder(task) !== null);
+  const focusTaskIds = new Set<string>(
+    focusModeActive ? pendingTasks.map((task) => task.id) : []
+  );
+  const focusPositionByTaskId = new Map<string, number>(
+    focusModeActive ? pendingTasks.map((task, index) => [task.id, index + 1]) : []
+  );
   const pendingTaskPool = useMemo(
     () =>
       tasks.filter((task) => {
@@ -1156,6 +1253,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 typeof patch.actual_minutes === "number" || patch.actual_minutes === null
                   ? patch.actual_minutes
                   : item.actualMinutes;
+              const nextFocusOrder =
+                typeof patch.focus_order === "number" || patch.focus_order === null
+                  ? patch.focus_order
+                  : item.focusOrder ?? null;
               const nextCompletedAt =
                 typeof patch.completed_at === "string" || patch.completed_at === null
                   ? patch.completed_at
@@ -1171,6 +1272,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 startTime: nextStartTime,
                 endTime: nextEndTime,
                 notes: nextNotes,
+                focusOrder: nextFocusOrder,
                 estimatedMinutes: nextEstimatedMinutes,
                 actualMinutes: nextActualMinutes,
                 completedAt: nextCompletedAt,
@@ -1512,6 +1614,70 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     },
   });
 
+  const reorderFocusTasks = useMutation({
+    mutationFn: async (updates: FocusOrderUpdate[]) => {
+      await Promise.all(
+        updates.map((item) => {
+          const body: Record<string, string | number | null> = {
+            focus_order: item.focusOrder,
+          };
+          if ("scheduledDate" in item) body.scheduled_date = item.scheduledDate ?? null;
+          if ("scheduledTime" in item) body.scheduled_time = item.scheduledTime ?? null;
+          if ("plannedTime" in item) body.planned_time = item.plannedTime ?? null;
+          return fetchJson(`/api/tasks/${item.id}`, {
+            method: "PATCH",
+            body: JSON.stringify(body),
+          });
+        })
+      );
+    },
+    onMutate: async (updates) => {
+      setTaskSaveError(null);
+      await queryClient.cancelQueries({ queryKey: ["tasks", range.start, range.end] });
+      const previous = queryClient.getQueryData<TaskListResponse>([
+        "tasks",
+        range.start,
+        range.end,
+      ]);
+      const updateMap = new Map(updates.map((item) => [item.id, item]));
+      queryClient.setQueryData(
+        ["tasks", range.start, range.end],
+        (old: TaskListResponse | undefined) => {
+          if (!old?.items) return old;
+          return {
+            ...old,
+            items: old.items.map((item) => {
+              const update = updateMap.get(item.id);
+              if (!update) return item;
+              return {
+                ...item,
+                focusOrder: update.focusOrder,
+                scheduledDate:
+                  "scheduledDate" in update ? update.scheduledDate : item.scheduledDate,
+                scheduledTime:
+                  "scheduledTime" in update ? update.scheduledTime : item.scheduledTime,
+                plannedTime: "plannedTime" in update ? update.plannedTime : item.plannedTime,
+              };
+            }),
+          };
+        }
+      );
+      return { previous };
+    },
+    onError: (error, _updates, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["tasks", range.start, range.end], context.previous);
+      }
+      setTaskSaveError(readErrorMessage(error, "Couldn't reorder tasks."));
+    },
+    onSuccess: () => {
+      setTaskSaveError(null);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
+    },
+  });
+
   const updateEstimationRow = useMutation({
     mutationFn: ({
       taskId,
@@ -1849,6 +2015,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       is_done: checked ? 1 : 0,
       completed_at: checked ? new Date().toISOString() : null,
     };
+    if (checked) {
+      patch.focus_order = null;
+    }
     if (typeof actualMinutes === "number" && checked) {
       patch.actual_minutes = actualMinutes;
     }
@@ -1928,6 +2097,55 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       });
     },
     [updateTask, selectedDayIso]
+  );
+
+  const handleSetTaskNext = useCallback(
+    (taskId: string) => {
+      const target = tasks.find((task) => task.id === taskId);
+      if (!target || readTaskDraft(target).isDone) return;
+      const ordered = [
+        target,
+        ...pendingTasks.filter((task) => task.id !== taskId),
+      ];
+      const updates = ordered.map<FocusOrderUpdate>((task, index) => {
+        const base: FocusOrderUpdate = {
+          id: task.id,
+          focusOrder: index + 1,
+        };
+        if (task.id === taskId && task.scheduledDate !== selectedDayIso) {
+          base.scheduledDate = selectedDayIso;
+          base.scheduledTime = null;
+          base.plannedTime = null;
+        }
+        return base;
+      });
+      reorderFocusTasks.mutate(updates);
+    },
+    [pendingTasks, readTaskDraft, reorderFocusTasks, selectedDayIso, tasks]
+  );
+
+  const handleMoveFocusTask = useCallback(
+    (taskId: string, direction: "up" | "down") => {
+      const currentIndex = pendingTasks.findIndex((task) => task.id === taskId);
+      if (currentIndex < 0) {
+        handleSetTaskNext(taskId);
+        return;
+      }
+      const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+      if (targetIndex < 0 || targetIndex >= pendingTasks.length) return;
+      const ordered = [...pendingTasks];
+      [ordered[currentIndex], ordered[targetIndex]] = [
+        ordered[targetIndex],
+        ordered[currentIndex],
+      ];
+      reorderFocusTasks.mutate(
+        ordered.map((task, index) => ({
+          id: task.id,
+          focusOrder: index + 1,
+        }))
+      );
+    },
+    [handleSetTaskNext, pendingTasks, reorderFocusTasks]
   );
 
   const handleOpenTaskDetails = useCallback((taskId: string) => {
@@ -2547,9 +2765,17 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     onToggleExpanded={handleToggleTaskExpanded}
                     onToggleSubtaskDone={handleToggleSubtaskDone}
                     onOpenDetails={handleOpenTaskDetails}
+                    onSetNext={handleSetTaskNext}
+                    onMoveFocus={handleMoveFocusTask}
                     onDelete={handleDeleteTask}
                     onShare={shareUi.canToggle ? handleShareTask : undefined}
                     sharing={sharingTaskId === task.id}
+                    focusPosition={focusPositionByTaskId.get(task.id) || null}
+                    canMoveFocusUp={(focusPositionByTaskId.get(task.id) || 0) > 1}
+                    canMoveFocusDown={
+                      focusTaskIds.has(task.id) &&
+                      (focusPositionByTaskId.get(task.id) || 0) < pendingTasks.length
+                    }
                     subtaskSavingId={savingSubtaskId}
                     shareLabel={shareUi.label}
                     shareActionLabel={shareUi.actionLabel}
@@ -2589,9 +2815,17 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     onToggleSubtaskDone={handleToggleSubtaskDone}
                     onOpenDetails={handleOpenTaskDetails}
                     onScheduleToday={handleScheduleToday}
+                    onSetNext={handleSetTaskNext}
+                    onMoveFocus={handleMoveFocusTask}
                     onDelete={handleDeleteTask}
                     onShare={shareUi.canToggle ? handleShareTask : undefined}
                     sharing={sharingTaskId === task.id}
+                    focusPosition={focusPositionByTaskId.get(task.id) || null}
+                    canMoveFocusUp={(focusPositionByTaskId.get(task.id) || 0) > 1}
+                    canMoveFocusDown={
+                      focusTaskIds.has(task.id) &&
+                      (focusPositionByTaskId.get(task.id) || 0) < pendingTasks.length
+                    }
                     subtaskSavingId={savingSubtaskId}
                     shareLabel={shareUi.label}
                     shareActionLabel={shareUi.actionLabel}
@@ -2632,6 +2866,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   onToggleExpanded={handleToggleTaskExpanded}
                   onToggleSubtaskDone={handleToggleSubtaskDone}
                   onOpenDetails={handleOpenTaskDetails}
+                  onSetNext={handleSetTaskNext}
+                  onMoveFocus={handleMoveFocusTask}
                   onDelete={handleDeleteTask}
                   onShare={shareUi.canToggle ? handleShareTask : undefined}
                   sharing={sharingTaskId === task.id}
