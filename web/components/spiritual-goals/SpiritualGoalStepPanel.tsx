@@ -164,14 +164,12 @@ export default function SpiritualGoalStepPanel({
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [stepNotes, setStepNotes] = useState("");
   const [generalNotes, setGeneralNotes] = useState(staircase.generalNotes || "");
-  const [pendingMoveTargetId, setPendingMoveTargetId] = useState<string | null>(null);
   const [stepNotesState, setStepNotesState] = useState<"idle" | "saving" | "saved">("idle");
   const [generalNotesState, setGeneralNotesState] = useState<"idle" | "saving" | "saved">("idle");
 
   useEffect(() => {
     setStepNotes(selectedStep?.notes || "");
     setNewTaskTitle("");
-    setPendingMoveTargetId(null);
     setStepNotesState("idle");
   }, [selectedStep?.id, selectedStep?.notes]);
 
@@ -232,7 +230,6 @@ export default function SpiritualGoalStepPanel({
 
   const canCompleteCurrent = selectedStep.isCurrent && !selectedStep.isCompleted;
   const canMoveToSelected = staircase.currentStepId !== selectedStep.id;
-  const moveConfirmOpen = pendingMoveTargetId === selectedStep.id;
 
   const handleNewTaskSubmit = () => {
     const title = newTaskTitle.trim();
@@ -274,37 +271,11 @@ export default function SpiritualGoalStepPanel({
           type="button"
           className="page-link"
           disabled={!canMoveToSelected || pending}
-          onClick={() => setPendingMoveTargetId(selectedStep.id)}
+          onClick={() => onMoveToStep(selectedStep.id)}
         >
-          Move here
+          Set current
         </button>
       </div>
-
-      {moveConfirmOpen ? (
-        <div className="spiritual-inline-confirm">
-          <p>Move here?</p>
-          <div className="spiritual-inline-confirm-actions">
-            <button
-              type="button"
-              className="secondary"
-              disabled={pending}
-              onClick={() => {
-                onMoveToStep(selectedStep.id);
-                setPendingMoveTargetId(null);
-              }}
-            >
-              Move
-            </button>
-            <button
-              type="button"
-              className="page-link inline muted"
-              onClick={() => setPendingMoveTargetId(null)}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : null}
 
       {completedLabel ? (
         <p className="spiritual-detail-meta">Done on {completedLabel}.</p>

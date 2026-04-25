@@ -4043,7 +4043,6 @@ button.link.danger {
   }
 
   .custom-habit-row,
-  .spiritual-inline-confirm-actions,
   .inline-action-notice {
     flex-direction: column;
     align-items: flex-start;
@@ -4160,8 +4159,7 @@ button.link.danger {
 .spiritual-step-editor-head,
 .spiritual-config-task-head,
 .spiritual-task-row,
-.spiritual-step-actions,
-.spiritual-notes-actions {
+.spiritual-step-actions {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -4574,27 +4572,11 @@ button.link.danger {
   align-items: center;
 }
 
-.spiritual-inline-confirm {
-  display: grid;
-  gap: 10px;
-  padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px solid rgba(210, 168, 105, 0.22);
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.spiritual-inline-confirm p,
 .spiritual-notes-status {
   margin: 0;
   font-size: 12px;
   color: var(--text-muted);
   line-height: 1.45;
-}
-
-.spiritual-inline-confirm-actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
 }
 
 button.secondary.subtle {
@@ -5055,8 +5037,7 @@ button.icon-only {
   .spiritual-step-editor-head,
   .spiritual-config-actions,
   .spiritual-step-actions,
-  .spiritual-task-row,
-  .spiritual-notes-actions {
+  .spiritual-task-row {
     flex-direction: column;
     align-items: flex-start;
   }
@@ -5298,23 +5279,55 @@ body::before {
 }
 
 .study-widget-card {
+  position: relative;
+  overflow: hidden;
   border-radius: 20px;
   border: 1px solid rgba(220, 201, 172, 0.22);
   padding: 16px 18px;
   background:
-    radial-gradient(circle at top right, rgba(143, 171, 200, 0.16), transparent 38%),
+    radial-gradient(circle at top right, rgba(143, 171, 200, 0.2), transparent 38%),
     radial-gradient(circle at bottom left, rgba(211, 173, 112, 0.14), transparent 42%),
+    linear-gradient(135deg, rgba(30, 40, 55, 0.34), rgba(20, 16, 15, 0.08)),
     rgba(255, 249, 239, 0.04);
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
   display: grid;
   gap: 12px;
 }
 
+.study-widget-card::before {
+  content: "";
+  position: absolute;
+  inset: 12px 16px auto auto;
+  width: 148px;
+  height: 72px;
+  pointer-events: none;
+  opacity: 0.35;
+  background:
+    radial-gradient(circle at 8px 8px, rgba(246, 230, 198, 0.95) 0 1.5px, transparent 2px),
+    radial-gradient(circle at 58px 22px, rgba(174, 205, 230, 0.85) 0 1.2px, transparent 2px),
+    radial-gradient(circle at 118px 14px, rgba(246, 230, 198, 0.8) 0 1.2px, transparent 2px),
+    linear-gradient(25deg, transparent 0 20%, rgba(174, 205, 230, 0.45) 21% 22%, transparent 23% 100%),
+    linear-gradient(155deg, transparent 0 26%, rgba(211, 173, 112, 0.34) 27% 28%, transparent 29% 100%);
+}
+
+.study-widget-card::after {
+  content: "";
+  position: absolute;
+  inset: auto -46px -58px auto;
+  width: 160px;
+  height: 160px;
+  border: 1px solid rgba(174, 205, 230, 0.15);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
 .study-widget-head {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 10px;
+  z-index: 1;
 }
 
 .study-widget-kicker {
@@ -5339,8 +5352,10 @@ body::before {
 }
 
 .study-widget-main {
+  position: relative;
   display: grid;
   gap: 5px;
+  z-index: 1;
 }
 
 .study-widget-main h3 {
@@ -5364,6 +5379,20 @@ body::before {
 .study-widget-example {
   font-style: italic;
   color: #b6aa99;
+}
+
+.study-widget-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(220, 201, 172, 0.1);
+  color: #9faec0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 input,

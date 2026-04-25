@@ -1,8 +1,22 @@
-import { BookOpen, FlaskConical, Leaf, PenLine, Sparkles, SunMoon } from "lucide-react";
-import { getWordOfTheDay } from "@/lib/wordOfDay";
+import {
+  BookOpen,
+  FlaskConical,
+  Leaf,
+  PenLine,
+  Sparkles,
+  SunMoon,
+  Telescope,
+} from "lucide-react";
+import { getWordOfTheDay, getWordPoolSize } from "@/lib/wordOfDay";
 
 function TagIcon({ tag }: { tag: string }) {
-  if (tag === "science") return <FlaskConical size={14} />;
+  if (tag === "astronomy" || tag === "astrophysics" || tag === "space systems") {
+    return <Telescope size={14} />;
+  }
+  if (tag === "planetary science" || tag === "earth observation") return <Leaf size={14} />;
+  if (tag === "physics" || tag === "materials" || tag === "research" || tag === "mathematics") {
+    return <FlaskConical size={14} />;
+  }
   if (tag === "nature") return <Leaf size={14} />;
   if (tag === "writing") return <PenLine size={14} />;
   if (tag === "faith") return <SunMoon size={14} />;
@@ -12,11 +26,12 @@ function TagIcon({ tag }: { tag: string }) {
 
 export default function WordOfDayWidget({ dateIso }: { dateIso?: string }) {
   const item = getWordOfTheDay(dateIso);
+  const poolSize = getWordPoolSize();
 
   return (
-    <article className="study-widget-card" aria-label="Word of the day">
+    <article className="study-widget-card study-widget-card-space" aria-label="Research word of the day">
       <header className="study-widget-head">
-        <p className="study-widget-kicker">Word of the day</p>
+        <p className="study-widget-kicker">Research word</p>
         <span className="study-widget-tag">
           <TagIcon tag={item.tag} />
           {item.tag}
@@ -29,7 +44,11 @@ export default function WordOfDayWidget({ dateIso }: { dateIso?: string }) {
         <p className="study-widget-meaning">{item.meaning}</p>
         <p className="study-widget-example">{item.example}</p>
       </div>
+
+      <footer className="study-widget-footer">
+        <span>Scientific lexicon</span>
+        <span>{poolSize} terms</span>
+      </footer>
     </article>
   );
 }
-
