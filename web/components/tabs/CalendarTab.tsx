@@ -21,6 +21,7 @@ import {
   SquarePen,
   Trash2,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import InlineActionNotice from "@/components/common/InlineActionNotice";
 import OverflowMenu from "@/components/common/OverflowMenu";
 import TaskComposer from "@/components/calendar/TaskComposer";
@@ -322,6 +323,7 @@ type EditableTaskRowProps = {
   focusPosition?: number | null;
   canMoveFocusUp?: boolean;
   canMoveFocusDown?: boolean;
+  showInlineNext?: boolean;
   subtaskSavingId?: string | null;
   shareLabel?: string | null;
   shareActionLabel?: string;
@@ -347,6 +349,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
   focusPosition = null,
   canMoveFocusUp = false,
   canMoveFocusDown = false,
+  showInlineNext = false,
   subtaskSavingId,
   shareLabel,
   shareActionLabel = "Share",
@@ -439,6 +442,17 @@ const EditableTaskRow = memo(function EditableTaskRow({
         >
           {hasSubtasks && expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
         </button>
+        {showInlineNext && !draft.isDone ? (
+          <button
+            type="button"
+            className="task-row-next-button"
+            onClick={handleSetNext}
+            disabled={saving}
+            aria-label={`Make ${draft.title} next`}
+          >
+            Next
+          </button>
+        ) : null}
         {shareLabel ? <span className="task-share-badge">{shareLabel}</span> : null}
         {saving ? <span className="task-row-state">Saving…</span> : null}
         {!saving && saved ? <span className="task-row-state success">Saved</span> : null}
@@ -516,6 +530,102 @@ const EditableTaskRow = memo(function EditableTaskRow({
         </div>
       ) : null}
     </article>
+  );
+});
+
+type FocusQueueProps = {
+  tasks: TodoTask[];
+  readTaskDraft: (task: TodoTask) => {
+    title: string;
+    isDone: boolean;
+    priorityTag: string;
+    scheduledTime: string;
+    plannedTime: string;
+    startTime: string;
+    endTime: string;
+    estimatedMinutes: number;
+    actualMinutes: number;
+    notes: string;
+  };
+  savingTaskId: string | null;
+  onSetNext: (taskId: string) => void;
+  onMoveFocus: (taskId: string, direction: "up" | "down") => void;
+  onOpenDetails: (taskId: string) => void;
+};
+
+const FocusQueue = memo(function FocusQueue({
+  tasks,
+  readTaskDraft,
+  savingTaskId,
+  onSetNext,
+  onMoveFocus,
+  onOpenDetails,
+}: FocusQueueProps) {
+  if (!tasks.length) return null;
+
+  return (
+    <section className="focus-queue" aria-label="Execution order">
+      <div className="focus-queue-head">
+        <div>
+          <p className="panel-kicker">Next</p>
+          <h3>Execution order</h3>
+        </div>
+        <span className="focus-queue-meta">No time needed</span>
+      </div>
+
+      <ol className="focus-queue-list">
+        {tasks.map((task, index) => {
+          const draft = readTaskDraft(task);
+          const metadata = summarizeTaskMetadata(draft);
+          const isNext = index === 0;
+          const saving = savingTaskId === task.id;
+
+          return (
+            <li key={task.id} className={`focus-queue-item ${isNext ? "is-next" : ""}`}>
+              <span className="focus-queue-index">{isNext ? "Next" : index + 1}</span>
+              <button
+                type="button"
+                className="focus-queue-title"
+                onClick={() => onOpenDetails(task.id)}
+              >
+                <strong>{draft.title}</strong>
+                <span>{metadata || "Open time"}</span>
+              </button>
+              <div className="focus-queue-actions">
+                {!isNext ? (
+                  <button
+                    type="button"
+                    className="focus-queue-action text"
+                    onClick={() => onSetNext(task.id)}
+                    disabled={saving}
+                  >
+                    Next
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="focus-queue-action"
+                  onClick={() => onMoveFocus(task.id, "up")}
+                  disabled={index === 0 || saving}
+                  aria-label={`Move ${draft.title} up`}
+                >
+                  <ArrowUp size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="focus-queue-action"
+                  onClick={() => onMoveFocus(task.id, "down")}
+                  disabled={index === tasks.length - 1 || saving}
+                  aria-label={`Move ${draft.title} down`}
+                >
+                  <ArrowDown size={14} />
+                </button>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
   );
 });
 
@@ -607,6 +717,7 @@ const DailyHabitRow = memo(function DailyHabitRow({
 
 export default function CalendarTab({ userEmail: _userEmail }: { userEmail: string }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const calendarRef = useRef<FullCalendar | null>(null);
   const lastCreateAttemptRef = useRef<CreateTaskInput | null>(null);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -880,11 +991,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     .filter((task) => readTaskDraft(task).isDone)
     .sort(compareTasksForExecution);
   const focusModeActive = pendingTasks.some((task) => getTaskFocusOrder(task) !== null);
-  const focusTaskIds = new Set<string>(
-    focusModeActive ? pendingTasks.map((task) => task.id) : []
-  );
-  const focusPositionByTaskId = new Map<string, number>(
-    focusModeActive ? pendingTasks.map((task, index) => [task.id, index + 1]) : []
+  const executionPositionByTaskId = new Map<string, number>(
+    pendingTasks.map((task, index) => [task.id, index + 1])
   );
   const pendingTaskPool = useMemo(
     () =>
@@ -1618,12 +1726,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     mutationFn: async (updates: FocusOrderUpdate[]) => {
       await Promise.all(
         updates.map((item) => {
-          const body: Record<string, string | number | null> = {
+          const body: Record<string, string | number | boolean | null> = {
             focus_order: item.focusOrder,
           };
           if ("scheduledDate" in item) body.scheduled_date = item.scheduledDate ?? null;
           if ("scheduledTime" in item) body.scheduled_time = item.scheduledTime ?? null;
           if ("plannedTime" in item) body.planned_time = item.plannedTime ?? null;
+          body.sync_google = false;
           return fetchJson(`/api/tasks/${item.id}`, {
             method: "PATCH",
             body: JSON.stringify(body),
@@ -1672,6 +1781,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     },
     onSuccess: () => {
       setTaskSaveError(null);
+      router.refresh();
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
@@ -2739,11 +2849,20 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           onMoveSubtask={handleMoveSubtask}
         />
 
+        <FocusQueue
+          tasks={pendingTasks}
+          readTaskDraft={readTaskDraft}
+          savingTaskId={savingTaskId}
+          onSetNext={handleSetTaskNext}
+          onMoveFocus={handleMoveFocusTask}
+          onOpenDetails={handleOpenTaskDetails}
+        />
+
         <section className="calendar-primary-section">
           <div className="calendar-section-head">
             <div>
-              <p className="panel-kicker">Now</p>
-              <h3>Pending</h3>
+              <p className="panel-kicker">Today</p>
+              <h3>Tasks</h3>
             </div>
             <span className="calendar-section-count">{pendingTasks.length}</span>
           </div>
@@ -2770,12 +2889,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     onDelete={handleDeleteTask}
                     onShare={shareUi.canToggle ? handleShareTask : undefined}
                     sharing={sharingTaskId === task.id}
-                    focusPosition={focusPositionByTaskId.get(task.id) || null}
-                    canMoveFocusUp={(focusPositionByTaskId.get(task.id) || 0) > 1}
-                    canMoveFocusDown={
-                      focusTaskIds.has(task.id) &&
-                      (focusPositionByTaskId.get(task.id) || 0) < pendingTasks.length
+                    focusPosition={
+                      focusModeActive ? executionPositionByTaskId.get(task.id) || null : null
                     }
+                    canMoveFocusUp={(executionPositionByTaskId.get(task.id) || 0) > 1}
+                    canMoveFocusDown={
+                      (executionPositionByTaskId.get(task.id) || 0) < pendingTasks.length
+                    }
+                    showInlineNext={pendingTasks[0]?.id !== task.id}
                     subtaskSavingId={savingSubtaskId}
                     shareLabel={shareUi.label}
                     shareActionLabel={shareUi.actionLabel}
@@ -2820,12 +2941,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     onDelete={handleDeleteTask}
                     onShare={shareUi.canToggle ? handleShareTask : undefined}
                     sharing={sharingTaskId === task.id}
-                    focusPosition={focusPositionByTaskId.get(task.id) || null}
-                    canMoveFocusUp={(focusPositionByTaskId.get(task.id) || 0) > 1}
-                    canMoveFocusDown={
-                      focusTaskIds.has(task.id) &&
-                      (focusPositionByTaskId.get(task.id) || 0) < pendingTasks.length
+                    focusPosition={
+                      focusModeActive ? executionPositionByTaskId.get(task.id) || null : null
                     }
+                    canMoveFocusUp={(executionPositionByTaskId.get(task.id) || 0) > 1}
+                    canMoveFocusDown={
+                      (executionPositionByTaskId.get(task.id) || 0) < pendingTasks.length
+                    }
+                    showInlineNext
                     subtaskSavingId={savingSubtaskId}
                     shareLabel={shareUi.label}
                     shareActionLabel={shareUi.actionLabel}
