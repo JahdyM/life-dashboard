@@ -323,6 +323,7 @@ type EditableTaskRowProps = {
   focusPosition?: number | null;
   canMoveFocusUp?: boolean;
   canMoveFocusDown?: boolean;
+  showOrderControls?: boolean;
   showInlineNext?: boolean;
   subtaskSavingId?: string | null;
   shareLabel?: string | null;
@@ -349,6 +350,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
   focusPosition = null,
   canMoveFocusUp = false,
   canMoveFocusDown = false,
+  showOrderControls = false,
   showInlineNext = false,
   subtaskSavingId,
   shareLabel,
@@ -442,14 +444,44 @@ const EditableTaskRow = memo(function EditableTaskRow({
         >
           {hasSubtasks && expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
         </button>
-        {showInlineNext && !draft.isDone ? (
-          <button
-            type="button"
-            className="task-row-next-button"
-            onClick={handleSetNext}
-            disabled={saving}
-            aria-label={`Make ${draft.title} next`}
+        {showOrderControls && !draft.isDone ? (
+          <div
+            className="task-row-order-controls"
+            role="group"
+            aria-label={`Order controls for ${draft.title}`}
           >
+            {showInlineNext ? (
+              <button
+                type="button"
+                className="task-row-next-button"
+                onClick={handleSetNext}
+                disabled={saving}
+                aria-label={`Make ${draft.title} next`}
+              >
+                Next
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="task-row-order-button"
+              onClick={handleMoveFocusUp}
+              disabled={!canMoveFocusUp || saving}
+              aria-label={`Move ${draft.title} up`}
+            >
+              <ArrowUp size={14} />
+            </button>
+            <button
+              type="button"
+              className="task-row-order-button"
+              onClick={handleMoveFocusDown}
+              disabled={!canMoveFocusDown || saving}
+              aria-label={`Move ${draft.title} down`}
+            >
+              <ArrowDown size={14} />
+            </button>
+          </div>
+        ) : showInlineNext && !draft.isDone ? (
+          <button type="button" className="task-row-next-button" onClick={handleSetNext} disabled={saving}>
             Next
           </button>
         ) : null}
@@ -530,102 +562,6 @@ const EditableTaskRow = memo(function EditableTaskRow({
         </div>
       ) : null}
     </article>
-  );
-});
-
-type FocusQueueProps = {
-  tasks: TodoTask[];
-  readTaskDraft: (task: TodoTask) => {
-    title: string;
-    isDone: boolean;
-    priorityTag: string;
-    scheduledTime: string;
-    plannedTime: string;
-    startTime: string;
-    endTime: string;
-    estimatedMinutes: number;
-    actualMinutes: number;
-    notes: string;
-  };
-  savingTaskId: string | null;
-  onSetNext: (taskId: string) => void;
-  onMoveFocus: (taskId: string, direction: "up" | "down") => void;
-  onOpenDetails: (taskId: string) => void;
-};
-
-const FocusQueue = memo(function FocusQueue({
-  tasks,
-  readTaskDraft,
-  savingTaskId,
-  onSetNext,
-  onMoveFocus,
-  onOpenDetails,
-}: FocusQueueProps) {
-  if (!tasks.length) return null;
-
-  return (
-    <section className="focus-queue" aria-label="Execution order">
-      <div className="focus-queue-head">
-        <div>
-          <p className="panel-kicker">Next</p>
-          <h3>Execution order</h3>
-        </div>
-        <span className="focus-queue-meta">No time needed</span>
-      </div>
-
-      <ol className="focus-queue-list">
-        {tasks.map((task, index) => {
-          const draft = readTaskDraft(task);
-          const metadata = summarizeTaskMetadata(draft);
-          const isNext = index === 0;
-          const saving = savingTaskId === task.id;
-
-          return (
-            <li key={task.id} className={`focus-queue-item ${isNext ? "is-next" : ""}`}>
-              <span className="focus-queue-index">{isNext ? "Next" : index + 1}</span>
-              <button
-                type="button"
-                className="focus-queue-title"
-                onClick={() => onOpenDetails(task.id)}
-              >
-                <strong>{draft.title}</strong>
-                <span>{metadata || "Open time"}</span>
-              </button>
-              <div className="focus-queue-actions">
-                {!isNext ? (
-                  <button
-                    type="button"
-                    className="focus-queue-action text"
-                    onClick={() => onSetNext(task.id)}
-                    disabled={saving}
-                  >
-                    Next
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="focus-queue-action"
-                  onClick={() => onMoveFocus(task.id, "up")}
-                  disabled={index === 0 || saving}
-                  aria-label={`Move ${draft.title} up`}
-                >
-                  <ArrowUp size={14} />
-                </button>
-                <button
-                  type="button"
-                  className="focus-queue-action"
-                  onClick={() => onMoveFocus(task.id, "down")}
-                  disabled={index === tasks.length - 1 || saving}
-                  aria-label={`Move ${draft.title} down`}
-                >
-                  <ArrowDown size={14} />
-                </button>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
-    </section>
   );
 });
 
@@ -990,7 +926,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const completedTasks = tasksForDay
     .filter((task) => readTaskDraft(task).isDone)
     .sort(compareTasksForExecution);
-  const focusModeActive = pendingTasks.some((task) => getTaskFocusOrder(task) !== null);
   const executionPositionByTaskId = new Map<string, number>(
     pendingTasks.map((task, index) => [task.id, index + 1])
   );
@@ -2849,15 +2784,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           onMoveSubtask={handleMoveSubtask}
         />
 
-        <FocusQueue
-          tasks={pendingTasks}
-          readTaskDraft={readTaskDraft}
-          savingTaskId={savingTaskId}
-          onSetNext={handleSetTaskNext}
-          onMoveFocus={handleMoveFocusTask}
-          onOpenDetails={handleOpenTaskDetails}
-        />
-
         <section className="calendar-primary-section">
           <div className="calendar-section-head">
             <div>
@@ -2889,13 +2815,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     onDelete={handleDeleteTask}
                     onShare={shareUi.canToggle ? handleShareTask : undefined}
                     sharing={sharingTaskId === task.id}
-                    focusPosition={
-                      focusModeActive ? executionPositionByTaskId.get(task.id) || null : null
-                    }
+                    focusPosition={executionPositionByTaskId.get(task.id) || null}
                     canMoveFocusUp={(executionPositionByTaskId.get(task.id) || 0) > 1}
                     canMoveFocusDown={
                       (executionPositionByTaskId.get(task.id) || 0) < pendingTasks.length
                     }
+                    showOrderControls={pendingTasks.length > 1}
                     showInlineNext={pendingTasks[0]?.id !== task.id}
                     subtaskSavingId={savingSubtaskId}
                     shareLabel={shareUi.label}
@@ -2941,9 +2866,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     onDelete={handleDeleteTask}
                     onShare={shareUi.canToggle ? handleShareTask : undefined}
                     sharing={sharingTaskId === task.id}
-                    focusPosition={
-                      focusModeActive ? executionPositionByTaskId.get(task.id) || null : null
-                    }
+                    focusPosition={executionPositionByTaskId.get(task.id) || null}
                     canMoveFocusUp={(executionPositionByTaskId.get(task.id) || 0) > 1}
                     canMoveFocusDown={
                       (executionPositionByTaskId.get(task.id) || 0) < pendingTasks.length
