@@ -85,31 +85,6 @@ export default function SpiritualStreakBoard({
         </div>
       </div>
 
-      <div className="spiritual-streak-quick-row">
-        <div>
-          <span className="spiritual-streak-label">Today</span>
-          <strong>{board.quickPrompt}</strong>
-        </div>
-        <div className="spiritual-streak-inline-actions" role="group" aria-label={`${board.title} quick actions`}>
-          <button
-            type="button"
-            className={`secondary subtle ${board.todayStatus === true ? "active" : ""}`}
-            onClick={() => onMark({ boardKey: board.key, date: todayIso, success: true })}
-            disabled={pending}
-          >
-            {board.yesLabel}
-          </button>
-          <button
-            type="button"
-            className={`secondary subtle ${board.todayStatus === false ? "active negative" : ""}`}
-            onClick={() => onMark({ boardKey: board.key, date: todayIso, success: false })}
-            disabled={pending}
-          >
-            {board.noLabel}
-          </button>
-        </div>
-      </div>
-
       <div className="spiritual-streak-weekdays" aria-hidden="true">
         {WEEKDAY_LABELS.map((label, index) => (
           <span key={`${board.key}-${label}-${index}`}>{label}</span>
@@ -149,9 +124,11 @@ export default function SpiritualStreakBoard({
       {selectedCell ? (
         <div className="spiritual-streak-editor">
           <div className="spiritual-streak-editor-copy">
-            <span className="spiritual-streak-label">Day</span>
+            <span className="spiritual-streak-label">Selected</span>
             <strong>{formatDisplayDate(selectedCell.date)}</strong>
-            <p>{getStatusCopy(board, selectedCell.success, selectedCell.isFuture)}</p>
+            <p>
+              {board.quickPrompt} · {getStatusCopy(board, selectedCell.success, selectedCell.isFuture)}
+            </p>
           </div>
           <div className="spiritual-streak-editor-actions" role="group" aria-label={`${board.title} selected day actions`}>
             <button

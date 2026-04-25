@@ -5066,7 +5066,6 @@ button.icon-only {
 }
 
 .spiritual-streak-board-head,
-.spiritual-streak-quick-row,
 .spiritual-streak-editor {
   display: flex;
   justify-content: space-between;
@@ -5117,14 +5116,6 @@ button.icon-only {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
-}
-
-.spiritual-streak-quick-row {
-  padding: 14px 16px;
-  border-radius: 22px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.035);
-  align-items: center;
 }
 
 .spiritual-streak-label {
@@ -5305,7 +5296,6 @@ button.icon-only {
 
   .spiritual-streaks-toolbar,
   .spiritual-streak-board-head,
-  .spiritual-streak-quick-row,
   .spiritual-streak-editor {
     flex-direction: column;
     align-items: flex-start;
