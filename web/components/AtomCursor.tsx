@@ -38,34 +38,19 @@ export default function AtomCursor() {
       });
     };
 
-    const onMove = (event: MouseEvent) => {
-      mouse.current.x = event.clientX;
-      mouse.current.y = event.clientY;
-      if (!isVisible.current) {
-        isVisible.current = true;
-        points.current.forEach((point) => {
-          point.x = event.clientX;
-          point.y = event.clientY;
-        });
-        setCursorVisibility(true);
+    const stopAnimation = () => {
+      if (rafId.current !== null) {
+        window.cancelAnimationFrame(rafId.current);
+        rafId.current = null;
       }
     };
 
-    const onDown = () => {
-      isPressed.current = true;
-    };
-
-    const onUp = () => {
-      isPressed.current = false;
-    };
-
-    const onLeave = () => {
-      isVisible.current = false;
-      setCursorVisibility(false);
-    };
-
     const animate = () => {
-      if (!isMounted.current) return;
+      if (!isMounted.current || !isVisible.current || document.hidden) {
+        rafId.current = null;
+        return;
+      }
+
       const cursor = cursorRef.current;
       const headLerp = 0.4;
       const tailLerp = 0.34;
@@ -95,27 +80,65 @@ export default function AtomCursor() {
       rafId.current = window.requestAnimationFrame(animate);
     };
 
+    const startAnimation = () => {
+      if (rafId.current !== null || !isVisible.current || document.hidden) return;
+      rafId.current = window.requestAnimationFrame(animate);
+    };
+
+    const onMove = (event: MouseEvent) => {
+      mouse.current.x = event.clientX;
+      mouse.current.y = event.clientY;
+      if (!isVisible.current) {
+        isVisible.current = true;
+        points.current.forEach((point) => {
+          point.x = event.clientX;
+          point.y = event.clientY;
+        });
+        setCursorVisibility(true);
+      }
+      startAnimation();
+    };
+
+    const onDown = () => {
+      isPressed.current = true;
+    };
+
+    const onUp = () => {
+      isPressed.current = false;
+    };
+
+    const onLeave = () => {
+      isVisible.current = false;
+      setCursorVisibility(false);
+      stopAnimation();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        stopAnimation();
+      } else {
+        startAnimation();
+      }
+    };
+
     window.addEventListener("mousemove", onMove, { passive: true });
     window.addEventListener("mousedown", onDown, { passive: true });
     window.addEventListener("mouseup", onUp, { passive: true });
     window.addEventListener("mouseleave", onLeave, { passive: true });
     window.addEventListener("blur", onLeave, { passive: true });
-
-    rafId.current = window.requestAnimationFrame(animate);
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
       isMounted.current = false;
       isVisible.current = false;
-      if (rafId.current !== null) {
-        window.cancelAnimationFrame(rafId.current);
-        rafId.current = null;
-      }
+      stopAnimation();
       document.body.removeAttribute("data-custom-cursor");
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mousedown", onDown);
       window.removeEventListener("mouseup", onUp);
       window.removeEventListener("mouseleave", onLeave);
       window.removeEventListener("blur", onLeave);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
 

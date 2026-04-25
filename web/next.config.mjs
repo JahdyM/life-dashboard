@@ -10,8 +10,8 @@ const nextConfig = {
     const csp = [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
-      "font-src 'self' https://fonts.gstatic.com data:",
+      "style-src 'self' 'unsafe-inline'",
+      "font-src 'self' data:",
       "img-src 'self' data: blob: https:",
       "connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com",
       "frame-ancestors 'none'",

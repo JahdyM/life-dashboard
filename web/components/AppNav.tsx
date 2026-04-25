@@ -49,7 +49,7 @@ function NavLink({ href, label, active }: { href: string; label: string; active:
   };
 
   return (
-    <Link href={href} className={`app-nav-link ${active ? "active" : ""}`}>
+    <Link href={href} prefetch={false} className={`app-nav-link ${active ? "active" : ""}`}>
       <span className="app-nav-link-icon" aria-hidden="true">
         {iconMap[href]}
       </span>
@@ -90,6 +90,7 @@ export function AppNav() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               className={`app-nav-popover-link ${isActivePath(pathname, item.href) ? "active" : ""}`}
             >
               {item.label}

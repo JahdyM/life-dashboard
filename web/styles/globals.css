@@ -58,13 +58,6 @@ a {
   outline-offset: 2px;
 }
 
-.app-shell {
-  padding: 24px 32px 48px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
 .shell-layout {
   width: min(1320px, calc(100% - 32px));
   margin: 0 auto;
@@ -816,39 +809,6 @@ a {
   }
 }
 
-.header {
-  display: grid;
-  gap: 16px;
-}
-
-.header-summary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-  padding: 16px;
-  border-radius: 16px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-}
-
-.header-title {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-}
-
-.header-metric {
-  font-size: clamp(1.05rem, 2.1vw, 1.375rem);
-  font-weight: 600;
-  margin: 4px 0 0;
-}
-
-.header-metric span {
-  font-size: 14px;
-  color: var(--text-muted);
-}
-
 .header-logout {
   margin-top: 10px;
   border: 1px solid var(--border-soft);
@@ -858,25 +818,6 @@ a {
   padding: 5px 9px;
   font-size: 12px;
   cursor: pointer;
-}
-
-.header-streaks {
-  padding: 16px;
-  border-radius: 16px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-}
-
-.header-streaks-title {
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 12px;
-}
-
-.header-warning {
-  color: var(--warning);
-  font-size: 13px;
-  margin-bottom: 8px;
 }
 
 .streak-grid {
@@ -926,32 +867,6 @@ a {
   font-size: 11px;
   color: var(--text-muted);
   opacity: 0.9;
-}
-
-.tabs {
-  display: flex;
-  gap: 8px;
-}
-
-.tab {
-  background: transparent;
-  border: 1px solid var(--border-soft);
-  color: var(--text-muted);
-  padding: 8px 14px;
-  border-radius: 999px;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.tab.active {
-  background: var(--accent-soft);
-  color: var(--text);
-  border-color: var(--accent);
-}
-
-.tab-content {
-  display: grid;
-  gap: 16px;
 }
 
 .card {
@@ -3827,9 +3742,6 @@ button.link.danger {
     margin-left: 0;
   }
 
-  .header-summary {
-    grid-template-columns: 1fr;
-  }
   .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3983,33 +3895,6 @@ button.link.danger {
     padding: 16px 4px;
   }
 
-  .app-shell {
-    padding: 18px 16px 28px;
-    gap: 14px;
-  }
-
-  .header-summary {
-    gap: 12px;
-    padding: 12px;
-  }
-
-  .header-title {
-    font-size: 11px;
-  }
-
-  .header-metric {
-    font-size: clamp(0.95rem, 4vw, 1.2rem);
-  }
-
-  .tabs {
-    flex-wrap: wrap;
-  }
-
-  .tab {
-    min-height: 44px;
-    padding: 10px 14px;
-  }
-
   .card {
     padding: 14px;
   }
@@ -4130,14 +4015,6 @@ button.link.danger {
   .shell-streak-row {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .app-shell {
-    padding: 12px 10px 22px;
-  }
-
-  .header-streaks-title {
-    font-size: clamp(0.9rem, 4.2vw, 1rem);
   }
 
   .streak-grid {

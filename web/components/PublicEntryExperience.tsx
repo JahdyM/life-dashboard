@@ -48,10 +48,10 @@ function PublicTodayPreviewGrid({ showActions = true }: { showActions?: boolean 
           </div>
           {showActions ? (
             <div className="today-actions">
-              <Link href="/signin?callbackUrl=%2Ftoday" className="page-link primary">
+              <Link href="/signin?callbackUrl=%2Ftoday" prefetch={false} className="page-link primary">
                 Sign in
               </Link>
-              <Link href="/" className="page-link">
+              <Link href="/" prefetch={false} className="page-link">
                 Home
               </Link>
             </div>
@@ -167,10 +167,10 @@ export default function PublicEntryExperience({
           <h1>See what matters today.</h1>
           <p className="landing-description">Tasks, habits, mood, notes, shared rhythm.</p>
           <div className="landing-actions">
-            <Link href="/today" className="page-link primary">
+            <Link href="/today" prefetch={false} className="page-link primary">
               Preview
             </Link>
-            <Link href="/signin?callbackUrl=%2Ftoday" className="page-link">
+            <Link href="/signin?callbackUrl=%2Ftoday" prefetch={false} className="page-link">
               Sign in
             </Link>
           </div>

@@ -23,10 +23,10 @@ export default async function DashboardLayout({
             <p className="shell-copy">Private daily dashboard.</p>
           </div>
           <div className="shell-public-actions">
-            <Link href="/" className="page-link">
+            <Link href="/" prefetch={false} className="page-link">
               Home
             </Link>
-            <Link href="/signin?callbackUrl=%2Ftoday" className="page-link primary">
+            <Link href="/signin?callbackUrl=%2Ftoday" prefetch={false} className="page-link primary">
               Sign in
             </Link>
           </div>
