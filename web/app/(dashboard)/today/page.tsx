@@ -74,20 +74,20 @@ function buildPrimaryAction(args: {
   if (args.hasPendingTasks) {
     return {
       href: "/calendar",
-      label: "Calendar",
+      label: "Open",
       eyebrow: "Next",
       description: args.nextTaskTitle
         ? `Start with ${args.nextTaskTitle}.`
-        : "Next task is ready.",
+        : "Start here.",
     };
   }
 
   if (!args.hasMood) {
     return {
       href: "/mood",
-      label: "Mood",
+      label: "Log",
       eyebrow: "Mood",
-      description: "Log a check-in.",
+      description: "Quick check-in.",
     };
   }
 
@@ -96,7 +96,7 @@ function buildPrimaryAction(args: {
       href: "/calendar",
       label: "Plan",
       eyebrow: "Plan",
-      description: "Set one next step.",
+      description: "Set one step.",
     };
   }
 
