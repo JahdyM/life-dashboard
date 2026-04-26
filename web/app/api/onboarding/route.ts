@@ -56,6 +56,10 @@ export async function PUT(request: NextRequest) {
         navGroup: module.nav_group,
         order: module.order ?? (index + 1) * 10,
       })),
+      sharedHabits: parsed.data.shared_habits,
+      customHabitStarters: parsed.data.custom_habit_starters,
+      spiritualStreaks: parsed.data.spiritual_streaks,
+      moods: parsed.data.moods,
     });
 
     return jsonOk({ preferences });

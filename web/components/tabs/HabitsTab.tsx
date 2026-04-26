@@ -17,6 +17,7 @@ import InlineActionNotice from "@/components/common/InlineActionNotice";
 import { fetchJson } from "@/lib/client/api";
 import { FIXED_SHARED_HABITS, WEEKDAY_LABELS_PT } from "@/lib/constants";
 import { getMoodMeta } from "@/lib/moods";
+import type { DashboardOnboardingPreferences } from "@/lib/config/dashboard";
 import type { CustomHabit, DayEntry } from "@/lib/types";
 
 type DayResponse = { entry: DayEntry };
@@ -24,6 +25,7 @@ type CustomHabitsResponse = { items: CustomHabit[] };
 type CustomDoneResponse = { done: Record<string, number> };
 type MeetingDaysResponse = { days: number[] };
 type FamilyDayResponse = { day: number };
+type OnboardingResponse = { preferences: DashboardOnboardingPreferences };
 
 type PendingDeleteState = {
   habit: CustomHabit;
@@ -268,6 +270,10 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
     queryKey: ["family-day"],
     queryFn: () => fetchJson<FamilyDayResponse>("/api/settings/family-worship-day"),
   });
+  const onboardingQuery = useQuery({
+    queryKey: ["onboarding-preferences"],
+    queryFn: () => fetchJson<OnboardingResponse>("/api/onboarding"),
+  });
 
   const hasBlockingData =
     Boolean(dayQuery.data) &&
@@ -313,6 +319,15 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
     [meetingDaysQuery.data?.days]
   );
   const familyDay = familyDayQuery.data?.day ?? 6;
+  const sharedHabits = useMemo(
+    () => {
+      const configured =
+        onboardingQuery.data?.preferences.sharedHabits ||
+        FIXED_SHARED_HABITS.map((habit) => ({ ...habit, enabled: true }));
+      return configured.filter((habit) => habit.enabled !== false);
+    },
+    [onboardingQuery.data?.preferences.sharedHabits]
+  );
 
   useEffect(() => {
     setMetricDrafts(buildMetricDrafts(dayEntry));
@@ -799,7 +814,7 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
             </div>
           </div>
           <div className="habit-list">
-            {FIXED_SHARED_HABITS.map((habit) => {
+            {sharedHabits.map((habit) => {
               const isMeetingHabit =
                 habit.key === "meeting_attended" || habit.key === "prepare_meeting";
               const isFamilyHabit = habit.key === "family_worship";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, Check, Sparkles } from "lucide-react";
 import InlineActionNotice from "@/components/common/InlineActionNotice";
@@ -8,6 +8,8 @@ import { fetchJson } from "@/lib/client/api";
 import type {
   DashboardModuleView,
   DashboardOnboardingPreferences,
+  OnboardingHabitStarterPreference,
+  OnboardingNamedPreference,
   WorkspaceMode,
 } from "@/lib/config/dashboard";
 
@@ -25,6 +27,22 @@ function modulePayload(modules: DashboardModuleView[]) {
   }));
 }
 
+function namedPayload(items: OnboardingNamedPreference<string>[]) {
+  return items.map((item) => ({
+    key: item.key,
+    label: item.label,
+    enabled: item.enabled,
+  }));
+}
+
+function starterPayload(items: OnboardingHabitStarterPreference[]) {
+  return items.map((item) => ({
+    id: item.id,
+    name: item.name,
+    enabled: item.enabled,
+  }));
+}
+
 function sortModules(modules: DashboardModuleView[]) {
   return [...modules].sort((a, b) => a.order - b.order);
 }
@@ -36,6 +54,12 @@ export default function OnboardingClient({
 }) {
   const router = useRouter();
   const [modules, setModules] = useState(() => sortModules(initialPreferences.modules));
+  const [sharedHabits, setSharedHabits] = useState(initialPreferences.sharedHabits);
+  const [customHabitStarters, setCustomHabitStarters] = useState(
+    initialPreferences.customHabitStarters
+  );
+  const [spiritualStreaks, setSpiritualStreaks] = useState(initialPreferences.spiritualStreaks);
+  const [moods, setMoods] = useState(initialPreferences.moods);
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(initialPreferences.workspaceMode);
   const [partnerEmail, setPartnerEmail] = useState(initialPreferences.partnerEmail || "");
   const [saving, setSaving] = useState(false);
@@ -58,6 +82,25 @@ export default function OnboardingClient({
         const enabled = module.key === "today" ? true : (patch.enabled ?? module.enabled);
         return { ...module, ...patch, enabled };
       })
+    );
+  };
+
+  const updateNamedItem = (
+    setter: Dispatch<SetStateAction<OnboardingNamedPreference<string>[]>>,
+    key: string,
+    patch: Partial<OnboardingNamedPreference<string>>
+  ) => {
+    setter((current) =>
+      current.map((item) => (item.key === key ? { ...item, ...patch } : item))
+    );
+  };
+
+  const updateStarterHabit = (
+    id: string,
+    patch: Partial<OnboardingHabitStarterPreference>
+  ) => {
+    setCustomHabitStarters((current) =>
+      current.map((item) => (item.id === id ? { ...item, ...patch } : item))
     );
   };
 
@@ -84,9 +127,17 @@ export default function OnboardingClient({
           workspace_mode: workspaceMode,
           partner_email: workspaceMode === "shared" ? partnerEmail.trim() : null,
           modules: modulePayload(modules),
+          shared_habits: namedPayload(sharedHabits),
+          custom_habit_starters: starterPayload(customHabitStarters),
+          spiritual_streaks: namedPayload(spiritualStreaks),
+          moods: namedPayload(moods),
         }),
       });
       setModules(sortModules(response.preferences.modules));
+      setSharedHabits(response.preferences.sharedHabits);
+      setCustomHabitStarters(response.preferences.customHabitStarters);
+      setSpiritualStreaks(response.preferences.spiritualStreaks);
+      setMoods(response.preferences.moods);
       setMessage(complete ? "Workspace ready." : "Saved.");
       router.refresh();
       if (complete) {
@@ -217,6 +268,136 @@ export default function OnboardingClient({
                 </button>
               </div>
             </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="onboarding-section">
+        <div className="onboarding-section-head">
+          <div>
+            <p className="panel-kicker">Habits</p>
+            <h3>Shared checks</h3>
+          </div>
+          <span>{sharedHabits.filter((habit) => habit.enabled).length} on</span>
+        </div>
+
+        <div className="onboarding-module-list compact">
+          {sharedHabits.map((habit) => (
+            <article key={habit.key} className={`onboarding-module-card ${habit.enabled ? "enabled" : ""}`}>
+              <div className="onboarding-module-main">
+                <label className="onboarding-module-toggle">
+                  <input
+                    type="checkbox"
+                    checked={habit.enabled}
+                    onChange={(event) =>
+                      updateNamedItem(setSharedHabits, habit.key, { enabled: event.target.checked })
+                    }
+                  />
+                  <span>{habit.key.replaceAll("_", " ")}</span>
+                </label>
+                <input
+                  type="text"
+                  value={habit.label}
+                  onChange={(event) =>
+                    updateNamedItem(setSharedHabits, habit.key, { label: event.target.value })
+                  }
+                  aria-label={`${habit.label} label`}
+                />
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="onboarding-section">
+        <div className="onboarding-section-head">
+          <div>
+            <p className="panel-kicker">Starter habits</p>
+            <h3>Personal list</h3>
+          </div>
+          <span>{customHabitStarters.filter((habit) => habit.enabled).length} selected</span>
+        </div>
+
+        <div className="onboarding-module-list compact">
+          {customHabitStarters.map((habit) => (
+            <article key={habit.id} className={`onboarding-module-card ${habit.enabled ? "enabled" : ""}`}>
+              <div className="onboarding-module-main">
+                <label className="onboarding-module-toggle">
+                  <input
+                    type="checkbox"
+                    checked={habit.enabled}
+                    onChange={(event) => updateStarterHabit(habit.id, { enabled: event.target.checked })}
+                  />
+                  <span>Starter</span>
+                </label>
+                <input
+                  type="text"
+                  value={habit.name}
+                  onChange={(event) => updateStarterHabit(habit.id, { name: event.target.value })}
+                  aria-label={`${habit.name} name`}
+                />
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="onboarding-section">
+        <div className="onboarding-section-head">
+          <div>
+            <p className="panel-kicker">Spiritual streaks</p>
+            <h3>Boards</h3>
+          </div>
+          <span>{spiritualStreaks.filter((board) => board.enabled).length} boards</span>
+        </div>
+
+        <div className="onboarding-module-list compact">
+          {spiritualStreaks.map((board) => (
+            <article key={board.key} className={`onboarding-module-card ${board.enabled ? "enabled" : ""}`}>
+              <div className="onboarding-module-main">
+                <label className="onboarding-module-toggle">
+                  <input
+                    type="checkbox"
+                    checked={board.enabled}
+                    onChange={(event) =>
+                      updateNamedItem(setSpiritualStreaks, board.key, { enabled: event.target.checked })
+                    }
+                  />
+                  <span>{board.key.replaceAll("_", " ")}</span>
+                </label>
+                <input
+                  type="text"
+                  value={board.label}
+                  onChange={(event) =>
+                    updateNamedItem(setSpiritualStreaks, board.key, { label: event.target.value })
+                  }
+                  aria-label={`${board.label} label`}
+                />
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="onboarding-section">
+        <div className="onboarding-section-head">
+          <div>
+            <p className="panel-kicker">Mood</p>
+            <h3>Emotion palette</h3>
+          </div>
+          <span>{moods.filter((mood) => mood.enabled).length} moods</span>
+        </div>
+
+        <div className="onboarding-mood-grid">
+          {moods.map((mood) => (
+            <button
+              key={mood.key}
+              type="button"
+              className={`onboarding-mood-chip ${mood.enabled ? "active" : ""}`}
+              onClick={() => updateNamedItem(setMoods, mood.key, { enabled: !mood.enabled })}
+            >
+              {mood.label}
+            </button>
           ))}
         </div>
       </section>

@@ -119,6 +119,54 @@ export const onboardingPreferencesSchema = z
       )
       .min(1)
       .max(DASHBOARD_MODULE_KEYS.length),
+    shared_habits: z
+      .array(
+        z
+          .object({
+            key: z.string().trim().min(1).max(80),
+            label: z.string().trim().min(1).max(36),
+            enabled: z.boolean(),
+          })
+          .strict()
+      )
+      .max(24)
+      .optional(),
+    custom_habit_starters: z
+      .array(
+        z
+          .object({
+            id: z.string().trim().min(1).max(120),
+            name: z.string().trim().min(1).max(60),
+            enabled: z.boolean(),
+          })
+          .strict()
+      )
+      .max(24)
+      .optional(),
+    spiritual_streaks: z
+      .array(
+        z
+          .object({
+            key: z.string().trim().min(1).max(80),
+            label: z.string().trim().min(1).max(36),
+            enabled: z.boolean(),
+          })
+          .strict()
+      )
+      .max(24)
+      .optional(),
+    moods: z
+      .array(
+        z
+          .object({
+            key: z.string().trim().min(1).max(80),
+            label: z.string().trim().min(1).max(36),
+            enabled: z.boolean(),
+          })
+          .strict()
+      )
+      .max(80)
+      .optional(),
   })
   .strict();
 

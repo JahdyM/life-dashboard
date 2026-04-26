@@ -6503,6 +6503,10 @@ textarea:hover {
   gap: 0.75rem;
 }
 
+.onboarding-module-list.compact {
+  gap: 0.55rem;
+}
+
 .onboarding-module-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -6546,6 +6550,27 @@ textarea:hover {
   display: flex;
   align-items: center;
   gap: 0.42rem;
+}
+
+.onboarding-mood-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.onboarding-mood-chip {
+  min-height: 36px;
+  padding: 0.45rem 0.72rem;
+  border-radius: 999px;
+  border: 1px solid rgba(223, 236, 236, 0.12);
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(247, 241, 232, 0.82);
+}
+
+.onboarding-mood-chip.active {
+  border-color: rgba(227, 192, 116, 0.36);
+  background: rgba(227, 192, 116, 0.12);
+  color: #fff8ec;
 }
 
 .onboarding-actions {

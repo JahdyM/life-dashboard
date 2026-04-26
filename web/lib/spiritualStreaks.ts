@@ -6,6 +6,7 @@ import type {
   SpiritualStreaksPageData,
 } from "./types";
 import { SPIRITUAL_STREAK_BOARD_CONFIGS } from "./config/spiritual";
+import type { SpiritualStreakBoardConfig } from "./config/spiritual";
 
 export const SPIRITUAL_STREAK_BOARDS = SPIRITUAL_STREAK_BOARD_CONFIGS;
 
@@ -138,9 +139,10 @@ export function buildSpiritualStreakBoard(
   key: SpiritualStreakBoardKey,
   entries: SpiritualStreakEntry[],
   monthKey: string,
-  todayIso: string
+  todayIso: string,
+  metaOverride?: SpiritualStreakBoardConfig
 ): SpiritualStreakBoard {
-  const meta = getSpiritualStreakMeta(key);
+  const meta = metaOverride || getSpiritualStreakMeta(key);
   const normalizedEntries = normalizeSpiritualStreakEntries(entries);
   const entryMap = new Map(normalizedEntries.map((entry) => [entry.date, entry]));
   const { daysInMonth, firstWeekday } = getMonthInfo(monthKey);
@@ -196,16 +198,18 @@ export function buildSpiritualStreaksPageData(args: {
   monthKey: string;
   todayIso: string;
   entriesByBoard: Record<SpiritualStreakBoardKey, SpiritualStreakEntry[]>;
+  boards?: SpiritualStreakBoardConfig[];
 }): SpiritualStreaksPageData {
   const { monthKey, todayIso, entriesByBoard } = args;
   const { monthLabel } = getMonthInfo(monthKey);
+  const boards = args.boards || SPIRITUAL_STREAK_BOARDS;
 
   return {
     monthKey,
     monthLabel,
     todayIso,
-    boards: SPIRITUAL_STREAK_BOARDS.map((board) =>
-      buildSpiritualStreakBoard(board.key, entriesByBoard[board.key] || [], monthKey, todayIso)
+    boards: boards.map((board) =>
+      buildSpiritualStreakBoard(board.key, entriesByBoard[board.key] || [], monthKey, todayIso, board)
     ),
   };
 }

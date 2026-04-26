@@ -33,6 +33,7 @@ import interactionPlugin from "@fullcalendar/interaction";
 import { format, addDays, startOfWeek, endOfWeek } from "date-fns";
 import { FIXED_SHARED_HABITS } from "@/lib/constants";
 import { isHabitScheduledForWeekday } from "@/lib/config/habits";
+import type { DashboardOnboardingPreferences } from "@/lib/config/dashboard";
 import type {
   CustomHabit,
   DayEntry,
@@ -64,6 +65,7 @@ type CustomHabitsResponse = { items: CustomHabit[] };
 type CustomDoneResponse = { done: Record<string, number> };
 type MeetingDaysResponse = { days: number[] };
 type FamilyDayResponse = { day: number };
+type OnboardingResponse = { preferences: DashboardOnboardingPreferences };
 type TaskSharesResponse = { items: TaskShareInvite[]; sent?: TaskShareInvite[] };
 type QuickNoteResponse = { text: string };
 
@@ -843,6 +845,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     queryKey: ["family-day"],
     queryFn: () => fetchJson<FamilyDayResponse>("/api/settings/family-worship-day"),
   });
+  const onboardingQuery = useQuery({
+    queryKey: ["onboarding-preferences"],
+    queryFn: () => fetchJson<OnboardingResponse>("/api/onboarding"),
+  });
   const taskSharesQuery = useQuery({
     queryKey: ["task-shares"],
     queryFn: () => fetchJson<TaskSharesResponse>("/api/task-shares"),
@@ -1102,6 +1108,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     [meetingDaysQuery.data?.days]
   );
   const familyDay = familyDayQuery.data?.day ?? 6;
+  const sharedHabits = useMemo(() => {
+    const configured =
+      onboardingQuery.data?.preferences.sharedHabits ||
+      FIXED_SHARED_HABITS.map((habit) => ({ ...habit, enabled: true }));
+    return configured.filter((habit) => habit.enabled !== false);
+  }, [onboardingQuery.data?.preferences.sharedHabits]);
 
   const meetingDays = useMemo(() => {
     const unique = Array.from(new Set(meetingDaysRaw.map((value) => Number(value))));
@@ -1121,7 +1133,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   }, [customHabitsRaw]);
 
   const dailyHabits = useMemo<DailyHabitItem[]>(() => {
-    const fixed: DailyHabitItem[] = FIXED_SHARED_HABITS.filter((habit) =>
+    const fixed: DailyHabitItem[] = sharedHabits.filter((habit) =>
       isHabitScheduledOnDate(habit.key, selectedDayIso, meetingDays, familyDay)
     ).map((habit) => {
       const taskIds = tasksForDay
@@ -1160,7 +1172,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     });
 
     return [...fixed, ...custom];
-  }, [customDone, customHabits, dayEntry, familyDay, meetingDays, selectedDayIso, tasksForDay]);
+  }, [customDone, customHabits, dayEntry, familyDay, meetingDays, selectedDayIso, sharedHabits, tasksForDay]);
   const completedHabits = useMemo(
     () => dailyHabits.filter((habit) => habit.done),
     [dailyHabits]

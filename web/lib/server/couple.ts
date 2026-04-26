@@ -1,8 +1,8 @@
 import { prisma } from "../db/prisma";
-import { FIXED_SHARED_HABITS } from "../constants";
 import { getMoodMeta } from "../moods";
 import { computeSharedHabitStreaks } from "./habits";
 import { getAllowedEmails } from "../env";
+import { getEnabledSharedHabitsForUser } from "./onboarding";
 
 function getPartnerEmail(userEmail: string) {
   const allowedEmails = getAllowedEmails();
@@ -109,7 +109,8 @@ export async function getSharedStreaks(userEmail: string, todayIso: string) {
     computeSharedHabitStreaks(userEmail, todayIso),
     computeSharedHabitStreaks(partnerEmail, todayIso),
   ]);
-  const items = FIXED_SHARED_HABITS.map((habit) => ({
+  const sharedHabits = await getEnabledSharedHabitsForUser(userEmail);
+  const items = sharedHabits.map((habit) => ({
     habit_key: habit.key,
     label: habit.label,
     user: {

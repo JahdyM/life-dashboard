@@ -15,6 +15,7 @@ import {
   spiritualStreakBoardKeySchema,
   spiritualStreakBoardStateSchema,
 } from "./schemas";
+import { getEnabledSpiritualStreakConfigsForUser } from "./onboarding";
 import { getTodayIsoForUser } from "./settings";
 
 function settingKey(userEmail: string, boardKey: SpiritualStreakBoardKey) {
@@ -101,13 +102,17 @@ export async function getSpiritualStreaksPageData(
   userEmail: string,
   monthKey: string
 ): Promise<SpiritualStreaksPageData> {
-  const todayIso = await getTodayIsoForUser(userEmail);
-  const entriesByBoard = await loadEntriesByBoard(userEmail);
+  const [todayIso, entriesByBoard, boards] = await Promise.all([
+    getTodayIsoForUser(userEmail),
+    loadEntriesByBoard(userEmail),
+    getEnabledSpiritualStreakConfigsForUser(userEmail),
+  ]);
 
   return buildSpiritualStreaksPageData({
     monthKey,
     todayIso,
     entriesByBoard,
+    boards,
   });
 }
 
@@ -161,5 +166,7 @@ export async function updateSpiritualStreakEntry(args: {
   const normalized = normalizeSpiritualStreakEntries(currentEntries);
   await saveBoardEntries(userEmail, boardKey, normalized);
 
-  return buildSpiritualStreakBoard(boardKey, normalized, monthKey, todayIso);
+  const boards = await getEnabledSpiritualStreakConfigsForUser(userEmail);
+  const boardConfig = boards.find((board) => board.key === boardKey);
+  return buildSpiritualStreakBoard(boardKey, normalized, monthKey, todayIso, boardConfig);
 }

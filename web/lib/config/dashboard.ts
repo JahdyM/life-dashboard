@@ -48,6 +48,18 @@ export type DashboardModuleView = DashboardModuleConfig & {
   enabled: boolean;
 };
 
+export type OnboardingNamedPreference<Key extends string> = {
+  key: Key;
+  label: string;
+  enabled: boolean;
+};
+
+export type OnboardingHabitStarterPreference = {
+  id: string;
+  name: string;
+  enabled: boolean;
+};
+
 export type WorkspaceMode = "solo" | "shared";
 
 export type DashboardOnboardingPreferences = {
@@ -56,6 +68,10 @@ export type DashboardOnboardingPreferences = {
   workspaceMode: WorkspaceMode;
   partnerEmail: string | null;
   modules: DashboardModuleView[];
+  sharedHabits: OnboardingNamedPreference<string>[];
+  customHabitStarters: OnboardingHabitStarterPreference[];
+  spiritualStreaks: OnboardingNamedPreference<string>[];
+  moods: OnboardingNamedPreference<string>[];
 };
 
 export const DASHBOARD_MODULES: DashboardModuleConfig[] = [

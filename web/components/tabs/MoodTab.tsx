@@ -12,9 +12,11 @@ import {
 import { fetchJson } from "@/lib/client/api";
 import { WEEKDAY_LABELS_SUN_FIRST_EN } from "@/lib/config/habits";
 import { MOOD_DEFINITIONS, getMoodMeta } from "@/lib/moods";
+import type { DashboardOnboardingPreferences } from "@/lib/config/dashboard";
 import type { MoodHistoryResponse, MoodMomentEntry } from "@/lib/types";
 
 const EMPTY_MOOD_ENTRIES: MoodMomentEntry[] = [];
+type OnboardingResponse = { preferences: DashboardOnboardingPreferences };
 
 type MoodCellProps = {
   dayKey: string;
@@ -113,6 +115,10 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
     queryKey: ["mood-history"],
     queryFn: () => fetchJson<MoodHistoryResponse>("/api/mood"),
   });
+  const onboardingQuery = useQuery({
+    queryKey: ["onboarding-preferences"],
+    queryFn: () => fetchJson<OnboardingResponse>("/api/onboarding"),
+  });
 
   const dailySummaryMap = useMemo(() => {
     const map = new Map<string, MoodHistoryResponse["dailySummaries"][number]>();
@@ -141,6 +147,21 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
     [entriesByDay, selectedDay]
   );
   const selectedMoodMeta = getMoodMeta(selectedSummary?.moodCategory);
+  const visibleMoodDefinitions = useMemo(() => {
+    const configured = onboardingQuery.data?.preferences.moods;
+    if (!configured) return MOOD_DEFINITIONS;
+    const byKey = new Map(configured.map((mood) => [mood.key, mood]));
+    return MOOD_DEFINITIONS.filter((mood) => byKey.get(mood.key)?.enabled !== false).map((mood) => ({
+      ...mood,
+      label: byKey.get(mood.key)?.label || mood.label,
+    }));
+  }, [onboardingQuery.data?.preferences.moods]);
+
+  useEffect(() => {
+    if (!visibleMoodDefinitions.length) return;
+    if (visibleMoodDefinitions.some((mood) => mood.key === editorMood)) return;
+    setEditorMood(visibleMoodDefinitions[0].key);
+  }, [editorMood, visibleMoodDefinitions]);
 
   useEffect(() => {
     const latestEntry = selectedEntries[selectedEntries.length - 1];
@@ -331,7 +352,7 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
                   onChange={(event) => setEditorMood(event.target.value)}
                   onKeyDown={handleEditorEnter}
                 >
-                  {MOOD_DEFINITIONS.map((mood) => (
+                  {visibleMoodDefinitions.map((mood) => (
                     <option key={mood.key} value={mood.key}>
                       {mood.emoji} {mood.label}
                     </option>
@@ -431,7 +452,7 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
       </section>
 
       <div className="mood-legend">
-        {MOOD_DEFINITIONS.map((mood) => (
+        {visibleMoodDefinitions.map((mood) => (
           <div key={mood.key} className="mood-legend-item">
             <span className="mood-legend-color" style={{ background: mood.color }}>
               {mood.emoji}

@@ -1,5 +1,4 @@
 import { prisma } from "../db/prisma";
-import { FIXED_SHARED_HABITS } from "../constants";
 import {
   HABIT_DEFAULT_VALUES,
   HABIT_FIELD_NAMES,
@@ -7,6 +6,7 @@ import {
   isHabitScheduledForWeekday,
   type HabitFieldName,
 } from "../config/habits";
+import { getEnabledSharedHabitsForUser } from "./onboarding";
 import { getFamilyWorshipDay, getMeetingDays } from "./settings";
 
 export function habitKeyToField(key: string) {
@@ -116,9 +116,10 @@ export async function computeSharedHabitStreaks(
   userEmail: string,
   todayIso: string
 ) {
-  const [meetingDaysRaw, familyWorshipDayRaw] = await Promise.all([
+  const [meetingDaysRaw, familyWorshipDayRaw, sharedHabits] = await Promise.all([
     getMeetingDays(userEmail),
     getFamilyWorshipDay(userEmail),
+    getEnabledSharedHabitsForUser(userEmail),
   ]);
 
   const meetingDays = Array.from(
@@ -135,7 +136,7 @@ export async function computeSharedHabitStreaks(
 
   const todayDateUtc = parseIsoDateUtc(todayIso);
   if (!todayDateUtc) {
-    return FIXED_SHARED_HABITS.reduce((acc, habit) => {
+    return sharedHabits.reduce((acc, habit) => {
       acc[habit.key] = {
         streak: 0,
         todayDone: false,
@@ -190,7 +191,7 @@ export async function computeSharedHabitStreaks(
     { streak: number; todayDone: boolean; todayApplicable: boolean; maxStreak: number }
   > = {};
 
-  FIXED_SHARED_HABITS.forEach((habit) => {
+  sharedHabits.forEach((habit) => {
     const field = habitKeyToField(habit.key);
     if (!field) {
       results[habit.key] = {

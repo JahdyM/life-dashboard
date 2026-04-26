@@ -1,7 +1,7 @@
 import { prisma } from "../db/prisma";
-import { FIXED_SHARED_HABITS } from "../constants";
 import { isHabitScheduledForWeekday } from "../config/habits";
 import { habitKeyToField } from "./habits";
+import { getEnabledSharedHabitsForUser } from "./onboarding";
 import {
   getCustomHabitDone,
   getCustomHabits,
@@ -58,6 +58,7 @@ export async function buildTodayHabitSnapshot(userEmail: string, dateIso: string
     customDone,
     meetingDaysRaw,
     familyWorshipDayRaw,
+    sharedHabits,
   ] = await Promise.all([
     prisma.dailyEntryUser.findUnique({
       where: { userEmail_date: { userEmail, date: dateIso } },
@@ -66,6 +67,7 @@ export async function buildTodayHabitSnapshot(userEmail: string, dateIso: string
     getCustomHabitDone(userEmail, dateIso),
     getMeetingDays(userEmail),
     getFamilyWorshipDay(userEmail),
+    getEnabledSharedHabitsForUser(userEmail),
   ]);
 
   const meetingDays = Array.from(
@@ -82,7 +84,7 @@ export async function buildTodayHabitSnapshot(userEmail: string, dateIso: string
       ? familyWorshipDayRaw
       : 6;
 
-  const activeFixedHabits = FIXED_SHARED_HABITS.filter((habit) =>
+  const activeFixedHabits = sharedHabits.filter((habit) =>
     isFixedHabitActiveOnDay(habit.key, dateIso, meetingDays, familyWorshipDay)
   );
   const activeCustomHabits = customHabits.filter((habit) => habit.active !== false);
