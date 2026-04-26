@@ -25,6 +25,15 @@ type DictionaryEntry = {
   }>;
 };
 
+type AbortSignalWithTimeout = typeof AbortSignal & {
+  timeout?: (milliseconds: number) => AbortSignal;
+};
+
+function requestTimeoutSignal(milliseconds = 2500) {
+  const abortSignal = AbortSignal as AbortSignalWithTimeout;
+  return typeof abortSignal.timeout === "function" ? abortSignal.timeout(milliseconds) : undefined;
+}
+
 const FALLBACK_WORDS: WordOfDayItem[] = [
   {
     word: "spectroscopy",
@@ -136,6 +145,7 @@ async function fetchScienceWordPool() {
     "https://api.datamuse.com/words?topics=astronomy,space,physics,research,engineering,mathematics&max=260&md=d",
     {
       next: { revalidate: 60 * 60 * 12 },
+      signal: requestTimeoutSignal(),
     }
   );
 
@@ -166,6 +176,7 @@ async function enrichWithDictionary(item: WordOfDayItem) {
       `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(item.word)}`,
       {
         next: { revalidate: 60 * 60 * 24 * 7 },
+        signal: requestTimeoutSignal(1800),
       }
     );
     if (!response.ok) return item;
