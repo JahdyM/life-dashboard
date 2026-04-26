@@ -1,9 +1,9 @@
 "use client";
 
 import Image, { type ImageLoaderProps } from "next/image";
-import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Check, RotateCcw, Star, Trash2 } from "lucide-react";
+import { BookOpen, Check, Pencil, RotateCcw, Star, Trash2, X } from "lucide-react";
 import InlineActionNotice from "@/components/common/InlineActionNotice";
 import { fetchJson } from "@/lib/client/api";
 import type { BookEntry, BooksPageData } from "@/lib/types";
@@ -11,6 +11,16 @@ import type { BookEntry, BooksPageData } from "@/lib/types";
 type BookMutationResponse = {
   item: BookEntry;
   data: BooksPageData;
+};
+
+type BookEditDraft = {
+  title: string;
+  author: string;
+  coverUrl: string;
+  totalPages: string;
+  pagesRead: string;
+  status: BookEntry["status"];
+  rating: string;
 };
 
 function parseOptionalInt(value: string) {
@@ -44,6 +54,8 @@ export default function BooksClient({ initialData }: { initialData: BooksPageDat
   const [newCoverUrl, setNewCoverUrl] = useState("");
   const [newTotalPages, setNewTotalPages] = useState("");
   const [newPagesRead, setNewPagesRead] = useState("0");
+  const [editingBookId, setEditingBookId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<BookEditDraft | null>(null);
 
   const booksQuery = useQuery({
     queryKey: ["books", year],
@@ -159,13 +171,42 @@ export default function BooksClient({ initialData }: { initialData: BooksPageDat
   }, [createBookMutation, newTitle]);
 
   const handleAddBookEnter = useCallback(
-    (event: KeyboardEvent<HTMLInputElement>) => {
+    (event: ReactKeyboardEvent<HTMLInputElement>) => {
       if (event.key !== "Enter") return;
       event.preventDefault();
       handleAddBook();
     },
     [handleAddBook]
   );
+
+  const openBookEditor = useCallback((book: BookEntry) => {
+    setEditingBookId(book.id);
+    setEditDraft({
+      title: book.title,
+      author: book.author || "",
+      coverUrl: book.coverUrl || "",
+      totalPages: book.totalPages ? String(book.totalPages) : "",
+      pagesRead: String(book.pagesRead || 0),
+      status: book.status,
+      rating: book.rating ? String(book.rating) : "",
+    });
+  }, []);
+
+  const closeBookEditor = useCallback(() => {
+    setEditingBookId(null);
+    setEditDraft(null);
+  }, []);
+
+  useEffect(() => {
+    if (!editDraft) return undefined;
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeBookEditor();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [closeBookEditor, editDraft]);
 
   const commitGoal = useCallback(() => {
     const parsed = parseOptionalInt(goalDraft);
@@ -216,6 +257,34 @@ export default function BooksClient({ initialData }: { initialData: BooksPageDat
     },
     [patchBookMutation]
   );
+
+  const saveBookEditor = useCallback(() => {
+    if (!editingBookId || !editDraft?.title.trim() || patchBookMutation.isPending) return;
+
+    const parsedTotal = parseOptionalInt(editDraft.totalPages);
+    const normalizedTotal = parsedTotal === null ? null : Math.max(1, parsedTotal);
+    const parsedRead = parseOptionalInt(editDraft.pagesRead);
+    const normalizedRead = clampPagesRead(parsedRead, normalizedTotal);
+    const parsedRating = parseOptionalInt(editDraft.rating);
+
+    patchBookMutation.mutate(
+      {
+        id: editingBookId,
+        patch: {
+          title: editDraft.title.trim(),
+          author: editDraft.author.trim() || null,
+          cover_url: editDraft.coverUrl.trim() || null,
+          total_pages: normalizedTotal,
+          pages_read: normalizedRead,
+          status: editDraft.status,
+          rating: parsedRating,
+        },
+      },
+      {
+        onSuccess: closeBookEditor,
+      }
+    );
+  }, [closeBookEditor, editDraft, editingBookId, patchBookMutation]);
 
   return (
     <div className="card books-shell">
@@ -398,7 +467,7 @@ export default function BooksClient({ initialData }: { initialData: BooksPageDat
                         event.currentTarget.blur();
                       }}
                       onBlur={(event) => {
-                        const parent = event.currentTarget.closest(".books-item-meta-row");
+                        const parent = event.currentTarget.closest(".books-card-inputs");
                         const totalInput = parent?.querySelector<HTMLInputElement>('input[data-role="total-pages"]');
                         commitPages(book, event.currentTarget.value, totalInput?.value || String(book.totalPages || ""));
                       }}
@@ -417,7 +486,7 @@ export default function BooksClient({ initialData }: { initialData: BooksPageDat
                         event.currentTarget.blur();
                       }}
                       onBlur={(event) => {
-                        const parent = event.currentTarget.closest(".books-item-meta-row");
+                        const parent = event.currentTarget.closest(".books-card-inputs");
                         const readInput = parent?.querySelector<HTMLInputElement>('input[type="number"]');
                         commitPages(book, readInput?.value || String(book.pagesRead), event.currentTarget.value);
                       }}
@@ -473,6 +542,16 @@ export default function BooksClient({ initialData }: { initialData: BooksPageDat
 
                   <button
                     type="button"
+                    className="books-icon-action"
+                    onClick={() => openBookEditor(book)}
+                    aria-label={`Edit ${book.title}`}
+                    title="Edit"
+                  >
+                    <Pencil size={15} />
+                  </button>
+
+                  <button
+                    type="button"
                     className="books-icon-action danger"
                     onClick={() => deleteBookMutation.mutate(book.id)}
                     aria-label={`Remove ${book.title}`}
@@ -486,6 +565,143 @@ export default function BooksClient({ initialData }: { initialData: BooksPageDat
           );
         })}
       </section>
+
+      {editDraft ? (
+        <div className="books-edit-layer">
+          <button
+            type="button"
+            className="books-edit-scrim"
+            onClick={closeBookEditor}
+            aria-label="Close book editor"
+          />
+          <form
+            className="books-edit-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Edit book"
+            onSubmit={(event) => {
+              event.preventDefault();
+              saveBookEditor();
+            }}
+          >
+            <header className="books-edit-head">
+              <div>
+                <p className="panel-kicker">Edit book</p>
+                <h3>{editDraft.title || "Untitled"}</h3>
+              </div>
+              <button
+                type="button"
+                className="books-icon-action"
+                onClick={closeBookEditor}
+                aria-label="Close editor"
+              >
+                <X size={16} />
+              </button>
+            </header>
+
+            <div className="books-edit-form">
+              <label>
+                Title
+                <input
+                  type="text"
+                  value={editDraft.title}
+                  onChange={(event) =>
+                    setEditDraft((draft) => (draft ? { ...draft, title: event.target.value } : draft))
+                  }
+                />
+              </label>
+              <label>
+                Author
+                <input
+                  type="text"
+                  value={editDraft.author}
+                  onChange={(event) =>
+                    setEditDraft((draft) => (draft ? { ...draft, author: event.target.value } : draft))
+                  }
+                />
+              </label>
+              <label className="books-edit-wide">
+                Cover URL
+                <input
+                  type="url"
+                  value={editDraft.coverUrl}
+                  onChange={(event) =>
+                    setEditDraft((draft) => (draft ? { ...draft, coverUrl: event.target.value } : draft))
+                  }
+                  placeholder="https://..."
+                />
+              </label>
+              <label>
+                Pages read
+                <input
+                  type="number"
+                  min={0}
+                  value={editDraft.pagesRead}
+                  onChange={(event) =>
+                    setEditDraft((draft) => (draft ? { ...draft, pagesRead: event.target.value } : draft))
+                  }
+                />
+              </label>
+              <label>
+                Total pages
+                <input
+                  type="number"
+                  min={1}
+                  value={editDraft.totalPages}
+                  onChange={(event) =>
+                    setEditDraft((draft) => (draft ? { ...draft, totalPages: event.target.value } : draft))
+                  }
+                />
+              </label>
+              <label>
+                Status
+                <select
+                  value={editDraft.status}
+                  onChange={(event) =>
+                    setEditDraft((draft) =>
+                      draft ? { ...draft, status: event.target.value as BookEntry["status"] } : draft
+                    )
+                  }
+                >
+                  <option value="planned">Planned</option>
+                  <option value="reading">Reading</option>
+                  <option value="finished">Finished</option>
+                </select>
+              </label>
+              <label>
+                Rating
+                <select
+                  value={editDraft.rating}
+                  onChange={(event) =>
+                    setEditDraft((draft) => (draft ? { ...draft, rating: event.target.value } : draft))
+                  }
+                  disabled={editDraft.status !== "finished"}
+                >
+                  <option value="">No rating</option>
+                  <option value="1">1 ★</option>
+                  <option value="2">2 ★</option>
+                  <option value="3">3 ★</option>
+                  <option value="4">4 ★</option>
+                  <option value="5">5 ★</option>
+                </select>
+              </label>
+            </div>
+
+            <footer className="books-edit-actions">
+              <button type="button" className="secondary" onClick={closeBookEditor}>
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="primary"
+                disabled={!editDraft.title.trim() || patchBookMutation.isPending}
+              >
+                {patchBookMutation.isPending ? "Saving…" : "Save"}
+              </button>
+            </footer>
+          </form>
+        </div>
+      ) : null}
     </div>
   );
 }

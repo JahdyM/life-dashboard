@@ -6282,6 +6282,89 @@ textarea:hover {
   margin-left: 0;
 }
 
+.books-edit-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.books-edit-scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(134, 216, 215, 0.14), transparent 36%),
+    rgba(3, 5, 11, 0.74);
+  backdrop-filter: blur(14px);
+  cursor: default;
+}
+
+.books-edit-sheet {
+  position: relative;
+  z-index: 1;
+  width: min(620px, 100%);
+  max-height: min(820px, 92vh);
+  overflow: auto;
+  display: grid;
+  gap: 1rem;
+  padding: 1.15rem;
+  border: 1px solid rgba(223, 236, 236, 0.14);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(227, 192, 116, 0.16), transparent 32%),
+    linear-gradient(180deg, rgba(17, 21, 30, 0.98), rgba(8, 10, 16, 0.96));
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.56);
+}
+
+.books-edit-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.books-edit-head h3 {
+  margin: 0.1rem 0 0;
+  color: #fff8ec;
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+.books-edit-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.78rem;
+}
+
+.books-edit-form label {
+  display: grid;
+  gap: 0.36rem;
+  color: rgba(206, 220, 222, 0.76);
+  font-size: 0.74rem;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.books-edit-form input,
+.books-edit-form select {
+  width: 100%;
+  min-width: 0;
+}
+
+.books-edit-wide {
+  grid-column: 1 / -1;
+}
+
+.books-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  padding-top: 0.2rem;
+}
+
 @media (max-width: 720px) {
   .books-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6299,6 +6382,10 @@ textarea:hover {
 
   .books-book-cover {
     max-height: 210px;
+  }
+
+  .books-edit-form {
+    grid-template-columns: 1fr;
   }
 }
 
