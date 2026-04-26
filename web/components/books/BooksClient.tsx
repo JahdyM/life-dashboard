@@ -3,6 +3,7 @@
 import Image, { type ImageLoaderProps } from "next/image";
 import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { BookOpen, Check, RotateCcw, Star, Trash2 } from "lucide-react";
 import InlineActionNotice from "@/components/common/InlineActionNotice";
 import { fetchJson } from "@/lib/client/api";
 import type { BookEntry, BooksPageData } from "@/lib/types";
@@ -330,7 +331,7 @@ export default function BooksClient({ initialData }: { initialData: BooksPageDat
         />
       ) : null}
 
-      <section className="books-list" aria-label="Books list">
+      <section className="books-grid" aria-label="Books grid">
         {!booksQuery.isPending && !booksQuery.isError && items.length === 0 ? (
           <div className="line-empty">No books yet.</div>
         ) : null}
@@ -338,33 +339,53 @@ export default function BooksClient({ initialData }: { initialData: BooksPageDat
         {items.map((book) => {
           const progress = bookProgress(book);
           return (
-            <article key={`${book.id}-${book.updatedAt}`} className="books-item-card">
-              {book.coverUrl ? (
-                <Image
-                  className="books-item-cover"
-                  src={book.coverUrl}
-                  alt={`${book.title} cover`}
-                  width={74}
-                  height={102}
-                  loader={passthroughLoader}
-                  unoptimized
-                />
-              ) : (
-                <div className="books-item-cover books-item-cover-empty" aria-hidden="true">
-                  📚
-                </div>
-              )}
-
-              <div className="books-item-main">
-                <div className="books-item-head">
-                  <div>
-                    <h3>{book.title}</h3>
-                    <p>{book.author || "Unknown author"}</p>
+            <article
+              key={`${book.id}-${book.updatedAt}`}
+              className={`books-book-card ${book.status}`}
+            >
+              <div className="books-cover-stage">
+                {book.coverUrl ? (
+                  <Image
+                    className="books-book-cover"
+                    src={book.coverUrl}
+                    alt={`${book.title} cover`}
+                    width={184}
+                    height={276}
+                    loader={passthroughLoader}
+                    unoptimized
+                  />
+                ) : (
+                  <div className="books-book-cover books-book-cover-empty" aria-hidden="true">
+                    <BookOpen size={38} />
                   </div>
-                  <span className={`books-status-badge ${book.status}`}>{book.status}</span>
+                )}
+                <span className={`books-status-badge ${book.status}`}>{book.status}</span>
+              </div>
+
+              <div className="books-book-body">
+                <div className="books-book-title-row">
+                  <h3 title={book.title}>{book.title}</h3>
+                  {book.rating ? (
+                    <span className="books-card-rating" aria-label={`${book.rating} out of 5 stars`}>
+                      <Star size={14} />
+                      {book.rating}
+                    </span>
+                  ) : null}
+                </div>
+                <p>{book.author || "Unknown author"}</p>
+
+                <div className="books-progress-track" aria-label="Reading progress">
+                  <span style={{ width: `${progress ?? 0}%` }} />
+                </div>
+                <div className="books-progress-line">
+                  <span>
+                    {book.pagesRead}
+                    {book.totalPages ? `/${book.totalPages}` : ""} pages
+                  </span>
+                  <strong>{progress === null ? "--" : `${progress}%`}</strong>
                 </div>
 
-                <div className="books-item-meta-row">
+                <div className="books-card-inputs">
                   <label>
                     Read
                     <input
@@ -402,23 +423,34 @@ export default function BooksClient({ initialData }: { initialData: BooksPageDat
                       }}
                     />
                   </label>
-                  <span>{progress === null ? "No page goal" : `${progress}%`}</span>
                 </div>
 
-                <div className="books-item-actions">
+                <div className="books-card-actions">
                   {book.status !== "finished" ? (
-                    <button type="button" className="secondary" onClick={() => markAsFinished(book)}>
-                      Mark read
+                    <button
+                      type="button"
+                      className="books-icon-action"
+                      onClick={() => markAsFinished(book)}
+                      aria-label={`Mark ${book.title} as read`}
+                      title="Mark read"
+                    >
+                      <Check size={16} />
                     </button>
                   ) : (
-                    <button type="button" className="page-link inline muted" onClick={() => markAsReading(book)}>
-                      Reopen
+                    <button
+                      type="button"
+                      className="books-icon-action"
+                      onClick={() => markAsReading(book)}
+                      aria-label={`Reopen ${book.title}`}
+                      title="Reopen"
+                    >
+                      <RotateCcw size={15} />
                     </button>
                   )}
 
                   {book.status === "finished" ? (
                     <label className="books-rating-select">
-                      Rating
+                      <Star size={14} aria-hidden="true" />
                       <select
                         value={book.rating || ""}
                         onChange={(event) => {
@@ -441,10 +473,12 @@ export default function BooksClient({ initialData }: { initialData: BooksPageDat
 
                   <button
                     type="button"
-                    className="page-link inline muted danger"
+                    className="books-icon-action danger"
                     onClick={() => deleteBookMutation.mutate(book.id)}
+                    aria-label={`Remove ${book.title}`}
+                    title="Remove"
                   >
-                    Remove
+                    <Trash2 size={15} />
                   </button>
                 </div>
               </div>
