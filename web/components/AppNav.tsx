@@ -10,6 +10,7 @@ import {
   CalendarDays,
   ChartNoAxesCombined,
   HeartHandshake,
+  MoreHorizontal,
   MoonStar,
   Sparkles,
   Telescope,
@@ -82,7 +83,12 @@ export function AppNav() {
       <OverflowMenu
         label="More"
         buttonLabel="More"
-        buttonContent={<span className="app-nav-more-label">More</span>}
+        buttonContent={
+          <span className="app-nav-more-label">
+            <MoreHorizontal size={15} />
+            More
+          </span>
+        }
         className={`app-nav-more ${secondaryActive ? "active" : ""}`}
         menuClassName="app-nav-popover"
         align="right"
