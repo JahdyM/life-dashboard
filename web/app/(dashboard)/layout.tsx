@@ -6,6 +6,7 @@ import { Providers } from "@/app/providers";
 import { getDashboardShellData } from "@/lib/server/dashboard";
 import { getMoodMeta } from "@/lib/moods";
 import { getOptionalPageEmail } from "@/lib/server/pageAuth";
+import { getDashboardOnboardingPreferences } from "@/lib/server/onboarding";
 
 export default async function DashboardLayout({
   children,
@@ -41,7 +42,10 @@ export default async function DashboardLayout({
     );
   }
 
-  const shell = await getDashboardShellData(userEmail);
+  const [shell, preferences] = await Promise.all([
+    getDashboardShellData(userEmail),
+    getDashboardOnboardingPreferences(userEmail),
+  ]);
   const moodMeta = getMoodMeta(shell.moodCategory);
 
   return (
@@ -62,11 +66,14 @@ export default async function DashboardLayout({
               <p className="shell-user-label">Signed in</p>
               <p className="shell-user-name">{shell.displayName}</p>
             </div>
+            <Link href="/onboarding" prefetch={false} className="page-link inline muted">
+              Customize
+            </Link>
             <LogoutButton />
           </div>
         </header>
 
-        <AppNav />
+        <AppNav modules={preferences.modules} />
 
         <section className="shell-summary-grid" aria-label="Today at a glance">
           <article className="shell-summary-card primary">

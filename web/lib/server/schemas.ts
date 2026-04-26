@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TASK_PRIORITIES } from "../constants";
+import { DASHBOARD_MODULE_KEYS } from "../config/dashboard";
 import {
   SPIRITUAL_GOAL_CATEGORY_KEYS,
   SPIRITUAL_STREAK_BOARD_KEYS,
@@ -96,6 +97,28 @@ export const estimationStatsQuerySchema = z
 export const statsPeriodQuerySchema = z
   .object({
     period: z.enum(["30d", "90d", "all"]).default("90d"),
+  })
+  .strict();
+
+export const onboardingPreferencesSchema = z
+  .object({
+    completed: z.boolean().optional(),
+    workspace_mode: z.enum(["solo", "shared"]).optional(),
+    partner_email: z.union([z.string().trim().email().max(254), z.literal(""), z.null()]).optional(),
+    modules: z
+      .array(
+        z
+          .object({
+            key: z.enum(DASHBOARD_MODULE_KEYS),
+            label: z.string().trim().min(1).max(36),
+            enabled: z.boolean(),
+            nav_group: z.enum(["primary", "secondary"]),
+            order: z.number().int().min(0).max(1000).optional(),
+          })
+          .strict()
+      )
+      .min(1)
+      .max(DASHBOARD_MODULE_KEYS.length),
   })
   .strict();
 

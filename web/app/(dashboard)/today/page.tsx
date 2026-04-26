@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import PublicEntryExperience from "@/components/PublicEntryExperience";
 import { getMoodMeta } from "@/lib/moods";
 import { getTodayOverviewData } from "@/lib/server/dashboard";
+import { getDashboardOnboardingPreferences } from "@/lib/server/onboarding";
 import { getOptionalPageEmail } from "@/lib/server/pageAuth";
 
 function formatTaskMeta(time: string | null | undefined, minutes: number | null | undefined) {
@@ -102,7 +104,13 @@ export default async function TodayPage() {
     return <PublicEntryExperience mode="today" />;
   }
 
-  const overview = await getTodayOverviewData(userEmail);
+  const [overview, preferences] = await Promise.all([
+    getTodayOverviewData(userEmail),
+    getDashboardOnboardingPreferences(userEmail),
+  ]);
+  if (!preferences.completed) {
+    redirect("/onboarding");
+  }
   const moodMeta = getMoodMeta(overview.moodCategory);
   const pendingTasks = sortTasks(overview.pendingTasks);
   const nextTaskGroup = getNextTaskGroup(pendingTasks);

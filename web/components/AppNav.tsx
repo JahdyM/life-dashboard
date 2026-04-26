@@ -21,10 +21,8 @@ import {
   getDashboardModules,
   type DashboardModuleConfig,
   type DashboardModuleIconKey,
+  type DashboardModuleView,
 } from "@/lib/config/dashboard";
-
-const PRIMARY_NAV_ITEMS = getDashboardModules("primary");
-const SECONDARY_NAV_ITEMS = getDashboardModules("secondary");
 
 function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -54,15 +52,16 @@ function NavLink({ item, active }: { item: DashboardModuleConfig; active: boolea
   );
 }
 
-export function AppNav() {
+export function AppNav({ modules }: { modules?: DashboardModuleView[] }) {
   const pathname = usePathname();
-  const secondaryActive = SECONDARY_NAV_ITEMS.some((item) => isActivePath(pathname, item.href));
-
+  const primaryItems = getDashboardModules("primary", modules);
+  const secondaryItems = getDashboardModules("secondary", modules);
+  const secondaryActive = secondaryItems.some((item) => isActivePath(pathname, item.href));
 
   return (
     <nav className="app-nav" aria-label="Primary">
       <div className="app-nav-primary">
-        {PRIMARY_NAV_ITEMS.map((item) => (
+        {primaryItems.map((item) => (
           <NavLink
             key={item.key}
             item={item}
@@ -86,7 +85,7 @@ export function AppNav() {
         active={secondaryActive}
       >
         <div className="app-nav-popover-links">
-          {SECONDARY_NAV_ITEMS.map((item) => (
+          {secondaryItems.map((item) => (
             <Link
               key={item.key}
               href={item.href}
