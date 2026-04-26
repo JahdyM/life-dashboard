@@ -1,0 +1,457 @@
+"use client";
+
+import Image, { type ImageLoaderProps } from "next/image";
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import InlineActionNotice from "@/components/common/InlineActionNotice";
+import { fetchJson } from "@/lib/client/api";
+import type { BookEntry, BooksPageData } from "@/lib/types";
+
+type BookMutationResponse = {
+  item: BookEntry;
+  data: BooksPageData;
+};
+
+function parseOptionalInt(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.trunc(parsed);
+}
+
+function clampPagesRead(pagesRead: number | null, totalPages: number | null) {
+  if (pagesRead === null) return 0;
+  if (totalPages === null) return Math.max(0, pagesRead);
+  return Math.max(0, Math.min(pagesRead, totalPages));
+}
+
+function bookProgress(book: BookEntry) {
+  if (!book.totalPages || book.totalPages <= 0) return null;
+  return Math.min(100, Math.round((book.pagesRead / book.totalPages) * 100));
+}
+
+const passthroughLoader = ({ src }: ImageLoaderProps) => src;
+
+export default function BooksClient({ initialData }: { initialData: BooksPageData }) {
+  const queryClient = useQueryClient();
+  const [year, setYear] = useState(initialData.year);
+  const [goalDraft, setGoalDraft] = useState(String(initialData.yearlyGoal || 0));
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [newTitle, setNewTitle] = useState("");
+  const [newAuthor, setNewAuthor] = useState("");
+  const [newCoverUrl, setNewCoverUrl] = useState("");
+  const [newTotalPages, setNewTotalPages] = useState("");
+  const [newPagesRead, setNewPagesRead] = useState("0");
+
+  const booksQuery = useQuery({
+    queryKey: ["books", year],
+    queryFn: () => fetchJson<BooksPageData>(`/api/books?year=${year}`),
+    initialData: year === initialData.year ? initialData : undefined,
+  });
+
+  const data = booksQuery.data;
+  const items = data?.items || [];
+
+  useEffect(() => {
+    if (!data) return;
+    setGoalDraft(String(data.yearlyGoal || 0));
+  }, [data]);
+
+  const pageQueryKey = useMemo(() => ["books", year] as const, [year]);
+
+  const setBooksData = useCallback(
+    (payload: BooksPageData) => {
+      queryClient.setQueryData(pageQueryKey, payload);
+      setGoalDraft(String(payload.yearlyGoal || 0));
+    },
+    [pageQueryKey, queryClient]
+  );
+
+  const updateGoalMutation = useMutation({
+    mutationFn: (nextGoal: number) =>
+      fetchJson<BooksPageData>("/api/books/goal", {
+        method: "PUT",
+        body: JSON.stringify({
+          year,
+          yearly_goal: nextGoal,
+        }),
+      }),
+    onSuccess: (payload) => {
+      setSaveError(null);
+      setBooksData(payload);
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "Failed to save goal.";
+      setSaveError(`Couldn't save yearly goal. ${message}`);
+    },
+  });
+
+  const createBookMutation = useMutation({
+    mutationFn: () =>
+      fetchJson<BookMutationResponse>("/api/books", {
+        method: "POST",
+        body: JSON.stringify({
+          year,
+          title: newTitle.trim(),
+          author: newAuthor.trim() || null,
+          cover_url: newCoverUrl.trim() || null,
+          total_pages: parseOptionalInt(newTotalPages),
+          pages_read: parseOptionalInt(newPagesRead) ?? 0,
+          status: "reading",
+          rating: null,
+        }),
+      }),
+    onSuccess: (payload) => {
+      setSaveError(null);
+      setBooksData(payload.data);
+      setNewTitle("");
+      setNewAuthor("");
+      setNewCoverUrl("");
+      setNewTotalPages("");
+      setNewPagesRead("0");
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "Failed to create book.";
+      setSaveError(`Couldn't add book. ${message}`);
+    },
+  });
+
+  const patchBookMutation = useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: Record<string, unknown> }) =>
+      fetchJson<BookMutationResponse>(`/api/books/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(patch),
+      }),
+    onSuccess: (payload) => {
+      setSaveError(null);
+      if (payload.data.year !== year) {
+        void booksQuery.refetch();
+        return;
+      }
+      setBooksData(payload.data);
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "Failed to update book.";
+      setSaveError(`Couldn't update book. ${message}`);
+    },
+  });
+
+  const deleteBookMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetchJson<BooksPageData>(`/api/books/${id}?year=${year}`, {
+        method: "DELETE",
+      }),
+    onSuccess: (payload) => {
+      setSaveError(null);
+      setBooksData(payload);
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "Failed to remove book.";
+      setSaveError(`Couldn't delete book. ${message}`);
+    },
+  });
+
+  const handleAddBook = useCallback(() => {
+    if (!newTitle.trim() || createBookMutation.isPending) return;
+    createBookMutation.mutate();
+  }, [createBookMutation, newTitle]);
+
+  const handleAddBookEnter = useCallback(
+    (event: KeyboardEvent<HTMLInputElement>) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      handleAddBook();
+    },
+    [handleAddBook]
+  );
+
+  const commitGoal = useCallback(() => {
+    const parsed = parseOptionalInt(goalDraft);
+    const next = Math.max(0, parsed ?? 0);
+    updateGoalMutation.mutate(next);
+  }, [goalDraft, updateGoalMutation]);
+
+  const commitPages = useCallback(
+    (book: BookEntry, nextReadRaw: string, nextTotalRaw: string) => {
+      const parsedTotal = parseOptionalInt(nextTotalRaw);
+      const normalizedTotal = parsedTotal === null ? null : Math.max(1, parsedTotal);
+      const parsedRead = parseOptionalInt(nextReadRaw);
+      const normalizedRead = clampPagesRead(parsedRead, normalizedTotal);
+      patchBookMutation.mutate({
+        id: book.id,
+        patch: {
+          total_pages: normalizedTotal,
+          pages_read: normalizedRead,
+        },
+      });
+    },
+    [patchBookMutation]
+  );
+
+  const markAsFinished = useCallback(
+    (book: BookEntry) => {
+      patchBookMutation.mutate({
+        id: book.id,
+        patch: {
+          status: "finished",
+          pages_read: book.totalPages || book.pagesRead,
+          rating: book.rating,
+        },
+      });
+    },
+    [patchBookMutation]
+  );
+
+  const markAsReading = useCallback(
+    (book: BookEntry) => {
+      patchBookMutation.mutate({
+        id: book.id,
+        patch: {
+          status: "reading",
+          rating: null,
+        },
+      });
+    },
+    [patchBookMutation]
+  );
+
+  return (
+    <div className="card books-shell">
+      <section className="books-toolbar">
+        <button type="button" className="chip" onClick={() => setYear((value) => value - 1)}>
+          ←
+        </button>
+        <strong>{year}</strong>
+        <button type="button" className="chip" onClick={() => setYear((value) => value + 1)}>
+          →
+        </button>
+      </section>
+
+      {saveError ? <InlineActionNotice tone="warning" body={saveError} /> : null}
+
+      <section className="books-summary-grid">
+        <article className="books-summary-card">
+          <p className="panel-kicker">Year goal</p>
+          <div className="books-goal-row">
+            <input
+              type="number"
+              min={0}
+              max={500}
+              value={goalDraft}
+              onChange={(event) => setGoalDraft(event.target.value)}
+              onBlur={commitGoal}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                commitGoal();
+              }}
+              aria-label="Books goal for the year"
+            />
+            <span>books</span>
+          </div>
+        </article>
+
+        <article className="books-summary-card">
+          <p className="panel-kicker">Finished</p>
+          <strong>{data?.finishedCount || 0}</strong>
+        </article>
+
+        <article className="books-summary-card">
+          <p className="panel-kicker">Reading</p>
+          <strong>{data?.readingCount || 0}</strong>
+        </article>
+
+        <article className="books-summary-card">
+          <p className="panel-kicker">Progress</p>
+          <strong>{data?.progressPercent || 0}%</strong>
+        </article>
+      </section>
+
+      <section className="books-add-card">
+        <div className="books-add-grid">
+          <input
+            type="text"
+            placeholder="Book title"
+            value={newTitle}
+            onChange={(event) => setNewTitle(event.target.value)}
+            onKeyDown={handleAddBookEnter}
+          />
+          <input
+            type="text"
+            placeholder="Author (optional)"
+            value={newAuthor}
+            onChange={(event) => setNewAuthor(event.target.value)}
+            onKeyDown={handleAddBookEnter}
+          />
+          <input
+            type="url"
+            placeholder="Cover URL"
+            value={newCoverUrl}
+            onChange={(event) => setNewCoverUrl(event.target.value)}
+            onKeyDown={handleAddBookEnter}
+          />
+          <input
+            type="number"
+            min={1}
+            placeholder="Total pages"
+            value={newTotalPages}
+            onChange={(event) => setNewTotalPages(event.target.value)}
+            onKeyDown={handleAddBookEnter}
+          />
+          <input
+            type="number"
+            min={0}
+            placeholder="Pages read"
+            value={newPagesRead}
+            onChange={(event) => setNewPagesRead(event.target.value)}
+            onKeyDown={handleAddBookEnter}
+          />
+          <button
+            type="button"
+            className="primary"
+            onClick={handleAddBook}
+            disabled={!newTitle.trim() || createBookMutation.isPending}
+          >
+            {createBookMutation.isPending ? "Saving…" : "Add"}
+          </button>
+        </div>
+      </section>
+
+      {booksQuery.isPending ? <div className="query-status">Loading…</div> : null}
+      {booksQuery.isError ? (
+        <InlineActionNotice
+          tone="error"
+          body="Couldn't load books."
+          actionLabel="Retry"
+          onAction={() => {
+            void booksQuery.refetch();
+          }}
+        />
+      ) : null}
+
+      <section className="books-list" aria-label="Books list">
+        {!booksQuery.isPending && !booksQuery.isError && items.length === 0 ? (
+          <div className="line-empty">No books yet.</div>
+        ) : null}
+
+        {items.map((book) => {
+          const progress = bookProgress(book);
+          return (
+            <article key={`${book.id}-${book.updatedAt}`} className="books-item-card">
+              {book.coverUrl ? (
+                <Image
+                  className="books-item-cover"
+                  src={book.coverUrl}
+                  alt={`${book.title} cover`}
+                  width={74}
+                  height={102}
+                  loader={passthroughLoader}
+                  unoptimized
+                />
+              ) : (
+                <div className="books-item-cover books-item-cover-empty" aria-hidden="true">
+                  📚
+                </div>
+              )}
+
+              <div className="books-item-main">
+                <div className="books-item-head">
+                  <div>
+                    <h3>{book.title}</h3>
+                    <p>{book.author || "Unknown author"}</p>
+                  </div>
+                  <span className={`books-status-badge ${book.status}`}>{book.status}</span>
+                </div>
+
+                <div className="books-item-meta-row">
+                  <label>
+                    Read
+                    <input
+                      type="number"
+                      min={0}
+                      defaultValue={book.pagesRead}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter") return;
+                        event.preventDefault();
+                        event.currentTarget.blur();
+                      }}
+                      onBlur={(event) => {
+                        const parent = event.currentTarget.closest(".books-item-meta-row");
+                        const totalInput = parent?.querySelector<HTMLInputElement>('input[data-role="total-pages"]');
+                        commitPages(book, event.currentTarget.value, totalInput?.value || String(book.totalPages || ""));
+                      }}
+                    />
+                  </label>
+                  <label>
+                    Total
+                    <input
+                      data-role="total-pages"
+                      type="number"
+                      min={1}
+                      defaultValue={book.totalPages || ""}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter") return;
+                        event.preventDefault();
+                        event.currentTarget.blur();
+                      }}
+                      onBlur={(event) => {
+                        const parent = event.currentTarget.closest(".books-item-meta-row");
+                        const readInput = parent?.querySelector<HTMLInputElement>('input[type="number"]');
+                        commitPages(book, readInput?.value || String(book.pagesRead), event.currentTarget.value);
+                      }}
+                    />
+                  </label>
+                  <span>{progress === null ? "No page goal" : `${progress}%`}</span>
+                </div>
+
+                <div className="books-item-actions">
+                  {book.status !== "finished" ? (
+                    <button type="button" className="secondary" onClick={() => markAsFinished(book)}>
+                      Mark read
+                    </button>
+                  ) : (
+                    <button type="button" className="page-link inline muted" onClick={() => markAsReading(book)}>
+                      Reopen
+                    </button>
+                  )}
+
+                  {book.status === "finished" ? (
+                    <label className="books-rating-select">
+                      Rating
+                      <select
+                        value={book.rating || ""}
+                        onChange={(event) => {
+                          const parsed = parseOptionalInt(event.target.value);
+                          patchBookMutation.mutate({
+                            id: book.id,
+                            patch: { rating: parsed },
+                          });
+                        }}
+                      >
+                        <option value="">-</option>
+                        <option value="1">1 ★</option>
+                        <option value="2">2 ★</option>
+                        <option value="3">3 ★</option>
+                        <option value="4">4 ★</option>
+                        <option value="5">5 ★</option>
+                      </select>
+                    </label>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    className="page-link inline muted danger"
+                    onClick={() => deleteBookMutation.mutate(book.id)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </section>
+    </div>
+  );
+}

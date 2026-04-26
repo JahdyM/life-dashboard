@@ -923,9 +923,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const pendingTasks = tasksForDay
     .filter((task) => !readTaskDraft(task).isDone)
     .sort(compareTasksForExecution);
-  const completedTasks = tasksForDay
+  const completedTaskRows = tasksForDay
     .filter((task) => readTaskDraft(task).isDone)
     .sort(compareTasksForExecution);
+  const completedTasks = completedTaskRows.filter((task) => task.source !== "habit");
   const executionPositionByTaskId = new Map<string, number>(
     pendingTasks.map((task, index) => [task.id, index + 1])
   );
@@ -1513,6 +1514,27 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     },
   });
 
+  const syncHabitFromTaskState = useCallback(
+    (task: TodoTask, checked: boolean) => {
+      if (task.source !== "habit") return;
+      if (!task.scheduledDate || task.scheduledDate !== selectedDayIso) return;
+      const canonicalTitle = canonicalHabitKey(task.title);
+      const linkedHabit = dailyHabits.find(
+        (habit) => canonicalHabitKey(habit.label) === canonicalTitle
+      );
+      if (!linkedHabit) return;
+      if (linkedHabit.kind === "fixed") {
+        updateDayHabit.mutate({ [linkedHabit.key]: checked ? 1 : 0 });
+        return;
+      }
+      updateCustomHabitDone.mutate({
+        ...customDone,
+        [linkedHabit.key]: checked ? 1 : 0,
+      });
+    },
+    [customDone, dailyHabits, selectedDayIso, updateCustomHabitDone, updateDayHabit]
+  );
+
   const createHabitTask = useMutation({
     mutationFn: ({
       title,
@@ -2075,6 +2097,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         onSuccess: () => {
           setTaskSaveError(null);
           clearDoneDraft(task.id);
+          syncHabitFromTaskState(task, checked);
           setSavingTaskId(null);
           setSavedTaskId(task.id);
           window.setTimeout(() => {
@@ -2104,6 +2127,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     updateTask,
     applyTaskPatchToCache,
     clearDoneDraft,
+    syncHabitFromTaskState,
   ]);
 
   const requestToggleTaskDone = useCallback(
@@ -2692,9 +2716,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           <div>
             <p className="panel-kicker">Today</p>
             <h2>Agenda</h2>
-            <p className="task-header-meta">
-              {completedTasks.length}/{tasksForDay.length} done
-            </p>
+              <p className="task-header-meta">
+              {completedTaskRows.length}/{tasksForDay.length} done
+              </p>
           </div>
           <div className="task-header-actions">
             {syncStatus !== "idle" ? (

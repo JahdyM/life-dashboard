@@ -512,3 +512,29 @@ export type SpiritualStreaksPageData = {
   todayIso: string;
   boards: SpiritualStreakBoard[];
 };
+
+export type BookEntryStatus = "reading" | "finished" | "planned";
+
+export type BookEntry = {
+  id: string;
+  year: number;
+  title: string;
+  author: string | null;
+  coverUrl: string | null;
+  totalPages: number | null;
+  pagesRead: number;
+  status: BookEntryStatus;
+  rating: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type BooksPageData = {
+  year: number;
+  yearlyGoal: number;
+  finishedCount: number;
+  readingCount: number;
+  totalCount: number;
+  progressPercent: number;
+  items: BookEntry[];
+};

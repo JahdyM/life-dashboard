@@ -76,7 +76,8 @@ const getTodayBaseData = cache(async (userEmail: string) => {
   ]);
 
   const pendingTasks = todayTasks.filter((task) => !task.isDone);
-  const completedTasks = todayTasks.filter((task) => Boolean(task.isDone));
+  const completedTaskRows = todayTasks.filter((task) => Boolean(task.isDone));
+  const completedTasks = completedTaskRows.filter((task) => task.source !== "habit");
   const completedItems = [
     ...completedTasks.map((task) => ({
       id: task.id,

@@ -5,6 +5,7 @@ import { signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import {
   BookHeart,
+  BookOpen,
   BookOpenText,
   CalendarDays,
   ChartNoAxesCombined,
@@ -25,6 +26,7 @@ const PRIMARY_NAV_ITEMS = [
 ] as const;
 
 const SECONDARY_NAV_ITEMS = [
+  { href: "/books", label: "Books" },
   { href: "/spiritual-goals", label: "Spiritual Goals" },
   { href: "/spiritual-streaks", label: "Spiritual Streaks" },
   { href: "/stats", label: "Stats" },
@@ -42,6 +44,7 @@ function NavLink({ href, label, active }: { href: string; label: string; active:
     "/habits": <TimerReset size={14} />,
     "/ministry": <BookOpenText size={14} />,
     "/mood": <MoonStar size={14} />,
+    "/books": <BookOpen size={14} />,
     "/spiritual-goals": <Telescope size={14} />,
     "/spiritual-streaks": <BookHeart size={14} />,
     "/stats": <ChartNoAxesCombined size={14} />,

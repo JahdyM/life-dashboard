@@ -69,6 +69,12 @@ export const spiritualStreakMonthQuerySchema = z
   })
   .strict();
 
+export const booksYearQuerySchema = z
+  .object({
+    year: z.coerce.number().int().min(2000).max(2100).optional(),
+  })
+  .strict();
+
 export const coupleMoodboardQuerySchema = z.object({
   range: z.enum(["month", "year"]).default("month"),
   month: z
@@ -246,6 +252,47 @@ export const moodMomentCreateSchema = z
     logged_time: z.string().regex(isoTimeRegex, "Time must be HH:mm"),
     mood_category: z.string().trim().min(1).max(60),
     mood_note: z.union([z.string().trim().max(2000), z.null()]).optional(),
+  })
+  .strict();
+
+const nullableBookCoverUrlSchema = z
+  .union([z.string().trim().url(), z.literal(""), z.null()])
+  .optional();
+
+const nullableBookTextSchema = optionalTrimmedText(220).optional();
+
+const nullableBookPagesSchema = z.union([z.number().int().min(1).max(20_000), z.null()]);
+
+export const booksGoalUpdateSchema = z
+  .object({
+    year: z.number().int().min(2000).max(2100),
+    yearly_goal: z.number().int().min(0).max(500),
+  })
+  .strict();
+
+export const bookCreateSchema = z
+  .object({
+    year: z.number().int().min(2000).max(2100),
+    title: z.string().trim().min(1).max(220),
+    author: nullableBookTextSchema,
+    cover_url: nullableBookCoverUrlSchema,
+    total_pages: nullableBookPagesSchema.optional(),
+    pages_read: z.number().int().min(0).max(20_000).optional(),
+    status: z.enum(["reading", "finished", "planned"]).optional(),
+    rating: z.union([z.number().int().min(1).max(5), z.null()]).optional(),
+  })
+  .strict();
+
+export const bookPatchSchema = z
+  .object({
+    title: z.string().trim().min(1).max(220).optional(),
+    author: nullableBookTextSchema,
+    cover_url: nullableBookCoverUrlSchema,
+    total_pages: nullableBookPagesSchema.optional(),
+    pages_read: z.number().int().min(0).max(20_000).optional(),
+    status: z.enum(["reading", "finished", "planned"]).optional(),
+    rating: z.union([z.number().int().min(1).max(5), z.null()]).optional(),
+    year: z.number().int().min(2000).max(2100).optional(),
   })
   .strict();
 

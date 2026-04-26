@@ -28,7 +28,7 @@ import type {
   WeeklyReportResponse,
 } from "@/lib/types";
 
-type RangeKey = "week" | "month" | "quarter" | "custom";
+type RangeKey = "week" | "month" | "quarter" | "year" | "custom";
 type PeriodKey = "30d" | "90d" | "all";
 
 function getRange(range: RangeKey) {
@@ -45,6 +45,13 @@ function getRange(range: RangeKey) {
       start: startOfQuarter(now),
       end: endOfQuarter(now),
       label: `Q${Math.floor(now.getMonth() / 3) + 1} ${now.getFullYear()}`,
+    };
+  }
+  if (range === "year") {
+    return {
+      start: new Date(now.getFullYear(), 0, 1),
+      end: new Date(now.getFullYear(), 11, 31),
+      label: String(now.getFullYear()),
     };
   }
   return {
@@ -402,6 +409,9 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
           </button>
           <button className={rangeKey === "quarter" ? "chip active" : "chip"} onClick={() => setRangeKey("quarter")}>
             Quarter
+          </button>
+          <button className={rangeKey === "year" ? "chip active" : "chip"} onClick={() => setRangeKey("year")}>
+            Year
           </button>
           <button className={rangeKey === "custom" ? "chip active" : "chip"} onClick={() => setRangeKey("custom")}>
             Custom

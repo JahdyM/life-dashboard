@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   eachDayOfInterval,
@@ -106,7 +106,6 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
   const [selectedDay, setSelectedDay] = useState(todayIso);
   const [editorTime, setEditorTime] = useState(nowTime);
   const [editorMood, setEditorMood] = useState("neutral");
-  const [editorNote, setEditorNote] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
@@ -146,7 +145,6 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
   useEffect(() => {
     const latestEntry = selectedEntries[selectedEntries.length - 1];
     setEditorMood(latestEntry?.moodCategory || selectedSummary?.moodCategory || "neutral");
-    setEditorNote("");
     if (selectedDay === todayIso) {
       setEditorTime(format(new Date(), "HH:mm"));
       return;
@@ -165,7 +163,6 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
       dayIso: string;
       loggedTime: string;
       moodCategory: string;
-      moodNote: string;
     }) =>
       fetchJson("/api/mood", {
         method: "POST",
@@ -173,13 +170,12 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
           day_iso: payload.dayIso,
           logged_time: payload.loggedTime,
           mood_category: payload.moodCategory,
-          mood_note: payload.moodNote || null,
+          mood_note: null,
         }),
       }),
     onSuccess: () => {
       setSaveError(null);
       setSavedAt(Date.now());
-      setEditorNote("");
       void queryClient.invalidateQueries({ queryKey: ["mood-history"] });
       void queryClient.invalidateQueries({ queryKey: ["day", selectedDay] });
       void queryClient.invalidateQueries({ queryKey: ["couple-mood"] });
@@ -207,13 +203,22 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
   }, [selectedDay]);
 
   const handleLogMood = useCallback(() => {
+    if (selectedDay > todayIso || logMoodMoment.isPending) return;
     logMoodMoment.mutate({
       dayIso: selectedDay,
       loggedTime: editorTime,
       moodCategory: editorMood,
-      moodNote: editorNote.trim(),
     });
-  }, [editorMood, editorNote, editorTime, logMoodMoment, selectedDay]);
+  }, [editorMood, editorTime, logMoodMoment, selectedDay, todayIso]);
+
+  const handleEditorEnter = useCallback(
+    (event: KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      handleLogMood();
+    },
+    [handleLogMood]
+  );
 
   return (
     <div className="card mood-page">
@@ -315,6 +320,7 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
                   type="time"
                   value={editorTime}
                   onChange={(event) => setEditorTime(event.target.value)}
+                  onKeyDown={handleEditorEnter}
                 />
               </div>
               <div className="form-row">
@@ -323,6 +329,7 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
                   id="mood-select"
                   value={editorMood}
                   onChange={(event) => setEditorMood(event.target.value)}
+                  onKeyDown={handleEditorEnter}
                 >
                   {MOOD_DEFINITIONS.map((mood) => (
                     <option key={mood.key} value={mood.key}>
@@ -331,17 +338,6 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
                   ))}
                 </select>
               </div>
-            </div>
-
-            <div className="form-row">
-              <label htmlFor="mood-note">Note</label>
-              <input
-                id="mood-note"
-                type="text"
-                value={editorNote}
-                placeholder="Optional"
-                onChange={(event) => setEditorNote(event.target.value)}
-              />
             </div>
 
             <div className="mood-log-actions">

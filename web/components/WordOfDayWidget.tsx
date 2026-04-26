@@ -7,26 +7,38 @@ import {
   SunMoon,
   Telescope,
 } from "lucide-react";
-import { getWordOfTheDay, getWordPoolSize } from "@/lib/wordOfDay";
+import { getWordOfTheDay } from "@/lib/wordOfDay";
 
 function TagIcon({ tag }: { tag: string }) {
-  if (tag === "astronomy" || tag === "astrophysics" || tag === "space systems") {
+  const normalized = tag.toLowerCase();
+  if (
+    normalized.includes("astronomy") ||
+    normalized.includes("space") ||
+    normalized.includes("astrophysics")
+  ) {
     return <Telescope size={14} />;
   }
-  if (tag === "planetary science" || tag === "earth observation") return <Leaf size={14} />;
-  if (tag === "physics" || tag === "materials" || tag === "research" || tag === "mathematics") {
+  if (normalized.includes("earth") || normalized.includes("nature") || normalized.includes("planetary")) {
+    return <Leaf size={14} />;
+  }
+  if (
+    normalized.includes("physics") ||
+    normalized.includes("research") ||
+    normalized.includes("science") ||
+    normalized.includes("engineering") ||
+    normalized.includes("math")
+  ) {
     return <FlaskConical size={14} />;
   }
-  if (tag === "nature") return <Leaf size={14} />;
-  if (tag === "writing") return <PenLine size={14} />;
-  if (tag === "faith") return <SunMoon size={14} />;
-  if (tag === "feelings") return <Sparkles size={14} />;
+  if (normalized.includes("writing")) return <PenLine size={14} />;
+  if (normalized.includes("faith")) return <SunMoon size={14} />;
+  if (normalized.includes("feelings")) return <Sparkles size={14} />;
   return <BookOpen size={14} />;
 }
 
-export default function WordOfDayWidget({ dateIso }: { dateIso?: string }) {
-  const item = getWordOfTheDay(dateIso);
-  const poolSize = getWordPoolSize();
+export default async function WordOfDayWidget({ dateIso }: { dateIso?: string }) {
+  const payload = await getWordOfTheDay(dateIso);
+  const item = payload.item;
 
   return (
     <article className="study-widget-card study-widget-card-space" aria-label="Research word of the day">
@@ -40,14 +52,14 @@ export default function WordOfDayWidget({ dateIso }: { dateIso?: string }) {
 
       <div className="study-widget-main">
         <h3>{item.word}</h3>
-        <p className="study-widget-pronunciation">{item.pronunciation}</p>
+        <p className="study-widget-pronunciation">{item.pronunciation || ""}</p>
         <p className="study-widget-meaning">{item.meaning}</p>
         <p className="study-widget-example">{item.example}</p>
       </div>
 
       <footer className="study-widget-footer">
-        <span>Scientific lexicon</span>
-        <span>{poolSize} terms</span>
+        <span>{payload.source === "science_api" ? "Live science API" : "Fallback set"}</span>
+        <span>{payload.poolSize} terms</span>
       </footer>
     </article>
   );
