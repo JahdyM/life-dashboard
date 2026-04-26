@@ -7,6 +7,11 @@ import {
   isMoodNegative,
   isMoodPositive,
 } from "@/lib/moods";
+import {
+  HABIT_FIELD_CONFIGS,
+  WEEKDAY_LABELS_EN,
+  type HabitFieldName,
+} from "@/lib/config/habits";
 import type {
   AnxietyTrendResponse,
   CoupleComparisonResponse,
@@ -18,22 +23,14 @@ import type {
 } from "@/lib/types";
 import { getAllowedEmails } from "@/lib/env";
 
-const HABIT_FIELDS = [
-  { key: "bible_reading", label: "Bible reading", field: "bibleReading" },
-  { key: "bible_study", label: "Bible study", field: "bibleStudy" },
-  { key: "dissertation_work", label: "Dissertation work", field: "dissertationWork" },
-  { key: "workout", label: "Workout", field: "workout" },
-  { key: "general_reading", label: "General reading", field: "generalReading" },
-  { key: "shower", label: "Shower", field: "shower" },
-  { key: "daily_text", label: "Daily text", field: "dailyText" },
-  { key: "meeting_attended", label: "Meeting attended", field: "meetingAttended" },
-  { key: "prepare_meeting", label: "Prepare meeting", field: "prepareMeeting" },
-  { key: "family_worship", label: "Family worship", field: "familyWorship" },
-  { key: "writing", label: "Writing", field: "writing" },
-  { key: "scientific_writing", label: "Scientific writing", field: "scientificWriting" },
-] as const;
-
-type HabitFieldName = (typeof HABIT_FIELDS)[number]["field"];
+const HABIT_FIELDS = HABIT_FIELD_CONFIGS;
+const SPIRITUAL_BALANCE_FIELDS = HABIT_FIELDS
+  .filter((habit) =>
+    ["bible_reading", "daily_text", "meeting_attended", "prepare_meeting", "family_worship"].includes(
+      habit.key
+    )
+  )
+  .map((habit) => habit.field);
 
 type PeriodKey = "30d" | "90d" | "all";
 
@@ -46,7 +43,7 @@ type EntrySlice = {
   boredomMinutes: number | null;
 } & Record<HabitFieldName, number | null>;
 
-const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const WEEKDAY_LABELS = WEEKDAY_LABELS_EN;
 
 const round2 = (value: number | null) =>
   value === null || Number.isNaN(value) ? null : Math.round(value * 100) / 100;
@@ -96,18 +93,13 @@ const buildEntrySelect = () => ({
   anxietyLevel: true,
   workHours: true,
   boredomMinutes: true,
-  bibleReading: true,
-  bibleStudy: true,
-  dissertationWork: true,
-  workout: true,
-  generalReading: true,
-  shower: true,
-  dailyText: true,
-  meetingAttended: true,
-  prepareMeeting: true,
-  familyWorship: true,
-  writing: true,
-  scientificWriting: true,
+  ...HABIT_FIELDS.reduce(
+    (acc, habit) => {
+      acc[habit.field] = true;
+      return acc;
+    },
+    {} as Record<HabitFieldName, true>
+  ),
 });
 
 async function resolveWindow(userEmail: string, period: PeriodKey) {
@@ -540,18 +532,11 @@ export async function getLifeBalanceScore(userEmail: string): Promise<LifeBalanc
       moodToScore(entry?.moodCategory) * 0.55 +
         (entry?.anxietyLevel ? 100 - ((entry.anxietyLevel - 1) / 9) * 100 : 55) * 0.45
     );
-    const spiritualFields: HabitFieldName[] = [
-      "bibleReading",
-      "dailyText",
-      "meetingAttended",
-      "prepareMeeting",
-      "familyWorship",
-    ];
-    const spiritualDone = spiritualFields.reduce(
+    const spiritualDone = SPIRITUAL_BALANCE_FIELDS.reduce(
       (sum, field) => sum + ((entry?.[field] as number | null) ? 1 : 0),
       0
     );
-    const spiritual = clamp((spiritualDone / spiritualFields.length) * 100);
+    const spiritual = clamp((spiritualDone / SPIRITUAL_BALANCE_FIELDS.length) * 100);
     const productivity = clamp(
       clamp((Number(entry?.workHours || 0) / 8) * 100) * 0.6 +
         (taskAggregate.total > 0 ? (taskAggregate.done / taskAggregate.total) * 100 : 60) * 0.4
@@ -631,14 +616,8 @@ export async function getLifeBalanceScore(userEmail: string): Promise<LifeBalanc
     ),
     spiritual: Math.round(
       clamp(
-        ([
-          latestDay?.bibleReading,
-          latestDay?.dailyText,
-          latestDay?.meetingAttended,
-          latestDay?.prepareMeeting,
-          latestDay?.familyWorship,
-        ].filter(Boolean).length /
-          5) *
+        (SPIRITUAL_BALANCE_FIELDS.filter((field) => latestDay?.[field]).length /
+          SPIRITUAL_BALANCE_FIELDS.length) *
           100
       )
     ),
@@ -839,18 +818,13 @@ export async function getCoupleComparison(
       userEmail: true,
       sleepHours: true,
       anxietyLevel: true,
-      bibleReading: true,
-      bibleStudy: true,
-      dissertationWork: true,
-      workout: true,
-      generalReading: true,
-      shower: true,
-      dailyText: true,
-      meetingAttended: true,
-      prepareMeeting: true,
-      familyWorship: true,
-      writing: true,
-      scientificWriting: true,
+      ...HABIT_FIELDS.reduce(
+        (acc, habit) => {
+          acc[habit.field] = true;
+          return acc;
+        },
+        {} as Record<HabitFieldName, true>
+      ),
     },
   });
 

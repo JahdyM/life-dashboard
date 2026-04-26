@@ -21,8 +21,9 @@ import {
   spiritualGoalCategorySchema,
   spiritualGoalStaircaseSchema,
 } from "./schemas";
+import { SPIRITUAL_GOAL_CATEGORY_KEYS } from "../config/spiritual";
 
-const ALL_SPIRITUAL_GOAL_CATEGORIES = spiritualGoalCategorySchema.options;
+const ALL_SPIRITUAL_GOAL_CATEGORIES = SPIRITUAL_GOAL_CATEGORY_KEYS;
 
 function settingKey(userEmail: string, category: SpiritualGoalCategory) {
   return `${userEmail.toLowerCase()}::spiritual_goal::${category}`;

@@ -32,6 +32,7 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { format, addDays, startOfWeek, endOfWeek } from "date-fns";
 import { FIXED_SHARED_HABITS } from "@/lib/constants";
+import { isHabitScheduledForWeekday } from "@/lib/config/habits";
 import type {
   CustomHabit,
   DayEntry,
@@ -196,13 +197,7 @@ const isHabitScheduledOnDate = (
   familyDay: number
 ) => {
   const dayIndex = weekdayFromIso(dayIso);
-  if (habitKey === "meeting_attended" || habitKey === "prepare_meeting") {
-    return meetingDays.includes(dayIndex);
-  }
-  if (habitKey === "family_worship") {
-    return dayIndex === familyDay;
-  }
-  return true;
+  return isHabitScheduledForWeekday(habitKey, dayIndex, meetingDays, familyDay);
 };
 
 function summarizeTaskMetadata(draft: {

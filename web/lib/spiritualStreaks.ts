@@ -5,90 +5,9 @@ import type {
   SpiritualStreakEntry,
   SpiritualStreaksPageData,
 } from "./types";
+import { SPIRITUAL_STREAK_BOARD_CONFIGS } from "./config/spiritual";
 
-type SpiritualStreakBoardMeta = {
-  key: SpiritualStreakBoardKey;
-  title: string;
-  accentColor: string;
-  successRule: "completed_today" | "clean_day";
-  quickPrompt: string;
-  yesLabel: string;
-  noLabel: string;
-  emptyLabel: string;
-};
-
-export const SPIRITUAL_STREAK_BOARDS: SpiritualStreakBoardMeta[] = [
-  {
-    key: "daily_text",
-    title: "Daily Text Reading",
-    accentColor: "#CDA36E",
-    successRule: "completed_today",
-    quickPrompt: "Completed today?",
-    yesLabel: "Yes",
-    noLabel: "No",
-    emptyLabel: "Not marked",
-  },
-  {
-    key: "bible_reading",
-    title: "Bible Reading",
-    accentColor: "#88AFC5",
-    successRule: "completed_today",
-    quickPrompt: "Completed today?",
-    yesLabel: "Yes",
-    noLabel: "No",
-    emptyLabel: "Not marked",
-  },
-  {
-    key: "prayer_on_waking",
-    title: "Prayer on waking",
-    accentColor: "#D6B67A",
-    successRule: "completed_today",
-    quickPrompt: "Completed today?",
-    yesLabel: "Yes",
-    noLabel: "No",
-    emptyLabel: "Not marked",
-  },
-  {
-    key: "prayer_before_lunch",
-    title: "Prayer before lunch",
-    accentColor: "#91A97E",
-    successRule: "completed_today",
-    quickPrompt: "Completed today?",
-    yesLabel: "Yes",
-    noLabel: "No",
-    emptyLabel: "Not marked",
-  },
-  {
-    key: "prayer_before_sleep",
-    title: "Prayer before sleep",
-    accentColor: "#8E93BC",
-    successRule: "completed_today",
-    quickPrompt: "Completed today?",
-    yesLabel: "Yes",
-    noLabel: "No",
-    emptyLabel: "Not marked",
-  },
-  {
-    key: "pornography",
-    title: "Pornography",
-    accentColor: "#93B79B",
-    successRule: "clean_day",
-    quickPrompt: "Clean day?",
-    yesLabel: "Yes",
-    noLabel: "No",
-    emptyLabel: "Not marked",
-  },
-  {
-    key: "masturbation",
-    title: "Masturbation",
-    accentColor: "#B59EB3",
-    successRule: "clean_day",
-    quickPrompt: "Clean day?",
-    yesLabel: "Yes",
-    noLabel: "No",
-    emptyLabel: "Not marked",
-  },
-];
+export const SPIRITUAL_STREAK_BOARDS = SPIRITUAL_STREAK_BOARD_CONFIGS;
 
 export function getSpiritualStreakMeta(key: SpiritualStreakBoardKey) {
   return (

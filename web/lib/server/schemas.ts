@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { TASK_PRIORITIES } from "../constants";
+import {
+  SPIRITUAL_GOAL_CATEGORY_KEYS,
+  SPIRITUAL_STREAK_BOARD_KEYS,
+} from "../config/spiritual";
 
 const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
 const isoTimeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -311,13 +315,7 @@ export const ministryDayEntrySchema = z
   })
   .strict();
 
-const spiritualGoalCategories = [
-  "big_goals",
-  "christian_qualities",
-  "leaving_bad_habits",
-  "ministry_skills",
-  "prudence",
-] as const;
+const spiritualGoalCategories = SPIRITUAL_GOAL_CATEGORY_KEYS;
 
 export const spiritualGoalCategorySchema = z.enum(spiritualGoalCategories);
 
@@ -357,15 +355,7 @@ export const spiritualGoalStaircaseSchema = z
   })
   .strict();
 
-const spiritualStreakBoardKeys = [
-  "daily_text",
-  "bible_reading",
-  "prayer_on_waking",
-  "prayer_before_lunch",
-  "prayer_before_sleep",
-  "pornography",
-  "masturbation",
-] as const;
+const spiritualStreakBoardKeys = SPIRITUAL_STREAK_BOARD_KEYS;
 
 export const spiritualStreakBoardKeySchema = z.enum(spiritualStreakBoardKeys);
 

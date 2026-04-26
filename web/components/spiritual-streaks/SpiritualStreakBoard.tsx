@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { WEEKDAY_LABELS_SHORT_EN } from "@/lib/config/habits";
 import { formatDisplayDate } from "@/lib/spiritualStreaks";
 import type { SpiritualStreakBoard as SpiritualStreakBoardType } from "@/lib/types";
-
-const WEEKDAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
 
 function getDefaultSelectedDate(board: SpiritualStreakBoardType, todayIso: string) {
   const todayCell = board.cells.find((cell) => cell.date === todayIso && !cell.isFuture);
@@ -86,7 +85,7 @@ export default function SpiritualStreakBoard({
       </div>
 
       <div className="spiritual-streak-weekdays" aria-hidden="true">
-        {WEEKDAY_LABELS.map((label, index) => (
+        {WEEKDAY_LABELS_SHORT_EN.map((label, index) => (
           <span key={`${board.key}-${label}-${index}`}>{label}</span>
         ))}
       </div>

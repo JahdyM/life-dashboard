@@ -1,5 +1,6 @@
 import { prisma } from "../db/prisma";
 import { FIXED_SHARED_HABITS } from "../constants";
+import { isHabitScheduledForWeekday } from "../config/habits";
 import { habitKeyToField } from "./habits";
 import {
   getCustomHabitDone,
@@ -44,14 +45,7 @@ function isFixedHabitActiveOnDay(
   familyWorshipDay: number
 ) {
   const weekday = getWeekdayUtc(dateIso);
-  if (weekday < 0) return false;
-  if (habitKey === "meeting_attended" || habitKey === "prepare_meeting") {
-    return meetingDays.includes(weekday);
-  }
-  if (habitKey === "family_worship") {
-    return weekday === familyWorshipDay;
-  }
-  return true;
+  return isHabitScheduledForWeekday(habitKey, weekday, meetingDays, familyWorshipDay);
 }
 
 export async function buildTodayHabitSnapshot(userEmail: string, dateIso: string): Promise<{

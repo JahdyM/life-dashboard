@@ -1,4 +1,5 @@
 import { prisma } from "../db/prisma";
+import { DEFAULT_CUSTOM_HABIT_TEMPLATES } from "../config/habits";
 
 export async function getSetting(userEmail: string, key: string, scoped = true) {
   const settingKey = scoped ? `${userEmail}::${key}` : key;
@@ -150,13 +151,7 @@ export async function saveCustomHabits(
   await setSetting(userEmail, "custom_habits", JSON.stringify(normalized));
 }
 
-const DEFAULT_CUSTOM_HABITS = [
-  { id: "default-bible-study", name: "Bible study", active: true },
-  { id: "default-dissertation-work", name: "Dissertation work", active: true },
-  { id: "default-general-reading", name: "General reading (books)", active: true },
-  { id: "default-writing", name: "Writing", active: true },
-  { id: "default-scientific-writing", name: "Scientific Writing", active: true },
-];
+const DEFAULT_CUSTOM_HABITS = DEFAULT_CUSTOM_HABIT_TEMPLATES;
 
 export async function ensureDefaultCustomHabits(userEmail: string) {
   const current = await getCustomHabits(userEmail);

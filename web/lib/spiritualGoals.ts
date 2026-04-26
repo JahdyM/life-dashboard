@@ -8,6 +8,7 @@ import type {
   SpiritualGoalStep,
   SpiritualGoalStepTask,
 } from "./types";
+import { SPIRITUAL_GOAL_CATEGORY_CONFIGS } from "./config/spiritual";
 
 function createId() {
   const randomApi = globalThis.crypto as Crypto | undefined;
@@ -17,63 +18,7 @@ function createId() {
   return `sg-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
 }
 
-type SpiritualGoalMeta = {
-  category: SpiritualGoalCategory;
-  label: string;
-  defaultTitle: string;
-  defaultUltimateGoal: string;
-  defaultSubtitle: string;
-  defaultThemeColor: string;
-  defaultAvatarStyle: SpiritualGoalAvatarStyle;
-};
-
-export const SPIRITUAL_GOAL_CATEGORIES: SpiritualGoalMeta[] = [
-  {
-    category: "big_goals",
-    label: "Big Goals",
-    defaultTitle: "Big Goals",
-    defaultUltimateGoal: "Keep moving toward the larger calling that matters most.",
-    defaultSubtitle: "A wide staircase for the long-range goals that deserve patience and consistency.",
-    defaultThemeColor: "#D0A56F",
-    defaultAvatarStyle: "compass",
-  },
-  {
-    category: "christian_qualities",
-    label: "Christian Qualities",
-    defaultTitle: "Christian Qualities",
-    defaultUltimateGoal: "Cultivate qualities that shape daily life with gentleness and strength.",
-    defaultSubtitle: "Small practices that slowly become part of who you are.",
-    defaultThemeColor: "#A8B88B",
-    defaultAvatarStyle: "sprout",
-  },
-  {
-    category: "leaving_bad_habits",
-    label: "Leaving Bad Habits",
-    defaultTitle: "Leaving Bad Habits",
-    defaultUltimateGoal: "Replace harmful patterns with calmer, healthier responses.",
-    defaultSubtitle: "Not harsh self-judgment, but steady progress away from what weakens you.",
-    defaultThemeColor: "#C68A80",
-    defaultAvatarStyle: "spark",
-  },
-  {
-    category: "ministry_skills",
-    label: "Ministry Skills",
-    defaultTitle: "Ministry Skills",
-    defaultUltimateGoal: "Grow in confidence, clarity, and warmth in the ministry.",
-    defaultSubtitle: "Each step can hold one skill you want to practice with care.",
-    defaultThemeColor: "#8DA9C4",
-    defaultAvatarStyle: "bookmark",
-  },
-  {
-    category: "prudence",
-    label: "Prudence",
-    defaultTitle: "Prudence",
-    defaultUltimateGoal: "Prepare quietly beforehand so important moments are met with calm readiness.",
-    defaultSubtitle: "Thoughtful planning, reminders, and contingency steps that keep life ordered and steady.",
-    defaultThemeColor: "#B79D7B",
-    defaultAvatarStyle: "compass",
-  },
-];
+export const SPIRITUAL_GOAL_CATEGORIES = SPIRITUAL_GOAL_CATEGORY_CONFIGS;
 
 export function getSpiritualGoalMeta(category: SpiritualGoalCategory) {
   return (

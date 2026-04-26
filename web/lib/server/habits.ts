@@ -1,39 +1,16 @@
 import { prisma } from "../db/prisma";
 import { FIXED_SHARED_HABITS } from "../constants";
+import {
+  HABIT_DEFAULT_VALUES,
+  HABIT_FIELD_NAMES,
+  getHabitField,
+  isHabitScheduledForWeekday,
+  type HabitFieldName,
+} from "../config/habits";
 import { getFamilyWorshipDay, getMeetingDays } from "./settings";
 
-const habitFieldMap: Record<string, keyof typeof habitFieldAccess> = {
-  bible_reading: "bibleReading",
-  bible_study: "bibleStudy",
-  dissertation_work: "dissertationWork",
-  workout: "workout",
-  general_reading: "generalReading",
-  shower: "shower",
-  daily_text: "dailyText",
-  meeting_attended: "meetingAttended",
-  prepare_meeting: "prepareMeeting",
-  family_worship: "familyWorship",
-  writing: "writing",
-  scientific_writing: "scientificWriting",
-};
-
-const habitFieldAccess = {
-  bibleReading: 0,
-  bibleStudy: 0,
-  dissertationWork: 0,
-  workout: 0,
-  generalReading: 0,
-  shower: 0,
-  dailyText: 0,
-  meetingAttended: 0,
-  prepareMeeting: 0,
-  familyWorship: 0,
-  writing: 0,
-  scientificWriting: 0,
-};
-
 export function habitKeyToField(key: string) {
-  return habitFieldMap[key];
+  return getHabitField(key);
 }
 
 function parseIsoDateUtc(iso: string): Date | null {
@@ -62,14 +39,7 @@ function isHabitScheduledOnDate(
   familyWorshipDay: number
 ): boolean {
   const weekday = getWeekdayUtc(dateIso);
-  if (weekday < 0) return false;
-  if (habitKey === "meeting_attended" || habitKey === "prepare_meeting") {
-    return meetingDays.includes(weekday);
-  }
-  if (habitKey === "family_worship") {
-    return weekday === familyWorshipDay;
-  }
-  return true;
+  return isHabitScheduledForWeekday(habitKey, weekday, meetingDays, familyWorshipDay);
 }
 
 export async function getDailyEntry(userEmail: string, dateIso: string) {
@@ -81,18 +51,7 @@ export async function getDailyEntry(userEmail: string, dateIso: string) {
     data: {
       userEmail,
       date: dateIso,
-      bibleReading: 0,
-      bibleStudy: 0,
-      dissertationWork: 0,
-      workout: 0,
-      generalReading: 0,
-      shower: 0,
-      dailyText: 0,
-      meetingAttended: 0,
-      prepareMeeting: 0,
-      familyWorship: 0,
-      writing: 0,
-      scientificWriting: 0,
+      ...HABIT_DEFAULT_VALUES,
       priorityDone: 0,
       updatedAt: new Date().toISOString(),
     },
@@ -119,8 +78,8 @@ export async function updateDailyEntry(
     mood_tags_json: "moodTagsJson",
   };
   Object.entries(payload).forEach(([key, value]) => {
-    if (key in habitFieldMap) {
-      const field = habitFieldMap[key];
+    const field = getHabitField(key);
+    if (field) {
       data[field] = value ? 1 : 0;
       return;
     }
@@ -134,6 +93,7 @@ export async function updateDailyEntry(
     create: {
       userEmail,
       date: dateIso,
+      ...HABIT_DEFAULT_VALUES,
       ...data,
     },
   });
@@ -213,18 +173,13 @@ export async function computeSharedHabitStreaks(
     orderBy: { date: "asc" },
     select: {
       date: true,
-      bibleReading: true,
-      bibleStudy: true,
-      dissertationWork: true,
-      workout: true,
-      generalReading: true,
-      shower: true,
-      dailyText: true,
-      meetingAttended: true,
-      prepareMeeting: true,
-      familyWorship: true,
-      writing: true,
-      scientificWriting: true,
+      ...HABIT_FIELD_NAMES.reduce(
+        (acc, field) => {
+          acc[field] = true;
+          return acc;
+        },
+        {} as Record<HabitFieldName, true>
+      ),
     },
   });
   const byDate = new Map<string, (typeof entries)[number]>(

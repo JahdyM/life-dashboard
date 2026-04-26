@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db/prisma";
 import { format, parseISO, subDays } from "date-fns";
 import { ensureTaskCompletionColumns } from "@/lib/server/dbCompat";
+import { TASK_PRIORITIES } from "@/lib/constants";
+import { WEEKDAY_LABELS_EN } from "@/lib/config/habits";
 import type {
   EstimationBucket,
   EstimationPoint,
@@ -8,7 +10,7 @@ import type {
   EstimationSummary,
 } from "@/lib/types";
 
-const PRIORITY_ORDER = ["Low", "Medium", "High", "Critical"];
+const PRIORITY_ORDER: readonly string[] = TASK_PRIORITIES;
 
 const DURATION_BUCKETS = [
   { key: "0-15", label: "0-15 min", min: 0, max: 15 },
@@ -18,7 +20,7 @@ const DURATION_BUCKETS = [
   { key: "120+", label: "2h+", min: 120, max: Number.MAX_SAFE_INTEGER },
 ];
 
-const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const WEEKDAY_LABELS = WEEKDAY_LABELS_EN;
 
 const average = (values: number[]) =>
   values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
@@ -95,7 +97,7 @@ const buildSummary = (points: EstimationPoint[]): EstimationSummary => {
 
 const aggregateBuckets = (
   points: EstimationPoint[],
-  labels: string[],
+  labels: readonly string[],
   groupBy: (point: EstimationPoint) => string
 ): EstimationBucket[] => {
   return labels.map((label) => {

@@ -10,10 +10,10 @@ import {
   startOfMonth,
 } from "date-fns";
 import { fetchJson } from "@/lib/client/api";
+import { WEEKDAY_LABELS_SUN_FIRST_EN } from "@/lib/config/habits";
 import { MOOD_DEFINITIONS, getMoodMeta } from "@/lib/moods";
 import type { MoodHistoryResponse, MoodMomentEntry } from "@/lib/types";
 
-const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const EMPTY_MOOD_ENTRIES: MoodMomentEntry[] = [];
 
 type MoodCellProps = {
@@ -251,7 +251,7 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
             <h3>{format(new Date(`${monthKey}-01T12:00:00`), "MMMM yyyy")}</h3>
           </div>
           <div className="mood-calendar-head">
-            {WEEKDAY_LABELS.map((label) => (
+            {WEEKDAY_LABELS_SUN_FIRST_EN.map((label) => (
               <span key={label}>{label}</span>
             ))}
           </div>

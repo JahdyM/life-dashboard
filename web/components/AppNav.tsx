@@ -17,47 +17,39 @@ import {
   TimerReset,
 } from "lucide-react";
 import OverflowMenu from "@/components/common/OverflowMenu";
+import {
+  getDashboardModules,
+  type DashboardModuleConfig,
+  type DashboardModuleIconKey,
+} from "@/lib/config/dashboard";
 
-const PRIMARY_NAV_ITEMS = [
-  { href: "/today", label: "Today" },
-  { href: "/calendar", label: "Calendar" },
-  { href: "/habits", label: "Habits" },
-  { href: "/ministry", label: "Ministry" },
-  { href: "/mood", label: "Mood" },
-] as const;
-
-const SECONDARY_NAV_ITEMS = [
-  { href: "/books", label: "Books" },
-  { href: "/spiritual-goals", label: "Spiritual Goals" },
-  { href: "/spiritual-streaks", label: "Spiritual Streaks" },
-  { href: "/stats", label: "Stats" },
-  { href: "/couple", label: "Couple" },
-] as const;
+const PRIMARY_NAV_ITEMS = getDashboardModules("primary");
+const SECONDARY_NAV_ITEMS = getDashboardModules("secondary");
 
 function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function NavLink({ href, label, active }: { href: string; label: string; active: boolean }) {
-  const iconMap: Record<string, JSX.Element> = {
-    "/today": <Sparkles size={14} />,
-    "/calendar": <CalendarDays size={14} />,
-    "/habits": <TimerReset size={14} />,
-    "/ministry": <BookOpenText size={14} />,
-    "/mood": <MoonStar size={14} />,
-    "/books": <BookOpen size={14} />,
-    "/spiritual-goals": <Telescope size={14} />,
-    "/spiritual-streaks": <BookHeart size={14} />,
-    "/stats": <ChartNoAxesCombined size={14} />,
-    "/couple": <HeartHandshake size={14} />,
+function NavLink({ item, active }: { item: DashboardModuleConfig; active: boolean }) {
+  const iconMap: Record<DashboardModuleIconKey, JSX.Element> = {
+    sparkles: <Sparkles size={14} />,
+    calendar: <CalendarDays size={14} />,
+    timer: <TimerReset size={14} />,
+    ministry: <BookOpenText size={14} />,
+    moon: <MoonStar size={14} />,
+    book: <BookOpen size={14} />,
+    telescope: <Telescope size={14} />,
+    book_heart: <BookHeart size={14} />,
+    chart: <ChartNoAxesCombined size={14} />,
+    heart: <HeartHandshake size={14} />,
   };
 
   return (
-    <Link href={href} prefetch={false} className={`app-nav-link ${active ? "active" : ""}`}>
+    <Link href={item.href} prefetch={false} className={`app-nav-link ${active ? "active" : ""}`}>
       <span className="app-nav-link-icon" aria-hidden="true">
-        {iconMap[href]}
+        {iconMap[item.icon]}
       </span>
-      <span className="app-nav-link-text">{label}</span>
+      <span className="app-nav-link-text">{item.label}</span>
     </Link>
   );
 }
@@ -72,9 +64,8 @@ export function AppNav() {
       <div className="app-nav-primary">
         {PRIMARY_NAV_ITEMS.map((item) => (
           <NavLink
-            key={item.href}
-            href={item.href}
-            label={item.label}
+            key={item.key}
+            item={item}
             active={isActivePath(pathname, item.href)}
           />
         ))}
@@ -97,7 +88,7 @@ export function AppNav() {
         <div className="app-nav-popover-links">
           {SECONDARY_NAV_ITEMS.map((item) => (
             <Link
-              key={item.href}
+              key={item.key}
               href={item.href}
               prefetch={false}
               className={`app-nav-popover-link ${isActivePath(pathname, item.href) ? "active" : ""}`}
