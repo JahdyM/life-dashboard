@@ -191,6 +191,16 @@ export const MOOD_DEFINITIONS: MoodDefinition[] = [
     score: 42,
   },
   {
+    key: "drunk",
+    label: "Drunk",
+    emoji: "🥴",
+    color: "#a88a68",
+    group: "low",
+    score: 36,
+    negative: true,
+    aliases: ["intoxicated", "alcohol", "alcool", "bebado"],
+  },
+  {
     key: "lonely",
     label: "Lonely",
     emoji: "🫥",
