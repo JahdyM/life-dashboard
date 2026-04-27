@@ -46,6 +46,7 @@ type TaskDraft = {
   title?: string;
   isDone?: boolean;
   priorityTag?: string;
+  scheduledDate?: string;
   scheduledTime?: string;
   plannedTime?: string;
   startTime?: string;
@@ -295,6 +296,7 @@ type EditableTaskRowProps = {
     title: string;
     isDone: boolean;
     priorityTag: string;
+    scheduledDate: string;
     scheduledTime: string;
     plannedTime: string;
     startTime: string;
@@ -317,6 +319,7 @@ type EditableTaskRowProps = {
   onDelete: (taskId: string) => void;
   onShare?: (taskId: string) => void;
   sharing: boolean;
+  contextDate: string;
   focusPosition?: number | null;
   canMoveFocusUp?: boolean;
   canMoveFocusDown?: boolean;
@@ -344,6 +347,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
   onDelete,
   onShare,
   sharing,
+  contextDate,
   focusPosition = null,
   canMoveFocusUp = false,
   canMoveFocusDown = false,
@@ -366,7 +370,12 @@ const EditableTaskRow = memo(function EditableTaskRow({
   );
   const hasSubtasks = subtasks.length > 0;
   const allSubtasksDone = hasSubtasks && completedSubtasks === subtasks.length;
-  const metadataSummary = summarizeTaskMetadata(draft);
+  const metadataSummary = [
+    draft.scheduledDate && draft.scheduledDate !== contextDate ? draft.scheduledDate : "",
+    summarizeTaskMetadata(draft),
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   const handleToggle = useCallback(
     (event: ChangeEvent<HTMLInputElement>) =>
@@ -808,6 +817,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   }, [selectedDayIso]);
 
   useEffect(() => {
+    if (calendarSelection) return;
+    setNewDate(selectedDayIso);
+  }, [calendarSelection, selectedDayIso]);
+
+  useEffect(() => {
     setQuickNoteSavedAt(null);
   }, [selectedDayIso]);
 
@@ -903,6 +917,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       title: draft.title ?? task.title,
       isDone: draft.isDone ?? Boolean(task.isDone),
       priorityTag: draft.priorityTag ?? (task.priorityTag || "Medium"),
+      scheduledDate: draft.scheduledDate ?? (task.scheduledDate || ""),
       scheduledTime: draft.scheduledTime ?? (task.scheduledTime || ""),
       plannedTime:
         draft.plannedTime ?? (task.plannedTime || task.scheduledTime || ""),
@@ -1207,6 +1222,16 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       patch.priority_tag = draft.priorityTag;
     }
     if (
+      typeof draft.scheduledDate === "string" &&
+      draft.scheduledDate !== (task.scheduledDate || "")
+    ) {
+      patch.scheduled_date = draft.scheduledDate || null;
+      if (!draft.scheduledDate) {
+        patch.scheduled_time = null;
+        patch.planned_time = null;
+      }
+    }
+    if (
       typeof draft.scheduledTime === "string" &&
       draft.scheduledTime !== (task.scheduledTime || "")
     ) {
@@ -1437,6 +1462,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       );
       if (variables.shareWithPartner && payload?.task?.id) {
         shareTaskWithPartner.mutate(payload.task.id);
+      }
+      if (variables.scheduledDate && variables.scheduledDate !== selectedDayIso) {
+        setSelectedDate(new Date(`${variables.scheduledDate}T12:00:00`));
       }
       void queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
     },
@@ -2050,6 +2078,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         clearTaskDraft(task.id);
         return;
       }
+      const cacheSnapshot = queryClient.getQueryData<TaskListResponse>([
+        "tasks",
+        range.start,
+        range.end,
+      ]);
+      applyTaskPatchToCache(task.id, patch);
       setSavingTaskId(task.id);
       updateTask.mutate(
         { id: task.id, data: patch },
@@ -2059,11 +2093,24 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             clearTaskDraft(task.id);
             setSavingTaskId(null);
             setSavedTaskId(task.id);
+            if (
+              typeof patch.scheduled_date === "string" &&
+              patch.scheduled_date &&
+              patch.scheduled_date !== selectedDayIso
+            ) {
+              setSelectedDate(new Date(`${patch.scheduled_date}T12:00:00`));
+            }
             window.setTimeout(() => {
               setSavedTaskId((prev) => (prev === task.id ? null : prev));
             }, 1400);
           },
           onError: (error) => {
+            if (cacheSnapshot) {
+              queryClient.setQueryData<TaskListResponse>(
+                ["tasks", range.start, range.end],
+                cacheSnapshot
+              );
+            }
             setTaskSaveError(
               readErrorMessage(error, "Couldn't save task.")
             );
@@ -2072,7 +2119,17 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         }
       );
     },
-    [buildTaskPatch, clearTaskDraft, taskDrafts, updateTask]
+    [
+      applyTaskPatchToCache,
+      buildTaskPatch,
+      clearTaskDraft,
+      queryClient,
+      range.end,
+      range.start,
+      selectedDayIso,
+      taskDrafts,
+      updateTask,
+    ]
   );
 
   const toggleTaskDoneNow = useCallback((
@@ -2169,7 +2226,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     (taskId: string) => {
       updateTask.mutate({
         id: taskId,
-        data: { scheduled_date: selectedDayIso, planned_time: null },
+        data: { scheduled_date: selectedDayIso, scheduled_time: null, planned_time: null },
+        syncGoogle: false,
       });
     },
     [updateTask, selectedDayIso]
@@ -2515,9 +2573,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     const title = newTitle.trim();
     if (!title) return;
 
+    const scheduledDate = newDate || selectedDayIso;
     const payload: CreateTaskInput = {
       title,
-      scheduledDate: newDate,
+      scheduledDate,
       scheduledTime: newTime || null,
       estimatedMinutes: newEst,
       shareWithPartner: shareOnCreate,
@@ -2531,7 +2590,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     setComposerAdvancedOpen(false);
 
     createTask.mutate(payload);
-  }, [createTask, newDate, newEst, newTime, newTitle, shareOnCreate]);
+  }, [createTask, newDate, newEst, newTime, newTitle, selectedDayIso, shareOnCreate]);
 
   const handleComposerCancel = useCallback(() => {
     setComposerAdvancedOpen(false);
@@ -2846,6 +2905,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     onDelete={handleDeleteTask}
                     onShare={shareUi.canToggle ? handleShareTask : undefined}
                     sharing={sharingTaskId === task.id}
+                    contextDate={selectedDayIso}
                     focusPosition={executionPositionByTaskId.get(task.id) || null}
                     canMoveFocusUp={(executionPositionByTaskId.get(task.id) || 0) > 1}
                     canMoveFocusDown={
@@ -2897,6 +2957,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     onDelete={handleDeleteTask}
                     onShare={shareUi.canToggle ? handleShareTask : undefined}
                     sharing={sharingTaskId === task.id}
+                    contextDate={selectedDayIso}
                     focusPosition={executionPositionByTaskId.get(task.id) || null}
                     canMoveFocusUp={(executionPositionByTaskId.get(task.id) || 0) > 1}
                     canMoveFocusDown={
@@ -2948,6 +3009,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   onDelete={handleDeleteTask}
                   onShare={shareUi.canToggle ? handleShareTask : undefined}
                   sharing={sharingTaskId === task.id}
+                  contextDate={selectedDayIso}
                   subtaskSavingId={savingSubtaskId}
                   shareLabel={shareUi.label}
                   shareActionLabel={shareUi.actionLabel}

@@ -14,6 +14,7 @@ type TaskDetailDraft = {
   title: string;
   isDone: boolean;
   priorityTag: string;
+  scheduledDate: string;
   scheduledTime: string;
   plannedTime: string;
   startTime: string;
@@ -204,6 +205,19 @@ export default function TaskDetailSheet({
                   onSetDraft(task.id, {
                     estimatedMinutes: Math.max(0, Number(event.target.value || 0)),
                   })
+                }
+                onBlur={saveTask}
+                onKeyDown={handleFieldKeyDown}
+              />
+            </label>
+
+            <label>
+              Date
+              <input
+                type="date"
+                value={draft.scheduledDate}
+                onChange={(event) =>
+                  onSetDraft(task.id, { scheduledDate: event.target.value })
                 }
                 onBlur={saveTask}
                 onKeyDown={handleFieldKeyDown}

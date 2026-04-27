@@ -86,6 +86,17 @@ export default function TaskComposer({
             aria-label="Add task"
           />
         </label>
+        <label className="task-composer-date-field">
+          <span>Date</span>
+          <input
+            id="calendar-task-date"
+            type="date"
+            value={date}
+            onChange={(event) => onDateChange(event.target.value)}
+            onKeyDown={handleKeyDown}
+            aria-label="Task date"
+          />
+        </label>
       </div>
       <button type="submit" className="sr-only" aria-hidden="true" tabIndex={-1}>
         Add task
@@ -108,16 +119,6 @@ export default function TaskComposer({
 
       {advancedOpen ? (
         <div className="task-composer-advanced">
-          <div className="form-row">
-            <label htmlFor="calendar-task-date">Date</label>
-            <input
-              id="calendar-task-date"
-              type="date"
-              value={date}
-              onChange={(event) => onDateChange(event.target.value)}
-              onKeyDown={handleKeyDown}
-            />
-          </div>
           <div className="form-row">
             <label htmlFor="calendar-task-time">Time</label>
             <input
