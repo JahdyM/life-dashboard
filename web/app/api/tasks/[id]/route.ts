@@ -10,6 +10,7 @@ import { updateTask, deleteTask } from "@/lib/server/tasks";
 import { prisma } from "@/lib/db/prisma";
 import { updateGoogleEvent, deleteGoogleEvent } from "@/lib/server/googleCalendar";
 import { getUserTimeZone } from "@/lib/server/settings";
+import { rememberDeletedGoogleTask } from "@/lib/server/taskTombstones";
 import { DEFAULT_TIME_ZONE } from "@/lib/constants";
 import { taskIdSchema, taskPatchSchema } from "@/lib/server/schemas";
 import { logServerEvent } from "@/lib/server/logger";
@@ -134,6 +135,7 @@ export async function DELETE(
         });
       }
     }
+    await rememberDeletedGoogleTask(userEmail, existing);
     await deleteTask(userEmail, taskId);
     return jsonOk({ ok: true });
   } catch (err) {

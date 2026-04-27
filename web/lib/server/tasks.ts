@@ -128,6 +128,56 @@ function compareTasksForFocus(left: ReturnType<typeof mergeTaskWithDetail>, righ
   return String(left.createdAt).localeCompare(String(right.createdAt));
 }
 
+async function cleanupTaskShareSettingsAfterDelete(userEmail: string, taskId: string) {
+  const normalizedUser = userEmail.toLowerCase();
+  const rows = await prisma.setting.findMany({
+    where: {
+      key: { contains: "::task_share_invite::" },
+    },
+  });
+
+  const updates = rows.flatMap((row) => {
+    if (!row.value) return [];
+    try {
+      const invite = JSON.parse(row.value) as {
+        sourceTaskId?: string;
+        recipientTaskId?: string | null;
+        fromEmail?: string;
+        toEmail?: string;
+        status?: string;
+        respondedAt?: string | null;
+      };
+      const ownsSource =
+        invite.sourceTaskId === taskId &&
+        String(invite.fromEmail || "").toLowerCase() === normalizedUser;
+      const ownsRecipient =
+        invite.recipientTaskId === taskId &&
+        String(invite.toEmail || "").toLowerCase() === normalizedUser;
+      if (!ownsSource && !ownsRecipient) return [];
+      if (invite.status === "revoked" || invite.status === "declined") return [];
+
+      return [
+        prisma.setting.update({
+          where: { key: row.key },
+          data: {
+            value: JSON.stringify({
+              ...invite,
+              status: "revoked",
+              respondedAt: new Date().toISOString(),
+            }),
+          },
+        }),
+      ];
+    } catch (_error) {
+      return [];
+    }
+  });
+
+  if (updates.length) {
+    await prisma.$transaction(updates);
+  }
+}
+
 export async function listTasks(
   userEmail: string,
   startIso: string,
@@ -402,10 +452,11 @@ export async function deleteTask(userEmail: string, taskId: string) {
     throw new Error("RESOURCE_NOT_FOUND");
   }
   const nowIso = new Date().toISOString();
+  await cleanupTaskShareSettingsAfterDelete(userEmail, taskId);
   // Some legacy databases enforce delete policies on unfinished tasks.
   // Mark as completed first so hard-delete remains reliable for all task states.
-  await prisma.todoTask.update({
-    where: { id: taskId },
+  await prisma.todoTask.updateMany({
+    where: { id: taskId, userEmail },
     data: {
       isDone: 1,
       completedAt: nowIso,
@@ -419,8 +470,11 @@ export async function deleteTask(userEmail: string, taskId: string) {
     prisma.todoSubtask.deleteMany({
       where: { taskId },
     }),
-    prisma.todoTask.delete({
-      where: { id: taskId },
+    prisma.syncOutbox.deleteMany({
+      where: { userEmail, entityId: taskId },
+    }),
+    prisma.todoTask.deleteMany({
+      where: { id: taskId, userEmail },
     }),
   ]);
 }

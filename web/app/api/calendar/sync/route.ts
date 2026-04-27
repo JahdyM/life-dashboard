@@ -18,6 +18,7 @@ import { rangeQuerySchema } from "@/lib/server/schemas";
 import { randomUUID } from "crypto";
 import { logServerEvent } from "@/lib/server/logger";
 import { ensureTaskCompletionColumns } from "@/lib/server/dbCompat";
+import { getDeletedGoogleTaskKeySet } from "@/lib/server/taskTombstones";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest) {
         item.event?.id ? `google:${item.calendarId}:${item.event.id}` : null
       )
       .filter((value): value is string => Boolean(value));
+    const deletedGoogleTaskKeys = await getDeletedGoogleTaskKeySet(userEmail, eventKeys);
     const calendarIds = Array.from(new Set(items.map((item) => item.calendarId)));
     const existing = await prisma.todoTask.findMany({
       where: {
@@ -84,6 +86,10 @@ export async function POST(request: NextRequest) {
     const nowIso = new Date().toISOString();
     const operations = items
       .filter((item: GoogleCalendarEventItem) => Boolean(item.event?.id))
+      .filter((item: GoogleCalendarEventItem) => {
+        const eventId = item.event.id as string;
+        return !deletedGoogleTaskKeys.has(`google:${item.calendarId}:${eventId}`);
+      })
       .map((item: GoogleCalendarEventItem) => {
         const eventId = item.event.id as string;
         const externalEventKey = `google:${item.calendarId}:${eventId}`;
