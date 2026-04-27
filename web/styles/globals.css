@@ -1472,6 +1472,45 @@ button.link.danger {
   opacity: 0.35;
 }
 
+.task-row-drag-handle {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(220, 200, 169, 0.16);
+  background: rgba(247, 236, 216, 0.045);
+  color: #cfc2b0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.task-row-drag-handle:hover,
+.task-row-drag-handle:focus-visible {
+  border-color: rgba(211, 173, 112, 0.38);
+  background: rgba(211, 173, 112, 0.14);
+  color: #fff4dd;
+}
+
+.task-row-drag-handle:active {
+  cursor: grabbing;
+}
+
+.task-row-dragging {
+  opacity: 0.54;
+  transform: scale(0.992);
+}
+
+.task-row-drop-target {
+  border-color: rgba(211, 173, 112, 0.62);
+  background:
+    linear-gradient(90deg, rgba(211, 173, 112, 0.16), rgba(255, 255, 255, 0.045));
+  box-shadow: inset 3px 0 0 rgba(211, 173, 112, 0.72);
+}
+
 .task-subtask-summary {
   font-size: 11px;
   color: #bfb6a7;

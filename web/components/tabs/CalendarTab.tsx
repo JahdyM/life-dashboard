@@ -9,6 +9,7 @@ import {
   useState,
   type CSSProperties,
   type ChangeEvent,
+  type DragEvent,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -17,6 +18,7 @@ import {
   CalendarClock,
   ChevronDown,
   ChevronRight,
+  GripVertical,
   Share2,
   SquarePen,
   Trash2,
@@ -328,6 +330,13 @@ type EditableTaskRowProps = {
   subtaskSavingId?: string | null;
   shareLabel?: string | null;
   shareActionLabel?: string;
+  draggable?: boolean;
+  dragging?: boolean;
+  dropTarget?: boolean;
+  onDragStartTask?: (taskId: string) => void;
+  onDragOverTask?: (taskId: string) => void;
+  onDropTask?: (taskId: string) => void;
+  onDragEndTask?: () => void;
 };
 
 const EditableTaskRow = memo(function EditableTaskRow({
@@ -356,6 +365,13 @@ const EditableTaskRow = memo(function EditableTaskRow({
   subtaskSavingId,
   shareLabel,
   shareActionLabel = "Share",
+  draggable = false,
+  dragging = false,
+  dropTarget = false,
+  onDragStartTask,
+  onDragOverTask,
+  onDropTask,
+  onDragEndTask,
 }: EditableTaskRowProps) {
   const subtasks = useMemo(
     () =>
@@ -405,10 +421,38 @@ const EditableTaskRow = memo(function EditableTaskRow({
     if (!onShare) return;
     onShare(task.id);
   }, [onShare, task.id]);
+  const handleDragStart = useCallback(
+    (event: DragEvent<HTMLButtonElement>) => {
+      if (!draggable) return;
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", task.id);
+      onDragStartTask?.(task.id);
+    },
+    [draggable, onDragStartTask, task.id]
+  );
+  const handleDragOver = useCallback(
+    (event: DragEvent<HTMLElement>) => {
+      if (!draggable) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      onDragOverTask?.(task.id);
+    },
+    [draggable, onDragOverTask, task.id]
+  );
+  const handleDrop = useCallback(
+    (event: DragEvent<HTMLElement>) => {
+      if (!draggable) return;
+      event.preventDefault();
+      onDropTask?.(task.id);
+    },
+    [draggable, onDropTask, task.id]
+  );
 
   return (
     <article
-      className={`task-row task-row-editable ${active ? "active" : ""} ${allSubtasksDone && !draft.isDone ? "task-row-ready" : ""} ${shareLabel ? "task-row-shared" : ""}`}
+      className={`task-row task-row-editable ${active ? "active" : ""} ${allSubtasksDone && !draft.isDone ? "task-row-ready" : ""} ${shareLabel ? "task-row-shared" : ""} ${dragging ? "task-row-dragging" : ""} ${dropTarget ? "task-row-drop-target" : ""}`}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     >
       <div className="task-row-compact-head">
         <input
@@ -450,6 +494,20 @@ const EditableTaskRow = memo(function EditableTaskRow({
         >
           {hasSubtasks && expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
         </button>
+        {draggable ? (
+          <button
+            type="button"
+            className="task-row-drag-handle"
+            draggable
+            onClick={(event) => event.preventDefault()}
+            onDragStart={handleDragStart}
+            onDragEnd={onDragEndTask}
+            aria-label={`Drag ${draft.title} to reorder`}
+            title="Drag to reorder"
+          >
+            <GripVertical size={15} />
+          </button>
+        ) : null}
         {showOrderControls && !draft.isDone ? (
           <div
             className="task-row-order-controls"
@@ -688,6 +746,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [taskDrafts, setTaskDrafts] = useState<Record<string, TaskDraft>>({});
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
+  const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null);
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
   const [savingSubtaskId, setSavingSubtaskId] = useState<string | null>(null);
   const [savedTaskId, setSavedTaskId] = useState<string | null>(null);
@@ -2282,6 +2342,46 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     [handleSetTaskNext, pendingTasks, reorderFocusTasks]
   );
 
+  const handleDragTaskStart = useCallback((taskId: string) => {
+    setDraggingTaskId(taskId);
+    setDragOverTaskId(null);
+  }, []);
+
+  const handleDragTaskOver = useCallback((taskId: string) => {
+    setDragOverTaskId((current) => (current === taskId ? current : taskId));
+  }, []);
+
+  const handleDragTaskEnd = useCallback(() => {
+    setDraggingTaskId(null);
+    setDragOverTaskId(null);
+  }, []);
+
+  const handleDropTask = useCallback(
+    (targetTaskId: string) => {
+      const sourceTaskId = draggingTaskId;
+      setDraggingTaskId(null);
+      setDragOverTaskId(null);
+      if (!sourceTaskId || sourceTaskId === targetTaskId) return;
+
+      const sourceIndex = pendingTasks.findIndex((task) => task.id === sourceTaskId);
+      const targetIndex = pendingTasks.findIndex((task) => task.id === targetTaskId);
+      if (sourceIndex < 0 || targetIndex < 0) return;
+
+      const ordered = [...pendingTasks];
+      const [moved] = ordered.splice(sourceIndex, 1);
+      const insertIndex = targetIndex;
+      ordered.splice(Math.max(0, insertIndex), 0, moved);
+
+      reorderFocusTasks.mutate(
+        ordered.map((task, index) => ({
+          id: task.id,
+          focusOrder: index + 1,
+        }))
+      );
+    },
+    [draggingTaskId, pendingTasks, reorderFocusTasks]
+  );
+
   const handleOpenTaskDetails = useCallback((taskId: string) => {
     setDetailTaskId(taskId);
   }, []);
@@ -2916,6 +3016,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     subtaskSavingId={savingSubtaskId}
                     shareLabel={shareUi.label}
                     shareActionLabel={shareUi.actionLabel}
+                    draggable={pendingTasks.length > 1}
+                    dragging={draggingTaskId === task.id}
+                    dropTarget={Boolean(draggingTaskId && dragOverTaskId === task.id && draggingTaskId !== task.id)}
+                    onDragStartTask={handleDragTaskStart}
+                    onDragOverTask={handleDragTaskOver}
+                    onDropTask={handleDropTask}
+                    onDragEndTask={handleDragTaskEnd}
                   />
                 );
               })}
