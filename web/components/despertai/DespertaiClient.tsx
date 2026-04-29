@@ -117,6 +117,10 @@ function findWheelSegmentAtPointer(segments: DespertaiWheelSegment[], rotationDe
   );
 }
 
+function issueElementId(issueId: string) {
+  return `despertai-issue-${issueId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+}
+
 function progressStyle(value: number): ProgressStyle {
   const progress = Math.max(0, Math.min(100, value));
   return { "--progress-angle": `${progress * 3.6}deg` } as ProgressStyle;
@@ -137,15 +141,20 @@ function IssueCard({
   busy,
   expanded,
   onToggleExpanded,
+  selected,
 }: {
   issue: DespertaiIssue;
   onPatch: (payload: ReadingPatchPayload) => void;
   busy: boolean;
   expanded: boolean;
   onToggleExpanded: (issueId: string) => void;
+  selected: boolean;
 }) {
   return (
-    <article className={`despertai-issue-card ${issue.isFinished ? "finished" : ""}`}>
+    <article
+      id={issueElementId(issue.id)}
+      className={`despertai-issue-card ${issue.isFinished ? "finished" : ""} ${selected ? "wheel-selected" : ""}`}
+    >
       <div className="despertai-issue-head">
         <ProgressDonut value={issue.progressPercent} label="lido" />
         <div className="despertai-issue-title-block">
@@ -352,12 +361,23 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
     });
   };
 
+  const revealIssueFromWheel = (issueId: string) => {
+    setExpandedIssues((current) => new Set(current).add(issueId));
+    window.setTimeout(() => {
+      document.getElementById(issueElementId(issueId))?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 80);
+  };
+
   const spinDespertaiWheel = () => {
     if (wheelSpinning || !wheelSegments.length) return;
     if (wheelSegments.length === 1) {
       const onlyIssue = wheelSegments[0].issue;
       setWheelResultIssueId(onlyIssue.id);
       setWheelLastIssueId(onlyIssue.id);
+      revealIssueFromWheel(onlyIssue.id);
       return;
     }
 
@@ -387,6 +407,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       setWheelResultIssueId(resultIssueId);
       setWheelLastIssueId(resultIssueId);
       setWheelSpinning(false);
+      revealIssueFromWheel(resultIssueId);
     }, DESPERTAI_WHEEL_SPIN_DURATION_MS);
   };
 
@@ -399,7 +420,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
 
   const openWheelIssueTopics = () => {
     if (!wheelResultIssue) return;
-    setExpandedIssues((current) => new Set(current).add(wheelResultIssue.id));
+    revealIssueFromWheel(wheelResultIssue.id);
   };
 
   return (
@@ -649,6 +670,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
                     onPatch={patch}
                     expanded={expandedIssues.has(issue.id)}
                     onToggleExpanded={toggleExpandedIssue}
+                    selected={wheelResultIssueId === issue.id}
                   />
                 ))}
               </div>
@@ -672,6 +694,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
                     onPatch={patch}
                     expanded={expandedIssues.has(issue.id)}
                     onToggleExpanded={toggleExpandedIssue}
+                    selected={wheelResultIssueId === issue.id}
                   />
                 ))}
               </div>
