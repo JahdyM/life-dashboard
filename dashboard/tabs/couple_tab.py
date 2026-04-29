@@ -4,7 +4,7 @@ from datetime import date, timedelta
 import streamlit as st
 
 from dashboard.data import repositories, api_client
-from dashboard.constants import JAHDY_EMAIL, GUILHERME_EMAIL, MOOD_TO_INT, DEFAULT_HABIT_LABELS
+from dashboard.constants import JAHDY_EMAIL, GUILHERME_EMAIL, MOOD_TO_INT, DEFAULT_HABIT_LABELS, MOOD_COLORS
 from dashboard.visualizations import mood_heatmap
 
 
@@ -100,6 +100,21 @@ def render_couple_tab(ctx):
     else:
         streak_snapshot = repositories.get_shared_habit_comparison(today, user_a, user_b, SHARED_HABITS)
 
+    # Partner mood note (today)
+    if not repositories.api_enabled():
+        partner_mood_today = repositories.get_partner_mood_today(user_b)
+        if partner_mood_today.get("mood_note"):
+            mood_color = MOOD_COLORS.get(partner_mood_today.get("mood_category", ""), "#8e79af")
+            st.markdown(
+                f"""<div class="card" style="border-left:3px solid {mood_color};padding:10px 16px;">
+<div style="font-size:0.78rem;color:var(--text-soft);margin-bottom:2px;">
+  💌 {partner_name} hoje ({partner_mood_today.get('mood_category','')})
+</div>
+<div style="font-size:0.93rem;">{partner_mood_today['mood_note']}</div>
+</div>""",
+                unsafe_allow_html=True,
+            )
+
     # Sync Score card
     _render_sync_score(streak_snapshot, user_a_name, user_b_name)
 
@@ -127,6 +142,51 @@ def render_couple_tab(ctx):
             row_cols[2].caption(f"{b_icon} {b_days} dias")
 
     st.caption(streak_snapshot.get("summary") or "")
+
+    # --- Special dates ---
+    st.markdown("<div class='small-label' style='margin-top:14px;'>Datas especiais</div>", unsafe_allow_html=True)
+    if not repositories.api_enabled():
+        upcoming = repositories.upcoming_special_dates(user_a, user_b, window_days=90)
+        if upcoming:
+            for item in upcoming:
+                days_away = item["days_away"]
+                badge = "🎉 Hoje!" if days_away == 0 else f"em {days_away}d"
+                st.markdown(
+                    f"""<div style="display:flex;align-items:center;gap:10px;padding:4px 0;border-bottom:1px solid var(--divider);">
+<span style="font-size:1.2rem;">{item.get('emoji','❤️')}</span>
+<span style="flex:1;font-size:0.9rem;">{item['title']} <span style="color:var(--text-soft);font-size:0.78rem;">({item['next_date']})</span></span>
+<span style="font-size:0.75rem;color:var(--accent-purple);">{badge}</span>
+<span></span></div>""",
+                    unsafe_allow_html=True,
+                )
+        else:
+            st.caption("Nenhuma data especial nos próximos 90 dias.")
+
+        with st.expander("➕ Adicionar data especial"):
+            cols_form = st.columns([3, 1, 1, 1])
+            new_title = cols_form[0].text_input("Nome da data", key="couple.sd.title", placeholder="ex: Aniversário de namoro")
+            new_month = cols_form[1].number_input("Mês", min_value=1, max_value=12, step=1, key="couple.sd.month")
+            new_day = cols_form[2].number_input("Dia", min_value=1, max_value=31, step=1, key="couple.sd.day")
+            new_emoji = cols_form[3].text_input("Emoji", value="❤️", key="couple.sd.emoji", max_chars=4)
+            if st.button("Salvar data", key="couple.sd.save", type="primary"):
+                if new_title.strip():
+                    repositories.add_special_date(user_a, user_b, new_title, int(new_month), int(new_day), emoji=new_emoji or "❤️")
+                    st.success("Data salva!")
+                    st.rerun()
+                else:
+                    st.warning("Digite um nome para a data.")
+
+        all_dates = repositories.get_special_dates(user_a, user_b)
+        if all_dates:
+            with st.expander("🗑 Remover data"):
+                for item in all_dates:
+                    col_a, col_b = st.columns([5, 1])
+                    col_a.caption(f"{item.get('emoji','')} {item['title']} — {item['month']:02d}/{item['day']:02d}")
+                    if col_b.button("✕", key=f"couple.sd.del.{item['id']}", type="tertiary"):
+                        repositories.remove_special_date(user_a, user_b, item["id"])
+                        st.rerun()
+    else:
+        st.caption("Datas especiais disponíveis no modo local (sem backend).")
 
     st.markdown("<div class='small-label' style='margin-top:12px;'>Mapa de humor mensal (comparativo)</div>", unsafe_allow_html=True)
     month_choice = st.date_input("Mês", value=today.replace(day=1), key="couple.mood.month")

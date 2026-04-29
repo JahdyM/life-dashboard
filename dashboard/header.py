@@ -107,6 +107,22 @@ def render_global_header(ctx):
                 unsafe_allow_html=True,
             )
 
+    # Partner habit nudge: habits partner did that I haven't yet
+    nudges = [
+        habit_labels.get(h.get("habit_key"), h.get("habit_key", "").replace("_", " ").title())
+        for h in habits
+        if int(h.get("user_b_today_expected", 0)) == 1
+        and int(h.get("user_b_today_done", 0)) == 1
+        and int(h.get("user_a_today_expected", 0)) == 1
+        and int(h.get("user_a_today_done", 0)) == 0
+    ]
+    if nudges:
+        nudge_list = ", ".join(nudges)
+        st.info(
+            f"💌 {partner_name} já completou: **{nudge_list}** — sua vez!",
+            icon=None,
+        )
+
     if not backend_ok:
         st.warning("Backend inicializando… dados podem demorar um momento.")
     st.caption(summary)

@@ -148,3 +148,51 @@ def render_stats_tab(ctx):
         cols[0].plotly_chart(dot_chart(filtered["work_hours"], filtered["date_str"], "Horas de trabalho/estudo", "#b7d1c9"), use_container_width=True)
         cols[1].plotly_chart(dot_chart(filtered["boredom_minutes"], filtered["date_str"], "Minutos de tédio", "#f2d4a2"), use_container_width=True)
         cols[0].plotly_chart(dot_chart(filtered["habits_percent"], filtered["date_str"], "Hábitos completos (%)", "#c9b3e5"), use_container_width=True)
+
+    # --- Weekly email report ---
+    st.markdown("<div class='small-label' style='margin-top:14px;'>Relatório semanal</div>", unsafe_allow_html=True)
+    from dashboard.email_report import build_weekly_report_html, send_weekly_report, smtp_configured
+
+    partner_email = ctx.get("partner_email", "")
+    current_name = ctx.get("current_user_name", "Você")
+    partner_name = ctx.get("partner_name", "Parceiro")
+
+    if st.button("📋 Gerar relatório da semana", type="primary", key="stats.generate_report"):
+        html_report = build_weekly_report_html(
+            current_name=current_name,
+            partner_name=partner_name,
+            data=data,
+            custom_done_by_date=custom_done_by_date,
+            custom_habit_ids=custom_habit_ids,
+            meeting_days=ctx.get("meeting_days", []),
+            family_worship_day=ctx.get("family_worship_day", 6),
+            sync_score_pct=int(st.session_state.get("header.sync_pct", 0)),
+        )
+        st.session_state["stats.report_html"] = html_report
+        st.success("Relatório gerado!")
+
+    if st.session_state.get("stats.report_html"):
+        with st.expander("👁 Visualizar relatório", expanded=False):
+            st.components.v1.html(st.session_state["stats.report_html"], height=540, scrolling=True)
+
+        if smtp_configured():
+            recipients_raw = st.text_input(
+                "Enviar para (e-mails separados por vírgula)",
+                value=f"{ctx.get('current_user_email', '')},{partner_email}".strip(","),
+                key="stats.report_recipients",
+            )
+            if st.button("📧 Enviar por email", key="stats.send_report"):
+                recipients = [r.strip() for r in recipients_raw.split(",") if r.strip()]
+                ok, err = send_weekly_report(recipients, st.session_state["stats.report_html"])
+                if ok:
+                    st.success(f"Relatório enviado para {', '.join(recipients)}!")
+                else:
+                    st.error(f"Erro ao enviar: {err}")
+        else:
+            with st.expander("📧 Configurar envio por email", expanded=False):
+                st.markdown(
+                    "Adicione estas chaves em **Streamlit Secrets** para habilitar o envio:\n"
+                    "```toml\n[email]\nsmtp_host = \"smtp.gmail.com\"\nsmtp_port = 587\n"
+                    "smtp_user = \"seu@gmail.com\"\nsmtp_password = \"app_password_aqui\"\n```\n"
+                    "Use uma **App Password** do Google (não sua senha normal)."
+                )

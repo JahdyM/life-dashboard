@@ -158,6 +158,7 @@ with title_cols[0]:
     st.markdown("<div class='page-title' style='font-size:22px; font-weight:600;'>Personal Life Dashboard</div>", unsafe_allow_html=True)
 with title_cols[1]:
     if st.button(THEME_TOGGLE_ICON, key="toggle_theme_mode", help=THEME_TOGGLE_HELP):
+        st.session_state["ui_theme_manual"] = True
         st.session_state["ui_theme"] = "light" if ACTIVE_THEME_NAME == "dark" else "dark"
         st.rerun()
 

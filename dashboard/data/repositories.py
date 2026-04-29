@@ -1560,3 +1560,93 @@ def delete_subtask(subtask_id):
             {"id": subtask_id, "user_email": _current_user()},
         )
     _invalidate("tasks")
+
+
+# ---------------------------------------------------------------------------
+# Special dates (anniversaries, birthdays, milestones)
+# Stored as JSON in settings table under couple-scoped key.
+# ---------------------------------------------------------------------------
+
+_SPECIAL_DATES_KEY = "special_dates_v1"
+
+
+def _couple_setting_key(user_a: str, user_b: str, key: str) -> str:
+    pair = ":".join(sorted([user_a.lower(), user_b.lower()]))
+    return f"couple::{pair}::{key}"
+
+
+def get_special_dates(user_a: str, user_b: str) -> list:
+    key = _couple_setting_key(user_a, user_b, _SPECIAL_DATES_KEY)
+    raw = get_setting(user_a, key, scoped=False)
+    if not raw:
+        return []
+    try:
+        items = json.loads(raw)
+        return items if isinstance(items, list) else []
+    except Exception:
+        return []
+
+
+def save_special_dates(user_a: str, user_b: str, items: list) -> None:
+    key = _couple_setting_key(user_a, user_b, _SPECIAL_DATES_KEY)
+    set_setting(user_a, key, json.dumps(items, ensure_ascii=False), scoped=False)
+
+
+def add_special_date(user_a: str, user_b: str, title: str, month: int, day: int, year=None, emoji: str = "❤️") -> dict:
+    items = get_special_dates(user_a, user_b)
+    record = {
+        "id": _new_id(),
+        "title": title.strip(),
+        "month": int(month),
+        "day": int(day),
+        "year": int(year) if year else None,
+        "emoji": emoji or "❤️",
+        "created_at": datetime.utcnow().isoformat(),
+    }
+    items.append(record)
+    save_special_dates(user_a, user_b, items)
+    return record
+
+
+def remove_special_date(user_a: str, user_b: str, date_id: str) -> None:
+    items = [item for item in get_special_dates(user_a, user_b) if item.get("id") != date_id]
+    save_special_dates(user_a, user_b, items)
+
+
+def upcoming_special_dates(user_a: str, user_b: str, today=None, window_days: int = 60) -> list:
+    from datetime import date as _date
+    today = today or _date.today()
+    items = get_special_dates(user_a, user_b)
+    result = []
+    for item in items:
+        month = item.get("month")
+        day = item.get("day")
+        if not month or not day:
+            continue
+        try:
+            this_year = _date(today.year, month, day)
+        except ValueError:
+            continue
+        next_occurrence = this_year if this_year >= today else _date(today.year + 1, month, day)
+        days_away = (next_occurrence - today).days
+        if days_away <= window_days:
+            result.append({**item, "next_date": next_occurrence.isoformat(), "days_away": days_away})
+    result.sort(key=lambda x: x["days_away"])
+    return result
+
+
+def get_partner_mood_today(partner_email: str, today=None) -> dict:
+    from datetime import date as _date
+    today = today or _date.today()
+    engine = _engine()
+    with engine.connect() as conn:
+        row = conn.execute(
+            sql_text(
+                f"SELECT mood_category, mood_note FROM {ENTRIES_TABLE} "
+                "WHERE user_email = :email AND date = :date"
+            ),
+            {"email": partner_email, "date": today.isoformat()},
+        ).mappings().fetchone()
+    if not row:
+        return {}
+    return {"mood_category": row.get("mood_category"), "mood_note": row.get("mood_note") or ""}

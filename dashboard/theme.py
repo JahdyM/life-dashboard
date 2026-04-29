@@ -84,9 +84,18 @@ BACKGROUND_IMAGE_CANDIDATES = [
 ]
 
 
+def _auto_theme_from_time() -> str:
+    from datetime import datetime
+    hour = datetime.now().hour
+    return "dark" if (hour >= 20 or hour < 7) else "light"
+
+
 def ensure_theme_state():
     if "ui_theme" not in st.session_state:
-        st.session_state["ui_theme"] = "dark"
+        if st.session_state.get("ui_theme_manual"):
+            st.session_state["ui_theme"] = "dark"
+        else:
+            st.session_state["ui_theme"] = _auto_theme_from_time()
     if st.session_state["ui_theme"] not in THEME_PRESETS:
         st.session_state["ui_theme"] = "dark"
     return st.session_state["ui_theme"]
