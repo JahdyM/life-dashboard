@@ -5,6 +5,8 @@ from dashboard.tabs.couple_tab import render_couple_tab
 from dashboard.tabs.habits_tab import render_habits_tab
 from dashboard.tabs.mood_tab import render_mood_tab
 from dashboard.tabs.stats_tab import render_stats_tab
+from dashboard.tabs.finance_tab import render_finance_tab
+from dashboard.tabs.goals_tab import render_goals_tab
 
 
 TAB_OPTIONS = [
@@ -13,6 +15,8 @@ TAB_OPTIONS = [
     "Statistics & Charts",
     "Mood Board",
     "Couple",
+    "💰 Finanças",
+    "🎯 Metas & Planos",
 ]
 
 
@@ -37,7 +41,13 @@ def render_router(ctx):
     if active == "Mood Board":
         return _render_mood(ctx)
 
-    return _render_couple(ctx)
+    if active == "Couple":
+        return _render_couple(ctx)
+
+    if active == "💰 Finanças":
+        return _render_finance(ctx)
+
+    return _render_goals(ctx)
 
 
 @st.fragment
@@ -63,3 +73,13 @@ def _render_mood(ctx):
 @st.fragment
 def _render_couple(ctx):
     render_couple_tab(ctx)
+
+
+@st.fragment
+def _render_finance(ctx):
+    render_finance_tab(ctx)
+
+
+@st.fragment
+def _render_goals(ctx):
+    render_goals_tab(ctx)

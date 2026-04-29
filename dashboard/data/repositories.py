@@ -1650,3 +1650,194 @@ def get_partner_mood_today(partner_email: str, today=None) -> dict:
     if not row:
         return {}
     return {"mood_category": row.get("mood_category"), "mood_note": row.get("mood_note") or ""}
+
+
+# ---------------------------------------------------------------------------
+# Finance (expenses + savings goals) — stored as couple-scoped JSON settings
+# ---------------------------------------------------------------------------
+
+_EXPENSES_KEY_PREFIX = "expenses::"
+_SAVINGS_GOALS_KEY = "savings_goals_v1"
+_GOALS_KEY = "couple_goals_v1"
+_BUCKET_LIST_KEY = "bucket_list_v1"
+
+
+def _month_key(year: int, month: int) -> str:
+    return f"{year:04d}-{month:02d}"
+
+
+def get_expenses(user_a: str, user_b: str, year: int, month: int) -> list:
+    key = _couple_setting_key(user_a, user_b, _EXPENSES_KEY_PREFIX + _month_key(year, month))
+    raw = get_setting(user_a, key, scoped=False)
+    if not raw:
+        return []
+    try:
+        return json.loads(raw) if isinstance(json.loads(raw), list) else []
+    except Exception:
+        return []
+
+
+def add_expense(user_a: str, user_b: str, amount: float, category: str, description: str,
+                expense_date, paid_by: str) -> dict:
+    from datetime import date as _date
+    d = expense_date if isinstance(expense_date, _date) else _date.today()
+    items = get_expenses(user_a, user_b, d.year, d.month)
+    record = {
+        "id": _new_id(),
+        "amount": round(float(amount), 2),
+        "category": category.strip(),
+        "description": (description or "").strip(),
+        "date": d.isoformat(),
+        "paid_by": paid_by,
+        "created_at": datetime.utcnow().isoformat(),
+    }
+    items.append(record)
+    key = _couple_setting_key(user_a, user_b, _EXPENSES_KEY_PREFIX + _month_key(d.year, d.month))
+    set_setting(user_a, key, json.dumps(items, ensure_ascii=False), scoped=False)
+    return record
+
+
+def remove_expense(user_a: str, user_b: str, expense_id: str, year: int, month: int) -> None:
+    items = [e for e in get_expenses(user_a, user_b, year, month) if e.get("id") != expense_id]
+    key = _couple_setting_key(user_a, user_b, _EXPENSES_KEY_PREFIX + _month_key(year, month))
+    set_setting(user_a, key, json.dumps(items, ensure_ascii=False), scoped=False)
+
+
+def get_savings_goals(user_a: str, user_b: str) -> list:
+    key = _couple_setting_key(user_a, user_b, _SAVINGS_GOALS_KEY)
+    raw = get_setting(user_a, key, scoped=False)
+    try:
+        items = json.loads(raw) if raw else []
+        return items if isinstance(items, list) else []
+    except Exception:
+        return []
+
+
+def save_savings_goals(user_a: str, user_b: str, items: list) -> None:
+    key = _couple_setting_key(user_a, user_b, _SAVINGS_GOALS_KEY)
+    set_setting(user_a, key, json.dumps(items, ensure_ascii=False), scoped=False)
+
+
+def add_savings_goal(user_a: str, user_b: str, title: str, target: float, emoji: str = "💰") -> dict:
+    items = get_savings_goals(user_a, user_b)
+    record = {"id": _new_id(), "title": title.strip(), "target": round(float(target), 2),
+               "current": 0.0, "emoji": emoji or "💰", "created_at": datetime.utcnow().isoformat()}
+    items.append(record)
+    save_savings_goals(user_a, user_b, items)
+    return record
+
+
+def update_savings_goal_amount(user_a: str, user_b: str, goal_id: str, current: float) -> None:
+    items = get_savings_goals(user_a, user_b)
+    for item in items:
+        if item.get("id") == goal_id:
+            item["current"] = round(float(current), 2)
+    save_savings_goals(user_a, user_b, items)
+
+
+def remove_savings_goal(user_a: str, user_b: str, goal_id: str) -> None:
+    items = [g for g in get_savings_goals(user_a, user_b) if g.get("id") != goal_id]
+    save_savings_goals(user_a, user_b, items)
+
+
+# ---------------------------------------------------------------------------
+# Goals & Bucket List
+# ---------------------------------------------------------------------------
+
+def get_goals(user_a: str, user_b: str) -> list:
+    key = _couple_setting_key(user_a, user_b, _GOALS_KEY)
+    raw = get_setting(user_a, key, scoped=False)
+    try:
+        items = json.loads(raw) if raw else []
+        return items if isinstance(items, list) else []
+    except Exception:
+        return []
+
+
+def save_goals(user_a: str, user_b: str, items: list) -> None:
+    key = _couple_setting_key(user_a, user_b, _GOALS_KEY)
+    set_setting(user_a, key, json.dumps(items, ensure_ascii=False), scoped=False)
+
+
+def add_goal(user_a: str, user_b: str, title: str, category: str, size: str,
+             emoji: str, target_date=None, created_by: str = "") -> dict:
+    items = get_goals(user_a, user_b)
+    record = {
+        "id": _new_id(), "title": title.strip(), "category": category,
+        "size": size, "emoji": emoji or "🎯", "progress": 0, "is_done": 0,
+        "target_date": target_date.isoformat() if target_date else None,
+        "created_by": created_by, "created_at": datetime.utcnow().isoformat(),
+    }
+    items.append(record)
+    save_goals(user_a, user_b, items)
+    return record
+
+
+def update_goal_progress(user_a: str, user_b: str, goal_id: str, progress: int) -> None:
+    items = get_goals(user_a, user_b)
+    for item in items:
+        if item.get("id") == goal_id:
+            item["progress"] = max(0, min(100, int(progress)))
+            item["is_done"] = 1 if item["progress"] == 100 else 0
+    save_goals(user_a, user_b, items)
+
+
+def remove_goal(user_a: str, user_b: str, goal_id: str) -> None:
+    items = [g for g in get_goals(user_a, user_b) if g.get("id") != goal_id]
+    save_goals(user_a, user_b, items)
+
+
+def get_bucket_list(user_a: str, user_b: str) -> list:
+    key = _couple_setting_key(user_a, user_b, _BUCKET_LIST_KEY)
+    raw = get_setting(user_a, key, scoped=False)
+    try:
+        items = json.loads(raw) if raw else []
+        return items if isinstance(items, list) else []
+    except Exception:
+        return []
+
+
+def save_bucket_list(user_a: str, user_b: str, items: list) -> None:
+    key = _couple_setting_key(user_a, user_b, _BUCKET_LIST_KEY)
+    set_setting(user_a, key, json.dumps(items, ensure_ascii=False), scoped=False)
+
+
+def add_bucket_item(user_a: str, user_b: str, title: str) -> dict:
+    items = get_bucket_list(user_a, user_b)
+    record = {"id": _new_id(), "title": title.strip(), "is_done": 0,
+               "done_date": None, "created_at": datetime.utcnow().isoformat()}
+    items.append(record)
+    save_bucket_list(user_a, user_b, items)
+    return record
+
+
+def toggle_bucket_item(user_a: str, user_b: str, item_id: str) -> None:
+    from datetime import date as _date
+    items = get_bucket_list(user_a, user_b)
+    for item in items:
+        if item.get("id") == item_id:
+            item["is_done"] = 0 if item.get("is_done") else 1
+            item["done_date"] = _date.today().isoformat() if item["is_done"] else None
+    save_bucket_list(user_a, user_b, items)
+
+
+def remove_bucket_item(user_a: str, user_b: str, item_id: str) -> None:
+    items = [i for i in get_bucket_list(user_a, user_b) if i.get("id") != item_id]
+    save_bucket_list(user_a, user_b, items)
+
+
+# ---------------------------------------------------------------------------
+# Weekly check-in
+# ---------------------------------------------------------------------------
+
+_WEEKLY_CHECKIN_KEY = "weekly_checkin"
+
+
+def get_weekly_checkin(user_email: str, week_iso: str) -> str:
+    key = f"checkin::{week_iso}"
+    return get_setting(user_email, key) or ""
+
+
+def save_weekly_checkin(user_email: str, week_iso: str, text: str) -> None:
+    key = f"checkin::{week_iso}"
+    set_setting(user_email, key, text.strip())
