@@ -254,6 +254,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const [wheelResultIssueId, setWheelResultIssueId] = useState<string | null>(null);
   const [wheelLastIssueId, setWheelLastIssueId] = useState<string | null>(null);
   const [wheelShuffleNonce, setWheelShuffleNonce] = useState(0);
+  const [pendingRevealIssueId, setPendingRevealIssueId] = useState<string | null>(null);
   const wheelSpinTimeoutRef = useRef<number | null>(null);
 
   const readingQuery = useQuery({
@@ -348,6 +349,28 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!pendingRevealIssueId || activeTab !== "despertai" || !expandedIssues.has(pendingRevealIssueId)) {
+      return;
+    }
+
+    let firstFrame = 0;
+    let secondFrame = 0;
+    firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        const target = document.getElementById(issueElementId(pendingRevealIssueId));
+        if (!target) return;
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        setPendingRevealIssueId(null);
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
+  }, [activeTab, expandedIssues, pendingRevealIssueId]);
+
   const patch = (payload: ReadingPatchPayload) => {
     patchMutation.mutate(payload);
   };
@@ -362,13 +385,9 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   };
 
   const revealIssueFromWheel = (issueId: string) => {
+    setActiveTab("despertai");
     setExpandedIssues((current) => new Set(current).add(issueId));
-    window.setTimeout(() => {
-      document.getElementById(issueElementId(issueId))?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-    }, 80);
+    setPendingRevealIssueId(issueId);
   };
 
   const spinDespertaiWheel = () => {
