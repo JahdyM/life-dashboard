@@ -550,6 +550,7 @@ export type DespertaiIssue = {
   year: number;
   dateLabel: string | null;
   title: string;
+  url: string | null;
   topics: DespertaiTopic[];
   readCount: number;
   totalTopics: number;

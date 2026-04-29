@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import despertaiCatalog from "@/lib/config/despertaiPublications.json";
 import { BIBLE_BOOK_BY_KEY, BIBLE_SECTIONS, BIBLE_TOTAL_CHAPTERS } from "@/lib/config/bible";
 import { getSetting, setSetting } from "@/lib/server/settings";
 import type { DespertaiIssue, DespertaiTopic, ReadingPageData } from "@/lib/types";
@@ -14,6 +15,7 @@ type StoredDespertaiIssue = {
   year: number;
   date_label: string | null;
   title: string;
+  url?: string | null;
   topics: StoredDespertaiTopic[];
   created_at: string;
   updated_at: string;
@@ -25,10 +27,36 @@ type StoredReadingState = {
 };
 
 const READING_STATE_KEY = "reading_state_v1";
+const CATALOG_CREATED_AT = "2026-04-29T00:00:00.000Z";
+
+type CatalogDespertaiIssue = {
+  id: string;
+  year: number;
+  date_label?: string | null;
+  title: string;
+  url?: string | null;
+  topics: string[];
+};
+
+const DEFAULT_DESPERTAI_ISSUES: StoredDespertaiIssue[] = (despertaiCatalog as CatalogDespertaiIssue[])
+  .map((issue) => ({
+    id: issue.id,
+    year: issue.year,
+    date_label: issue.date_label || null,
+    title: issue.title,
+    url: issue.url || null,
+    topics: issue.topics.map((title, index) => ({
+      id: `${issue.id}-topic-${index + 1}`,
+      title,
+      read: false,
+    })),
+    created_at: CATALOG_CREATED_AT,
+    updated_at: CATALOG_CREATED_AT,
+  }));
 
 function defaultState(): StoredReadingState {
   return {
-    despertai_issues: [],
+    despertai_issues: DEFAULT_DESPERTAI_ISSUES,
     bible_read_chapters: {},
   };
 }
@@ -69,10 +97,15 @@ function normalizeIssue(raw: Partial<StoredDespertaiIssue>, nowIso: string): Sto
     year,
     date_label: normalizeText(raw.date_label, 80) || null,
     title,
+    url: normalizeText(raw.url, 600) || null,
     topics,
     created_at: String(raw.created_at || nowIso),
     updated_at: String(raw.updated_at || nowIso),
   };
+}
+
+function mergeWithDefaultIssues(issues: StoredDespertaiIssue[]) {
+  return mergeIssues(DEFAULT_DESPERTAI_ISSUES, issues);
 }
 
 function normalizeBibleReadChapters(raw: unknown): Record<string, number[]> {
@@ -99,10 +132,10 @@ function normalizeState(raw: unknown): StoredReadingState {
   const nowIso = new Date().toISOString();
   return {
     despertai_issues: Array.isArray(state.despertai_issues)
-      ? state.despertai_issues
+      ? mergeWithDefaultIssues(state.despertai_issues
           .map((issue) => normalizeIssue(issue, nowIso))
-          .filter((issue): issue is StoredDespertaiIssue => Boolean(issue))
-      : [],
+          .filter((issue): issue is StoredDespertaiIssue => Boolean(issue)))
+      : DEFAULT_DESPERTAI_ISSUES,
     bible_read_chapters: normalizeBibleReadChapters(state.bible_read_chapters),
   };
 }
@@ -136,6 +169,7 @@ function issueProgress(issue: StoredDespertaiIssue): DespertaiIssue {
     year: issue.year,
     dateLabel: issue.date_label,
     title: issue.title,
+    url: issue.url || null,
     topics,
     readCount,
     totalTopics,
@@ -227,6 +261,7 @@ function parseJsonImport(raw: string, nowIso: string): StoredDespertaiIssue[] | 
             year: row.year as number,
             date_label: normalizeText(row.date ?? row.data ?? row.month ?? row.mes, 80) || null,
             title: normalizeText(row.title ?? row.titulo ?? row.issue ?? row.revista, 260),
+            url: normalizeText(row.url, 600) || null,
             topics: topics.map((title) => ({ id: randomUUID(), title, read: false })),
             created_at: nowIso,
             updated_at: nowIso,
@@ -267,6 +302,8 @@ function parseTableImport(raw: string, nowIso: string): StoredDespertaiIssue[] {
     const title = normalizeText(cells[titleIndex], 260);
     if (year === null || !title) return;
     const dateLabel = normalizeText(cells[dateIndex], 80) || null;
+    const urlIndex = indexFor(["url", "link"], 6);
+    const url = normalizeText(cells[urlIndex], 600) || null;
     const topics = topicListFromText(cells[topicIndex] || title);
     const groupKey = `${year}::${dateLabel || ""}::${title}`.toLowerCase();
     const existing = grouped.get(groupKey);
@@ -285,6 +322,7 @@ function parseTableImport(raw: string, nowIso: string): StoredDespertaiIssue[] {
         year,
         date_label: dateLabel,
         title,
+        url,
         topics: topics.map((topicTitle) => ({ id: randomUUID(), title: topicTitle, read: false })),
         created_at: nowIso,
         updated_at: nowIso,
@@ -320,12 +358,21 @@ function mergeIssues(current: StoredDespertaiIssue[], incoming: StoredDespertaiI
     const existing = next[existingIndex];
     const topics = [...existing.topics];
     issue.topics.forEach((topic) => {
-      if (!topics.some((item) => item.title.toLowerCase() === topic.title.toLowerCase())) {
+      const existingTopicIndex = topics.findIndex(
+        (item) => item.title.toLowerCase() === topic.title.toLowerCase()
+      );
+      if (existingTopicIndex >= 0) {
+        topics[existingTopicIndex] = {
+          ...topics[existingTopicIndex],
+          read: topics[existingTopicIndex].read || topic.read,
+        };
+      } else {
         topics.push(topic);
       }
     });
     next[existingIndex] = {
       ...existing,
+      url: existing.url || issue.url || null,
       topics,
       updated_at: new Date().toISOString(),
     };

@@ -6981,6 +6981,19 @@ textarea:hover {
   margin-top: 4px;
 }
 
+.despertai-source-link {
+  display: inline-flex;
+  margin-top: 8px;
+  color: #d6b67a;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.despertai-source-link:hover {
+  text-decoration: underline;
+}
+
 .despertai-read-all,
 .despertai-count-field,
 .despertai-topic,

@@ -54,6 +54,11 @@ function IssueCard({
           <p className="panel-kicker">{issue.year}{issue.dateLabel ? ` · ${issue.dateLabel}` : ""}</p>
           <h3>{issue.title}</h3>
           <p>{issue.readCount}/{issue.totalTopics} tópicos</p>
+          {issue.url ? (
+            <a href={issue.url} target="_blank" rel="noreferrer" className="despertai-source-link">
+              Abrir publicação
+            </a>
+          ) : null}
         </div>
         <label className="despertai-read-all">
           <input
