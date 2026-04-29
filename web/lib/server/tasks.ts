@@ -453,6 +453,11 @@ export async function deleteTask(userEmail: string, taskId: string) {
   }
   const nowIso = new Date().toISOString();
   await cleanupTaskShareSettingsAfterDelete(userEmail, taskId);
+  await prisma.syncOutbox
+    .deleteMany({
+      where: { userEmail, entityId: taskId },
+    })
+    .catch(() => undefined);
   // Some legacy databases enforce delete policies on unfinished tasks.
   // Mark as completed first so hard-delete remains reliable for all task states.
   await prisma.todoTask.updateMany({
@@ -469,9 +474,6 @@ export async function deleteTask(userEmail: string, taskId: string) {
     }),
     prisma.todoSubtask.deleteMany({
       where: { taskId },
-    }),
-    prisma.syncOutbox.deleteMany({
-      where: { userEmail, entityId: taskId },
     }),
     prisma.todoTask.deleteMany({
       where: { id: taskId, userEmail },
