@@ -1734,6 +1734,14 @@ st.markdown(
 )
 render_data_persistence_notice(storage_migration_message)
 
+from dashboard.widgets import render_sidebar_widgets
+_nasa_key = (os.getenv("NASA_API_KEY") or "").strip() or "DEMO_KEY"
+try:
+    _nasa_key = get_secret("NASA_API_KEY") or _nasa_key
+except Exception:
+    pass
+render_sidebar_widgets(_nasa_key)
+
 perf_debug = st.sidebar.toggle("Perf debug", value=bool(os.getenv("PERF_DEBUG")))
 perf_marks = {}
 

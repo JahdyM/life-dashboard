@@ -90,6 +90,40 @@ def _auto_theme_from_time() -> str:
     return "dark" if (hour >= 20 or hour < 7) else "light"
 
 
+def _seasonal_accent_css() -> str:
+    """Return a CSS snippet that tints the page accent based on Southern Hemisphere season."""
+    from datetime import date
+    month = date.today().month
+    # Southern Hemisphere: Summer Dec-Feb, Autumn Mar-May, Winter Jun-Aug, Spring Sep-Nov
+    if month in (12, 1, 2):
+        # Summer — warm coral/gold glow
+        tint = "rgba(255, 160, 80, 0.07)"
+        label = "summer"
+    elif month in (3, 4, 5):
+        # Autumn — amber/terracotta
+        tint = "rgba(200, 120, 60, 0.07)"
+        label = "autumn"
+    elif month in (6, 7, 8):
+        # Winter — cool steel blue
+        tint = "rgba(80, 130, 200, 0.07)"
+        label = "winter"
+    else:
+        # Spring — fresh green
+        tint = "rgba(80, 190, 130, 0.07)"
+        label = "spring"
+    return f"""
+/* seasonal accent: {label} */
+div[data-testid="stAppViewContainer"] > .main::before {{
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: {tint};
+    pointer-events: none;
+    z-index: 0;
+}}
+"""
+
+
 def ensure_theme_state():
     if "ui_theme" not in st.session_state:
         if st.session_state.get("ui_theme_manual"):
@@ -1270,6 +1304,8 @@ div[data-testid="stAppViewContainer"] [data-testid="stAppViewBlockContainer"] {{
 """,
             unsafe_allow_html=True,
         )
+
+    st.markdown(f"<style>{_seasonal_accent_css()}</style>", unsafe_allow_html=True)
 
     return {
         "name": active_name,
