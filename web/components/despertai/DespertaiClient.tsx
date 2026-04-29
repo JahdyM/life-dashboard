@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import InlineActionNotice from "@/components/common/InlineActionNotice";
 import { fetchJson } from "@/lib/client/api";
@@ -21,7 +21,101 @@ type ProgressStyle = CSSProperties & {
   "--progress-angle": string;
 };
 
+type DespertaiWheelSegment = {
+  issue: DespertaiIssue;
+  startAngle: number;
+  endAngle: number;
+  midAngle: number;
+  span: number;
+  color: string;
+};
+
 const queryKey = ["reading-progress"] as const;
+const DESPERTAI_WHEEL_CENTER = 130;
+const DESPERTAI_WHEEL_RADIUS = 118;
+const DESPERTAI_WHEEL_LABEL_RADIUS = 78;
+const DESPERTAI_WHEEL_SPIN_DURATION_MS = 2600;
+const DESPERTAI_WHEEL_COLORS = [
+  "#81623a",
+  "#54677a",
+  "#77558a",
+  "#4f745e",
+  "#9a6a56",
+  "#5e6f90",
+  "#8a5d73",
+  "#627854",
+];
+
+function hashWheelSeed(input: string) {
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function createSeededRandom(seed: number) {
+  let value = seed || 1;
+  return () => {
+    value = (value * 1664525 + 1013904223) >>> 0;
+    return value / 4294967296;
+  };
+}
+
+function shuffleWithSeed<T>(items: T[], seed: number) {
+  const arr = [...items];
+  const random = createSeededRandom(seed);
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function polar(cx: number, cy: number, radius: number, angleDegFromTop: number) {
+  const radians = (Math.PI / 180) * angleDegFromTop;
+  return {
+    x: cx + radius * Math.sin(radians),
+    y: cy - radius * Math.cos(radians),
+  };
+}
+
+function describeWheelSlice(
+  cx: number,
+  cy: number,
+  radius: number,
+  startAngle: number,
+  endAngle: number
+) {
+  const start = polar(cx, cy, radius, startAngle);
+  const end = polar(cx, cy, radius, endAngle);
+  const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+  return [
+    `M ${cx} ${cy}`,
+    `L ${start.x} ${start.y}`,
+    `A ${radius} ${radius} 0 ${largeArc} 1 ${end.x} ${end.y}`,
+    "Z",
+  ].join(" ");
+}
+
+function truncateWheelLabel(text: string, maxLength: number) {
+  const cleaned = String(text || "").trim();
+  if (!cleaned) return "Despertai";
+  if (cleaned.length <= maxLength) return cleaned;
+  return `${cleaned.slice(0, maxLength - 1)}…`;
+}
+
+function findWheelSegmentAtPointer(segments: DespertaiWheelSegment[], rotationDeg: number) {
+  if (!segments.length) return null;
+  const pointerAngle = ((-rotationDeg % 360) + 360) % 360;
+  return (
+    segments.find(
+      (segment) =>
+        pointerAngle >= segment.startAngle && pointerAngle < segment.endAngle
+    ) || segments[segments.length - 1]
+  );
+}
 
 function progressStyle(value: number): ProgressStyle {
   const progress = Math.max(0, Math.min(100, value));
@@ -146,8 +240,12 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const [importText, setImportText] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [expandedIssues, setExpandedIssues] = useState<Set<string>>(() => new Set());
-  const [wheelIssue, setWheelIssue] = useState<DespertaiIssue | null>(null);
-  const [wheelSpin, setWheelSpin] = useState(0);
+  const [wheelSpinning, setWheelSpinning] = useState(false);
+  const [wheelRotation, setWheelRotation] = useState(0);
+  const [wheelResultIssueId, setWheelResultIssueId] = useState<string | null>(null);
+  const [wheelLastIssueId, setWheelLastIssueId] = useState<string | null>(null);
+  const [wheelShuffleNonce, setWheelShuffleNonce] = useState(0);
+  const wheelSpinTimeoutRef = useRef<number | null>(null);
 
   const readingQuery = useQuery({
     queryKey,
@@ -184,6 +282,62 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
     }),
     [data]
   );
+  const wheelEligibleIssues = useMemo(() => {
+    const pending = data.despertai.pendingIssues;
+    if (!wheelLastIssueId || pending.length <= 1) return pending;
+    const filtered = pending.filter((issue) => issue.id !== wheelLastIssueId);
+    return filtered.length ? filtered : pending;
+  }, [data.despertai.pendingIssues, wheelLastIssueId]);
+  const wheelOrderedIssues = useMemo(() => {
+    const sorted = [...wheelEligibleIssues].sort((a, b) => a.id.localeCompare(b.id));
+    if (sorted.length <= 1) return sorted;
+    const seed = hashWheelSeed(
+      `${wheelShuffleNonce}:${sorted.map((issue) => issue.id).join("|")}`
+    );
+    return shuffleWithSeed(sorted, seed);
+  }, [wheelEligibleIssues, wheelShuffleNonce]);
+  const wheelSegments = useMemo<DespertaiWheelSegment[]>(() => {
+    if (!wheelOrderedIssues.length) return [];
+    const span = 360 / wheelOrderedIssues.length;
+    return wheelOrderedIssues.map((issue, index) => {
+      const startAngle = index * span;
+      const endAngle = startAngle + span;
+      return {
+        issue,
+        startAngle,
+        endAngle,
+        midAngle: startAngle + span / 2,
+        span,
+        color: DESPERTAI_WHEEL_COLORS[index % DESPERTAI_WHEEL_COLORS.length],
+      };
+    });
+  }, [wheelOrderedIssues]);
+  const wheelResultIssue = useMemo(
+    () => data.despertai.pendingIssues.find((issue) => issue.id === wheelResultIssueId) || null,
+    [data.despertai.pendingIssues, wheelResultIssueId]
+  );
+  const wheelRotorStyle = useMemo(
+    () =>
+      ({
+        transform: `rotate(${wheelRotation}deg)`,
+        transition: `transform ${DESPERTAI_WHEEL_SPIN_DURATION_MS}ms cubic-bezier(0.12, 0.88, 0.16, 1)`,
+      }) as CSSProperties,
+    [wheelRotation]
+  );
+
+  useEffect(() => {
+    if (wheelResultIssueId && !data.despertai.pendingIssues.some((issue) => issue.id === wheelResultIssueId)) {
+      setWheelResultIssueId(null);
+    }
+  }, [data.despertai.pendingIssues, wheelResultIssueId]);
+
+  useEffect(() => {
+    return () => {
+      if (wheelSpinTimeoutRef.current) {
+        window.clearTimeout(wheelSpinTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const patch = (payload: ReadingPatchPayload) => {
     patchMutation.mutate(payload);
@@ -199,19 +353,53 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   };
 
   const spinDespertaiWheel = () => {
-    const pool = data.despertai.pendingIssues;
-    if (!pool.length) return;
-    const candidates = wheelIssue && pool.length > 1
-      ? pool.filter((issue) => issue.id !== wheelIssue.id)
-      : pool;
-    const picked = candidates[Math.floor(Math.random() * candidates.length)];
-    setWheelSpin((current) => current + 1);
-    setWheelIssue(picked);
+    if (wheelSpinning || !wheelSegments.length) return;
+    if (wheelSegments.length === 1) {
+      const onlyIssue = wheelSegments[0].issue;
+      setWheelResultIssueId(onlyIssue.id);
+      setWheelLastIssueId(onlyIssue.id);
+      return;
+    }
+
+    const selectedSegment = wheelSegments[Math.floor(Math.random() * wheelSegments.length)];
+    const safeMargin = Math.min(10, selectedSegment.span * 0.2);
+    const minStop = selectedSegment.startAngle + safeMargin;
+    const maxStop = selectedSegment.endAngle - safeMargin;
+    const stopAngle =
+      maxStop > minStop
+        ? minStop + Math.random() * (maxStop - minStop)
+        : selectedSegment.midAngle;
+    const currentRotation = ((wheelRotation % 360) + 360) % 360;
+    const targetRotationMod = (360 - stopAngle + 360) % 360;
+    let delta = targetRotationMod - currentRotation;
+    if (delta < 0) delta += 360;
+    const finalRotation = wheelRotation + 1800 + delta;
+
+    setWheelResultIssueId(null);
+    setWheelSpinning(true);
+    setWheelRotation(finalRotation);
+    if (wheelSpinTimeoutRef.current) {
+      window.clearTimeout(wheelSpinTimeoutRef.current);
+    }
+    wheelSpinTimeoutRef.current = window.setTimeout(() => {
+      const resultSegment = findWheelSegmentAtPointer(wheelSegments, finalRotation);
+      const resultIssueId = resultSegment?.issue.id || selectedSegment.issue.id;
+      setWheelResultIssueId(resultIssueId);
+      setWheelLastIssueId(resultIssueId);
+      setWheelSpinning(false);
+    }, DESPERTAI_WHEEL_SPIN_DURATION_MS);
+  };
+
+  const shuffleDespertaiWheel = () => {
+    if (wheelSpinning) return;
+    setWheelShuffleNonce((current) => current + 1);
+    setWheelResultIssueId(null);
+    setWheelRotation((current) => current + 45 + Math.floor(Math.random() * 150));
   };
 
   const openWheelIssueTopics = () => {
-    if (!wheelIssue) return;
-    setExpandedIssues((current) => new Set(current).add(wheelIssue.id));
+    if (!wheelResultIssue) return;
+    setExpandedIssues((current) => new Set(current).add(wheelResultIssue.id));
   };
 
   return (
@@ -264,37 +452,167 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
           </div>
 
           <section className="despertai-wheel-card">
-            <button
-              type="button"
-              className="despertai-wheel"
-              onClick={spinDespertaiWheel}
-              disabled={!data.despertai.pendingIssues.length}
-              aria-label="Sortear Despertai não lida"
-            >
-              <span key={wheelSpin}>{wheelIssue ? wheelIssue.dateLabel || wheelIssue.year : "Sortear"}</span>
-            </button>
-            <div className="despertai-wheel-result">
-              <p className="panel-kicker">Roleta</p>
-              <h3>{wheelIssue?.title || "Sortear não lida"}</h3>
-              <p>
-                {wheelIssue
-                  ? `${wheelIssue.year}${wheelIssue.dateLabel ? ` · ${wheelIssue.dateLabel}` : ""}`
-                  : `${data.despertai.pendingIssues.length} revistas na roleta`}
-              </p>
-              <div className="despertai-wheel-actions">
-                <button
-                  type="button"
-                  className="page-link primary"
-                  onClick={spinDespertaiWheel}
-                  disabled={!data.despertai.pendingIssues.length}
-                >
-                  Sortear
-                </button>
-                {wheelIssue ? (
-                  <button type="button" className="page-link inline muted" onClick={openWheelIssueTopics}>
-                    Ver tópicos
+            <div className="activity-wheel-head">
+              <div>
+                <p className="panel-kicker">Roleta</p>
+                <h3>Despertai</h3>
+                <p className="activity-wheel-copy">Clique no centro para sortear.</p>
+              </div>
+              <button
+                type="button"
+                className="secondary"
+                onClick={shuffleDespertaiWheel}
+                disabled={wheelSpinning || wheelOrderedIssues.length <= 1}
+              >
+                Embaralhar
+              </button>
+            </div>
+
+            <div className="activity-wheel-controls">
+              <span className="activity-wheel-meta">
+                {wheelEligibleIssues.length} revistas
+              </span>
+            </div>
+
+            <div className="activity-wheel-stage">
+              <div className={`activity-wheel-dial-wrap ${wheelSpinning ? "spinning" : ""}`}>
+                <span className="activity-wheel-pointer" aria-hidden="true" />
+                <div className="activity-wheel-dial-shell">
+                  <svg
+                    className="activity-wheel-dial"
+                    viewBox="0 0 260 260"
+                    role="img"
+                    aria-label="Roleta de revistas Despertai não lidas"
+                  >
+                    <g
+                      className={`activity-wheel-rotor ${wheelSpinning ? "spinning" : ""}`}
+                      style={wheelRotorStyle}
+                    >
+                      {wheelSegments.map((segment) => {
+                        const labelPoint = polar(
+                          DESPERTAI_WHEEL_CENTER,
+                          DESPERTAI_WHEEL_CENTER,
+                          DESPERTAI_WHEEL_LABEL_RADIUS,
+                          segment.midAngle
+                        );
+                        const labelMaxLength =
+                          segment.span >= 72 ? 11 : segment.span >= 45 ? 9 : 8;
+                        const label = truncateWheelLabel(segment.issue.title, labelMaxLength);
+                        const canRenderLabel = segment.span >= 24;
+
+                        return (
+                          <g key={segment.issue.id}>
+                            <path
+                              d={describeWheelSlice(
+                                DESPERTAI_WHEEL_CENTER,
+                                DESPERTAI_WHEEL_CENTER,
+                                DESPERTAI_WHEEL_RADIUS,
+                                segment.startAngle,
+                                segment.endAngle
+                              )}
+                              className={`activity-wheel-slice ${
+                                !wheelSpinning && segment.issue.id === wheelResultIssueId
+                                  ? "is-result"
+                                  : ""
+                              }`}
+                              style={{ fill: segment.color }}
+                            >
+                              <title>{segment.issue.title}</title>
+                            </path>
+                            {canRenderLabel ? (
+                              <text
+                                x={labelPoint.x}
+                                y={labelPoint.y}
+                                className="activity-wheel-slice-label"
+                                dominantBaseline="middle"
+                                textAnchor="middle"
+                              >
+                                {label}
+                              </text>
+                            ) : null}
+                          </g>
+                        );
+                      })}
+                      <circle
+                        cx={DESPERTAI_WHEEL_CENTER}
+                        cy={DESPERTAI_WHEEL_CENTER}
+                        r={DESPERTAI_WHEEL_RADIUS}
+                        className="activity-wheel-rim"
+                      />
+                    </g>
+                    <circle
+                      cx={DESPERTAI_WHEEL_CENTER}
+                      cy={DESPERTAI_WHEEL_CENTER}
+                      r="31"
+                      className="activity-wheel-hub"
+                    />
+                    <circle
+                      cx={DESPERTAI_WHEEL_CENTER}
+                      cy={DESPERTAI_WHEEL_CENTER}
+                      r="6"
+                      className="activity-wheel-hub-dot"
+                    />
+                  </svg>
+                  <button
+                    type="button"
+                    className="activity-wheel-hub-button"
+                    onClick={spinDespertaiWheel}
+                    disabled={wheelSpinning || wheelEligibleIssues.length === 0}
+                    aria-label={
+                      wheelSpinning
+                        ? "Roleta girando"
+                        : wheelEligibleIssues.length === 0
+                          ? "Nenhuma revista pendente"
+                          : "Sortear revista Despertai"
+                    }
+                  >
+                    {wheelSpinning ? "..." : "Girar"}
                   </button>
-                ) : null}
+                </div>
+              </div>
+
+              <div className="activity-wheel-result despertai-wheel-result">
+                {wheelEligibleIssues.length === 0 ? (
+                  <p className="line-empty">Nenhuma revista pendente.</p>
+                ) : wheelResultIssue ? (
+                  <article className="activity-wheel-result-card despertai-wheel-result-card">
+                    <strong>{wheelResultIssue.title}</strong>
+                    <p>
+                      {wheelResultIssue.year}
+                      {wheelResultIssue.dateLabel ? ` · ${wheelResultIssue.dateLabel}` : ""}
+                      {` · ${wheelResultIssue.readCount}/${wheelResultIssue.totalTopics} tópicos`}
+                    </p>
+                    <div className="activity-wheel-result-actions">
+                      <button type="button" className="secondary" onClick={openWheelIssueTopics}>
+                        Ver tópicos
+                      </button>
+                      <button
+                        type="button"
+                        className="page-link inline muted"
+                        onClick={spinDespertaiWheel}
+                        disabled={wheelSpinning}
+                      >
+                        Sortear de novo
+                      </button>
+                    </div>
+                  </article>
+                ) : (
+                  <article className="activity-wheel-summary-card">
+                    <p className="activity-wheel-summary-title">Na roleta</p>
+                    <ul className="activity-wheel-task-list">
+                      {wheelOrderedIssues.slice(0, 8).map((issue) => (
+                        <li key={issue.id} title={issue.title}>
+                          <span>{truncateWheelLabel(issue.title, 30)}</span>
+                          <small>{issue.year}</small>
+                        </li>
+                      ))}
+                    </ul>
+                    {wheelOrderedIssues.length > 8 ? (
+                      <p className="activity-wheel-more">+{wheelOrderedIssues.length - 8} mais</p>
+                    ) : null}
+                    <p className="activity-wheel-tip">O nome completo aparece depois do sorteio.</p>
+                  </article>
+                )}
               </div>
             </div>
           </section>
