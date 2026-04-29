@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import PublicEntryExperience from "@/components/PublicEntryExperience";
 import TodayQuickLog, { type TodayMoodOption } from "@/components/today/TodayQuickLog";
 import { MOOD_DEFINITIONS, getMoodMeta } from "@/lib/moods";
@@ -135,9 +134,6 @@ export default async function TodayPage() {
     getTodayOverviewData(userEmail),
     getDashboardOnboardingPreferences(userEmail),
   ]);
-  if (!preferences.completed) {
-    redirect("/onboarding");
-  }
   const moodMeta = getMoodMeta(overview.moodCategory);
   const pendingTasks = sortTasks(overview.pendingTasks);
   const nextTaskGroup = getNextTaskGroup(pendingTasks);
@@ -168,7 +164,9 @@ export default async function TodayPage() {
                 ? `${nextTaskGroup.items.length} tasks at ${nextTaskGroup.time}`
                 : nextTaskGroup.items[0]?.title || "Calm start"}
             </h2>
-            <p className="today-panel-copy">{primaryAction.description}</p>
+            <p className="today-panel-copy">
+              {pendingTasks.length ? primaryAction.description : "Mood, sleep, tasks, done."}
+            </p>
             <div className="today-primary-actions">
               <Link href={primaryAction.href} className="page-link primary">
                 {primaryAction.label}
@@ -176,6 +174,11 @@ export default async function TodayPage() {
               <Link href="/calendar" className="page-link inline muted">
                 Calendar
               </Link>
+              {!preferences.completed ? (
+                <Link href="/onboarding" className="page-link inline muted">
+                  Customize
+                </Link>
+              ) : null}
             </div>
           </div>
 

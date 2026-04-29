@@ -63,8 +63,7 @@ export default function TodayQuickLog({
   moodOptions,
 }: TodayQuickLogProps) {
   const router = useRouter();
-  const defaultMood = initialMoodCategory || moodOptions[0]?.key || "neutral";
-  const [selectedMood, setSelectedMood] = useState(defaultMood);
+  const [selectedMood, setSelectedMood] = useState(initialMoodCategory || "");
   const [sleepHours, setSleepHours] = useState(
     initialSleepHours === null || initialSleepHours === undefined
       ? ""
