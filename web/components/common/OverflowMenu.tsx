@@ -84,7 +84,7 @@ export default function OverflowMenu({
           onClickCapture={(event) => {
             const target = event.target as HTMLElement | null;
             if (target?.closest("button, a")) {
-              setOpen(false);
+              window.setTimeout(() => setOpen(false), 0);
             }
           }}
         >
