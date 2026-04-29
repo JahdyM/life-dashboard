@@ -1,5 +1,8 @@
 import { prisma } from "../db/prisma";
-import { DEFAULT_CUSTOM_HABIT_TEMPLATES } from "../config/habits";
+import {
+  DEFAULT_CUSTOM_HABIT_TEMPLATES,
+  isMergedBibleHabitName,
+} from "../config/habits";
 
 export async function getSetting(userEmail: string, key: string, scoped = true) {
   const settingKey = scoped ? `${userEmail}::${key}` : key;
@@ -176,6 +179,7 @@ function normalizeCustomHabits(
   habits.forEach((habit) => {
     const name = String(habit?.name || "").trim();
     if (!name) return;
+    if (isMergedBibleHabitName(name)) return;
     const key = canonicalHabitKey(name);
     if (!seen.has(key)) {
       seen.set(key, { ...habit, name });

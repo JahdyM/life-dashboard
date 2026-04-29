@@ -29,10 +29,54 @@ export type CustomHabitTemplate = {
   active: boolean;
 };
 
+export const MERGED_BIBLE_HABIT_KEY = "bible_reading";
+export const MERGED_BIBLE_HABIT_LABEL = "Bible reading & study";
+
+const MERGED_BIBLE_HABIT_NAMES = new Set([
+  "bible reading",
+  "bible study",
+  "bible reading & study",
+  "bible study & reading",
+  "bible read",
+  "read bible",
+  "study bible",
+]);
+
+function canonicalMergedHabitName(value: string) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/\s*\(books\)/g, "");
+}
+
+export function isMergedBibleHabitName(value: string) {
+  return MERGED_BIBLE_HABIT_NAMES.has(canonicalMergedHabitName(value));
+}
+
+export function getHabitDisplayLabel(key: string, label: string) {
+  if (key === MERGED_BIBLE_HABIT_KEY && isMergedBibleHabitName(label)) {
+    return MERGED_BIBLE_HABIT_LABEL;
+  }
+  return label;
+}
+
+export function isHabitEntryDone(
+  entry: Record<string, unknown> | null | undefined,
+  habitKey: string
+) {
+  if (!entry) return false;
+  if (habitKey === MERGED_BIBLE_HABIT_KEY) {
+    return Boolean(entry.bibleReading || entry.bibleStudy);
+  }
+  const field = getHabitField(habitKey);
+  return Boolean(field ? entry[field] : false);
+}
+
 export const HABIT_FIELD_CONFIGS: HabitFieldConfig[] = [
   {
-    key: "bible_reading",
-    label: "Bible reading",
+    key: MERGED_BIBLE_HABIT_KEY,
+    label: MERGED_BIBLE_HABIT_LABEL,
     field: "bibleReading",
     scope: "shared",
     schedule: "daily",
@@ -87,14 +131,6 @@ export const HABIT_FIELD_CONFIGS: HabitFieldConfig[] = [
     defaultEnabled: true,
   },
   {
-    key: "bible_study",
-    label: "Bible study",
-    field: "bibleStudy",
-    scope: "personal",
-    schedule: "daily",
-    defaultEnabled: true,
-  },
-  {
     key: "dissertation_work",
     label: "Dissertation work",
     field: "dissertationWork",
@@ -137,7 +173,6 @@ export const PERSONAL_HABIT_KEYS = HABIT_FIELD_CONFIGS
   .map(({ key, label }) => ({ key, label }));
 
 export const DEFAULT_CUSTOM_HABIT_TEMPLATES: CustomHabitTemplate[] = [
-  { id: "default-bible-study", name: "Bible study", active: true },
   { id: "default-dissertation-work", name: "Dissertation work", active: true },
   { id: "default-general-reading", name: "General reading (books)", active: true },
   { id: "default-writing", name: "Writing", active: true },
@@ -159,7 +194,7 @@ export const HABIT_FIELD_MAP = HABIT_FIELD_CONFIGS.reduce(
     acc[habit.key] = habit.field;
     return acc;
   },
-  {} as Record<string, HabitFieldName>
+  { bible_study: "bibleReading" } as Record<string, HabitFieldName>
 );
 
 const HABIT_CONFIG_BY_KEY = new Map(HABIT_FIELD_CONFIGS.map((habit) => [habit.key, habit]));

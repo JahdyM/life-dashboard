@@ -16,6 +16,11 @@ import { format } from "date-fns";
 import InlineActionNotice from "@/components/common/InlineActionNotice";
 import { fetchJson } from "@/lib/client/api";
 import { FIXED_SHARED_HABITS, WEEKDAY_LABELS_PT } from "@/lib/constants";
+import {
+  getHabitDisplayLabel,
+  isHabitEntryDone,
+  isMergedBibleHabitName,
+} from "@/lib/config/habits";
 import { getMoodMeta } from "@/lib/moods";
 import type { DashboardOnboardingPreferences } from "@/lib/config/dashboard";
 import type { CustomHabit, DayEntry } from "@/lib/types";
@@ -324,7 +329,12 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
       const configured =
         onboardingQuery.data?.preferences.sharedHabits ||
         FIXED_SHARED_HABITS.map((habit) => ({ ...habit, enabled: true }));
-      return configured.filter((habit) => habit.enabled !== false);
+      return configured
+        .filter((habit) => habit.enabled !== false)
+        .map((habit) => ({
+          ...habit,
+          label: getHabitDisplayLabel(habit.key, habit.label),
+        }));
     },
     [onboardingQuery.data?.preferences.sharedHabits]
   );
@@ -352,6 +362,7 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
     customHabitsRaw.forEach((habit) => {
       const name = String(habit?.name || "").trim();
       if (!name) return;
+      if (isMergedBibleHabitName(name)) return;
       const key = canonicalHabitKey(name);
       if (!seen.has(key)) {
         seen.set(key, habit);
@@ -825,7 +836,7 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
                   key={habit.key}
                   habitKey={habit.key}
                   label={habit.label}
-                  checked={Boolean(dayEntry[toCamel(habit.key) as keyof DayEntry])}
+                  checked={isHabitEntryDone(dayEntry as Record<string, unknown>, habit.key)}
                   disabled={disabled}
                   onToggle={handleToggleHabit}
                 />

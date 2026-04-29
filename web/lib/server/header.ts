@@ -1,5 +1,10 @@
 import { prisma } from "../db/prisma";
-import { isHabitScheduledForWeekday } from "../config/habits";
+import {
+  getHabitDisplayLabel,
+  isHabitEntryDone,
+  isHabitScheduledForWeekday,
+  isMergedBibleHabitName,
+} from "../config/habits";
 import { habitKeyToField } from "./habits";
 import { getEnabledSharedHabitsForUser } from "./onboarding";
 import {
@@ -87,17 +92,19 @@ export async function buildTodayHabitSnapshot(userEmail: string, dateIso: string
   const activeFixedHabits = sharedHabits.filter((habit) =>
     isFixedHabitActiveOnDay(habit.key, dateIso, meetingDays, familyWorshipDay)
   );
-  const activeCustomHabits = customHabits.filter((habit) => habit.active !== false);
+  const activeCustomHabits = customHabits.filter(
+    (habit) => habit.active !== false && !isMergedBibleHabitName(habit.name)
+  );
 
   const entryRecord = (entry || null) as Record<string, unknown> | null;
   const completedHabits: CompletedHabitItem[] = [];
   const fixedCompleted = activeFixedHabits.reduce((sum, habit) => {
     const field = habitKeyToField(habit.key);
     if (!field) return sum;
-    if (!entryRecord?.[field]) return sum;
+    if (!isHabitEntryDone(entryRecord, habit.key)) return sum;
     completedHabits.push({
       id: `fixed-${habit.key}`,
-      title: habit.label,
+      title: getHabitDisplayLabel(habit.key, habit.label),
       meta: "Habit",
       kind: "habit",
     });

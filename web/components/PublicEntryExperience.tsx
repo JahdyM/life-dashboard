@@ -6,7 +6,7 @@ type PublicEntryExperienceProps = {
 
 const previewTasks = [
   {
-    title: "Bible reading",
+    title: "Bible reading & study",
     meta: "07:10 · 20 min",
     state: "Done",
     variant: "done",
@@ -32,7 +32,7 @@ const previewCompleted = [
 ];
 
 const previewStreaks = [
-  "Bible reading · 12d shared",
+  "Bible reading & study · 12d shared",
   "Workout · 6d shared",
   "Family worship · 4d shared",
 ];

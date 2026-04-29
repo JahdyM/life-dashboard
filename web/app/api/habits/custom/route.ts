@@ -7,6 +7,7 @@ import {
   zodErrorMessage,
 } from "@/lib/server/response";
 import { canonicalHabitKey, ensureDefaultCustomHabits, getCustomHabits, saveCustomHabits } from "@/lib/server/settings";
+import { isMergedBibleHabitName } from "@/lib/config/habits";
 import { randomUUID } from "crypto";
 import { customHabitSchema } from "@/lib/server/schemas";
 import { logServerEvent } from "@/lib/server/logger";
@@ -42,6 +43,9 @@ export async function POST(request: NextRequest) {
     const parsed = customHabitSchema.safeParse(rawPayload);
     if (!parsed.success) return jsonError(zodErrorMessage(parsed.error), 400);
     const name = parsed.data.name;
+    if (isMergedBibleHabitName(name)) {
+      return jsonError("Use Bible reading & study instead.", 400);
+    }
     const current = await getCustomHabits(userEmail);
     const newKey = canonicalHabitKey(name);
     if (current.some((habit) => canonicalHabitKey(habit.name) === newKey)) {

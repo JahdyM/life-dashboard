@@ -34,7 +34,12 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { format, addDays, startOfWeek, endOfWeek } from "date-fns";
 import { FIXED_SHARED_HABITS } from "@/lib/constants";
-import { isHabitScheduledForWeekday } from "@/lib/config/habits";
+import {
+  getHabitDisplayLabel,
+  isHabitEntryDone,
+  isHabitScheduledForWeekday,
+  isMergedBibleHabitName,
+} from "@/lib/config/habits";
 import type { DashboardOnboardingPreferences } from "@/lib/config/dashboard";
 import type {
   CustomHabit,
@@ -180,6 +185,13 @@ const canonicalHabitKey = (name: string) =>
     .toLowerCase()
     .replace(/\s+/g, " ")
     .replace(/\s*\(books\)/g, "");
+
+function taskTitleMatchesHabit(taskTitle: string, habit: Pick<DailyHabitItem, "key" | "label">) {
+  if (habit.key === "bible_reading") {
+    return isMergedBibleHabitName(taskTitle);
+  }
+  return canonicalHabitKey(taskTitle) === canonicalHabitKey(habit.label);
+}
 
 const emailHandle = (email: string) => {
   const normalized = String(email || "").trim().toLowerCase();
@@ -1187,7 +1199,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     const configured =
       onboardingQuery.data?.preferences.sharedHabits ||
       FIXED_SHARED_HABITS.map((habit) => ({ ...habit, enabled: true }));
-    return configured.filter((habit) => habit.enabled !== false);
+    return configured
+      .filter((habit) => habit.enabled !== false)
+      .map((habit) => ({
+        ...habit,
+        label: getHabitDisplayLabel(habit.key, habit.label),
+      }));
   }, [onboardingQuery.data?.preferences.sharedHabits]);
 
   const meetingDays = useMemo(() => {
@@ -1201,6 +1218,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     customHabitsRaw.forEach((habit) => {
       const name = String(habit?.name || "").trim();
       if (!name) return;
+      if (isMergedBibleHabitName(name)) return;
       const canonical = canonicalHabitKey(name);
       if (!seen.has(canonical)) seen.set(canonical, habit);
     });
@@ -1212,17 +1230,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       isHabitScheduledOnDate(habit.key, selectedDayIso, meetingDays, familyDay)
     ).map((habit) => {
       const taskIds = tasksForDay
-        .filter(
-          (task) =>
-            canonicalHabitKey(task.title) === canonicalHabitKey(habit.label)
-        )
+        .filter((task) => taskTitleMatchesHabit(task.title, habit))
         .map((task) => task.id);
       return {
         id: `fixed:${habit.key}`,
         label: habit.label,
         kind: "fixed" as const,
         key: habit.key,
-        done: Boolean(dayEntry[toCamel(habit.key) as keyof DayEntry]),
+        done: isHabitEntryDone(dayEntry as Record<string, unknown>, habit.key),
         inAgenda: taskIds.length > 0,
         taskIds,
       };
@@ -1615,7 +1630,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       if (!task.scheduledDate || task.scheduledDate !== selectedDayIso) return;
       const canonicalTitle = canonicalHabitKey(task.title);
       const linkedHabit = dailyHabits.find(
-        (habit) => canonicalHabitKey(habit.label) === canonicalTitle
+        (habit) => taskTitleMatchesHabit(canonicalTitle, habit)
       );
       if (!linkedHabit) return;
       if (linkedHabit.kind === "fixed") {

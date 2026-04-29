@@ -3,6 +3,7 @@ import {
   HABIT_DEFAULT_VALUES,
   HABIT_FIELD_NAMES,
   getHabitField,
+  isHabitEntryDone,
   isHabitScheduledForWeekday,
   type HabitFieldName,
 } from "../config/habits";
@@ -181,6 +182,7 @@ export async function computeSharedHabitStreaks(
         },
         {} as Record<HabitFieldName, true>
       ),
+      bibleStudy: true,
     },
   });
   const byDate = new Map<string, (typeof entries)[number]>(
@@ -210,7 +212,7 @@ export async function computeSharedHabitStreaks(
       familyWorshipDay
     );
     const todayDone = todayApplicable
-      ? Boolean(byDate.get(todayIso)?.[field])
+      ? isHabitEntryDone(byDate.get(todayIso) as Record<string, unknown> | undefined, habit.key)
       : false;
 
     let streak = 0;
@@ -222,7 +224,7 @@ export async function computeSharedHabitStreaks(
         familyWorshipDay
       );
       if (!applicable) continue;
-      const done = Boolean(byDate.get(dayIso)?.[field]);
+      const done = isHabitEntryDone(byDate.get(dayIso) as Record<string, unknown> | undefined, habit.key);
       if (!done) break;
       streak += 1;
     }
@@ -237,7 +239,7 @@ export async function computeSharedHabitStreaks(
         familyWorshipDay
       );
       if (!applicable) continue;
-      const done = Boolean(byDate.get(dayIso)?.[field]);
+      const done = isHabitEntryDone(byDate.get(dayIso) as Record<string, unknown> | undefined, habit.key);
       if (done) {
         running += 1;
         if (running > maxStreak) maxStreak = running;

@@ -12,6 +12,7 @@ import { MOOD_DEFINITIONS } from "@/lib/moods";
 import {
   DEFAULT_CUSTOM_HABIT_TEMPLATES,
   FIXED_SHARED_HABITS,
+  getHabitDisplayLabel,
 } from "@/lib/config/habits";
 import { SPIRITUAL_STREAK_BOARD_CONFIGS } from "@/lib/config/spiritual";
 import {
@@ -97,6 +98,15 @@ function normalizeStarterPreferences(
   });
 }
 
+function normalizeSharedHabitPreferences(
+  stored: Array<{ key?: string; label?: string; enabled?: boolean }> | undefined
+) {
+  return normalizeNamedPreferences(stored, FIXED_SHARED_HABITS).map((habit) => ({
+    ...habit,
+    label: getHabitDisplayLabel(habit.key, habit.label),
+  }));
+}
+
 function normalizeStoredPreferences(raw: StoredOnboardingPreferences | null): DashboardOnboardingPreferences {
   const modules = buildDashboardModuleViews(
     (raw?.modules || [])
@@ -118,7 +128,7 @@ function normalizeStoredPreferences(raw: StoredOnboardingPreferences | null): Da
     workspaceMode: raw?.workspace_mode === "shared" ? "shared" : "solo",
     partnerEmail: normalizePartnerEmail(raw?.partner_email),
     modules,
-    sharedHabits: normalizeNamedPreferences(raw?.shared_habits, FIXED_SHARED_HABITS),
+    sharedHabits: normalizeSharedHabitPreferences(raw?.shared_habits),
     customHabitStarters: normalizeStarterPreferences(raw?.custom_habit_starters),
     spiritualStreaks: normalizeNamedPreferences(raw?.spiritual_streaks, SPIRITUAL_STREAK_BOARD_CONFIGS),
     moods: normalizeNamedPreferences(raw?.moods, MOOD_DEFINITIONS),
@@ -219,9 +229,8 @@ export async function saveDashboardOnboardingPreferences(
     }))
   );
 
-  const sharedHabits = normalizeNamedPreferences(
-    input.sharedHabits ?? current.sharedHabits,
-    FIXED_SHARED_HABITS
+  const sharedHabits = normalizeSharedHabitPreferences(
+    input.sharedHabits ?? current.sharedHabits
   );
   const customHabitStarters = normalizeStarterPreferences(
     input.customHabitStarters ?? current.customHabitStarters
@@ -261,7 +270,10 @@ export async function getEnabledSharedHabitsForUser(userEmail: string) {
   const preferences = await getDashboardOnboardingPreferences(userEmail);
   return preferences.sharedHabits
     .filter((habit) => habit.enabled)
-    .map((habit) => ({ key: habit.key, label: habit.label }));
+    .map((habit) => ({
+      key: habit.key,
+      label: getHabitDisplayLabel(habit.key, habit.label),
+    }));
 }
 
 export async function getEnabledSpiritualStreakConfigsForUser(userEmail: string) {
