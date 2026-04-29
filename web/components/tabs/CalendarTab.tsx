@@ -434,7 +434,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
     onShare(task.id);
   }, [onShare, task.id]);
   const handleDragStart = useCallback(
-    (event: DragEvent<HTMLButtonElement>) => {
+    (event: DragEvent<HTMLElement>) => {
       if (!draggable) return;
       event.dataTransfer.effectAllowed = "move";
       event.dataTransfer.setData("text/plain", task.id);
@@ -462,9 +462,13 @@ const EditableTaskRow = memo(function EditableTaskRow({
 
   return (
     <article
-      className={`task-row task-row-editable ${active ? "active" : ""} ${allSubtasksDone && !draft.isDone ? "task-row-ready" : ""} ${shareLabel ? "task-row-shared" : ""} ${dragging ? "task-row-dragging" : ""} ${dropTarget ? "task-row-drop-target" : ""}`}
+      className={`task-row task-row-editable ${active ? "active" : ""} ${allSubtasksDone && !draft.isDone ? "task-row-ready" : ""} ${shareLabel ? "task-row-shared" : ""} ${draggable ? "task-row-draggable" : ""} ${dragging ? "task-row-dragging" : ""} ${dropTarget ? "task-row-drop-target" : ""}`}
+      draggable={draggable}
+      onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
+      onDragEnd={onDragEndTask}
+      title={draggable ? "Drag to reorder" : undefined}
     >
       <div className="task-row-compact-head">
         <input
@@ -507,18 +511,13 @@ const EditableTaskRow = memo(function EditableTaskRow({
           {hasSubtasks && expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
         </button>
         {draggable ? (
-          <button
-            type="button"
+          <span
             className="task-row-drag-handle"
-            draggable
-            onClick={(event) => event.preventDefault()}
-            onDragStart={handleDragStart}
-            onDragEnd={onDragEndTask}
-            aria-label={`Drag ${draft.title} to reorder`}
             title="Drag to reorder"
+            aria-hidden="true"
           >
             <GripVertical size={15} />
-          </button>
+          </span>
         ) : null}
         {showOrderControls && !draft.isDone ? (
           <div

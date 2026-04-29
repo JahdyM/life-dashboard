@@ -1505,6 +1505,22 @@ button.link.danger {
   outline-offset: 3px;
 }
 
+.task-row-draggable {
+  cursor: grab;
+}
+
+.task-row-draggable .task-row-open {
+  cursor: grab;
+}
+
+.task-row-draggable:active {
+  cursor: grabbing;
+}
+
+.task-row-draggable:active .task-row-open {
+  cursor: grabbing;
+}
+
 .task-subtask-toggle {
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(255, 255, 255, 0.04);
@@ -1580,20 +1596,16 @@ button.link.danger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  cursor: grab;
+  pointer-events: none;
   touch-action: none;
   transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
 }
 
-.task-row-drag-handle:hover,
-.task-row-drag-handle:focus-visible {
+.task-row-draggable:hover .task-row-drag-handle,
+.task-row-draggable:focus-within .task-row-drag-handle {
   border-color: rgba(211, 173, 112, 0.38);
   background: rgba(211, 173, 112, 0.14);
   color: #fff4dd;
-}
-
-.task-row-drag-handle:active {
-  cursor: grabbing;
 }
 
 .task-row-dragging {
