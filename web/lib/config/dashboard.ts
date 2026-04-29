@@ -5,6 +5,7 @@ export const DASHBOARD_MODULE_KEYS = [
   "ministry",
   "mood",
   "books",
+  "despertai",
   "spiritual_goals",
   "spiritual_streaks",
   "stats",
@@ -20,6 +21,7 @@ export type DashboardModuleIconKey =
   | "ministry"
   | "moon"
   | "book"
+  | "newspaper"
   | "telescope"
   | "book_heart"
   | "chart"
@@ -128,6 +130,15 @@ export const DASHBOARD_MODULES: DashboardModuleConfig[] = [
     icon: "book",
     defaultEnabled: true,
     order: 60,
+  },
+  {
+    key: "despertai",
+    label: "Despertai",
+    href: "/despertai",
+    navGroup: "secondary",
+    icon: "newspaper",
+    defaultEnabled: true,
+    order: 65,
   },
   {
     key: "spiritual_goals",

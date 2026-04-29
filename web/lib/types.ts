@@ -538,3 +538,55 @@ export type BooksPageData = {
   progressPercent: number;
   items: BookEntry[];
 };
+
+export type DespertaiTopic = {
+  id: string;
+  title: string;
+  read: boolean;
+};
+
+export type DespertaiIssue = {
+  id: string;
+  year: number;
+  dateLabel: string | null;
+  title: string;
+  topics: DespertaiTopic[];
+  readCount: number;
+  totalTopics: number;
+  progressPercent: number;
+  isFinished: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type BibleBookProgress = {
+  key: string;
+  name: string;
+  chapters: number;
+  readChapters: number[];
+  readCount: number;
+  progressPercent: number;
+};
+
+export type BibleSectionProgress = {
+  title: string;
+  books: BibleBookProgress[];
+};
+
+export type ReadingPageData = {
+  despertai: {
+    totalIssues: number;
+    finishedIssues: number;
+    totalTopics: number;
+    readTopics: number;
+    progressPercent: number;
+    pendingIssues: DespertaiIssue[];
+    finishedIssuesList: DespertaiIssue[];
+  };
+  bible: {
+    totalChapters: number;
+    readChapters: number;
+    progressPercent: number;
+    sections: BibleSectionProgress[];
+  };
+};

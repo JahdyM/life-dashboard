@@ -13,6 +13,7 @@ import {
   MoreHorizontal,
   MoonStar,
   Sparkles,
+  Newspaper,
   Telescope,
   TimerReset,
 } from "lucide-react";
@@ -36,6 +37,7 @@ function NavLink({ item, active }: { item: DashboardModuleConfig; active: boolea
     ministry: <BookOpenText size={14} />,
     moon: <MoonStar size={14} />,
     book: <BookOpen size={14} />,
+    newspaper: <Newspaper size={14} />,
     telescope: <Telescope size={14} />,
     book_heart: <BookHeart size={14} />,
     chart: <ChartNoAxesCombined size={14} />,

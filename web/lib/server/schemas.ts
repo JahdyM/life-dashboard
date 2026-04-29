@@ -358,6 +358,45 @@ export const bookCreateSchema = z
   })
   .strict();
 
+export const readingPatchSchema = z.discriminatedUnion("type", [
+  z
+    .object({
+      type: z.literal("import_despertai"),
+      raw: z.string().min(1).max(500_000),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("toggle_despertai_topic"),
+      issue_id: taskIdSchema,
+      topic_id: taskIdSchema,
+      read: z.boolean(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("toggle_despertai_issue"),
+      issue_id: taskIdSchema,
+      read: z.boolean(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("set_despertai_read_count"),
+      issue_id: taskIdSchema,
+      read_count: z.number().int().min(0).max(500),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("toggle_bible_chapter"),
+      book_key: z.string().trim().min(1).max(80),
+      chapter: z.number().int().min(1).max(200),
+      read: z.boolean(),
+    })
+    .strict(),
+]);
+
 export const bookPatchSchema = z
   .object({
     title: z.string().trim().min(1).max(220).optional(),
