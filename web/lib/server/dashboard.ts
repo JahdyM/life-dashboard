@@ -35,6 +35,7 @@ export type TodayOverviewData = DashboardShellData & {
     kind: "task" | "habit";
     scheduledTime?: string | null;
   }>;
+  sleepHours: number | null;
   moodNote: string | null;
   quickNotesText: string;
 };
@@ -70,6 +71,7 @@ const getTodayBaseData = cache(async (userEmail: string) => {
       select: {
         moodCategory: true,
         moodNote: true,
+        sleepHours: true,
       },
     }),
     buildTodayHabitSnapshot(userEmail, todayIso),
@@ -103,6 +105,7 @@ const getTodayBaseData = cache(async (userEmail: string) => {
     nextTask: selectNextTask(todayTasks),
     moodCategory: todayEntry?.moodCategory || null,
     moodNote: todayEntry?.moodNote || null,
+    sleepHours: todayEntry?.sleepHours ?? null,
     quickNotesText,
   };
 });
@@ -140,6 +143,7 @@ export const getTodayOverviewData = cache(
       pendingTasks: todayBase.pendingTasks,
       completedTasks: todayBase.completedTasks,
       completedItems: todayBase.completedItems,
+      sleepHours: todayBase.sleepHours,
       moodNote: todayBase.moodNote,
       quickNotesText: todayBase.quickNotesText,
     };

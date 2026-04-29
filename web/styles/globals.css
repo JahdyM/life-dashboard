@@ -427,6 +427,103 @@ a {
   gap: 10px;
 }
 
+.today-quick-log {
+  align-content: start;
+}
+
+.today-save-state {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding-top: 4px;
+}
+
+.today-quick-section {
+  display: grid;
+  gap: 9px;
+}
+
+.today-quick-label {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.today-mood-picker {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 2px 8px;
+  scrollbar-width: thin;
+}
+
+.today-mood-chip {
+  min-width: 76px;
+  border: 1px solid rgba(226, 213, 191, 0.14);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at top, color-mix(in srgb, var(--mood-color) 32%, transparent), transparent 68%),
+    rgba(255, 255, 255, 0.035);
+  color: var(--text);
+  padding: 10px 9px;
+  display: grid;
+  gap: 5px;
+  justify-items: center;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.today-mood-chip:hover,
+.today-mood-chip:focus-visible,
+.today-mood-chip.active {
+  border-color: color-mix(in srgb, var(--mood-color) 65%, rgba(255, 255, 255, 0.2));
+  background:
+    radial-gradient(circle at top, color-mix(in srgb, var(--mood-color) 42%, transparent), transparent 72%),
+    rgba(255, 255, 255, 0.06);
+  transform: translateY(-1px);
+}
+
+.today-mood-chip span {
+  font-size: 21px;
+  line-height: 1;
+}
+
+.today-mood-chip small {
+  max-width: 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.today-sleep-field {
+  display: grid;
+  gap: 9px;
+}
+
+.today-sleep-input-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.today-sleep-input-wrap input {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  min-height: 32px;
+  font-size: 22px;
+  color: var(--text);
+}
+
+.today-sleep-input-wrap small {
+  color: var(--text-muted);
+}
+
 .app-nav-primary {
   display: flex;
   flex-wrap: wrap;

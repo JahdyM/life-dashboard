@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import PublicEntryExperience from "@/components/PublicEntryExperience";
-import { getMoodMeta } from "@/lib/moods";
+import TodayQuickLog, { type TodayMoodOption } from "@/components/today/TodayQuickLog";
+import { MOOD_DEFINITIONS, getMoodMeta } from "@/lib/moods";
 import { getTodayOverviewData } from "@/lib/server/dashboard";
 import { getDashboardOnboardingPreferences } from "@/lib/server/onboarding";
 import { getOptionalPageEmail } from "@/lib/server/pageAuth";
@@ -98,6 +99,32 @@ function formatCompletedMeta(item: { kind: "task" | "habit"; meta: string | null
   return item.meta || "Task";
 }
 
+function buildMoodOptions(
+  preferences: Awaited<ReturnType<typeof getDashboardOnboardingPreferences>>
+): TodayMoodOption[] {
+  const configured = preferences.moods?.length
+    ? preferences.moods.filter((mood) => mood.enabled !== false)
+    : MOOD_DEFINITIONS.map((mood) => ({
+        key: mood.key,
+        label: mood.label,
+        enabled: true,
+      }));
+  const byKey = new Map(MOOD_DEFINITIONS.map((mood) => [mood.key, mood]));
+
+  return configured
+    .map((mood) => {
+      const meta = byKey.get(mood.key);
+      if (!meta) return null;
+      return {
+        key: meta.key,
+        label: mood.label || meta.label,
+        emoji: meta.emoji,
+        color: meta.color,
+      };
+    })
+    .filter((mood): mood is TodayMoodOption => Boolean(mood));
+}
+
 export default async function TodayPage() {
   const userEmail = await getOptionalPageEmail();
   if (!userEmail) {
@@ -115,7 +142,13 @@ export default async function TodayPage() {
   const pendingTasks = sortTasks(overview.pendingTasks);
   const nextTaskGroup = getNextTaskGroup(pendingTasks);
   const completedItems = overview.completedItems.slice(0, 8);
+  const pendingPreview = pendingTasks.slice(0, 6);
   const notePreview = overview.quickNotesText.trim();
+  const moodOptions = buildMoodOptions(preferences);
+  const sleepLabel =
+    overview.sleepHours === null || overview.sleepHours === undefined
+      ? "Sleep not logged"
+      : `${overview.sleepHours}h sleep`;
 
   const primaryAction = buildPrimaryAction({
     hasPendingTasks: pendingTasks.length > 0,
@@ -147,9 +180,10 @@ export default async function TodayPage() {
           </div>
 
           <div className="today-next-card">
-            <span className="today-next-label">Status</span>
+            <span className="today-next-label">Day</span>
             <strong>{pendingTasks.length} pending</strong>
-            <p>{completedItems.length} done today</p>
+            <p>{completedItems.length} done</p>
+            <p>{sleepLabel}</p>
             {moodMeta ? (
               <p className="today-next-single-title">
                 {moodMeta.emoji} {moodMeta.label}
@@ -183,6 +217,48 @@ export default async function TodayPage() {
       </section>
 
       <section className="today-grid">
+        <TodayQuickLog
+          todayIso={overview.todayIso}
+          initialMoodCategory={overview.moodCategory}
+          initialSleepHours={overview.sleepHours}
+          moodOptions={moodOptions}
+        />
+
+        <article className="today-panel">
+          <div className="today-panel-head compact">
+            <div>
+              <p className="panel-kicker">Plan</p>
+              <h2>Tasks</h2>
+            </div>
+            <Link href="/calendar" className="page-link inline muted">
+              Open
+            </Link>
+          </div>
+          {pendingPreview.length ? (
+            <ul className="today-compact-list">
+              {pendingPreview.map((task) => (
+                <li key={task.id}>
+                  <span>{task.title}</span>
+                  <small>
+                    {formatTaskMeta(task.scheduledTime, task.estimatedMinutes) ||
+                      (getFocusOrder(task) ? "Next" : "No time")}
+                  </small>
+                </li>
+              ))}
+              {pendingTasks.length > pendingPreview.length ? (
+                <li>
+                  <span>+{pendingTasks.length - pendingPreview.length} more</span>
+                  <small>Calendar</small>
+                </li>
+              ) : null}
+            </ul>
+          ) : (
+            <div className="today-empty">
+              <p>No pending tasks.</p>
+            </div>
+          )}
+        </article>
+
         <article className="today-panel">
           <div className="today-panel-head compact">
             <div>
