@@ -41,10 +41,14 @@ function IssueCard({
   issue,
   onPatch,
   busy,
+  expanded,
+  onToggleExpanded,
 }: {
   issue: DespertaiIssue;
   onPatch: (payload: ReadingPatchPayload) => void;
   busy: boolean;
+  expanded: boolean;
+  onToggleExpanded: (issueId: string) => void;
 }) {
   return (
     <article className={`despertai-issue-card ${issue.isFinished ? "finished" : ""}`}>
@@ -52,7 +56,14 @@ function IssueCard({
         <ProgressDonut value={issue.progressPercent} label="lido" />
         <div className="despertai-issue-title-block">
           <p className="panel-kicker">{issue.year}{issue.dateLabel ? ` · ${issue.dateLabel}` : ""}</p>
-          <h3>{issue.title}</h3>
+          <button
+            type="button"
+            className="despertai-issue-title-button"
+            onClick={() => onToggleExpanded(issue.id)}
+            aria-expanded={expanded}
+          >
+            {issue.title}
+          </button>
           <p>{issue.readCount}/{issue.totalTopics} tópicos</p>
           {issue.url ? (
             <a href={issue.url} target="_blank" rel="noreferrer" className="despertai-source-link">
@@ -99,30 +110,32 @@ function IssueCard({
         />
       </label>
 
-      <div className="despertai-topic-grid">
-        {issue.topics.length ? (
-          issue.topics.map((topic) => (
-            <label key={topic.id} className={`despertai-topic ${topic.read ? "read" : ""}`}>
-              <input
-                type="checkbox"
-                checked={topic.read}
-                disabled={busy}
-                onChange={(event) =>
-                  onPatch({
-                    type: "toggle_despertai_topic",
-                    issue_id: issue.id,
-                    topic_id: topic.id,
-                    read: event.target.checked,
-                  })
-                }
-              />
-              <span>{topic.title}</span>
-            </label>
-          ))
-        ) : (
-          <p className="line-empty">Sem tópicos.</p>
-        )}
-      </div>
+      {expanded ? (
+        <div className="despertai-topic-grid">
+          {issue.topics.length ? (
+            issue.topics.map((topic) => (
+              <label key={topic.id} className={`despertai-topic ${topic.read ? "read" : ""}`}>
+                <input
+                  type="checkbox"
+                  checked={topic.read}
+                  disabled={busy}
+                  onChange={(event) =>
+                    onPatch({
+                      type: "toggle_despertai_topic",
+                      issue_id: issue.id,
+                      topic_id: topic.id,
+                      read: event.target.checked,
+                    })
+                  }
+                />
+                <span>{topic.title}</span>
+              </label>
+            ))
+          ) : (
+            <p className="line-empty">Sem tópicos.</p>
+          )}
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -132,6 +145,9 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const [activeTab, setActiveTab] = useState<"despertai" | "bible">("despertai");
   const [importText, setImportText] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
+  const [expandedIssues, setExpandedIssues] = useState<Set<string>>(() => new Set());
+  const [wheelIssue, setWheelIssue] = useState<DespertaiIssue | null>(null);
+  const [wheelSpin, setWheelSpin] = useState(0);
 
   const readingQuery = useQuery({
     queryKey,
@@ -171,6 +187,31 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
 
   const patch = (payload: ReadingPatchPayload) => {
     patchMutation.mutate(payload);
+  };
+
+  const toggleExpandedIssue = (issueId: string) => {
+    setExpandedIssues((current) => {
+      const next = new Set(current);
+      if (next.has(issueId)) next.delete(issueId);
+      else next.add(issueId);
+      return next;
+    });
+  };
+
+  const spinDespertaiWheel = () => {
+    const pool = data.despertai.pendingIssues;
+    if (!pool.length) return;
+    const candidates = wheelIssue && pool.length > 1
+      ? pool.filter((issue) => issue.id !== wheelIssue.id)
+      : pool;
+    const picked = candidates[Math.floor(Math.random() * candidates.length)];
+    setWheelSpin((current) => current + 1);
+    setWheelIssue(picked);
+  };
+
+  const openWheelIssueTopics = () => {
+    if (!wheelIssue) return;
+    setExpandedIssues((current) => new Set(current).add(wheelIssue.id));
   };
 
   return (
@@ -222,6 +263,42 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
             </article>
           </div>
 
+          <section className="despertai-wheel-card">
+            <button
+              type="button"
+              className="despertai-wheel"
+              onClick={spinDespertaiWheel}
+              disabled={!data.despertai.pendingIssues.length}
+              aria-label="Sortear Despertai não lida"
+            >
+              <span key={wheelSpin}>{wheelIssue ? wheelIssue.dateLabel || wheelIssue.year : "Sortear"}</span>
+            </button>
+            <div className="despertai-wheel-result">
+              <p className="panel-kicker">Roleta</p>
+              <h3>{wheelIssue?.title || "Sortear não lida"}</h3>
+              <p>
+                {wheelIssue
+                  ? `${wheelIssue.year}${wheelIssue.dateLabel ? ` · ${wheelIssue.dateLabel}` : ""}`
+                  : `${data.despertai.pendingIssues.length} revistas na roleta`}
+              </p>
+              <div className="despertai-wheel-actions">
+                <button
+                  type="button"
+                  className="page-link primary"
+                  onClick={spinDespertaiWheel}
+                  disabled={!data.despertai.pendingIssues.length}
+                >
+                  Sortear
+                </button>
+                {wheelIssue ? (
+                  <button type="button" className="page-link inline muted" onClick={openWheelIssueTopics}>
+                    Ver tópicos
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </section>
+
           <details className="despertai-import-card">
             <summary>Importar tabela</summary>
             <textarea
@@ -252,6 +329,8 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
                     issue={issue}
                     busy={patchMutation.isPending}
                     onPatch={patch}
+                    expanded={expandedIssues.has(issue.id)}
+                    onToggleExpanded={toggleExpandedIssue}
                   />
                 ))}
               </div>
@@ -273,6 +352,8 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
                     issue={issue}
                     busy={patchMutation.isPending}
                     onPatch={patch}
+                    expanded={expandedIssues.has(issue.id)}
+                    onToggleExpanded={toggleExpandedIssue}
                   />
                 ))}
               </div>
