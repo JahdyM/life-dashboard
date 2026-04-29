@@ -6,7 +6,7 @@ import { getAuthenticatedPageEmail } from "@/lib/server/pageAuth";
 import { getReadingPageData } from "@/lib/server/reading";
 
 export const metadata: Metadata = {
-  title: "Despertai",
+  title: "Publicações",
 };
 
 export default async function DespertaiPage() {
@@ -15,8 +15,8 @@ export default async function DespertaiPage() {
 
   return (
     <div className="route-stack">
-      <PageSectionIntro title="Despertai" />
-      <ErrorBoundary name="Despertai">
+      <PageSectionIntro title="Publicações" />
+      <ErrorBoundary name="Publicações">
         <DespertaiClient initialData={data} />
       </ErrorBoundary>
     </div>

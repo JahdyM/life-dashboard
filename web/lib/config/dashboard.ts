@@ -133,7 +133,7 @@ export const DASHBOARD_MODULES: DashboardModuleConfig[] = [
   },
   {
     key: "despertai",
-    label: "Despertai",
+    label: "Publicações",
     href: "/despertai",
     navGroup: "secondary",
     icon: "newspaper",
