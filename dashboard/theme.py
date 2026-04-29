@@ -240,7 +240,7 @@ h1, h2, h3, .page-title {
     border-radius: 12px;
     border: 1px solid var(--border);
     backdrop-filter: blur(6px);
-    background: rgba(18, 14, 26, 0.65);
+    background: var(--calendar-panel);
     margin-bottom: 0.6rem;
 }
 
@@ -248,7 +248,7 @@ h1, h2, h3, .page-title {
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 0.45rem 0.65rem;
-    background: rgba(22, 18, 32, 0.7);
+    background: var(--bg-card);
     margin-bottom: 0.35rem;
 }
 
@@ -962,54 +962,6 @@ div[data-testid="stHeader"], div[data-testid="stToolbar"] {
 
 .calendar-hacker [data-testid="stHorizontalBlock"] {
     border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-}
-
-.calendar-card {
-    background: rgba(0, 0, 0, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    padding: 0.4rem 0.5rem;
-    backdrop-filter: blur(6px);
-}
-
-.calendar-card .fc {
-    font-family: "IBM Plex Mono", monospace;
-    font-size: 12px;
-    color: #f2f2f2;
-}
-
-.calendar-card .fc .fc-toolbar-title {
-    font-size: 0.8rem;
-    font-weight: 600;
-}
-
-.calendar-card .fc .fc-button {
-    padding: 0.12rem 0.3rem;
-    font-size: 0.68rem;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: transparent;
-    color: #f2f2f2;
-}
-
-.calendar-card .fc .fc-scrollgrid,
-.calendar-card .fc .fc-scrollgrid-section,
-.calendar-card .fc .fc-timegrid-divider,
-.calendar-card .fc .fc-timegrid-slot {
-    border-color: rgba(255, 255, 255, 0.06) !important;
-}
-
-.calendar-card .fc .fc-timegrid-slot {
-    height: 28px;
-}
-
-.calendar-card .fc .fc-event {
-    background: rgba(30, 140, 80, 0.35) !important;
-    border: 1px solid rgba(124, 252, 138, 0.6) !important;
-    color: #eafff3 !important;
-    border-radius: 6px;
-    padding: 1px 4px;
-    font-size: 11px;
 }
 
 .task-list .stButton > button:hover {

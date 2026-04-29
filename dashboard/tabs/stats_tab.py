@@ -80,12 +80,52 @@ def render_stats_tab(ctx):
             round(weekly["boredom_minutes"].mean(), 1) if not weekly["boredom_minutes"].isna().all() else 0,
         )
 
-    st.markdown("<div class='small-label' style='margin-top:8px;'>Charts</div>", unsafe_allow_html=True)
-    view = st.selectbox("Window", ["Last 7 days", "This month", "This quarter"], index=0, key="stats.view")
-    if view == "Last 7 days":
+    # Best streaks section
+    if not data.empty:
+        st.markdown("<div class='small-label' style='margin-top:10px;'>Maiores sequências</div>", unsafe_allow_html=True)
+        from dashboard.constants import HABITS, FIXED_COUPLE_HABIT_KEYS, DEFAULT_HABIT_LABELS
+        streak_cols = st.columns(4)
+        streaks_computed = []
+        for habit_key, _ in HABITS:
+            if habit_key not in FIXED_COUPLE_HABIT_KEYS:
+                continue
+            sorted_dates = sorted(data["date"].tolist())
+            best = 0
+            current_streak = 0
+            prev_date = None
+            for d in sorted_dates:
+                row = data[data["date"] == d]
+                if row.empty:
+                    continue
+                done = int(row.iloc[0].get(habit_key, 0) or 0)
+                if done:
+                    if prev_date and (d - prev_date).days == 1:
+                        current_streak += 1
+                    else:
+                        current_streak = 1
+                    best = max(best, current_streak)
+                else:
+                    current_streak = 0
+                prev_date = d
+            if best > 0:
+                streaks_computed.append((DEFAULT_HABIT_LABELS.get(habit_key, habit_key), best))
+        streaks_computed.sort(key=lambda x: x[1], reverse=True)
+        for idx, (label, best) in enumerate(streaks_computed[:4]):
+            with streak_cols[idx % 4]:
+                st.markdown(
+                    f"<div class='streak-row'>"
+                    f"<div class='streak-title'><span class='streak-emoji'>🏆</span>{label}</div>"
+                    f"<div class='streak-line'>{best} dias seguidos</div>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+
+    st.markdown("<div class='small-label' style='margin-top:8px;'>Gráficos</div>", unsafe_allow_html=True)
+    view = st.selectbox("Período", ["Últimos 7 dias", "Este mês", "Este trimestre"], index=0, key="stats.view")
+    if view == "Últimos 7 dias":
         start_date = today - timedelta(days=6)
         filtered = data[data["date"] >= start_date]
-    elif view == "This month":
+    elif view == "Este mês":
         filtered = data[data["date"].apply(lambda d: d.year == today.year and d.month == today.month)]
     else:
         quarter_index = (today.month - 1) // 3
@@ -103,8 +143,8 @@ def render_stats_tab(ctx):
 
     if not filtered.empty:
         cols = st.columns(2)
-        cols[0].plotly_chart(dot_chart(filtered["sleep_hours"], filtered["date_str"], "Sleep hours", "#a9c0e8"), use_container_width=True)
-        cols[1].plotly_chart(dot_chart(filtered["anxiety_level"], filtered["date_str"], "Anxiety level", "#cbb5e2"), use_container_width=True)
-        cols[0].plotly_chart(dot_chart(filtered["work_hours"], filtered["date_str"], "Work/study hours", "#b7d1c9"), use_container_width=True)
-        cols[1].plotly_chart(dot_chart(filtered["boredom_minutes"], filtered["date_str"], "Boredom minutes", "#f2d4a2"), use_container_width=True)
-        cols[0].plotly_chart(dot_chart(filtered["habits_percent"], filtered["date_str"], "Habits completed (%)", "#c9b3e5"), use_container_width=True)
+        cols[0].plotly_chart(dot_chart(filtered["sleep_hours"], filtered["date_str"], "Horas de sono", "#a9c0e8"), use_container_width=True)
+        cols[1].plotly_chart(dot_chart(filtered["anxiety_level"], filtered["date_str"], "Nível de ansiedade", "#cbb5e2"), use_container_width=True)
+        cols[0].plotly_chart(dot_chart(filtered["work_hours"], filtered["date_str"], "Horas de trabalho/estudo", "#b7d1c9"), use_container_width=True)
+        cols[1].plotly_chart(dot_chart(filtered["boredom_minutes"], filtered["date_str"], "Minutos de tédio", "#f2d4a2"), use_container_width=True)
+        cols[0].plotly_chart(dot_chart(filtered["habits_percent"], filtered["date_str"], "Hábitos completos (%)", "#c9b3e5"), use_container_width=True)

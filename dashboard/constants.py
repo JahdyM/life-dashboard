@@ -1,8 +1,12 @@
+import os
+
 DAY_LABELS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"]
 DAY_TO_INDEX = {label: idx for idx, label in enumerate(DAY_LABELS)}
 
-JAHDY_EMAIL = "jahdy.moreno@gmail.com"
-GUILHERME_EMAIL = "guilherme.m.rods@gmail.com"
+_allowed_raw = os.getenv("ALLOWED_EMAILS", "jahdy.moreno@gmail.com,guilherme.m.rods@gmail.com")
+_allowed_list = [e.strip().lower() for e in _allowed_raw.split(",") if e.strip()]
+JAHDY_EMAIL = os.getenv("JAHDY_EMAIL", _allowed_list[0] if _allowed_list else "jahdy.moreno@gmail.com").strip().lower()
+GUILHERME_EMAIL = os.getenv("GUILHERME_EMAIL", _allowed_list[1] if len(_allowed_list) > 1 else "guilherme.m.rods@gmail.com").strip().lower()
 USER_PROFILES = {
     JAHDY_EMAIL: {
         "name": "Jahdy",

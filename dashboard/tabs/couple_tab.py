@@ -18,16 +18,80 @@ SHARED_HABITS = [
     "family_worship",
 ]
 
+_SYNC_MESSAGES = {
+    100: ("💞", "Perfeitos hoje! Vocês completaram todos os hábitos juntos."),
+    80:  ("✨", "Quase lá! Dia muito sincronizado."),
+    50:  ("🌿", "Bom progresso juntos hoje."),
+    0:   ("🌱", "Cada passo conta. Amanhã tem mais!"),
+}
+
+
+def _sync_message(pct: int) -> tuple[str, str]:
+    for threshold in sorted(_SYNC_MESSAGES, reverse=True):
+        if pct >= threshold:
+            return _SYNC_MESSAGES[threshold]
+    return _SYNC_MESSAGES[0]
+
+
+def _render_sync_score(streak_snapshot: dict, user_a_name: str, user_b_name: str):
+    habits = streak_snapshot.get("habits", [])
+    if not habits:
+        return
+
+    a_done = sum(
+        1 for h in habits
+        if int(h.get("user_a_today_expected", 0)) == 1 and int(h.get("user_a_today_done", 0)) == 1
+    )
+    b_done = sum(
+        1 for h in habits
+        if int(h.get("user_b_today_expected", 0)) == 1 and int(h.get("user_b_today_done", 0)) == 1
+    )
+    sync_count = sum(
+        1 for h in habits
+        if int(h.get("user_a_today_expected", 0)) == 1
+        and int(h.get("user_b_today_expected", 0)) == 1
+        and int(h.get("user_a_today_done", 0)) == 1
+        and int(h.get("user_b_today_done", 0)) == 1
+    )
+    sync_total = sum(
+        1 for h in habits
+        if int(h.get("user_a_today_expected", 0)) == 1 and int(h.get("user_b_today_expected", 0)) == 1
+    )
+    pct = round((sync_count / sync_total) * 100) if sync_total > 0 else 0
+    icon, msg = _sync_message(pct)
+
+    a_total_expected = sum(1 for h in habits if int(h.get("user_a_today_expected", 0)) == 1)
+    b_total_expected = sum(1 for h in habits if int(h.get("user_b_today_expected", 0)) == 1)
+
+    st.markdown(
+        f"""
+<div class="card" style="text-align:center; padding: 20px 24px;">
+  <div style="font-size:2.2rem; margin-bottom:4px;">{icon}</div>
+  <div style="font-size:1.05rem; font-weight:600; margin-bottom:6px;">Sync Score de hoje: {pct}%</div>
+  <div style="font-size:0.85rem; color:var(--text-soft); margin-bottom:12px;">{msg}</div>
+  <div style="display:flex; justify-content:center; gap:32px; font-size:0.82rem;">
+    <div><strong>{a_done}/{a_total_expected}</strong><br/><span style="color:var(--text-soft);">{user_a_name}</span></div>
+    <div style="font-size:1.4rem;">❤️</div>
+    <div><strong>{b_done}/{b_total_expected}</strong><br/><span style="color:var(--text-soft);">{user_b_name}</span></div>
+  </div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
 
 def render_couple_tab(ctx):
     user_a = JAHDY_EMAIL
     user_b = GUILHERME_EMAIL
+    user_a_name = ctx.get("current_user_name", "Jahdy") if ctx.get("current_user_email") == user_a else "Jahdy"
+    user_b_name = ctx.get("partner_name", "Guilherme")
     mood_to_int = MOOD_TO_INT
 
     st.markdown("<div class='section-title'>Couple</div>", unsafe_allow_html=True)
 
     today = date.today()
-    row_meta = [(0, user_a, "Jahdy"), (1, user_b, "Guilherme")]
+    row_meta = [(0, user_a, user_a_name), (1, user_b, user_b_name)]
+
     if repositories.api_enabled():
         try:
             streak_snapshot = api_client.request("GET", "/v1/couple/streaks")
@@ -36,19 +100,36 @@ def render_couple_tab(ctx):
     else:
         streak_snapshot = repositories.get_shared_habit_comparison(today, user_a, user_b, SHARED_HABITS)
 
-    st.markdown("<div class='small-label'>Comparative shared-habits streak</div>", unsafe_allow_html=True)
-    for item in streak_snapshot.get("habits", []):
-        key = item.get("habit_key")
-        label = DEFAULT_HABIT_LABELS.get(key, key)
-        cols = st.columns(3)
-        cols[0].markdown(f"🔥 **{label}**")
-        cols[1].caption(f"{item.get('user_a_days', 0)} days | Jahdy")
-        cols[2].caption(f"{item.get('user_b_days', 0)} days | Guilherme")
+    # Sync Score card
+    _render_sync_score(streak_snapshot, user_a_name, user_b_name)
+
+    # Streak table
+    st.markdown("<div class='small-label' style='margin-top:4px;'>Sequência de hábitos compartilhados</div>", unsafe_allow_html=True)
+    habits_list = streak_snapshot.get("habits", [])
+    if habits_list:
+        header_cols = st.columns([3, 2, 2])
+        header_cols[0].caption("Hábito")
+        header_cols[1].caption(user_a_name)
+        header_cols[2].caption(user_b_name)
+        st.divider()
+        for item in habits_list:
+            key = item.get("habit_key")
+            label = DEFAULT_HABIT_LABELS.get(key, key)
+            a_days = int(item.get("user_a_days", 0) or 0)
+            b_days = int(item.get("user_b_days", 0) or 0)
+            a_done = int(item.get("user_a_today_done", 0) or 0) == 1
+            b_done = int(item.get("user_b_today_done", 0) or 0) == 1
+            a_icon = "✅" if a_done else "⭕"
+            b_icon = "✅" if b_done else "⭕"
+            row_cols = st.columns([3, 2, 2])
+            row_cols[0].markdown(f"🔥 **{label}**")
+            row_cols[1].caption(f"{a_icon} {a_days} dias")
+            row_cols[2].caption(f"{b_icon} {b_days} dias")
 
     st.caption(streak_snapshot.get("summary") or "")
 
-    st.markdown("<div class='small-label' style='margin-top:8px;'>Shared mood board (daily comparison)</div>", unsafe_allow_html=True)
-    month_choice = st.date_input("Month", value=today.replace(day=1), key="couple.mood.month")
+    st.markdown("<div class='small-label' style='margin-top:12px;'>Mapa de humor mensal (comparativo)</div>", unsafe_allow_html=True)
+    month_choice = st.date_input("Mês", value=today.replace(day=1), key="couple.mood.month")
     month_start = month_choice.replace(day=1)
     month_last = calendar.monthrange(month_start.year, month_start.month)[1]
     month_end = month_start.replace(day=month_last)
@@ -57,7 +138,7 @@ def render_couple_tab(ctx):
         z_empty = [[float("nan") for _ in range(month_last)] for _ in range(2)]
         hover_empty = [["" for _ in range(month_last)] for _ in range(2)]
         x_empty = [str(day) for day in range(1, month_last + 1)]
-        y_empty = [row_meta[0][2], row_meta[1][2]]
+        y_empty = [user_a_name, user_b_name]
         return z_empty, hover_empty, x_empty, y_empty
 
     if repositories.api_enabled():
@@ -72,8 +153,8 @@ def render_couple_tab(ctx):
             y_labels = payload.get("y_labels", [])
             if not x_labels:
                 z, hover_text, x_labels, y_labels = _empty_grid()
-        except Exception as exc:
-            st.warning("Could not load moodboard. Showing empty board.")
+        except Exception:
+            st.warning("Não foi possível carregar o moodboard.")
             z, hover_text, x_labels, y_labels = _empty_grid()
     else:
         feed = repositories.get_couple_mood_feed(user_a, user_b, month_start, month_end)
@@ -91,26 +172,28 @@ def render_couple_tab(ctx):
         for row_idx, email, label in row_meta:
             for day in range(1, month_last + 1):
                 current = month_start.replace(day=day)
-                key = (email, current.isoformat())
-                mood = by_key.get(key)
+                k = (email, current.isoformat())
+                mood = by_key.get(k)
                 if mood and mood in mood_to_int:
                     z[row_idx][day - 1] = mood_to_int[mood]
                     hover_text[row_idx][day - 1] = f"{current.isoformat()} • {label}: {mood}"
                 else:
-                    hover_text[row_idx][day - 1] = f"{current.isoformat()} • {label}: no entry"
+                    hover_text[row_idx][day - 1] = f"{current.isoformat()} • {label}: sem registro"
 
         x_labels = [str(day) for day in range(1, month_last + 1)]
-        y_labels = ["Jahdy", "Guilherme"]
+        y_labels = [user_a_name, user_b_name]
+
     st.plotly_chart(
-        mood_heatmap(z, hover_text, x_labels=x_labels, y_labels=y_labels, title="Couple Mood Pixel Board"),
+        mood_heatmap(z, hover_text, x_labels=x_labels, y_labels=y_labels, title="Mapa de Humor do Casal"),
         use_container_width=True,
     )
 
-    st.markdown("<div class='small-label' style='margin-top:8px;'>Shared mood board (yearly)</div>", unsafe_allow_html=True)
+    st.markdown("<div class='small-label' style='margin-top:8px;'>Mapa de humor anual</div>", unsafe_allow_html=True)
     years = list(range(today.year - 3, today.year + 1))
-    year_choice = st.selectbox("Year", years, index=len(years) - 1, key="couple.mood.year")
+    year_choice = st.selectbox("Ano", years, index=len(years) - 1, key="couple.mood.year")
     year_start = date(year_choice, 1, 1)
     year_end = date(year_choice, 12, 31)
+
     if repositories.api_enabled():
         payload_year = api_client.request("GET", "/v1/couple/moodboard", params={"range": "year", "year": year_choice})
         if payload_year.get("warning"):
@@ -120,7 +203,6 @@ def render_couple_tab(ctx):
         x_year = payload_year.get("x_labels", [])
     else:
         feed_year = repositories.get_couple_mood_feed(user_a, user_b, year_start, year_end)
-
         by_key_year = {}
         for row in feed_year:
             row_email = row.get("user_email")
@@ -144,15 +226,15 @@ def render_couple_tab(ctx):
                     z_year[row_idx][day_offset] = mood_to_int[mood]
                     hover_year[row_idx][day_offset] = f"{current.isoformat()} • {label}: {mood}"
                 else:
-                    hover_year[row_idx][day_offset] = f"{current.isoformat()} • {label}: no entry"
+                    hover_year[row_idx][day_offset] = f"{current.isoformat()} • {label}: sem registro"
 
     st.plotly_chart(
         mood_heatmap(
             z_year,
             hover_year,
             x_labels=x_year,
-            y_labels=["Jahdy", "Guilherme"],
-            title="Couple Mood Pixel Board (Year)",
+            y_labels=[user_a_name, user_b_name],
+            title="Mapa de Humor do Casal (Ano)",
         ),
         use_container_width=True,
     )

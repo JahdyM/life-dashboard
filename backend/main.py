@@ -11,6 +11,17 @@ from backend.db_init import init_db
 from backend.routes import bootstrap, day, habits, tasks, calendar, sync, oauth, couple, entries, settings, header
 
 
+def _build_allowed_origins() -> list[str]:
+    raw = os.getenv(
+        "ALLOWED_ORIGINS",
+        "https://jahdy-gui-dashboard.streamlit.app",
+    )
+    origins = [o.strip() for o in raw.split(",") if o.strip()]
+    if os.getenv("ENVIRONMENT", "production").lower() == "development":
+        origins += ["http://localhost:8501", "http://localhost:3000"]
+    return origins
+
+
 def create_app() -> FastAPI:
     logging.basicConfig(
         level=os.getenv("BACKEND_LOG_LEVEL", "INFO").upper(),
@@ -19,7 +30,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Life Dashboard API", version="0.1.0")
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=_build_allowed_origins(),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

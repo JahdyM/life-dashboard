@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     guilherme_timezone_raw: str = Field("", alias="GUILHERME_TIMEZONE")
 
     allowed_emails_raw: str = Field("", alias="ALLOWED_EMAILS")
+    jahdy_email: str = Field("jahdy.moreno@gmail.com", alias="JAHDY_EMAIL")
+    guilherme_email: str = Field("guilherme.m.rods@gmail.com", alias="GUILHERME_EMAIL")
     jahdy_allowed_calendars_raw: str = Field("", alias="JAHDY_GOOGLE_ALLOWED_CALENDAR_IDS")
     guilherme_allowed_calendars_raw: str = Field("", alias="GUILHERME_GOOGLE_ALLOWED_CALENDAR_IDS")
 
@@ -34,9 +36,9 @@ class Settings(BaseSettings):
 
     def allowed_calendar_ids(self, user_email: str) -> list[str]:
         email = user_email.lower()
-        if email == "jahdy.moreno@gmail.com":
+        if email == self.jahdy_email.lower():
             raw = self.jahdy_allowed_calendars_raw
-        elif email == "guilherme.m.rods@gmail.com":
+        elif email == self.guilherme_email.lower():
             raw = self.guilherme_allowed_calendars_raw
         else:
             raw = ""
@@ -52,9 +54,9 @@ class Settings(BaseSettings):
 
     def user_timezone(self, user_email: str) -> str | None:
         email = user_email.lower()
-        if email == "jahdy.moreno@gmail.com":
+        if email == self.jahdy_email.lower():
             tz = self.jahdy_timezone_raw
-        elif email == "guilherme.m.rods@gmail.com":
+        elif email == self.guilherme_email.lower():
             tz = self.guilherme_timezone_raw
         else:
             tz = ""
