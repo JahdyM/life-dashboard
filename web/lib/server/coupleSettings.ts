@@ -47,10 +47,16 @@ export type MonthlyIncome = {
   extras: number;
 };
 
+export type DebtEntry = {
+  total: number;    // total outstanding
+  monthly: number;  // amount due / to pay this month
+  paid: number;     // already paid this month
+};
+
 export type MonthlyDebts = {
-  contador: number;
-  nacional: number;
-  cartao: number;
+  contador: DebtEntry;
+  nacional: DebtEntry;
+  cartao: DebtEntry;
 };
 
 export type MonthlyFinance = {
@@ -102,7 +108,11 @@ function makeDefaultFinance(year?: number, month?: number): MonthlyFinance {
         das:          { actual: 540,    paid: "pago" },
         contador_fixo:{ actual: 300,    paid: "pago" },
       }),
-      debts: { contador: 1600, nacional: 7710, cartao: 8324.82 },
+      debts: {
+        contador: { total: 1600,    monthly: 300,     paid: 300     },
+        nacional: { total: 7710,    monthly: 618,     paid: 0       },
+        cartao:   { total: 8324.82, monthly: 8617.09, paid: 8617.09 },
+      },
     };
   }
 
@@ -117,7 +127,11 @@ function makeDefaultFinance(year?: number, month?: number): MonthlyFinance {
         das:          { actual: 1080,   paid: "pago" },
         contador_fixo:{ actual: 300,    paid: "pago" },
       }),
-      debts: { contador: 1900, nacional: 7710, cartao: 5489.87 },
+      debts: {
+        contador: { total: 1900,    monthly: 0, paid: 0 },
+        nacional: { total: 7710,    monthly: 0, paid: 0 },
+        cartao:   { total: 5489.87, monthly: 0, paid: 0 },
+      },
     };
   }
 
@@ -132,14 +146,22 @@ function makeDefaultFinance(year?: number, month?: number): MonthlyFinance {
         das:          { actual: 1080,   paid: "pago" },
         contador_fixo:{ actual: 300,    paid: "pago" },
       }),
-      debts: { contador: 1900, nacional: 7710, cartao: 5489.87 },
+      debts: {
+        contador: { total: 1900,    monthly: 0, paid: 0 },
+        nacional: { total: 7710,    monthly: 0, paid: 0 },
+        cartao:   { total: 5489.87, monthly: 0, paid: 0 },
+      },
     };
   }
 
   return {
     income: { gui: 9000, jahdy: null, extras: 220 },
     fixedCosts: blankCosts,
-    debts: { contador: 0, nacional: 0, cartao: 0 },
+    debts: {
+      contador: { total: 0, monthly: 0, paid: 0 },
+      nacional: { total: 0, monthly: 0, paid: 0 },
+      cartao:   { total: 0, monthly: 0, paid: 0 },
+    },
   };
 }
 
@@ -168,10 +190,18 @@ export async function getMonthlyFinance(
     savedCosts.forEach((c) => {
       if (!def.fixedCosts.find((d) => d.id === c.id)) fixedCosts.push(c);
     });
+    // Migrate old debt format (bare numbers) to DebtEntry objects
+    const rawDebts = (parsed.debts || {}) as Record<string, number | DebtEntry>;
+    const migratedDebts = Object.fromEntries(
+      (["contador", "nacional", "cartao"] as const).map((k) => {
+        const v = rawDebts[k] ?? def.debts[k];
+        return [k, typeof v === "number" ? { total: v, monthly: 0, paid: 0 } : { ...def.debts[k], ...v }];
+      })
+    ) as MonthlyDebts;
     return {
       income: { ...def.income, ...(parsed.income || {}) },
       fixedCosts,
-      debts: { ...def.debts, ...(parsed.debts || {}) },
+      debts: migratedDebts,
     };
   } catch {
     return makeDefaultFinance();
@@ -191,7 +221,8 @@ export function computeFinanceSummary(f: MonthlyFinance) {
   const totalIncome = (f.income.gui || 0) + (f.income.jahdy || 0) + (f.income.extras || 0);
   const totalBudget = f.fixedCosts.reduce((s, c) => s + c.budget, 0);
   const totalActual = f.fixedCosts.reduce((s, c) => s + (c.actual ?? c.budget), 0);
-  const totalDebts = (f.debts.contador || 0) + (f.debts.nacional || 0) + (f.debts.cartao || 0);
+  const totalDebts = Object.values(f.debts).reduce((s, d) => s + (d.monthly || 0), 0);
+  const totalOutstanding = Object.values(f.debts).reduce((s, d) => s + (d.total || 0), 0);
   const surplus = totalIncome - totalActual - totalDebts;
   // Divisão padrão do sobrado: 20% casa, 10% R.E., resto dívidas
   return {
@@ -199,6 +230,7 @@ export function computeFinanceSummary(f: MonthlyFinance) {
     totalBudget,
     totalActual,
     totalDebts,
+    totalOutstanding,
     surplus,
     allocation: {
       casa: surplus > 0 ? Math.round(surplus * 0.2 * 100) / 100 : 0,

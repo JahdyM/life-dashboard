@@ -8,6 +8,7 @@ import type {
   FixedCostItem,
   PaidStatus,
   SavingsGoal,
+  DebtEntry,
 } from "@/lib/server/coupleSettings";
 
 // ---- helpers ----------------------------------------------------------------
@@ -25,10 +26,11 @@ function computeSummary(f: MonthlyFinance) {
   const totalIncome = (f.income.gui || 0) + (f.income.jahdy || 0) + (f.income.extras || 0);
   const totalBudget = f.fixedCosts.reduce((s, c) => s + c.budget, 0);
   const totalActual = f.fixedCosts.reduce((s, c) => s + (c.actual ?? c.budget), 0);
-  const totalDebts = (f.debts.contador || 0) + (f.debts.nacional || 0) + (f.debts.cartao || 0);
+  const totalDebts = Object.values(f.debts).reduce((s, d: DebtEntry) => s + (d.monthly || 0), 0);
+  const totalOutstanding = Object.values(f.debts).reduce((s, d: DebtEntry) => s + (d.total || 0), 0);
   const surplus = totalIncome - totalActual - totalDebts;
   return {
-    totalIncome, totalBudget, totalActual, totalDebts, surplus,
+    totalIncome, totalBudget, totalActual, totalDebts, totalOutstanding, surplus,
     allocation: {
       casa: surplus > 0 ? Math.round(surplus * 0.2 * 100) / 100 : 0,
       reservaEmergencia: surplus > 0 ? Math.round(surplus * 0.1 * 100) / 100 : 0,
@@ -219,7 +221,7 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
         <div className="shell-summary-grid">
           <SummaryCard label="Income" value={`R$ ${fmt(summary.totalIncome)}`} accent />
           <SummaryCard label="Fixed costs" value={`R$ ${fmt(summary.totalActual)}`} sub={`budgeted R$ ${fmt(summary.totalBudget)}`} />
-          <SummaryCard label="Debts" value={`R$ ${fmt(summary.totalDebts)}`} />
+          <SummaryCard label="Debt payments" value={`R$ ${fmt(summary.totalDebts)}`} sub={`outstanding R$ ${fmt(summary.totalOutstanding)}`} />
           <SummaryCard
             label="Month surplus"
             value={`R$ ${fmt(summary.surplus)}`}
@@ -357,27 +359,52 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
 
       {/* Debts */}
       <div className="card">
-        <h2>💳 Outstanding Debts</h2>
-        <div style={{ display: "grid", gap: 8 }}>
+        <h2>💳 Debts</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: "6px 12px", alignItems: "center" }}>
+          <small style={{ color: "var(--text-soft)" }}>Debt</small>
+          <small style={{ color: "var(--text-soft)", textAlign: "right" }}>Total outstanding</small>
+          <small style={{ color: "var(--text-soft)", textAlign: "right" }}>Due this month</small>
+          <small style={{ color: "var(--text-soft)", textAlign: "right" }}>Paid</small>
+
           {(["contador", "nacional", "cartao"] as const).map((key) => {
             const labels = { contador: "Contador", nacional: "Nacional", cartao: "Credit card" };
+            const entry = finance.debts[key];
+            const remaining = entry.monthly - entry.paid;
             return (
-              <div key={key} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span style={{ minWidth: 140, fontSize: "0.88rem" }}>{labels[key]}</span>
-                <input
-                  type="number"
-                  min="0"
-                  className="no-spinner"
-                  value={finance.debts[key]}
-                  style={{ width: 140 }}
-                  onChange={(e) =>
-                    update((prev) => ({
-                      ...prev,
-                      debts: { ...prev.debts, [key]: Number(e.target.value) },
-                    }))
-                  }
-                />
-              </div>
+              <>
+                <span key={`${key}-label`} style={{ fontSize: "0.88rem" }}>
+                  {labels[key]}
+                  {remaining > 0 && (
+                    <span style={{ fontSize: "0.72rem", marginLeft: 6, color: "#D9C979" }}>
+                      R$ {fmt(remaining)} left
+                    </span>
+                  )}
+                  {remaining < 0 && (
+                    <span style={{ fontSize: "0.72rem", marginLeft: 6, color: "#9DCFB7" }}>
+                      +R$ {fmt(-remaining)}
+                    </span>
+                  )}
+                </span>
+                {(["total", "monthly", "paid"] as const).map((field) => (
+                  <input
+                    key={`${key}-${field}`}
+                    type="number"
+                    min="0"
+                    className="no-spinner"
+                    value={entry[field]}
+                    style={{ width: 110, textAlign: "right" }}
+                    onChange={(e) =>
+                      update((prev) => ({
+                        ...prev,
+                        debts: {
+                          ...prev.debts,
+                          [key]: { ...prev.debts[key], [field]: Number(e.target.value) },
+                        },
+                      }))
+                    }
+                  />
+                ))}
+              </>
             );
           })}
         </div>
