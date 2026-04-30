@@ -367,7 +367,7 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
                 <input
                   type="number"
                   min="0"
-                  step="100"
+                  className="no-spinner"
                   value={finance.debts[key]}
                   style={{ width: 140 }}
                   onChange={(e) =>
