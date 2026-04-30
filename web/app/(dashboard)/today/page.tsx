@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import PublicEntryExperience from "@/components/PublicEntryExperience";
 import TodayQuickLog, { type TodayMoodOption } from "@/components/today/TodayQuickLog";
+import WordOfDay from "@/components/today/WordOfDay";
 import { MOOD_DEFINITIONS, getMoodMeta } from "@/lib/moods";
 import { getTodayOverviewData } from "@/lib/server/dashboard";
 import { getDashboardOnboardingPreferences } from "@/lib/server/onboarding";
@@ -306,6 +308,12 @@ export default async function TodayPage() {
             </div>
           )}
         </article>
+      </section>
+
+      <section className="today-grid" style={{ marginTop: 0 }}>
+        <Suspense>
+          <WordOfDay />
+        </Suspense>
       </section>
     </div>
   );
