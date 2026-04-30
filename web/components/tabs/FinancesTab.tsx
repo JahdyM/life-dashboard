@@ -118,6 +118,13 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
     },
   });
 
+  // Auto-save 1.5 s after the last change
+  useEffect(() => {
+    if (!dirty || !finance || saveMut.isPending) return;
+    const timer = setTimeout(() => saveMut.mutate(finance), 1500);
+    return () => clearTimeout(timer);
+  }, [finance, dirty]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const update = useCallback((updater: (prev: MonthlyFinance) => MonthlyFinance) => {
     setFinance((prev) => {
       if (!prev) return prev;
@@ -184,13 +191,9 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
           >
             ›
           </button>
-          <button
-            onClick={() => finance && saveMut.mutate(finance)}
-            disabled={!dirty || saveMut.isPending}
-            style={{ marginLeft: "auto", fontSize: "0.85rem" }}
-          >
-            {saveMut.isPending ? "Saving…" : dirty ? "💾 Save changes" : "✓ Saved"}
-          </button>
+          <span style={{ marginLeft: "auto", fontSize: "0.8rem", color: saveMut.isPending ? "var(--text-soft,#888)" : dirty ? "#D9C979" : "#9DCFB7" }}>
+            {saveMut.isPending ? "Saving…" : dirty ? "Unsaved changes…" : "✓ Saved"}
+          </span>
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {MONTHS.map((label, i) => {
