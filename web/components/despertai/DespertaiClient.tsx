@@ -317,6 +317,7 @@ function VideoCard({
           <h4>{video.title}</h4>
           {video.naturalKey ? <p>{video.naturalKey}</p> : null}
         </div>
+        {selected ? <span className="reading-selected-badge">Sorteado</span> : null}
         <label className="despertai-read-all">
           <input
             type="checkbox"
@@ -738,6 +739,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
 
   const revealVideoFromWheel = (videoId: string) => {
     setActiveTab("videos");
+    setVideoSearch("");
     setPendingRevealVideoId(videoId);
   };
 
