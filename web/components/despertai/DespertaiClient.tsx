@@ -119,10 +119,20 @@ function truncateWheelLabel(text: string, maxLength: number) {
 
 function normalizeSearchText(value: unknown) {
   return String(value ?? "")
-    .normalize("NFD")
+    .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
     .toLowerCase()
     .trim();
+}
+
+function matchesSearchText(value: string, searchTerm: string) {
+  if (!searchTerm) return true;
+  const normalizedValue = normalizeSearchText(value);
+  return searchTerm
+    .split(" ")
+    .filter(Boolean)
+    .every((term) => normalizedValue.includes(term));
 }
 
 function findWheelSegmentAtPointer<T extends { startAngle: number; endAngle: number }>(
@@ -410,25 +420,25 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const filteredPendingIssues = useMemo(() => {
     if (!despertaiSearchTerm) return data.despertai.pendingIssues;
     return data.despertai.pendingIssues.filter((issue) =>
-      normalizeSearchText(`${issue.title} ${issue.year} ${issue.dateLabel || ""}`).includes(despertaiSearchTerm)
+      matchesSearchText(`${issue.title} ${issue.year} ${issue.dateLabel || ""}`, despertaiSearchTerm)
     );
   }, [data.despertai.pendingIssues, despertaiSearchTerm]);
   const filteredFinishedIssues = useMemo(() => {
     if (!despertaiSearchTerm) return data.despertai.finishedIssuesList;
     return data.despertai.finishedIssuesList.filter((issue) =>
-      normalizeSearchText(`${issue.title} ${issue.year} ${issue.dateLabel || ""}`).includes(despertaiSearchTerm)
+      matchesSearchText(`${issue.title} ${issue.year} ${issue.dateLabel || ""}`, despertaiSearchTerm)
     );
   }, [data.despertai.finishedIssuesList, despertaiSearchTerm]);
   const filteredPendingVideos = useMemo(() => {
     if (!videoSearchTerm) return data.videos.pendingVideosList;
     return data.videos.pendingVideosList.filter((video) =>
-      normalizeSearchText(`${video.title} ${video.naturalKey || ""}`).includes(videoSearchTerm)
+      matchesSearchText(`${video.title} ${video.naturalKey || ""}`, videoSearchTerm)
     );
   }, [data.videos.pendingVideosList, videoSearchTerm]);
   const filteredFinishedVideos = useMemo(() => {
     if (!videoSearchTerm) return data.videos.finishedVideosList;
     return data.videos.finishedVideosList.filter((video) =>
-      normalizeSearchText(`${video.title} ${video.naturalKey || ""}`).includes(videoSearchTerm)
+      matchesSearchText(`${video.title} ${video.naturalKey || ""}`, videoSearchTerm)
     );
   }, [data.videos.finishedVideosList, videoSearchTerm]);
   const wheelEligibleIssues = useMemo(() => {
