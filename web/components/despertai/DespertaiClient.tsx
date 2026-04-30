@@ -317,7 +317,7 @@ function VideoCard({
           <h4>{video.title}</h4>
           {video.naturalKey ? <p>{video.naturalKey}</p> : null}
         </div>
-        {selected ? <span className="reading-selected-badge">Sorteado</span> : null}
+        {selected ? <span className="reading-selected-badge">Sorteado pela roleta</span> : null}
         <label className="despertai-read-all">
           <input
             type="checkbox"
@@ -600,16 +600,16 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   );
 
   useEffect(() => {
-    if (wheelResultIssueId && !wheelEligibleIssues.some((issue) => issue.id === wheelResultIssueId)) {
+    if (wheelResultIssueId && !issueWheelFilteredPool.some((issue) => issue.id === wheelResultIssueId)) {
       setWheelResultIssueId(null);
     }
-  }, [wheelEligibleIssues, wheelResultIssueId]);
+  }, [issueWheelFilteredPool, wheelResultIssueId]);
 
   useEffect(() => {
-    if (videoWheelResultId && !videoWheelEligibleItems.some((video) => video.id === videoWheelResultId)) {
+    if (videoWheelResultId && !videoWheelFilteredPool.some((video) => video.id === videoWheelResultId)) {
       setVideoWheelResultId(null);
     }
-  }, [videoWheelEligibleItems, videoWheelResultId]);
+  }, [videoWheelFilteredPool, videoWheelResultId]);
 
   useEffect(() => {
     return () => {
@@ -1348,6 +1348,16 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
             onChange={setVideoSearch}
             placeholder="Buscar vídeo"
           />
+
+          {videoWheelResult ? (
+            <article className="reading-selected-callout">
+              <span>Sorteado</span>
+              <strong>{videoWheelResult.title}</strong>
+              <button type="button" className="page-link inline muted" onClick={() => revealVideoFromWheel(videoWheelResult.id)}>
+                Ver na lista
+              </button>
+            </article>
+          ) : null}
 
           <section className="despertai-list-section">
             <div className="despertai-section-title">
