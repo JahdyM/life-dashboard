@@ -254,6 +254,8 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
     boredom_minutes: "0",
     priority_label: "",
   });
+  const [activeTimer, setActiveTimer] = useState<{ field: "work_hours" | "boredom_minutes"; startMs: number } | null>(null);
+  const [timerElapsed, setTimerElapsed] = useState(0);
 
   const dayQuery = useQuery({
     queryKey: ["day", selectedDate],
@@ -727,6 +729,28 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
     [dayEntry]
   );
 
+  useEffect(() => {
+    if (!activeTimer) { setTimerElapsed(0); return; }
+    const id = setInterval(() => setTimerElapsed(Math.floor((Date.now() - activeTimer.startMs) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [activeTimer]);
+
+  const stopTimer = useCallback(() => {
+    if (!activeTimer) return;
+    const seconds = (Date.now() - activeTimer.startMs) / 1000;
+    if (activeTimer.field === "work_hours") {
+      const added = seconds / 3600;
+      const next = Math.round((Number(metricDrafts.work_hours || 0) + added) * 10) / 10;
+      setMetricDrafts((c) => ({ ...c, work_hours: String(next) }));
+      updateDay.mutate({ work_hours: next });
+    } else {
+      const next = Math.round(Number(metricDrafts.boredom_minutes || 0) + seconds / 60);
+      setMetricDrafts((c) => ({ ...c, boredom_minutes: String(next) }));
+      updateDay.mutate({ boredom_minutes: next });
+    }
+    setActiveTimer(null);
+  }, [activeTimer, metricDrafts, updateDay]);
+
   const handleMetricChange = useCallback(
     (field: keyof MetricDrafts, value: string) => {
       setMetricDrafts((current) => ({ ...current, [field]: value }));
@@ -925,27 +949,67 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
           </div>
           <div className="form-row">
             <label htmlFor="metric-work">Work/study hours</label>
-            <input
-              id="metric-work"
-              type="number"
-              step="0.5"
-              value={metricDrafts.work_hours}
-              onChange={(event) => handleMetricChange("work_hours", event.target.value)}
-              onBlur={() => commitMetric("work_hours")}
-              onKeyDown={(event) => handleMetricKeyDown("work_hours", event)}
-            />
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <input
+                id="metric-work"
+                type="number"
+                step="0.5"
+                value={metricDrafts.work_hours}
+                style={{ width: 70 }}
+                onChange={(event) => handleMetricChange("work_hours", event.target.value)}
+                onBlur={() => commitMetric("work_hours")}
+                onKeyDown={(event) => handleMetricKeyDown("work_hours", event)}
+              />
+              {activeTimer?.field === "work_hours" ? (
+                <button
+                  onClick={stopTimer}
+                  style={{ padding: "4px 10px", fontSize: "0.75rem", background: "#D95252", borderColor: "#D95252", color: "#fff" }}
+                >
+                  ■ {Math.floor(timerElapsed / 60)}:{String(timerElapsed % 60).padStart(2, "0")}
+                </button>
+              ) : (
+                <button
+                  className="secondary"
+                  onClick={() => setActiveTimer({ field: "work_hours", startMs: Date.now() })}
+                  disabled={!!activeTimer}
+                  style={{ padding: "4px 10px", fontSize: "0.75rem" }}
+                >
+                  ▶ Start
+                </button>
+              )}
+            </div>
           </div>
           <div className="form-row">
             <label htmlFor="metric-boredom">Boredom minutes</label>
-            <input
-              id="metric-boredom"
-              type="number"
-              min="0"
-              value={metricDrafts.boredom_minutes}
-              onChange={(event) => handleMetricChange("boredom_minutes", event.target.value)}
-              onBlur={() => commitMetric("boredom_minutes")}
-              onKeyDown={(event) => handleMetricKeyDown("boredom_minutes", event)}
-            />
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <input
+                id="metric-boredom"
+                type="number"
+                min="0"
+                value={metricDrafts.boredom_minutes}
+                style={{ width: 70 }}
+                onChange={(event) => handleMetricChange("boredom_minutes", event.target.value)}
+                onBlur={() => commitMetric("boredom_minutes")}
+                onKeyDown={(event) => handleMetricKeyDown("boredom_minutes", event)}
+              />
+              {activeTimer?.field === "boredom_minutes" ? (
+                <button
+                  onClick={stopTimer}
+                  style={{ padding: "4px 10px", fontSize: "0.75rem", background: "#D95252", borderColor: "#D95252", color: "#fff" }}
+                >
+                  ■ {Math.floor(timerElapsed / 60)}:{String(timerElapsed % 60).padStart(2, "0")}
+                </button>
+              ) : (
+                <button
+                  className="secondary"
+                  onClick={() => setActiveTimer({ field: "boredom_minutes", startMs: Date.now() })}
+                  disabled={!!activeTimer}
+                  style={{ padding: "4px 10px", fontSize: "0.75rem" }}
+                >
+                  ▶ Start
+                </button>
+              )}
+            </div>
           </div>
           <div className="form-row">
             <label htmlFor="metric-mood">Mood</label>

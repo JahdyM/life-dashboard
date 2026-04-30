@@ -7,13 +7,13 @@ export const metadata: Metadata = {
   title: "Life Dashboard",
   description: "Private personal control center for habits, tasks, mood, and shared life rhythms.",
   icons: {
-    icon: [
-      {
-        url: "/icon.svg",
-        type: "image/svg+xml",
-      },
-    ],
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
     shortcut: "/icon.svg",
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Dashboard",
+    statusBarStyle: "black-translucent",
   },
 };
 

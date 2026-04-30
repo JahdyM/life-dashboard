@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import PublicEntryExperience from "@/components/PublicEntryExperience";
 import TodayQuickLog, { type TodayMoodOption } from "@/components/today/TodayQuickLog";
 import WordOfDay from "@/components/today/WordOfDay";
+import MorningCheckin from "@/components/today/MorningCheckin";
 import { MOOD_DEFINITIONS, getMoodMeta } from "@/lib/moods";
 import { getTodayOverviewData } from "@/lib/server/dashboard";
 import { getDashboardOnboardingPreferences } from "@/lib/server/onboarding";
@@ -157,6 +158,8 @@ export default async function TodayPage() {
 
   return (
     <div className="route-stack">
+      <MorningCheckin />
+
       <section className="today-panel today-panel-hero">
         <div className="today-panel-head today-panel-head-hero">
           <div className="today-hero-copy">
