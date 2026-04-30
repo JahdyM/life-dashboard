@@ -6844,6 +6844,53 @@ textarea:hover {
   padding: 0 8px;
 }
 
+.reading-wheel-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  border: 1px solid rgba(226, 213, 191, 0.1);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.025);
+  padding: 10px;
+}
+
+.reading-wheel-filter-label {
+  align-self: center;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.reading-wheel-filter-field {
+  display: grid;
+  gap: 5px;
+  min-width: 118px;
+}
+
+.reading-wheel-filter-field span {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.reading-wheel-filter-field input {
+  min-height: 36px;
+  border: 1px solid rgba(226, 213, 191, 0.13);
+  border-radius: 12px;
+  background: rgba(8, 10, 13, 0.38);
+  color: var(--text);
+  padding: 0 10px;
+}
+
+.reading-wheel-filter-field input:focus {
+  border-color: rgba(211, 173, 112, 0.5);
+  box-shadow: 0 0 0 3px rgba(211, 173, 112, 0.1);
+  outline: 0;
+}
+
 .reading-summary-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(130px, 0.55fr));

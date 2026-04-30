@@ -135,6 +135,13 @@ function matchesSearchText(value: string, searchTerm: string) {
     .every((term) => normalizedValue.includes(term));
 }
 
+function optionalPositiveNumber(value: string) {
+  const clean = value.trim();
+  if (!clean) return null;
+  const parsed = Number(clean);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
 function findWheelSegmentAtPointer<T extends { startAngle: number; endAngle: number }>(
   segments: T[],
   rotationDeg: number
@@ -357,12 +364,44 @@ function ReadingSearchField({
   );
 }
 
+function WheelFilterField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <label className="reading-wheel-filter-field">
+      <span>{label}</span>
+      <input
+        type="number"
+        min="0"
+        inputMode="numeric"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+      />
+    </label>
+  );
+}
+
 export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"despertai" | "videos" | "bible">("despertai");
   const [importText, setImportText] = useState("");
   const [despertaiSearch, setDespertaiSearch] = useState("");
   const [videoSearch, setVideoSearch] = useState("");
+  const [issueWheelMinYear, setIssueWheelMinYear] = useState("");
+  const [issueWheelMaxYear, setIssueWheelMaxYear] = useState("");
+  const [issueWheelMinTopics, setIssueWheelMinTopics] = useState("");
+  const [issueWheelMaxTopics, setIssueWheelMaxTopics] = useState("");
+  const [videoWheelMinMinutes, setVideoWheelMinMinutes] = useState("");
+  const [videoWheelMaxMinutes, setVideoWheelMaxMinutes] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [expandedIssues, setExpandedIssues] = useState<Set<string>>(() => new Set());
   const [wheelSpinning, setWheelSpinning] = useState(false);
@@ -441,12 +480,45 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       matchesSearchText(`${video.title} ${video.naturalKey || ""}`, videoSearchTerm)
     );
   }, [data.videos.finishedVideosList, videoSearchTerm]);
+  const issueWheelFilteredPool = useMemo(() => {
+    const minYear = optionalPositiveNumber(issueWheelMinYear);
+    const maxYear = optionalPositiveNumber(issueWheelMaxYear);
+    const minTopics = optionalPositiveNumber(issueWheelMinTopics);
+    const maxTopics = optionalPositiveNumber(issueWheelMaxTopics);
+    return data.despertai.pendingIssues.filter((issue) => {
+      if (minYear !== null && issue.year < minYear) return false;
+      if (maxYear !== null && issue.year > maxYear) return false;
+      if (minTopics !== null && issue.totalTopics < minTopics) return false;
+      if (maxTopics !== null && issue.totalTopics > maxTopics) return false;
+      return true;
+    });
+  }, [
+    data.despertai.pendingIssues,
+    issueWheelMaxTopics,
+    issueWheelMaxYear,
+    issueWheelMinTopics,
+    issueWheelMinYear,
+  ]);
+  const videoWheelFilteredPool = useMemo(() => {
+    const minMinutes = optionalPositiveNumber(videoWheelMinMinutes);
+    const maxMinutes = optionalPositiveNumber(videoWheelMaxMinutes);
+    return data.videos.pendingVideosList.filter((video) => {
+      const minutes = video.durationSeconds / 60;
+      if (minMinutes !== null && minutes < minMinutes) return false;
+      if (maxMinutes !== null && minutes > maxMinutes) return false;
+      return true;
+    });
+  }, [data.videos.pendingVideosList, videoWheelMaxMinutes, videoWheelMinMinutes]);
+  const issueWheelHasFilters = Boolean(
+    issueWheelMinYear || issueWheelMaxYear || issueWheelMinTopics || issueWheelMaxTopics
+  );
+  const videoWheelHasFilters = Boolean(videoWheelMinMinutes || videoWheelMaxMinutes);
   const wheelEligibleIssues = useMemo(() => {
-    const pending = data.despertai.pendingIssues;
+    const pending = issueWheelFilteredPool;
     if (!wheelLastIssueId || pending.length <= 1) return pending;
     const filtered = pending.filter((issue) => issue.id !== wheelLastIssueId);
     return filtered.length ? filtered : pending;
-  }, [data.despertai.pendingIssues, wheelLastIssueId]);
+  }, [issueWheelFilteredPool, wheelLastIssueId]);
   const wheelOrderedIssues = useMemo(() => {
     const sorted = [...wheelEligibleIssues].sort((a, b) => a.id.localeCompare(b.id));
     if (sorted.length <= 1) return sorted;
@@ -484,11 +556,11 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
     [wheelRotation]
   );
   const videoWheelEligibleItems = useMemo(() => {
-    const pending = data.videos.pendingVideosList;
+    const pending = videoWheelFilteredPool;
     if (!videoWheelLastId || pending.length <= 1) return pending;
     const filtered = pending.filter((video) => video.id !== videoWheelLastId);
     return filtered.length ? filtered : pending;
-  }, [data.videos.pendingVideosList, videoWheelLastId]);
+  }, [videoWheelFilteredPool, videoWheelLastId]);
   const videoWheelOrderedItems = useMemo(() => {
     const sorted = [...videoWheelEligibleItems].sort((a, b) => a.id.localeCompare(b.id));
     if (sorted.length <= 1) return sorted;
@@ -527,16 +599,16 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   );
 
   useEffect(() => {
-    if (wheelResultIssueId && !data.despertai.pendingIssues.some((issue) => issue.id === wheelResultIssueId)) {
+    if (wheelResultIssueId && !wheelEligibleIssues.some((issue) => issue.id === wheelResultIssueId)) {
       setWheelResultIssueId(null);
     }
-  }, [data.despertai.pendingIssues, wheelResultIssueId]);
+  }, [wheelEligibleIssues, wheelResultIssueId]);
 
   useEffect(() => {
-    if (videoWheelResultId && !data.videos.pendingVideosList.some((video) => video.id === videoWheelResultId)) {
+    if (videoWheelResultId && !videoWheelEligibleItems.some((video) => video.id === videoWheelResultId)) {
       setVideoWheelResultId(null);
     }
-  }, [data.videos.pendingVideosList, videoWheelResultId]);
+  }, [videoWheelEligibleItems, videoWheelResultId]);
 
   useEffect(() => {
     return () => {
@@ -795,6 +867,48 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
               </span>
             </div>
 
+            <div className="reading-wheel-filters" aria-label="Filtros da roleta Despertai">
+              <span className="reading-wheel-filter-label">Filtros opcionais</span>
+              <WheelFilterField
+                label="Ano mín."
+                value={issueWheelMinYear}
+                onChange={setIssueWheelMinYear}
+                placeholder="1970"
+              />
+              <WheelFilterField
+                label="Ano máx."
+                value={issueWheelMaxYear}
+                onChange={setIssueWheelMaxYear}
+                placeholder="2026"
+              />
+              <WheelFilterField
+                label="Tópicos mín."
+                value={issueWheelMinTopics}
+                onChange={setIssueWheelMinTopics}
+                placeholder="0"
+              />
+              <WheelFilterField
+                label="Tópicos máx."
+                value={issueWheelMaxTopics}
+                onChange={setIssueWheelMaxTopics}
+                placeholder="20"
+              />
+              {issueWheelHasFilters ? (
+                <button
+                  type="button"
+                  className="page-link inline muted"
+                  onClick={() => {
+                    setIssueWheelMinYear("");
+                    setIssueWheelMaxYear("");
+                    setIssueWheelMinTopics("");
+                    setIssueWheelMaxTopics("");
+                  }}
+                >
+                  Sem restrições
+                </button>
+              ) : null}
+            </div>
+
             <div className="activity-wheel-stage">
               <div className={`activity-wheel-dial-wrap ${wheelSpinning ? "spinning" : ""}`}>
                 <span className="activity-wheel-pointer" aria-hidden="true" />
@@ -894,7 +1008,9 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
 
               <div className="activity-wheel-result despertai-wheel-result">
                 {wheelEligibleIssues.length === 0 ? (
-                  <p className="line-empty">Nenhuma revista pendente.</p>
+                  <p className="line-empty">
+                    {issueWheelHasFilters ? "Nenhuma revista nesses filtros." : "Nenhuma revista pendente."}
+                  </p>
                 ) : wheelResultIssue ? (
                   <article className="activity-wheel-result-card despertai-wheel-result-card">
                     <strong>{wheelResultIssue.title}</strong>
@@ -1056,6 +1172,34 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
               </span>
             </div>
 
+            <div className="reading-wheel-filters" aria-label="Filtros da roleta de vídeos">
+              <span className="reading-wheel-filter-label">Filtros opcionais</span>
+              <WheelFilterField
+                label="Minutos mín."
+                value={videoWheelMinMinutes}
+                onChange={setVideoWheelMinMinutes}
+                placeholder="0"
+              />
+              <WheelFilterField
+                label="Minutos máx."
+                value={videoWheelMaxMinutes}
+                onChange={setVideoWheelMaxMinutes}
+                placeholder="30"
+              />
+              {videoWheelHasFilters ? (
+                <button
+                  type="button"
+                  className="page-link inline muted"
+                  onClick={() => {
+                    setVideoWheelMinMinutes("");
+                    setVideoWheelMaxMinutes("");
+                  }}
+                >
+                  Sem restrições
+                </button>
+              ) : null}
+            </div>
+
             <div className="activity-wheel-stage">
               <div className={`activity-wheel-dial-wrap ${videoWheelSpinning ? "spinning" : ""}`}>
                 <span className="activity-wheel-pointer" aria-hidden="true" />
@@ -1155,7 +1299,9 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
 
               <div className="activity-wheel-result despertai-wheel-result">
                 {videoWheelEligibleItems.length === 0 ? (
-                  <p className="line-empty">Nenhum vídeo pendente.</p>
+                  <p className="line-empty">
+                    {videoWheelHasFilters ? "Nenhum vídeo nesses filtros." : "Nenhum vídeo pendente."}
+                  </p>
                 ) : videoWheelResult ? (
                   <article className="activity-wheel-result-card despertai-wheel-result-card">
                     <strong>{videoWheelResult.title}</strong>
