@@ -41,3 +41,30 @@ export async function getCheckinStreak(userEmail: string, date: string): Promise
   }
   return streak;
 }
+
+export type EveningCheckinData = {
+  date: string;
+  energy: string;
+  wentWell: string;
+  tomorrow: string;
+  completedAt: string;
+};
+
+function eveningCheckinKey(userEmail: string, date: string) {
+  return `evening_checkin::${userEmail.toLowerCase()}::${date}`;
+}
+
+export async function getEveningCheckin(userEmail: string, date: string): Promise<EveningCheckinData | null> {
+  const row = await prisma.setting.findUnique({ where: { key: eveningCheckinKey(userEmail, date) } });
+  if (!row?.value) return null;
+  try { return JSON.parse(row.value) as EveningCheckinData; } catch { return null; }
+}
+
+export async function saveEveningCheckin(userEmail: string, data: EveningCheckinData): Promise<void> {
+  const key = eveningCheckinKey(userEmail, data.date);
+  await prisma.setting.upsert({
+    where: { key },
+    update: { value: JSON.stringify(data) },
+    create: { key, value: JSON.stringify(data) },
+  });
+}

@@ -8,6 +8,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { ArrowDown, ArrowUp, Share2, Trash2, X } from "lucide-react";
+import { EFFORT_LABELS, type EffortLevel } from "@/lib/energy";
 import type { TodoTask } from "@/lib/types";
 
 type TaskDetailDraft = {
@@ -34,6 +35,7 @@ type TaskDetailSheetProps = {
   shareActionLabel?: string;
   sharing?: boolean;
   canShare?: boolean;
+  effort: EffortLevel;
   onClose: () => void;
   onSetDraft: (taskId: string, patch: Partial<TaskDetailDraft>) => void;
   onSave: (task: TodoTask) => void;
@@ -41,6 +43,7 @@ type TaskDetailSheetProps = {
   onDelete: (taskId: string) => void;
   onToggleDone: (task: TodoTask, checked: boolean) => void;
   onShare?: (taskId: string) => void;
+  onEffortChange: (taskId: string, effort: EffortLevel) => void;
   onCreateSubtask: (taskId: string, title: string) => void;
   onRenameSubtask: (subtaskId: string, title: string) => void;
   onToggleSubtask: (task: TodoTask, subtaskId: string, checked: boolean) => void;
@@ -58,6 +61,7 @@ export default function TaskDetailSheet({
   shareActionLabel = "Share",
   sharing = false,
   canShare = false,
+  effort,
   onClose,
   onSetDraft,
   onSave,
@@ -65,6 +69,7 @@ export default function TaskDetailSheet({
   onDelete,
   onToggleDone,
   onShare,
+  onEffortChange,
   onCreateSubtask,
   onRenameSubtask,
   onToggleSubtask,
@@ -191,6 +196,20 @@ export default function TaskDetailSheet({
                 <option value="Medium">Medium</option>
                 <option value="High">High</option>
                 <option value="Critical">Critical</option>
+              </select>
+            </label>
+
+
+            <label>
+              Effort
+              <select
+                value={effort}
+                onChange={(event) => onEffortChange(task.id, event.target.value as EffortLevel)}
+                onKeyDown={handleFieldKeyDown}
+              >
+                <option value="low">{EFFORT_LABELS.low}</option>
+                <option value="medium">{EFFORT_LABELS.medium}</option>
+                <option value="high">{EFFORT_LABELS.high}</option>
               </select>
             </label>
 

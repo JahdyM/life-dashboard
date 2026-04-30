@@ -30,6 +30,7 @@ import OverflowMenu from "@/components/common/OverflowMenu";
 import TaskComposer from "@/components/calendar/TaskComposer";
 import TaskDetailSheet from "@/components/calendar/TaskDetailSheet";
 import { fetchJson } from "@/lib/client/api";
+import { EFFORT_LABELS, type EffortLevel, type EnergySettings } from "@/lib/energy";
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -77,6 +78,7 @@ type FamilyDayResponse = { day: number };
 type OnboardingResponse = { preferences: DashboardOnboardingPreferences };
 type TaskSharesResponse = { items: TaskShareInvite[]; sent?: TaskShareInvite[] };
 type QuickNoteResponse = { text: string };
+type EnergyResponse = EnergySettings;
 
 type DailyHabitItem = {
   id: string;
@@ -320,6 +322,7 @@ type EditableTaskRowProps = {
     actualMinutes: number;
     notes: string;
   };
+  effort: EffortLevel;
   expanded: boolean;
   active?: boolean;
   saving: boolean;
@@ -382,6 +385,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
   subtaskSavingId,
   shareLabel,
   shareActionLabel = "Share",
+  effort,
   draggable = false,
   dragging = false,
   dropTarget = false,
@@ -406,6 +410,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
   const metadataSummary = [
     draft.scheduledDate && draft.scheduledDate !== contextDate ? draft.scheduledDate : "",
     summarizeTaskMetadata(draft),
+    effort !== "medium" ? EFFORT_LABELS[effort] : "",
   ]
     .filter(Boolean)
     .join(" · ");
@@ -959,6 +964,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     queryKey: ["onboarding-preferences"],
     queryFn: () => fetchJson<OnboardingResponse>("/api/onboarding"),
   });
+  const energyQuery = useQuery({
+    queryKey: ["energy-settings"],
+    queryFn: () => fetchJson<EnergyResponse>("/api/energy"),
+  });
   const taskSharesQuery = useQuery({
     queryKey: ["task-shares"],
     queryFn: () => fetchJson<TaskSharesResponse>("/api/task-shares"),
@@ -983,9 +992,18 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     [reconnectingGoogle, syncWarning, taskSaveError]
   );
 
+  const energySettings = energyQuery.data || { lowEnergyMode: false, taskEffort: {}, habitEffort: {} };
+  const taskEffort = energySettings.taskEffort;
+  const lowEnergyMode = energySettings.lowEnergyMode;
+  const getTaskEffort = useCallback(
+    (task: TodoTask): EffortLevel => taskEffort[task.id] || "medium",
+    [taskEffort]
+  );
+
   const tasksForDay = tasks.filter((task) => task.scheduledDate === selectedDayIso);
   const unscheduledTasks = tasks
     .filter((task) => !task.scheduledDate)
+    .filter((task) => !lowEnergyMode || getTaskEffort(task) === "low")
     .sort(compareTasksForExecution);
 
   const setTaskDraft = useCallback((taskId: string, patch: TaskDraft) => {
@@ -1032,9 +1050,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     [expandedTasks]
   );
 
-  const pendingTasks = tasksForDay
+  const allPendingTasks = tasksForDay
     .filter((task) => !readTaskDraft(task).isDone)
     .sort(compareTasksForExecution);
+  const pendingTasks = allPendingTasks.filter(
+    (task) => !lowEnergyMode || getTaskEffort(task) === "low"
+  );
   const completedTaskRows = tasksForDay
     .filter((task) => readTaskDraft(task).isDone)
     .sort(compareTasksForExecution);
@@ -1812,6 +1833,62 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       setTaskSaveError(readErrorMessage(error, "Couldn't update task."));
     },
   });
+
+
+  const updateEnergy = useMutation({
+    mutationFn: (payload: {
+      low_energy_mode?: boolean;
+      task_effort?: { id: string; effort: EffortLevel | null };
+      habit_effort?: { id: string; effort: EffortLevel | null };
+    }) =>
+      fetchJson<EnergyResponse>("/api/energy", {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      }),
+    onMutate: async (payload) => {
+      await queryClient.cancelQueries({ queryKey: ["energy-settings"] });
+      const previous = queryClient.getQueryData<EnergyResponse>(["energy-settings"]);
+      queryClient.setQueryData<EnergyResponse>(["energy-settings"], (current) => {
+        const base = current || { lowEnergyMode: false, taskEffort: {}, habitEffort: {} };
+        const next: EnergyResponse = {
+          lowEnergyMode:
+            typeof payload.low_energy_mode === "boolean"
+              ? payload.low_energy_mode
+              : base.lowEnergyMode,
+          taskEffort: { ...base.taskEffort },
+          habitEffort: { ...base.habitEffort },
+        };
+        if (payload.task_effort) {
+          if (payload.task_effort.effort) next.taskEffort[payload.task_effort.id] = payload.task_effort.effort;
+          else delete next.taskEffort[payload.task_effort.id];
+        }
+        if (payload.habit_effort) {
+          if (payload.habit_effort.effort) next.habitEffort[payload.habit_effort.id] = payload.habit_effort.effort;
+          else delete next.habitEffort[payload.habit_effort.id];
+        }
+        return next;
+      });
+      return { previous };
+    },
+    onError: (error, _payload, context) => {
+      if (context?.previous) queryClient.setQueryData(["energy-settings"], context.previous);
+      setTaskSaveError(readErrorMessage(error, "Couldn't save energy mode."));
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["energy-settings"], data);
+    },
+  });
+
+  const setTaskEffort = useCallback(
+    (taskId: string, effort: EffortLevel) => {
+      updateEnergy.mutate({ task_effort: { id: taskId, effort } });
+    },
+    [updateEnergy]
+  );
+
+  const toggleLowEnergyMode = useCallback(() => {
+    updateEnergy.mutate({ low_energy_mode: !lowEnergyMode });
+  }, [lowEnergyMode, updateEnergy]);
 
   const reorderFocusTasks = useMutation({
     mutationFn: async (updates: FocusOrderUpdate[]) => {
@@ -2963,6 +3040,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               </p>
           </div>
           <div className="task-header-actions">
+            <button
+              className={`secondary subtle ${lowEnergyMode ? "active" : ""}`}
+              type="button"
+              onClick={toggleLowEnergyMode}
+              aria-pressed={lowEnergyMode}
+            >
+              Low energy
+            </button>
             {syncStatus !== "idle" ? (
               <span className={`sync-status ${syncStatus}`}>
                 {syncStatus === "syncing" ? "Syncing…" : "Sync failed"}
@@ -3034,6 +3119,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           shareActionLabel={detailShareUi?.actionLabel || "Share"}
           sharing={Boolean(detailTask && sharingTaskId === detailTask.id)}
           canShare={Boolean(detailShareUi?.canToggle)}
+          effort={detailTask ? getTaskEffort(detailTask) : "medium"}
           onClose={handleCloseTaskDetails}
           onSetDraft={setTaskDraft}
           onSave={confirmTaskUpdate}
@@ -3041,6 +3127,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           onDelete={handleDeleteTaskFromDetails}
           onToggleDone={(task, checked) => requestToggleTaskDone(task, checked)}
           onShare={handleShareTask}
+          onEffortChange={setTaskEffort}
           onCreateSubtask={handleCreateSubtask}
           onRenameSubtask={handleRenameSubtask}
           onToggleSubtask={(task, subtaskId, checked) =>
@@ -3056,7 +3143,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               <p className="panel-kicker">Today</p>
               <h3>Tasks</h3>
             </div>
-            <span className="calendar-section-count">{pendingTasks.length}</span>
+            <span className="calendar-section-count">
+              {lowEnergyMode ? `${pendingTasks.length}/${allPendingTasks.length}` : pendingTasks.length}
+            </span>
           </div>
           {pendingTasks.length ? (
             <div className="task-items">
@@ -3068,6 +3157,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     key={task.id}
                     task={task}
                     draft={draft}
+                    effort={getTaskEffort(task)}
                     expanded={isTaskExpanded(task)}
                     active={detailTaskId === task.id}
                     saving={savingTaskId === task.id}
@@ -3106,7 +3196,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               })}
             </div>
           ) : (
-            <div className="line-empty">No pending tasks.</div>
+            <div className="line-empty">
+              {lowEnergyMode ? "No light tasks." : "No pending tasks."}
+            </div>
           )}
         </section>
 
@@ -3128,6 +3220,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     key={task.id}
                     task={task}
                     draft={draft}
+                    effort={getTaskEffort(task)}
                     expanded={isTaskExpanded(task)}
                     active={detailTaskId === task.id}
                     saving={savingTaskId === task.id}
@@ -3181,6 +3274,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   key={`done-task-${task.id}`}
                   task={task}
                   draft={draft}
+                  effort={getTaskEffort(task)}
                   expanded={isTaskExpanded(task)}
                   active={detailTaskId === task.id}
                   saving={savingTaskId === task.id}

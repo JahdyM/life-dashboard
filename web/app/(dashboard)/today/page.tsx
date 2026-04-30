@@ -4,6 +4,7 @@ import PublicEntryExperience from "@/components/PublicEntryExperience";
 import TodayQuickLog, { type TodayMoodOption } from "@/components/today/TodayQuickLog";
 import WordOfDay from "@/components/today/WordOfDay";
 import MorningCheckin from "@/components/today/MorningCheckin";
+import EveningCheckin from "@/components/today/EveningCheckin";
 import { MOOD_DEFINITIONS, getMoodMeta } from "@/lib/moods";
 import { getTodayOverviewData } from "@/lib/server/dashboard";
 import { getDashboardOnboardingPreferences } from "@/lib/server/onboarding";
@@ -205,6 +206,7 @@ export default async function TodayPage() {
         <summary>Ver mais</summary>
         <div className="today-more-content">
           <MorningCheckin />
+          <EveningCheckin />
           <section className="today-grid today-more-grid">
             <article className="today-panel">
               <div className="today-panel-head compact">

@@ -15,6 +15,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import InlineActionNotice from "@/components/common/InlineActionNotice";
 import { fetchJson } from "@/lib/client/api";
+import { EFFORT_LABELS, type EffortLevel, type EnergySettings } from "@/lib/energy";
 import { FIXED_SHARED_HABITS, WEEKDAY_LABELS_PT } from "@/lib/constants";
 import {
   getHabitDisplayLabel,
@@ -31,6 +32,7 @@ type CustomDoneResponse = { done: Record<string, number> };
 type MeetingDaysResponse = { days: number[] };
 type FamilyDayResponse = { day: number };
 type OnboardingResponse = { preferences: DashboardOnboardingPreferences };
+type EnergyResponse = EnergySettings;
 
 type PendingDeleteState = {
   habit: CustomHabit;
@@ -115,7 +117,9 @@ type FixedHabitRowProps = {
   label: string;
   checked: boolean;
   disabled: boolean;
+  effort: EffortLevel;
   onToggle: (habitKey: string, checked: boolean) => void;
+  onEffortChange: (habitKey: string, effort: EffortLevel) => void;
 };
 
 const FixedHabitRow = memo(function FixedHabitRow({
@@ -123,17 +127,28 @@ const FixedHabitRow = memo(function FixedHabitRow({
   label,
   checked,
   disabled,
+  effort,
   onToggle,
+  onEffortChange,
 }: FixedHabitRowProps) {
   const handleChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => onToggle(habitKey, event.target.checked),
     [habitKey, onToggle]
+  );
+  const handleEffortChange = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => onEffortChange(habitKey, event.target.value as EffortLevel),
+    [habitKey, onEffortChange]
   );
 
   return (
     <label className={`habit-row ${disabled ? "disabled" : ""}`}>
       <input type="checkbox" checked={checked} onChange={handleChange} disabled={disabled} />
       <span>{label}</span>
+      <select className="habit-effort-select" value={effort} onChange={handleEffortChange} aria-label={`${label} effort`}>
+        <option value="low">{EFFORT_LABELS.low}</option>
+        <option value="medium">{EFFORT_LABELS.medium}</option>
+        <option value="high">{EFFORT_LABELS.high}</option>
+      </select>
     </label>
   );
 });
@@ -149,7 +164,9 @@ type CustomHabitRowProps = {
   onDraftNameChange: (value: string) => void;
   onSubmitEdit: (habit: CustomHabit) => void;
   onCancelEdit: () => void;
+  effort: EffortLevel;
   onDelete: (habit: CustomHabit) => void;
+  onEffortChange: (habitId: string, effort: EffortLevel) => void;
 };
 
 const CustomHabitRow = memo(function CustomHabitRow({
@@ -163,7 +180,9 @@ const CustomHabitRow = memo(function CustomHabitRow({
   onDraftNameChange,
   onSubmitEdit,
   onCancelEdit,
+  effort,
   onDelete,
+  onEffortChange,
 }: CustomHabitRowProps) {
   const skipBlurRef = useRef(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -172,6 +191,10 @@ const CustomHabitRow = memo(function CustomHabitRow({
     [habit.id, onToggle]
   );
   const handleDelete = useCallback(() => onDelete(habit), [habit, onDelete]);
+  const handleEffortChange = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => onEffortChange(habit.id, event.target.value as EffortLevel),
+    [habit.id, onEffortChange]
+  );
   const handleStartEdit = useCallback(() => onStartEdit(habit), [habit, onStartEdit]);
 
   useEffect(() => {
@@ -229,6 +252,12 @@ const CustomHabitRow = memo(function CustomHabitRow({
         </button>
       )}
 
+      <select className="habit-effort-select" value={effort} onChange={handleEffortChange} aria-label={`${habit.name} effort`}>
+        <option value="low">{EFFORT_LABELS.low}</option>
+        <option value="medium">{EFFORT_LABELS.medium}</option>
+        <option value="high">{EFFORT_LABELS.high}</option>
+      </select>
+
       <div className="habit-row-actions">
         <button type="button" className="icon-btn danger" onClick={handleDelete} disabled={busy}>
           Remove
@@ -281,6 +310,10 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
     queryKey: ["onboarding-preferences"],
     queryFn: () => fetchJson<OnboardingResponse>("/api/onboarding"),
   });
+  const energyQuery = useQuery({
+    queryKey: ["energy-settings"],
+    queryFn: () => fetchJson<EnergyResponse>("/api/energy"),
+  });
 
   const hasBlockingData =
     Boolean(dayQuery.data) &&
@@ -321,6 +354,9 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
     [customHabitsQuery.data?.items]
   );
   const customDone = customDoneQuery.data?.done ?? EMPTY_DONE;
+  const energySettings = energyQuery.data || { lowEnergyMode: false, taskEffort: {}, habitEffort: {} };
+  const lowEnergyMode = energySettings.lowEnergyMode;
+  const habitEffort = energySettings.habitEffort;
   const meetingDaysRaw = useMemo(
     () => meetingDaysQuery.data?.days ?? EMPTY_DAYS,
     [meetingDaysQuery.data?.days]
@@ -336,9 +372,10 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
         .map((habit) => ({
           ...habit,
           label: getHabitDisplayLabel(habit.key, habit.label),
-        }));
+        }))
+        .filter((habit) => !lowEnergyMode || (habitEffort[habit.key] || "medium") === "low");
     },
-    [onboardingQuery.data?.preferences.sharedHabits]
+    [habitEffort, lowEnergyMode, onboardingQuery.data?.preferences.sharedHabits]
   );
 
   useEffect(() => {
@@ -370,8 +407,10 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
         seen.set(key, habit);
       }
     });
-    return Array.from(seen.values());
-  }, [customHabitsRaw]);
+    return Array.from(seen.values()).filter(
+      (habit) => !lowEnergyMode || (habitEffort[habit.id] || "medium") === "low"
+    );
+  }, [customHabitsRaw, habitEffort, lowEnergyMode]);
 
   const isMeetingDay = useMemo(() => {
     const dayIndex = weekdayFromIso(selectedDate);
@@ -444,6 +483,56 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
       setMutationError(readMutationError(error, "Could not update custom habit state."));
     },
   });
+
+  const updateEnergy = useMutation({
+    mutationFn: (payload: {
+      low_energy_mode?: boolean;
+      habit_effort?: { id: string; effort: EffortLevel | null };
+    }) =>
+      fetchJson<EnergyResponse>("/api/energy", {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      }),
+    onMutate: async (payload) => {
+      await queryClient.cancelQueries({ queryKey: ["energy-settings"] });
+      const previous = queryClient.getQueryData<EnergyResponse>(["energy-settings"]);
+      queryClient.setQueryData<EnergyResponse>(["energy-settings"], (current) => {
+        const base = current || { lowEnergyMode: false, taskEffort: {}, habitEffort: {} };
+        const next: EnergyResponse = {
+          lowEnergyMode:
+            typeof payload.low_energy_mode === "boolean"
+              ? payload.low_energy_mode
+              : base.lowEnergyMode,
+          taskEffort: { ...base.taskEffort },
+          habitEffort: { ...base.habitEffort },
+        };
+        if (payload.habit_effort) {
+          if (payload.habit_effort.effort) next.habitEffort[payload.habit_effort.id] = payload.habit_effort.effort;
+          else delete next.habitEffort[payload.habit_effort.id];
+        }
+        return next;
+      });
+      return { previous };
+    },
+    onError: (error, _payload, context) => {
+      if (context?.previous) queryClient.setQueryData(["energy-settings"], context.previous);
+      setMutationError(readMutationError(error, "Could not save energy mode."));
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["energy-settings"], data);
+    },
+  });
+
+  const handleEffortChange = useCallback(
+    (habitId: string, effort: EffortLevel) => {
+      updateEnergy.mutate({ habit_effort: { id: habitId, effort } });
+    },
+    [updateEnergy]
+  );
+
+  const toggleLowEnergyMode = useCallback(() => {
+    updateEnergy.mutate({ low_energy_mode: !lowEnergyMode });
+  }, [lowEnergyMode, updateEnergy]);
 
   const addHabit = useMutation({
     mutationFn: (name: string) =>
@@ -546,7 +635,8 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
     updateMeetingDays.isPending ||
     updateFamilyDay.isPending ||
     updateHabit.isPending ||
-    deleteHabit.isPending;
+    deleteHabit.isPending ||
+    updateEnergy.isPending;
 
   const commitPendingDelete = useCallback(() => {
     if (!pendingDelete) return;
@@ -801,6 +891,18 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
           />
         ) : null}
 
+        <div className="energy-mode-strip">
+          <button
+            type="button"
+            className={`secondary subtle ${lowEnergyMode ? "active" : ""}`}
+            onClick={toggleLowEnergyMode}
+            aria-pressed={lowEnergyMode}
+          >
+            Low energy
+          </button>
+          {lowEnergyMode ? <span>Only light habits.</span> : <span>Mark habits by effort.</span>}
+        </div>
+
         <section className="habits-setup-block">
           <div className="habits-section-head">
             <div>
@@ -849,6 +951,9 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
             </div>
           </div>
           <div className="habit-list">
+            {sharedHabits.length === 0 ? (
+              <div className="line-empty">No light shared habits.</div>
+            ) : null}
             {sharedHabits.map((habit) => {
               const isMeetingHabit =
                 habit.key === "meeting_attended" || habit.key === "prepare_meeting";
@@ -862,7 +967,9 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
                   label={habit.label}
                   checked={isHabitEntryDone(dayEntry as Record<string, unknown>, habit.key)}
                   disabled={disabled}
+                  effort={habitEffort[habit.key] || "medium"}
                   onToggle={handleToggleHabit}
+                  onEffortChange={handleEffortChange}
                 />
               );
             })}
@@ -879,6 +986,11 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
           </div>
 
           <div className="habit-list">
+            {uniqueCustomHabits.length === 0 ? (
+              <div className="line-empty">
+                {lowEnergyMode ? "No light custom habits." : "No custom habits."}
+              </div>
+            ) : null}
             {uniqueCustomHabits.map((habit) => (
               <CustomHabitRow
                 key={habit.id}
@@ -892,7 +1004,9 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
                 onDraftNameChange={handleDraftNameChange}
                 onSubmitEdit={handleSubmitEdit}
                 onCancelEdit={handleCancelEdit}
+                effort={habitEffort[habit.id] || "medium"}
                 onDelete={handleDeleteHabit}
+                onEffortChange={handleEffortChange}
               />
             ))}
           </div>
