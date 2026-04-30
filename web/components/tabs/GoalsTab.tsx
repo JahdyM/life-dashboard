@@ -202,28 +202,28 @@ export default function GoalsTab({ userEmail }: { userEmail: string }) {
         {showGForm && (
           <div className="section" style={{ marginTop: 12 }}>
             <div className="form-row">
-              <label>Meta</label>
-              <input value={gTitle} onChange={(e) => setGTitle(e.target.value)} placeholder="ex: Visitar o Pantanal" />
+              <label htmlFor="goal-title">Meta</label>
+              <input id="goal-title" value={gTitle} onChange={(e) => setGTitle(e.target.value)} placeholder="ex: Visitar o Pantanal" />
             </div>
             <div className="form-row">
-              <label>Categoria</label>
-              <select value={gCat} onChange={(e) => setGCat(e.target.value)}>
+              <label htmlFor="goal-cat">Categoria</label>
+              <select id="goal-cat" value={gCat} onChange={(e) => setGCat(e.target.value)}>
                 {GOAL_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
               </select>
             </div>
             <div className="form-row">
-              <label>Tamanho</label>
-              <select value={gSize} onChange={(e) => setGSize(e.target.value)}>
+              <label htmlFor="goal-size">Tamanho</label>
+              <select id="goal-size" value={gSize} onChange={(e) => setGSize(e.target.value)}>
                 {GOAL_SIZES.map((s) => <option key={s}>{s}</option>)}
               </select>
             </div>
             <div className="form-row">
-              <label>Emoji</label>
-              <input value={gEmoji} onChange={(e) => setGEmoji(e.target.value)} maxLength={4} style={{ width: 60 }} />
+              <label htmlFor="goal-emoji">Emoji</label>
+              <input id="goal-emoji" value={gEmoji} onChange={(e) => setGEmoji(e.target.value)} maxLength={4} style={{ width: 60 }} />
             </div>
             <div className="form-row">
-              <label>Prazo (opcional)</label>
-              <input type="date" value={gDeadline} onChange={(e) => setGDeadline(e.target.value)} />
+              <label htmlFor="goal-deadline">Prazo (opcional)</label>
+              <input id="goal-deadline" type="date" value={gDeadline} onChange={(e) => setGDeadline(e.target.value)} />
             </div>
             <button
               onClick={() => {

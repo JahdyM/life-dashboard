@@ -176,26 +176,26 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
         {showExpForm && (
           <div className="section" style={{ marginTop: 12 }}>
             <div className="form-row">
-              <label>Valor (R$)</label>
-              <input type="number" min="0.01" step="0.5" value={newAmt} onChange={(e) => setNewAmt(e.target.value)} placeholder="0,00" />
+              <label htmlFor="fin-amt">Valor (R$)</label>
+              <input id="fin-amt" type="number" min="0.01" step="0.5" value={newAmt} onChange={(e) => setNewAmt(e.target.value)} placeholder="0,00" />
             </div>
             <div className="form-row">
-              <label>Categoria</label>
-              <select value={newCat} onChange={(e) => setNewCat(e.target.value)}>
+              <label htmlFor="fin-cat">Categoria</label>
+              <select id="fin-cat" value={newCat} onChange={(e) => setNewCat(e.target.value)}>
                 {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
               </select>
             </div>
             <div className="form-row">
-              <label>Descrição</label>
-              <input value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="ex: Mercado da semana" />
+              <label htmlFor="fin-desc">Descrição</label>
+              <input id="fin-desc" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="ex: Mercado da semana" />
             </div>
             <div className="form-row">
-              <label>Data</label>
-              <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
+              <label htmlFor="fin-date">Data</label>
+              <input id="fin-date" type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
             </div>
             <div className="form-row">
-              <label>Quem pagou</label>
-              <input value={newPaid} onChange={(e) => setNewPaid(e.target.value)} placeholder="email" />
+              <label htmlFor="fin-paid">Quem pagou</label>
+              <input id="fin-paid" value={newPaid} onChange={(e) => setNewPaid(e.target.value)} placeholder="email" />
             </div>
             <button
               onClick={() => {
@@ -244,16 +244,16 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
         {showSgForm && (
           <div className="section" style={{ marginTop: 12 }}>
             <div className="form-row">
-              <label>Nome</label>
-              <input value={sgTitle} onChange={(e) => setSgTitle(e.target.value)} placeholder="ex: Viagem para Portugal" />
+              <label htmlFor="sg-title">Nome</label>
+              <input id="sg-title" value={sgTitle} onChange={(e) => setSgTitle(e.target.value)} placeholder="ex: Viagem para Portugal" />
             </div>
             <div className="form-row">
-              <label>Valor alvo (R$)</label>
-              <input type="number" min="1" step="100" value={sgTarget} onChange={(e) => setSgTarget(e.target.value)} placeholder="5000" />
+              <label htmlFor="sg-target">Valor alvo (R$)</label>
+              <input id="sg-target" type="number" min="1" step="100" value={sgTarget} onChange={(e) => setSgTarget(e.target.value)} placeholder="5000" />
             </div>
             <div className="form-row">
-              <label>Emoji</label>
-              <input value={sgEmoji} onChange={(e) => setSgEmoji(e.target.value)} maxLength={4} style={{ width: 60 }} />
+              <label htmlFor="sg-emoji">Emoji</label>
+              <input id="sg-emoji" value={sgEmoji} onChange={(e) => setSgEmoji(e.target.value)} maxLength={4} style={{ width: 60 }} />
             </div>
             <button
               onClick={() => {
