@@ -220,16 +220,16 @@ export async function saveMonthlyFinance(
 export function computeFinanceSummary(f: MonthlyFinance) {
   const totalIncome = (f.income.gui || 0) + (f.income.jahdy || 0) + (f.income.extras || 0);
   const totalBudget = f.fixedCosts.reduce((s, c) => s + c.budget, 0);
-  const totalActual = f.fixedCosts.reduce((s, c) => s + (c.actual ?? c.budget), 0);
-  const totalDebts = Object.values(f.debts).reduce((s, d) => s + (d.monthly || 0), 0);
+  const totalActual = f.fixedCosts.reduce((s, c) => s + (c.actual ?? 0), 0);
+  const totalDebtsPaid = Object.values(f.debts).reduce((s, d) => s + (d.paid || 0), 0);
   const totalOutstanding = Object.values(f.debts).reduce((s, d) => s + (d.total || 0), 0);
-  const surplus = totalIncome - totalActual - totalDebts;
+  const surplus = totalIncome - totalActual - totalDebtsPaid;
   // Divisão padrão do sobrado: 20% casa, 10% R.E., resto dívidas
   return {
     totalIncome,
     totalBudget,
     totalActual,
-    totalDebts,
+    totalDebtsPaid,
     totalOutstanding,
     surplus,
     allocation: {

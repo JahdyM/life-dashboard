@@ -25,12 +25,12 @@ function fmt(n: number) {
 function computeSummary(f: MonthlyFinance) {
   const totalIncome = (f.income.gui || 0) + (f.income.jahdy || 0) + (f.income.extras || 0);
   const totalBudget = f.fixedCosts.reduce((s, c) => s + c.budget, 0);
-  const totalActual = f.fixedCosts.reduce((s, c) => s + (c.actual ?? c.budget), 0);
-  const totalDebts = Object.values(f.debts).reduce((s, d: DebtEntry) => s + (d.monthly || 0), 0);
+  const totalActual = f.fixedCosts.reduce((s, c) => s + (c.actual ?? 0), 0);
+  const totalDebtsPaid = Object.values(f.debts).reduce((s, d: DebtEntry) => s + (d.paid || 0), 0);
   const totalOutstanding = Object.values(f.debts).reduce((s, d: DebtEntry) => s + (d.total || 0), 0);
-  const surplus = totalIncome - totalActual - totalDebts;
+  const surplus = totalIncome - totalActual - totalDebtsPaid;
   return {
-    totalIncome, totalBudget, totalActual, totalDebts, totalOutstanding, surplus,
+    totalIncome, totalBudget, totalActual, totalDebtsPaid, totalOutstanding, surplus,
     allocation: {
       casa: surplus > 0 ? Math.round(surplus * 0.2 * 100) / 100 : 0,
       reservaEmergencia: surplus > 0 ? Math.round(surplus * 0.1 * 100) / 100 : 0,
@@ -223,8 +223,8 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
       {summary && (
         <div className="shell-summary-grid">
           <SummaryCard label="Income" value={`R$ ${fmt(summary.totalIncome)}`} accent />
-          <SummaryCard label="Fixed costs" value={`R$ ${fmt(summary.totalActual)}`} sub={`budgeted R$ ${fmt(summary.totalBudget)}`} />
-          <SummaryCard label="Debt payments" value={`R$ ${fmt(summary.totalDebts)}`} sub={`outstanding R$ ${fmt(summary.totalOutstanding)}`} />
+          <SummaryCard label="Fixed costs paid" value={`R$ ${fmt(summary.totalActual)}`} sub={`budgeted R$ ${fmt(summary.totalBudget)}`} />
+          <SummaryCard label="Debt payments made" value={`R$ ${fmt(summary.totalDebtsPaid)}`} sub={`outstanding R$ ${fmt(summary.totalOutstanding)}`} />
           <SummaryCard
             label="Month surplus"
             value={`R$ ${fmt(summary.surplus)}`}
