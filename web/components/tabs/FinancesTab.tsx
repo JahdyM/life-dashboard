@@ -388,17 +388,28 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
         <h2>🎯 Savings Goals</h2>
         {sgQuery.isPending && <div className="query-status">Loading…</div>}
         {savingsGoals.map((g) => {
-          const color = g.current / g.target >= 0.8 ? "#9DCFB7" : "#8e79af";
+          const effectiveTarget =
+            g.id === "reserva_emergencia" && summary
+              ? Math.round(summary.totalBudget * 6)
+              : g.target;
+          const color = g.current / effectiveTarget >= 0.8 ? "#9DCFB7" : "#8e79af";
           return (
             <div key={g.id} style={{ padding: "10px 0", borderBottom: "1px solid var(--border,#444)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                 <span style={{ fontSize: "1.2rem" }}>{g.emoji}</span>
-                <strong style={{ flex: 1 }}>{g.title}</strong>
+                <div style={{ flex: 1 }}>
+                  <strong>{g.title}</strong>
+                  {g.id === "reserva_emergencia" && summary && (
+                    <span style={{ fontSize: "0.72rem", color: "var(--text-soft,#888)", marginLeft: 6 }}>
+                      6 × R$ {fmt(summary.totalBudget)}
+                    </span>
+                  )}
+                </div>
                 <input
                   aria-label={`Current amount — ${g.title}`}
                   type="number"
                   min="0"
-                  step="100"
+                  className="no-spinner"
                   defaultValue={g.current}
                   style={{ width: 110 }}
                   onBlur={(e) => {
@@ -408,7 +419,7 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
                 />
                 <button className="secondary" style={{ padding: "2px 8px", fontSize: "0.75rem" }} onClick={() => delSgMut.mutate(g.id)}>✕</button>
               </div>
-              <ProgressBar current={g.current} target={g.target} color={color} />
+              <ProgressBar current={g.current} target={effectiveTarget} color={color} />
             </div>
           );
         })}
