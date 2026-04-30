@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Search } from "lucide-react";
 import InlineActionNotice from "@/components/common/InlineActionNotice";
 import { fetchJson } from "@/lib/client/api";
 import type { DespertaiIssue, ReadingPageData, ReadingVideo } from "@/lib/types";
@@ -114,6 +115,14 @@ function truncateWheelLabel(text: string, maxLength: number) {
   if (!cleaned) return "Despertai";
   if (cleaned.length <= maxLength) return cleaned;
   return `${cleaned.slice(0, maxLength - 1)}…`;
+}
+
+function normalizeSearchText(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 }
 
 function findWheelSegmentAtPointer<T extends { startAngle: number; endAngle: number }>(
@@ -311,10 +320,39 @@ function VideoCard({
   );
 }
 
+function ReadingSearchField({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <label className="reading-search-field">
+      <Search size={15} aria-hidden="true" />
+      <input
+        type="search"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+      />
+      {value ? (
+        <button type="button" onClick={() => onChange("")}>
+          Limpar
+        </button>
+      ) : null}
+    </label>
+  );
+}
+
 export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"despertai" | "videos" | "bible">("despertai");
   const [importText, setImportText] = useState("");
+  const [despertaiSearch, setDespertaiSearch] = useState("");
+  const [videoSearch, setVideoSearch] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [expandedIssues, setExpandedIssues] = useState<Set<string>>(() => new Set());
   const [wheelSpinning, setWheelSpinning] = useState(false);
@@ -367,6 +405,32 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
     }),
     [data]
   );
+  const despertaiSearchTerm = normalizeSearchText(despertaiSearch);
+  const videoSearchTerm = normalizeSearchText(videoSearch);
+  const filteredPendingIssues = useMemo(() => {
+    if (!despertaiSearchTerm) return data.despertai.pendingIssues;
+    return data.despertai.pendingIssues.filter((issue) =>
+      normalizeSearchText(`${issue.title} ${issue.year} ${issue.dateLabel || ""}`).includes(despertaiSearchTerm)
+    );
+  }, [data.despertai.pendingIssues, despertaiSearchTerm]);
+  const filteredFinishedIssues = useMemo(() => {
+    if (!despertaiSearchTerm) return data.despertai.finishedIssuesList;
+    return data.despertai.finishedIssuesList.filter((issue) =>
+      normalizeSearchText(`${issue.title} ${issue.year} ${issue.dateLabel || ""}`).includes(despertaiSearchTerm)
+    );
+  }, [data.despertai.finishedIssuesList, despertaiSearchTerm]);
+  const filteredPendingVideos = useMemo(() => {
+    if (!videoSearchTerm) return data.videos.pendingVideosList;
+    return data.videos.pendingVideosList.filter((video) =>
+      normalizeSearchText(`${video.title} ${video.naturalKey || ""}`).includes(videoSearchTerm)
+    );
+  }, [data.videos.pendingVideosList, videoSearchTerm]);
+  const filteredFinishedVideos = useMemo(() => {
+    if (!videoSearchTerm) return data.videos.finishedVideosList;
+    return data.videos.finishedVideosList.filter((video) =>
+      normalizeSearchText(`${video.title} ${video.naturalKey || ""}`).includes(videoSearchTerm)
+    );
+  }, [data.videos.finishedVideosList, videoSearchTerm]);
   const wheelEligibleIssues = useMemo(() => {
     const pending = data.despertai.pendingIssues;
     if (!wheelLastIssueId || pending.length <= 1) return pending;
@@ -881,14 +945,20 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
             </button>
           </details>
 
+          <ReadingSearchField
+            value={despertaiSearch}
+            onChange={setDespertaiSearch}
+            placeholder="Buscar revista"
+          />
+
           <section className="despertai-list-section">
             <div className="despertai-section-title">
               <h3>Não lidas</h3>
-              <span>recentes primeiro</span>
+              <span>{despertaiSearchTerm ? filteredPendingIssues.length : "recentes primeiro"}</span>
             </div>
-            {data.despertai.pendingIssues.length ? (
+            {filteredPendingIssues.length ? (
               <div className="despertai-issue-list">
-                {data.despertai.pendingIssues.map((issue) => (
+                {filteredPendingIssues.map((issue) => (
                   <IssueCard
                     key={issue.id}
                     issue={issue}
@@ -900,6 +970,8 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
                   />
                 ))}
               </div>
+            ) : despertaiSearchTerm ? (
+              <div className="line-empty">Nenhuma revista encontrada.</div>
             ) : (
               <div className="line-empty">Cole sua tabela para começar.</div>
             )}
@@ -908,11 +980,11 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
           <section className="despertai-list-section">
             <div className="despertai-section-title">
               <h3>Lidas</h3>
-              <span>{data.despertai.finishedIssuesList.length}</span>
+              <span>{filteredFinishedIssues.length}</span>
             </div>
-            {data.despertai.finishedIssuesList.length ? (
+            {filteredFinishedIssues.length ? (
               <div className="despertai-finished-list">
-                {data.despertai.finishedIssuesList.map((issue) => (
+                {filteredFinishedIssues.map((issue) => (
                   <IssueCard
                     key={issue.id}
                     issue={issue}
@@ -924,6 +996,8 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
                   />
                 ))}
               </div>
+            ) : despertaiSearchTerm ? (
+              <div className="line-empty">Nenhuma revista encontrada.</div>
             ) : (
               <div className="line-empty">Nenhuma revista concluída.</div>
             )}
@@ -1111,14 +1185,20 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
             </div>
           </section>
 
+          <ReadingSearchField
+            value={videoSearch}
+            onChange={setVideoSearch}
+            placeholder="Buscar vídeo"
+          />
+
           <section className="despertai-list-section">
             <div className="despertai-section-title">
               <h3>Não vistos</h3>
-              <span>{data.videos.pendingVideos}</span>
+              <span>{filteredPendingVideos.length}</span>
             </div>
-            {data.videos.pendingVideosList.length ? (
+            {filteredPendingVideos.length ? (
               <div className="reading-video-list">
-                {data.videos.pendingVideosList.map((video) => (
+                {filteredPendingVideos.map((video) => (
                   <VideoCard
                     key={video.id}
                     video={video}
@@ -1128,6 +1208,8 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
                   />
                 ))}
               </div>
+            ) : videoSearchTerm ? (
+              <div className="line-empty">Nenhum vídeo encontrado.</div>
             ) : (
               <div className="line-empty">Todos os vídeos foram vistos.</div>
             )}
@@ -1136,11 +1218,11 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
           <section className="despertai-list-section">
             <div className="despertai-section-title">
               <h3>Vistos</h3>
-              <span>{data.videos.finishedVideos}</span>
+              <span>{filteredFinishedVideos.length}</span>
             </div>
-            {data.videos.finishedVideosList.length ? (
+            {filteredFinishedVideos.length ? (
               <div className="reading-video-list reading-video-finished-list">
-                {data.videos.finishedVideosList.map((video) => (
+                {filteredFinishedVideos.map((video) => (
                   <VideoCard
                     key={video.id}
                     video={video}
@@ -1150,6 +1232,8 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
                   />
                 ))}
               </div>
+            ) : videoSearchTerm ? (
+              <div className="line-empty">Nenhum vídeo encontrado.</div>
             ) : (
               <div className="line-empty">Nenhum vídeo visto ainda.</div>
             )}

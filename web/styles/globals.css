@@ -6804,6 +6804,46 @@ textarea:hover {
   gap: 18px;
 }
 
+.reading-search-field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(226, 213, 191, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text-muted);
+  padding: 8px 10px 8px 13px;
+}
+
+.reading-search-field:focus-within {
+  border-color: rgba(211, 173, 112, 0.5);
+  box-shadow: 0 0 0 3px rgba(211, 173, 112, 0.1);
+}
+
+.reading-search-field input {
+  min-height: 34px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  outline: 0;
+  padding: 0;
+}
+
+.reading-search-field input::placeholder {
+  color: var(--text-muted);
+}
+
+.reading-search-field button {
+  min-height: 32px;
+  border: 0;
+  background: transparent;
+  color: #dcc7a5;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 8px;
+}
+
 .reading-summary-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(130px, 0.55fr));
