@@ -498,6 +498,7 @@ export const spiritualStreakUpdateSchema = z
     date: isoDateSchema,
     success: z.union([z.boolean(), z.null()]),
     note: optionalTrimmedText(1200).optional(),
+    use_grace: z.boolean().optional(),
   })
   .strict();
 

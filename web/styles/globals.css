@@ -730,6 +730,46 @@ a {
   font-size: 12px;
 }
 
+.rewards-store-card {
+  gap: 12px;
+}
+
+.rewards-points {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(227, 192, 116, 0.13);
+  color: #fff8ec;
+}
+
+.rewards-store-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.rewards-store-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(223, 236, 236, 0.1);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.rewards-store-item span {
+  color: var(--text-muted);
+}
+
+.grace-day-button {
+  border-color: rgba(134, 216, 215, 0.28) !important;
+  background: rgba(134, 216, 215, 0.1) !important;
+}
+
 .today-secondary-links {
   display: flex;
   flex-wrap: wrap;

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { fetchJson } from "@/lib/client/api";
 import { shiftMonthKey } from "@/lib/spiritualStreaks";
+import type { RewardsState } from "@/lib/rewards";
 import type {
   SpiritualStreakBoard,
   SpiritualStreakBoardKey,
@@ -44,16 +45,22 @@ export default function SpiritualStreaksClient({
       fetchJson<SpiritualStreaksPageData>(`/api/spiritual-streaks?month=${monthKey}`),
     ...(monthInitialData ? { initialData: monthInitialData } : {}),
   });
+  const rewardsQuery = useQuery<RewardsState>({
+    queryKey: ["rewards", initialData.todayIso],
+    queryFn: () => fetchJson<RewardsState>(`/api/rewards?date=${initialData.todayIso}`),
+  });
 
   const updateMutation = useMutation({
     mutationFn: async ({
       boardKey,
       date,
       success,
+      useGrace = false,
     }: {
       boardKey: SpiritualStreakBoardKey;
       date: string;
       success: boolean | null;
+      useGrace?: boolean;
     }) =>
       fetchJson<{ item: SpiritualStreakBoard }>(`/api/spiritual-streaks/${boardKey}`, {
         method: "PATCH",
@@ -62,6 +69,7 @@ export default function SpiritualStreaksClient({
           date,
           success,
           note: null,
+          use_grace: useGrace,
         }),
       }),
   });
@@ -122,11 +130,12 @@ export default function SpiritualStreaksClient({
               board={board}
               todayIso={data.todayIso}
               pending={updateMutation.isPending && pendingBoardKey === board.key}
-              onMark={({ boardKey, date, success }) => {
+              graceAvailable={Boolean(rewardsQuery.data?.streakFreezes)}
+              onMark={({ boardKey, date, success, useGrace }) => {
                 setFeedback(null);
                 setPendingBoardKey(boardKey);
                 updateMutation.mutate(
-                  { boardKey, date, success },
+                  { boardKey, date, success, useGrace },
                   {
                     onSuccess: ({ item }) => {
                       queryClient.setQueryData<SpiritualStreaksPageData | undefined>(
@@ -134,6 +143,7 @@ export default function SpiritualStreaksClient({
                         (current) => patchBoard(current, item)
                       );
                       void queryClient.invalidateQueries({ queryKey: ["spiritual-streaks"] });
+                      if (useGrace) void queryClient.invalidateQueries({ queryKey: ["rewards"] });
                     },
                     onError: (error) => {
                       setFeedback(

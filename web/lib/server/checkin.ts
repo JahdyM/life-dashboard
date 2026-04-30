@@ -35,7 +35,8 @@ export async function getCheckinStreak(userEmail: string, date: string): Promise
   for (let i = 0; i < 365; i++) {
     const dateStr = d.toISOString().slice(0, 10);
     const row = await prisma.setting.findUnique({ where: { key: checkinKey(userEmail, dateStr) } });
-    if (!row) break;
+    const grace = await prisma.setting.findUnique({ where: { key: `rewards::${userEmail.toLowerCase()}::morning_grace::${dateStr}` } });
+    if (!row && !grace) break;
     streak++;
     d.setDate(d.getDate() - 1);
   }

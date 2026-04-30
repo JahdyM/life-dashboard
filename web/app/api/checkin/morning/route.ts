@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { requireUserEmail } from "@/lib/server/auth";
 import { handleAuthError, jsonError, jsonOk } from "@/lib/server/response";
 import { getMorningCheckin, saveMorningCheckin, getCheckinStreak } from "@/lib/server/checkin";
+import { addPointsOnce } from "@/lib/server/rewards";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = { ...body, completedAt: new Date().toISOString() };
     await saveMorningCheckin(userEmail, data);
+    await addPointsOnce(userEmail, `morning_checkin::${data.date}`, 5);
     const streak = await getCheckinStreak(userEmail, data.date);
     return jsonOk({ ok: true, streak });
   } catch (err) {

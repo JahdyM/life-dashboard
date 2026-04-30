@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireUserEmail } from "@/lib/server/auth";
 import { getEveningCheckin, saveEveningCheckin } from "@/lib/server/checkin";
+import { addPointsOnce } from "@/lib/server/rewards";
 import { handleAuthError, jsonError, jsonOk } from "@/lib/server/response";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +32,7 @@ export async function POST(request: NextRequest) {
     }
     const data = { date, energy, wentWell, tomorrow, completedAt: new Date().toISOString() };
     await saveEveningCheckin(userEmail, data);
+    await addPointsOnce(userEmail, `evening_checkin::${date}`, 5);
     return jsonOk({ ok: true, data });
   } catch (err) {
     const authError = handleAuthError(err);

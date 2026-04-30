@@ -26,15 +26,18 @@ export default function SpiritualStreakBoard({
   board,
   todayIso,
   pending = false,
+  graceAvailable = false,
   onMark,
 }: {
   board: SpiritualStreakBoardType;
   todayIso: string;
   pending?: boolean;
+  graceAvailable?: boolean;
   onMark: (args: {
     boardKey: SpiritualStreakBoardType["key"];
     date: string;
     success: boolean | null;
+    useGrace?: boolean;
   }) => void;
 }) {
   const [selectedDate, setSelectedDate] = useState(() =>
@@ -154,6 +157,16 @@ export default function SpiritualStreakBoard({
             >
               Clear
             </button>
+            {graceAvailable && selectedCell.success !== true && !selectedCell.isFuture ? (
+              <button
+                type="button"
+                className="secondary subtle grace-day-button"
+                onClick={() => onMark({ boardKey: board.key, date: selectedCell.date, success: true, useGrace: true })}
+                disabled={pending}
+              >
+                Grace
+              </button>
+            ) : null}
           </div>
         </div>
       ) : null}
