@@ -363,31 +363,20 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
       {/* Debts */}
       <div className="card">
         <h2>💳 Debts</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: "6px 12px", alignItems: "center" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto auto", gap: "6px 12px", alignItems: "center" }}>
           <small style={{ color: "var(--text-soft)" }}>Debt</small>
-          <small style={{ color: "var(--text-soft)", textAlign: "right" }}>Total outstanding</small>
+          <small style={{ color: "var(--text-soft)", textAlign: "right" }}>Total</small>
           <small style={{ color: "var(--text-soft)", textAlign: "right" }}>Due this month</small>
           <small style={{ color: "var(--text-soft)", textAlign: "right" }}>Paid</small>
+          <small style={{ color: "var(--text-soft)", textAlign: "right" }}>Remaining</small>
 
           {(["contador", "nacional", "cartao"] as const).map((key) => {
             const labels = { contador: "Contador", nacional: "Nacional", cartao: "Credit card" };
             const entry = finance.debts[key];
-            const remaining = entry.monthly - entry.paid;
+            const remaining = entry.total - entry.paid;
             return (
               <>
-                <span key={`${key}-label`} style={{ fontSize: "0.88rem" }}>
-                  {labels[key]}
-                  {remaining > 0 && (
-                    <span style={{ fontSize: "0.72rem", marginLeft: 6, color: "#D9C979" }}>
-                      R$ {fmt(remaining)} left
-                    </span>
-                  )}
-                  {remaining < 0 && (
-                    <span style={{ fontSize: "0.72rem", marginLeft: 6, color: "#9DCFB7" }}>
-                      +R$ {fmt(-remaining)}
-                    </span>
-                  )}
-                </span>
+                <span key={`${key}-label`} style={{ fontSize: "0.88rem" }}>{labels[key]}</span>
                 {(["total", "monthly", "paid"] as const).map((field) => (
                   <input
                     key={`${key}-${field}`}
@@ -395,7 +384,7 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
                     min="0"
                     className="no-spinner"
                     value={entry[field]}
-                    style={{ width: 110, textAlign: "right" }}
+                    style={{ width: 100, textAlign: "right" }}
                     onChange={(e) =>
                       update((prev) => ({
                         ...prev,
@@ -407,6 +396,18 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
                     }
                   />
                 ))}
+                <span
+                  key={`${key}-remaining`}
+                  style={{
+                    width: 100,
+                    textAlign: "right",
+                    fontSize: "0.88rem",
+                    fontVariantNumeric: "tabular-nums",
+                    color: remaining <= 0 ? "#9DCFB7" : remaining < entry.total * 0.25 ? "#D9C979" : "var(--text-soft,#888)",
+                  }}
+                >
+                  {remaining <= 0 ? "✓ Quitada" : `R$ ${fmt(remaining)}`}
+                </span>
               </>
             );
           })}
