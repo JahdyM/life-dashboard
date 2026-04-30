@@ -496,6 +496,8 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
           const effectiveTarget =
             g.id === "reserva_emergencia" && summary
               ? Math.round(summary.totalBudget * 6)
+              : g.id === "quitar_dividas" && summary
+              ? summary.totalOutstanding
               : g.target;
           const color = g.current / effectiveTarget >= 0.8 ? "#9DCFB7" : "#8e79af";
           return (
@@ -507,6 +509,11 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
                   {g.id === "reserva_emergencia" && summary && (
                     <span style={{ fontSize: "0.72rem", color: "var(--text-soft,#888)", marginLeft: 6 }}>
                       6 × R$ {fmt(summary.totalBudget)}
+                    </span>
+                  )}
+                  {g.id === "quitar_dividas" && summary && (
+                    <span style={{ fontSize: "0.72rem", color: "var(--text-soft,#888)", marginLeft: 6 }}>
+                      R$ {fmt(summary.totalOutstanding)} outstanding
                     </span>
                   )}
                 </div>
