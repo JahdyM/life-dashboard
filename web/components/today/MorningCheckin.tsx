@@ -42,6 +42,8 @@ export default function MorningCheckin() {
   const [intention, setIntention] = useState("");
   const [priority, setPriority] = useState("");
   const [streak, setStreak] = useState(0);
+  const [points, setPoints] = useState(0);
+  const [earned, setEarned] = useState(0);
   const [done, setDone] = useState<CheckinData | null>(null);
   const [celebrating, setCelebrating] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -66,6 +68,19 @@ export default function MorningCheckin() {
   }, [query.data]);
 
   useEffect(() => {
+    const fetchPoints = async () => {
+      try {
+        const res = await fetch(`/api/rewards?date=${today}`);
+        if (!res.ok) return;
+        const json = await res.json() as { points?: number };
+        if (typeof json.points === "number") setPoints(json.points);
+      } catch { /* ignore */ }
+    };
+    void fetchPoints();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     if (step === 2 || step === 3) {
       setTimeout(() => inputRef.current?.focus(), 80);
     }
@@ -73,16 +88,18 @@ export default function MorningCheckin() {
 
   const saveMut = useMutation({
     mutationFn: (data: object) =>
-      fetchJson<{ ok: boolean; streak: number }>("/api/checkin/morning", {
+      fetchJson<{ ok: boolean; streak: number; points: number; earned: number }>("/api/checkin/morning", {
         method: "POST",
         body: JSON.stringify(data),
       }),
     onSuccess: (res) => {
       setStreak(res.streak);
+      if (typeof res.points === "number") setPoints(res.points);
+      if (typeof res.earned === "number") setEarned(res.earned);
       setDone({ mood, moodLabel, intention, priority });
       setCelebrating(true);
       setStep(4);
-      setTimeout(() => setCelebrating(false), 2500);
+      setTimeout(() => setCelebrating(false), 3000);
     },
   });
 
@@ -112,14 +129,25 @@ export default function MorningCheckin() {
         <span style={{ fontSize: "1.3rem" }}>{done.mood}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <span style={{ fontSize: "0.82rem", color: celebrating ? "#9DCFB7" : "var(--text-soft,#888)", fontWeight: 600 }}>
-            {celebrating ? "🎉 Ótimo começo de dia!" : `${done.moodLabel} · ${done.intention}`}
+            {celebrating
+              ? earned > 0
+                ? `🎉 +${earned} pts! Ótimo começo!`
+                : "🎉 Ótimo começo de dia!"
+              : `${done.moodLabel} · ${done.intention}`}
           </span>
         </div>
-        {streak > 0 && (
-          <span style={{ fontSize: "0.78rem", color: "#D9C979", fontWeight: 700, whiteSpace: "nowrap" }}>
-            🔥 {streakBadge(streak)}
-          </span>
-        )}
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+          {points > 0 && (
+            <span style={{ fontSize: "0.75rem", color: "#D9C979", fontWeight: 700, whiteSpace: "nowrap" }}>
+              ✨ {points}
+            </span>
+          )}
+          {streak > 0 && (
+            <span style={{ fontSize: "0.78rem", color: "#D9C979", fontWeight: 700, whiteSpace: "nowrap" }}>
+              🔥 {streakBadge(streak)}
+            </span>
+          )}
+        </div>
       </div>
     );
   }

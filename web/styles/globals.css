@@ -684,6 +684,16 @@ a {
   color: var(--text-muted);
 }
 
+.evening-checkin-card.compact-done.celebrating {
+  border-color: rgba(157, 207, 183, 0.4);
+  background: rgba(157, 207, 183, 0.07);
+  transition: border-color 0.5s, background 0.5s;
+}
+
+.evening-checkin-card.compact-done.celebrating h2 {
+  color: #9DCFB7;
+}
+
 .evening-energy-options,
 .energy-mode-strip {
   display: flex;

@@ -26,9 +26,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = { ...body, completedAt: new Date().toISOString() };
     await saveMorningCheckin(userEmail, data);
-    await addPointsOnce(userEmail, `morning_checkin::${data.date}`, 5);
     const streak = await getCheckinStreak(userEmail, data.date);
-    return jsonOk({ ok: true, streak });
+    const base = await addPointsOnce(userEmail, `morning_checkin::${data.date}`, 5);
+    let earned = base.awarded;
+    let points = base.balance;
+    // Streak milestone bonuses (awarded once per milestone)
+    if (streak === 7 || streak === 14 || streak === 30 || streak === 60 || streak === 100) {
+      const bonus = streak >= 100 ? 50 : streak >= 60 ? 30 : streak >= 30 ? 20 : streak >= 14 ? 15 : 10;
+      const bonusResult = await addPointsOnce(userEmail, `streak_bonus::${streak}d::${data.date}`, bonus);
+      earned += bonusResult.awarded;
+      points = bonusResult.balance;
+    }
+    return jsonOk({ ok: true, streak, points, earned });
   } catch (err) {
     const authError = handleAuthError(err);
     if (authError) return authError;

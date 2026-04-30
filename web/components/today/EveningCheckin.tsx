@@ -25,6 +25,8 @@ export default function EveningCheckin() {
   const [wentWell, setWentWell] = useState("");
   const [tomorrow, setTomorrow] = useState("");
   const [done, setDone] = useState<EveningData | null>(null);
+  const [celebrating, setCelebrating] = useState(false);
+  const [earned, setEarned] = useState(0);
   const firstInputRef = useRef<HTMLInputElement | null>(null);
 
   const query = useQuery({
@@ -42,11 +44,16 @@ export default function EveningCheckin() {
 
   const saveMut = useMutation({
     mutationFn: (payload: { date: string; energy: string; wentWell: string; tomorrow: string }) =>
-      fetchJson<{ ok: boolean; data: EveningData }>("/api/checkin/evening", {
+      fetchJson<{ ok: boolean; data: EveningData; points: number; earned: number }>("/api/checkin/evening", {
         method: "POST",
         body: JSON.stringify(payload),
       }),
-    onSuccess: (payload) => setDone(payload.data),
+    onSuccess: (payload) => {
+      setDone(payload.data);
+      if (typeof payload.earned === "number") setEarned(payload.earned);
+      setCelebrating(true);
+      setTimeout(() => setCelebrating(false), 3000);
+    },
   });
 
   if (query.isPending) return null;
@@ -55,10 +62,16 @@ export default function EveningCheckin() {
   if (done) {
     const option = ENERGY_OPTIONS.find((item) => item.key === done.energy);
     return (
-      <section className="today-panel evening-checkin-card compact-done">
+      <section className={`today-panel evening-checkin-card compact-done${celebrating ? " celebrating" : ""}`}>
         <div>
           <p className="panel-kicker">Evening</p>
-          <h2>{option ? `${option.emoji} ${option.label}` : "Closed"}</h2>
+          <h2>
+            {celebrating && earned > 0
+              ? `🌙 +${earned} pts! Dia fechado`
+              : option
+                ? `${option.emoji} ${option.label}`
+                : "Closed"}
+          </h2>
         </div>
         <p>{done.tomorrow}</p>
       </section>

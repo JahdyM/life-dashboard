@@ -32,8 +32,8 @@ export async function POST(request: NextRequest) {
     }
     const data = { date, energy, wentWell, tomorrow, completedAt: new Date().toISOString() };
     await saveEveningCheckin(userEmail, data);
-    await addPointsOnce(userEmail, `evening_checkin::${date}`, 5);
-    return jsonOk({ ok: true, data });
+    const result = await addPointsOnce(userEmail, `evening_checkin::${date}`, 5);
+    return jsonOk({ ok: true, data, points: result.balance, earned: result.awarded });
   } catch (err) {
     const authError = handleAuthError(err);
     if (authError) return authError;
