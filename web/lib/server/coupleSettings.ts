@@ -267,22 +267,40 @@ export type SavingsGoal = {
 
 // Metas padrão pré-populadas com base na planilha
 const DEFAULT_SAVINGS_GOALS: Omit<SavingsGoal, "createdAt">[] = [
-  { id: "reserva_emergencia", title: "Reserva de emergência", target: 24762, current: 0, emoji: "🛡️" },
-  { id: "quitar_dividas",     title: "Quitar dívidas",        target: 17000, current: 0, emoji: "💳" },
-  { id: "casa",               title: "Casa própria",          target: 50000, current: 0, emoji: "🏠" },
+  { id: "reserva_emergencia", title: "Reserva de emergência", target: 24762,  current: 0, emoji: "🛡️" },
+  { id: "quitar_dividas",     title: "Quitar dívidas",        target: 17000,  current: 0, emoji: "💳" },
+  { id: "casa",               title: "Casa própria",          target: 100000, current: 0, emoji: "🏠" },
+  { id: "carro",              title: "Carro próprio",         target: 30000,  current: 0, emoji: "🚗" },
 ];
 
 export async function getSavingsGoals(userEmail: string): Promise<SavingsGoal[]> {
   const raw = await getCoupleRaw(userEmail, "savings_goals");
   if (!raw) {
-    // First access: seed with defaults
     const defaults = DEFAULT_SAVINGS_GOALS.map((g) => ({ ...g, createdAt: new Date().toISOString() }));
     await saveSavingsGoals(userEmail, defaults);
     return defaults;
   }
   try {
-    const items = JSON.parse(raw);
-    return Array.isArray(items) ? items : [];
+    let items: SavingsGoal[] = JSON.parse(raw);
+    if (!Array.isArray(items)) return [];
+
+    // Migrate: update casa target if still at old value
+    let changed = false;
+    items = items.map((g) => {
+      if (g.id === "casa" && g.target === 50000) { changed = true; return { ...g, target: 100000 }; }
+      return g;
+    });
+
+    // Migrate: add any missing default goals
+    for (const def of DEFAULT_SAVINGS_GOALS) {
+      if (!items.find((g) => g.id === def.id)) {
+        items.push({ ...def, createdAt: new Date().toISOString() });
+        changed = true;
+      }
+    }
+
+    if (changed) await saveSavingsGoals(userEmail, items);
+    return items;
   } catch {
     return [];
   }
