@@ -7,7 +7,7 @@ export default async function FinancesPage() {
   const userEmail = await getAuthenticatedPageEmail();
   return (
     <div className="route-stack">
-      <PageSectionIntro title="Finanças do Casal" />
+      <PageSectionIntro title="Finances" />
       <ErrorBoundary name="Finances">
         <FinancesTab userEmail={userEmail} />
       </ErrorBoundary>

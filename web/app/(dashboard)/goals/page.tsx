@@ -7,7 +7,7 @@ export default async function GoalsPage() {
   const userEmail = await getAuthenticatedPageEmail();
   return (
     <div className="route-stack">
-      <PageSectionIntro title="Metas & Planos" />
+      <PageSectionIntro title="Goals & Plans" />
       <ErrorBoundary name="Goals">
         <GoalsTab userEmail={userEmail} />
       </ErrorBoundary>

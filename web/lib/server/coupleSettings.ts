@@ -77,14 +77,68 @@ export const DEFAULT_FIXED_COSTS: Omit<FixedCostItem, "actual" | "paid">[] = [
   { id: "contador_fixo",label: "Contador",           budget: 300  },
 ];
 
-function makeDefaultFinance(): MonthlyFinance {
+function makeDefaultFinance(year?: number, month?: number): MonthlyFinance {
+  const blankCosts = DEFAULT_FIXED_COSTS.map((c) => ({
+    ...c,
+    actual: null as number | null,
+    paid: "nao" as PaidStatus,
+  }));
+
+  function applyPaid(overrides: Record<string, { actual: number | null; paid: PaidStatus }>) {
+    return blankCosts.map((c) => (overrides[c.id] ? { ...c, ...overrides[c.id] } : c));
+  }
+
+  // Historical data seeded from the couple's Excel spreadsheet (despesas.xlsx)
+  if (year === 2026 && month === 3) {
+    return {
+      income: { gui: 9000, jahdy: 3607, extras: 220 },
+      fixedCosts: applyPaid({
+        agua:         { actual: 116.24, paid: "pago" },
+        internet:     { actual: 17.89,  paid: "pago" },
+        celular:      { actual: 67.98,  paid: "pago" },
+        seguro_carro: { actual: 90.5,   paid: "pago" },
+        guarde_ja:    { actual: 290,    paid: "pago" },
+        mei:          { actual: 176.19, paid: "pago" },
+        das:          { actual: 540,    paid: "pago" },
+        contador_fixo:{ actual: 300,    paid: "pago" },
+      }),
+      debts: { contador: 1600, nacional: 7710, cartao: 8324.82 },
+    };
+  }
+
+  if (year === 2026 && month === 2) {
+    return {
+      income: { gui: 9000, jahdy: null, extras: 220 },
+      fixedCosts: applyPaid({
+        celular:      { actual: 87.98,  paid: "pago" },
+        seguro_carro: { actual: 90.5,   paid: "pago" },
+        guarde_ja:    { actual: 290,    paid: "pago" },
+        mei:          { actual: 176.19, paid: "pago" },
+        das:          { actual: 1080,   paid: "pago" },
+        contador_fixo:{ actual: 300,    paid: "pago" },
+      }),
+      debts: { contador: 1900, nacional: 7710, cartao: 5489.87 },
+    };
+  }
+
+  if (year === 2026 && month === 1) {
+    return {
+      income: { gui: 9000, jahdy: null, extras: 220 },
+      fixedCosts: applyPaid({
+        celular:      { actual: 87.98,  paid: "pago" },
+        seguro_carro: { actual: 90.5,   paid: "pago" },
+        guarde_ja:    { actual: 290,    paid: "pago" },
+        mei:          { actual: 176.19, paid: "pago" },
+        das:          { actual: 1080,   paid: "pago" },
+        contador_fixo:{ actual: 300,    paid: "pago" },
+      }),
+      debts: { contador: 1900, nacional: 7710, cartao: 5489.87 },
+    };
+  }
+
   return {
     income: { gui: 9000, jahdy: null, extras: 220 },
-    fixedCosts: DEFAULT_FIXED_COSTS.map((c) => ({
-      ...c,
-      actual: null,
-      paid: "nao" as PaidStatus,
-    })),
+    fixedCosts: blankCosts,
     debts: { contador: 0, nacional: 0, cartao: 0 },
   };
 }
@@ -99,10 +153,10 @@ export async function getMonthlyFinance(
   month: number
 ): Promise<MonthlyFinance> {
   const raw = await getCoupleRaw(userEmail, financeKey(year, month));
-  if (!raw) return makeDefaultFinance();
+  if (!raw) return makeDefaultFinance(year, month);
   try {
     const parsed = JSON.parse(raw) as Partial<MonthlyFinance>;
-    const def = makeDefaultFinance();
+    const def = makeDefaultFinance(year, month);
     // Merge: keep default fixed costs structure, override with saved values
     const savedCosts = Array.isArray(parsed.fixedCosts) ? parsed.fixedCosts : [];
     const savedById = new Map(savedCosts.map((c) => [c.id, c]));

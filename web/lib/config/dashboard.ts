@@ -182,7 +182,7 @@ export const DASHBOARD_MODULES: DashboardModuleConfig[] = [
   },
   {
     key: "finances",
-    label: "Finanças",
+    label: "Finances",
     href: "/finances",
     navGroup: "secondary",
     icon: "wallet",
@@ -191,7 +191,7 @@ export const DASHBOARD_MODULES: DashboardModuleConfig[] = [
   },
   {
     key: "goals",
-    label: "Metas & Planos",
+    label: "Goals & Plans",
     href: "/goals",
     navGroup: "secondary",
     icon: "target",

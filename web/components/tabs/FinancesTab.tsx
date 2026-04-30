@@ -21,11 +21,13 @@ function fmt(n: number) {
   return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 const PAID_LABELS: Record<PaidStatus, { label: string; color: string }> = {
-  pago:     { label: "Pago",      color: "#9DCFB7" },
-  sim:      { label: "Sim",       color: "#9DCFB7" },
-  nao:      { label: "Não",       color: "var(--text-soft,#888)" },
-  nao_pago: { label: "Não pago",  color: "#D95252" },
+  pago:     { label: "Paid",     color: "#9DCFB7" },
+  sim:      { label: "Paid",     color: "#9DCFB7" },
+  nao:      { label: "Pending",  color: "var(--text-soft,#888)" },
+  nao_pago: { label: "Overdue",  color: "#D95252" },
 };
 
 function nextStatus(current: PaidStatus): PaidStatus {
@@ -138,48 +140,72 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["finances-savings"] }),
   });
 
-  // Computed summary from query (server-computed)
   const summary = finQuery.data?.summary;
 
-  const monthStr = `${year}-${String(month).padStart(2, "0")}`;
-
-  if (finQuery.isPending) return <div className="query-status">Carregando…</div>;
+  if (finQuery.isPending) return <div className="query-status">Loading…</div>;
   if (!finance) return null;
 
   return (
     <div className="route-stack">
 
-      {/* Month picker + save */}
-      <div className="card" style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-        <div className="form-row" style={{ margin: 0 }}>
-          <label htmlFor="fin-month">Mês</label>
-          <input
-            id="fin-month"
-            type="month"
-            value={monthStr}
-            onChange={(e) => {
-              const [y, m] = e.target.value.split("-");
-              setYear(Number(y)); setMonth(Number(m));
-            }}
-          />
+      {/* Month tabs */}
+      <div className="card" style={{ padding: "12px 16px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+          <button
+            className="secondary"
+            style={{ padding: "2px 10px", fontSize: "0.85rem" }}
+            onClick={() => setYear((y) => y - 1)}
+          >
+            ‹
+          </button>
+          <span style={{ fontWeight: 600, minWidth: 40, textAlign: "center" }}>{year}</span>
+          <button
+            className="secondary"
+            style={{ padding: "2px 10px", fontSize: "0.85rem" }}
+            onClick={() => setYear((y) => y + 1)}
+          >
+            ›
+          </button>
+          <button
+            onClick={() => finance && saveMut.mutate(finance)}
+            disabled={!dirty || saveMut.isPending}
+            style={{ marginLeft: "auto", fontSize: "0.85rem" }}
+          >
+            {saveMut.isPending ? "Saving…" : dirty ? "💾 Save changes" : "✓ Saved"}
+          </button>
         </div>
-        <button
-          onClick={() => finance && saveMut.mutate(finance)}
-          disabled={!dirty || saveMut.isPending}
-          style={{ marginLeft: "auto" }}
-        >
-          {saveMut.isPending ? "Salvando…" : dirty ? "💾 Salvar alterações" : "✓ Salvo"}
-        </button>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {MONTHS.map((label, i) => {
+            const m = i + 1;
+            const active = m === month;
+            return (
+              <button
+                key={m}
+                className={active ? "" : "secondary"}
+                style={{
+                  padding: "4px 12px",
+                  fontSize: "0.8rem",
+                  ...(active
+                    ? { background: "#9DCFB7", color: "#1a1625", borderColor: "#9DCFB7" }
+                    : {}),
+                }}
+                onClick={() => setMonth(m)}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Summary cards */}
       {summary && (
         <div className="shell-summary-grid">
-          <SummaryCard label="Entradas" value={`R$ ${fmt(summary.totalIncome)}`} accent />
-          <SummaryCard label="Custos fixos" value={`R$ ${fmt(summary.totalActual)}`} sub={`orçado R$ ${fmt(summary.totalBudget)}`} />
-          <SummaryCard label="Dívidas" value={`R$ ${fmt(summary.totalDebts)}`} />
+          <SummaryCard label="Income" value={`R$ ${fmt(summary.totalIncome)}`} accent />
+          <SummaryCard label="Fixed costs" value={`R$ ${fmt(summary.totalActual)}`} sub={`budgeted R$ ${fmt(summary.totalBudget)}`} />
+          <SummaryCard label="Debts" value={`R$ ${fmt(summary.totalDebts)}`} />
           <SummaryCard
-            label="Sobra do mês"
+            label="Month surplus"
             value={`R$ ${fmt(summary.surplus)}`}
             sub={summary.surplus > 0 ? `🏠 ${fmt(summary.allocation.casa)} · 🛡️ ${fmt(summary.allocation.reservaEmergencia)} · 💳 ${fmt(summary.allocation.dividas)}` : ""}
             accent={summary.surplus > 0}
@@ -187,12 +213,12 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
         </div>
       )}
 
-      {/* Income (Entradas) */}
+      {/* Income */}
       <div className="card">
-        <h2>💰 Entradas</h2>
+        <h2>💰 Income</h2>
         <div style={{ display: "grid", gap: 8 }}>
           {(["gui", "jahdy", "extras"] as const).map((key) => {
-            const labels = { gui: "Salário Gui", jahdy: "Salário Jahdy", extras: "Extras" };
+            const labels = { gui: "Gui's salary", jahdy: "Jahdy's salary", extras: "Extras" };
             const val = finance.income[key];
             return (
               <div key={key} style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -202,7 +228,7 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
                   min="0"
                   step="100"
                   value={val ?? ""}
-                  placeholder={key === "jahdy" ? "— sem salário" : "0"}
+                  placeholder={key === "jahdy" ? "— no salary" : "0"}
                   style={{ width: 140 }}
                   onChange={(e) => {
                     const raw = e.target.value;
@@ -226,7 +252,7 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
                       }))
                     }
                   >
-                    {finance.income.jahdy === null ? "+ adicionar" : "× sem salário"}
+                    {finance.income.jahdy === null ? "+ add" : "× no salary"}
                   </button>
                 )}
               </div>
@@ -235,13 +261,13 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
         </div>
       </div>
 
-      {/* Fixed Costs (Custos Fixos) */}
+      {/* Fixed Costs */}
       <div className="card">
-        <h2>📋 Custos Fixos</h2>
+        <h2>📋 Fixed Costs</h2>
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto", gap: "6px 12px", alignItems: "center" }}>
           <small style={{ color: "var(--text-soft)" }}>Item</small>
-          <small style={{ color: "var(--text-soft)", textAlign: "right" }}>Orçado</small>
-          <small style={{ color: "var(--text-soft)", textAlign: "right" }}>Real</small>
+          <small style={{ color: "var(--text-soft)", textAlign: "right" }}>Budgeted</small>
+          <small style={{ color: "var(--text-soft)", textAlign: "right" }}>Actual</small>
           <small style={{ color: "var(--text-soft)", textAlign: "center" }}>Status</small>
 
           {finance.fixedCosts.map((item: FixedCostItem) => {
@@ -313,12 +339,12 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
         </div>
       </div>
 
-      {/* Debts (Dívidas) */}
+      {/* Debts */}
       <div className="card">
-        <h2>💳 Dívidas em aberto</h2>
+        <h2>💳 Outstanding Debts</h2>
         <div style={{ display: "grid", gap: 8 }}>
           {(["contador", "nacional", "cartao"] as const).map((key) => {
-            const labels = { contador: "Contador", nacional: "Nacional", cartao: "Cartão" };
+            const labels = { contador: "Contador", nacional: "Nacional", cartao: "Credit card" };
             return (
               <div key={key} style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <span style={{ minWidth: 140, fontSize: "0.88rem" }}>{labels[key]}</span>
@@ -343,8 +369,8 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
 
       {/* Savings Goals */}
       <div className="card">
-        <h2>🎯 Metas de poupança</h2>
-        {sgQuery.isPending && <div className="query-status">Carregando…</div>}
+        <h2>🎯 Savings Goals</h2>
+        {sgQuery.isPending && <div className="query-status">Loading…</div>}
         {savingsGoals.map((g) => {
           const color = g.current / g.target >= 0.8 ? "#9DCFB7" : "#8e79af";
           return (
@@ -353,7 +379,7 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
                 <span style={{ fontSize: "1.2rem" }}>{g.emoji}</span>
                 <strong style={{ flex: 1 }}>{g.title}</strong>
                 <input
-                  aria-label={`Valor atual — ${g.title}`}
+                  aria-label={`Current amount — ${g.title}`}
                   type="number"
                   min="0"
                   step="100"
@@ -373,17 +399,17 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
 
         <div style={{ marginTop: 12 }}>
           <button className="secondary" onClick={() => setShowSgForm((v) => !v)}>
-            {showSgForm ? "Fechar" : "➕ Nova meta"}
+            {showSgForm ? "Close" : "➕ New goal"}
           </button>
         </div>
         {showSgForm && (
           <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
             <div className="form-row">
-              <label htmlFor="sg-title">Nome</label>
-              <input id="sg-title" value={sgTitle} onChange={(e) => setSgTitle(e.target.value)} placeholder="ex: Viagem para Portugal" />
+              <label htmlFor="sg-title">Name</label>
+              <input id="sg-title" value={sgTitle} onChange={(e) => setSgTitle(e.target.value)} placeholder="e.g. Trip to Portugal" />
             </div>
             <div className="form-row">
-              <label htmlFor="sg-target">Meta (R$)</label>
+              <label htmlFor="sg-target">Target (R$)</label>
               <input id="sg-target" type="number" min="1" step="500" value={sgTarget} onChange={(e) => setSgTarget(e.target.value)} placeholder="10000" />
             </div>
             <div className="form-row">
@@ -397,7 +423,7 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
               }}
               disabled={addSgMut.isPending}
             >
-              Criar meta
+              Create goal
             </button>
           </div>
         )}
