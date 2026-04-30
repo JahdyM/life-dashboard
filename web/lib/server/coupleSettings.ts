@@ -59,10 +59,17 @@ export type MonthlyDebts = {
   cartao: DebtEntry;
 };
 
+export type ExtraExpense = {
+  id: string;
+  label: string;
+  amount: number;
+};
+
 export type MonthlyFinance = {
   income: MonthlyIncome;
   fixedCosts: FixedCostItem[];
   debts: MonthlyDebts;
+  extraExpenses: ExtraExpense[];
 };
 
 // Custos fixos padrão baseados na planilha real do casal
@@ -113,6 +120,7 @@ function makeDefaultFinance(year?: number, month?: number): MonthlyFinance {
         nacional: { total: 7710,    monthly: 618,     paid: 0       },
         cartao:   { total: 8324.82, monthly: 8617.09, paid: 8617.09 },
       },
+      extraExpenses: [],
     };
   }
 
@@ -132,6 +140,7 @@ function makeDefaultFinance(year?: number, month?: number): MonthlyFinance {
         nacional: { total: 7710,    monthly: 0, paid: 0 },
         cartao:   { total: 5489.87, monthly: 0, paid: 0 },
       },
+      extraExpenses: [],
     };
   }
 
@@ -151,6 +160,7 @@ function makeDefaultFinance(year?: number, month?: number): MonthlyFinance {
         nacional: { total: 7710,    monthly: 0, paid: 0 },
         cartao:   { total: 5489.87, monthly: 0, paid: 0 },
       },
+      extraExpenses: [],
     };
   }
 
@@ -162,6 +172,7 @@ function makeDefaultFinance(year?: number, month?: number): MonthlyFinance {
       nacional: { total: 0, monthly: 0, paid: 0 },
       cartao:   { total: 0, monthly: 0, paid: 0 },
     },
+    extraExpenses: [],
   };
 }
 
@@ -202,6 +213,7 @@ export async function getMonthlyFinance(
       income: { ...def.income, ...(parsed.income || {}) },
       fixedCosts,
       debts: migratedDebts,
+      extraExpenses: Array.isArray(parsed.extraExpenses) ? parsed.extraExpenses : [],
     };
   } catch {
     return makeDefaultFinance();
@@ -223,7 +235,8 @@ export function computeFinanceSummary(f: MonthlyFinance) {
   const totalActual = f.fixedCosts.reduce((s, c) => s + (c.actual ?? 0), 0);
   const totalDebtsPaid = Object.values(f.debts).reduce((s, d) => s + (d.paid || 0), 0);
   const totalOutstanding = Object.values(f.debts).reduce((s, d) => s + (d.total || 0), 0);
-  const surplus = totalIncome - totalActual - totalDebtsPaid;
+  const totalExtras = (f.extraExpenses || []).reduce((s, e) => s + (e.amount || 0), 0);
+  const surplus = totalIncome - totalActual - totalDebtsPaid - totalExtras;
   // Divisão padrão do sobrado: 20% casa, 10% R.E., resto dívidas
   return {
     totalIncome,
@@ -231,6 +244,7 @@ export function computeFinanceSummary(f: MonthlyFinance) {
     totalActual,
     totalDebtsPaid,
     totalOutstanding,
+    totalExtras,
     surplus,
     allocation: {
       casa: surplus > 0 ? Math.round(surplus * 0.2 * 100) / 100 : 0,

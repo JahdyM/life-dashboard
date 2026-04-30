@@ -9,6 +9,7 @@ import type {
   PaidStatus,
   SavingsGoal,
   DebtEntry,
+  ExtraExpense,
 } from "@/lib/server/coupleSettings";
 
 // ---- helpers ----------------------------------------------------------------
@@ -28,9 +29,10 @@ function computeSummary(f: MonthlyFinance) {
   const totalActual = f.fixedCosts.reduce((s, c) => s + (c.actual ?? 0), 0);
   const totalDebtsPaid = Object.values(f.debts).reduce((s, d: DebtEntry) => s + (d.paid || 0), 0);
   const totalOutstanding = Object.values(f.debts).reduce((s, d: DebtEntry) => s + (d.total || 0), 0);
-  const surplus = totalIncome - totalActual - totalDebtsPaid;
+  const totalExtras = (f.extraExpenses || []).reduce((s, e: ExtraExpense) => s + (e.amount || 0), 0);
+  const surplus = totalIncome - totalActual - totalDebtsPaid - totalExtras;
   return {
-    totalIncome, totalBudget, totalActual, totalDebtsPaid, totalOutstanding, surplus,
+    totalIncome, totalBudget, totalActual, totalDebtsPaid, totalOutstanding, totalExtras, surplus,
     allocation: {
       casa: surplus > 0 ? Math.round(surplus * 0.2 * 100) / 100 : 0,
       reservaEmergencia: surplus > 0 ? Math.round(surplus * 0.1 * 100) / 100 : 0,
@@ -225,6 +227,7 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
           <SummaryCard label="Income" value={`R$ ${fmt(summary.totalIncome)}`} accent />
           <SummaryCard label="Fixed costs paid" value={`R$ ${fmt(summary.totalActual)}`} sub={`budgeted R$ ${fmt(summary.totalBudget)}`} />
           <SummaryCard label="Debt payments made" value={`R$ ${fmt(summary.totalDebtsPaid)}`} sub={`outstanding R$ ${fmt(summary.totalOutstanding)}`} />
+          {summary.totalExtras > 0 && <SummaryCard label="Extra expenses" value={`R$ ${fmt(summary.totalExtras)}`} />}
           <SummaryCard
             label="Month surplus"
             value={`R$ ${fmt(summary.surplus)}`}
@@ -411,6 +414,77 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
               </>
             );
           })}
+        </div>
+      </div>
+
+      {/* Extra Expenses */}
+      <div className="card">
+        <h2>⚡ Extra Expenses</h2>
+        <div style={{ display: "grid", gap: 6 }}>
+          {(finance.extraExpenses || []).map((ex: ExtraExpense) => (
+            <div key={ex.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <input
+                aria-label="Description"
+                type="text"
+                value={ex.label}
+                placeholder="Description"
+                style={{ flex: 1 }}
+                onChange={(e) =>
+                  update((prev) => ({
+                    ...prev,
+                    extraExpenses: prev.extraExpenses.map((x) =>
+                      x.id === ex.id ? { ...x, label: e.target.value } : x
+                    ),
+                  }))
+                }
+              />
+              <input
+                aria-label="Amount"
+                type="number"
+                min="0"
+                className="no-spinner"
+                value={ex.amount}
+                placeholder="0"
+                style={{ width: 110, textAlign: "right" }}
+                onChange={(e) =>
+                  update((prev) => ({
+                    ...prev,
+                    extraExpenses: prev.extraExpenses.map((x) =>
+                      x.id === ex.id ? { ...x, amount: Number(e.target.value) } : x
+                    ),
+                  }))
+                }
+              />
+              <button
+                className="secondary"
+                style={{ padding: "2px 8px", fontSize: "0.75rem" }}
+                onClick={() =>
+                  update((prev) => ({
+                    ...prev,
+                    extraExpenses: prev.extraExpenses.filter((x) => x.id !== ex.id),
+                  }))
+                }
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <button
+            className="secondary"
+            onClick={() =>
+              update((prev) => ({
+                ...prev,
+                extraExpenses: [
+                  ...(prev.extraExpenses || []),
+                  { id: `ex_${Date.now()}`, label: "", amount: 0 },
+                ],
+              }))
+            }
+          >
+            ➕ Add expense
+          </button>
         </div>
       </div>
 
