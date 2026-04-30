@@ -108,7 +108,7 @@ def render_couple_tab(ctx):
             st.markdown(
                 f"""<div class="card" style="border-left:3px solid {mood_color};padding:10px 16px;">
 <div style="font-size:0.78rem;color:var(--text-soft);margin-bottom:2px;">
-  💌 {partner_name} hoje ({partner_mood_today.get('mood_category','')})
+  💌 {user_b_name} hoje ({partner_mood_today.get('mood_category','')})
 </div>
 <div style="font-size:0.93rem;">{partner_mood_today['mood_note']}</div>
 </div>""",
