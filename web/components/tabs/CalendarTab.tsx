@@ -16,6 +16,7 @@ import {
   ArrowDown,
   ArrowUp,
   CalendarClock,
+  CalendarX,
   ChevronDown,
   ChevronRight,
   GripVertical,
@@ -328,6 +329,8 @@ type EditableTaskRowProps = {
   onToggleSubtaskDone: (task: TodoTask, subtaskId: string, checked: boolean) => void;
   onOpenDetails: (taskId: string) => void;
   onScheduleToday?: (taskId: string) => void;
+  onUnscheduleToday?: (taskId: string) => void;
+  onScheduleTomorrow?: (taskId: string) => void;
   onSetNext: (taskId: string) => void;
   onMoveFocus: (taskId: string, direction: "up" | "down") => void;
   onDelete: (taskId: string) => void;
@@ -363,6 +366,8 @@ const EditableTaskRow = memo(function EditableTaskRow({
   onToggleSubtaskDone,
   onOpenDetails,
   onScheduleToday,
+  onUnscheduleToday,
+  onScheduleTomorrow,
   onSetNext,
   onMoveFocus,
   onDelete,
@@ -419,6 +424,14 @@ const EditableTaskRow = memo(function EditableTaskRow({
     if (!onScheduleToday) return;
     onScheduleToday(task.id);
   }, [onScheduleToday, task.id]);
+  const handleUnscheduleToday = useCallback(() => {
+    if (!onUnscheduleToday) return;
+    onUnscheduleToday(task.id);
+  }, [onUnscheduleToday, task.id]);
+  const handleScheduleTomorrow = useCallback(() => {
+    if (!onScheduleTomorrow) return;
+    onScheduleTomorrow(task.id);
+  }, [onScheduleTomorrow, task.id]);
   const handleSetNext = useCallback(() => onSetNext(task.id), [onSetNext, task.id]);
   const handleMoveFocusUp = useCallback(
     () => onMoveFocus(task.id, "up"),
@@ -574,6 +587,18 @@ const EditableTaskRow = memo(function EditableTaskRow({
                 <button type="button" className="task-row-menu-action" onClick={handleScheduleToday}>
                   <CalendarClock size={15} />
                   Today
+                </button>
+              ) : null}
+              {!draft.isDone && onUnscheduleToday ? (
+                <button type="button" className="task-row-menu-action" onClick={handleUnscheduleToday}>
+                  <CalendarX size={15} />
+                  Not today
+                </button>
+              ) : null}
+              {!draft.isDone && onScheduleTomorrow ? (
+                <button type="button" className="task-row-menu-action" onClick={handleScheduleTomorrow}>
+                  <CalendarClock size={15} />
+                  Tomorrow
                 </button>
               ) : null}
               {!draft.isDone ? (
@@ -2307,6 +2332,43 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     [updateTask, selectedDayIso]
   );
 
+  const handleUnscheduleToday = useCallback(
+    (taskId: string) => {
+      const patch = {
+        scheduled_date: null,
+        scheduled_time: null,
+        planned_time: null,
+        focus_order: null,
+      };
+      applyTaskPatchToCache(taskId, patch);
+      updateTask.mutate({
+        id: taskId,
+        data: patch,
+        syncGoogle: false,
+      });
+    },
+    [applyTaskPatchToCache, updateTask]
+  );
+
+  const handleScheduleTomorrow = useCallback(
+    (taskId: string) => {
+      const tomorrowIso = format(addDays(new Date(`${selectedDayIso}T12:00:00`), 1), "yyyy-MM-dd");
+      const patch = {
+        scheduled_date: tomorrowIso,
+        scheduled_time: null,
+        planned_time: null,
+        focus_order: null,
+      };
+      applyTaskPatchToCache(taskId, patch);
+      updateTask.mutate({
+        id: taskId,
+        data: patch,
+        syncGoogle: false,
+      });
+    },
+    [applyTaskPatchToCache, selectedDayIso, updateTask]
+  );
+
   const handleSetTaskNext = useCallback(
     (taskId: string) => {
       const target = tasks.find((task) => task.id === taskId);
@@ -3014,6 +3076,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     onToggleExpanded={handleToggleTaskExpanded}
                     onToggleSubtaskDone={handleToggleSubtaskDone}
                     onOpenDetails={handleOpenTaskDetails}
+                    onUnscheduleToday={handleUnscheduleToday}
+                    onScheduleTomorrow={handleScheduleTomorrow}
                     onSetNext={handleSetTaskNext}
                     onMoveFocus={handleMoveFocusTask}
                     onDelete={handleDeleteTask}
@@ -3125,6 +3189,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   onToggleExpanded={handleToggleTaskExpanded}
                   onToggleSubtaskDone={handleToggleSubtaskDone}
                   onOpenDetails={handleOpenTaskDetails}
+                  onUnscheduleToday={handleUnscheduleToday}
+                  onScheduleTomorrow={handleScheduleTomorrow}
                   onSetNext={handleSetTaskNext}
                   onMoveFocus={handleMoveFocusTask}
                   onDelete={handleDeleteTask}
