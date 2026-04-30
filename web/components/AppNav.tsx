@@ -14,8 +14,10 @@ import {
   MoonStar,
   Sparkles,
   Newspaper,
+  Target,
   Telescope,
   TimerReset,
+  Wallet,
 } from "lucide-react";
 import OverflowMenu from "@/components/common/OverflowMenu";
 import {
@@ -42,6 +44,8 @@ function NavLink({ item, active }: { item: DashboardModuleConfig; active: boolea
     book_heart: <BookHeart size={14} />,
     chart: <ChartNoAxesCombined size={14} />,
     heart: <HeartHandshake size={14} />,
+    wallet: <Wallet size={14} />,
+    target: <Target size={14} />,
   };
 
   return (

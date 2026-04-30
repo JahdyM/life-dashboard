@@ -10,6 +10,8 @@ export const DASHBOARD_MODULE_KEYS = [
   "spiritual_streaks",
   "stats",
   "couple",
+  "finances",
+  "goals",
 ] as const;
 
 export type DashboardModuleKey = (typeof DASHBOARD_MODULE_KEYS)[number];
@@ -25,7 +27,9 @@ export type DashboardModuleIconKey =
   | "telescope"
   | "book_heart"
   | "chart"
-  | "heart";
+  | "heart"
+  | "wallet"
+  | "target";
 
 export type DashboardModuleConfig = {
   key: DashboardModuleKey;
@@ -175,6 +179,24 @@ export const DASHBOARD_MODULES: DashboardModuleConfig[] = [
     icon: "heart",
     defaultEnabled: true,
     order: 100,
+  },
+  {
+    key: "finances",
+    label: "Finanças",
+    href: "/finances",
+    navGroup: "secondary",
+    icon: "wallet",
+    defaultEnabled: true,
+    order: 110,
+  },
+  {
+    key: "goals",
+    label: "Metas & Planos",
+    href: "/goals",
+    navGroup: "secondary",
+    icon: "target",
+    defaultEnabled: true,
+    order: 120,
   },
 ];
 
