@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/client/api";
 import type {
@@ -19,6 +19,22 @@ function currentYM() {
 
 function fmt(n: number) {
   return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function computeSummary(f: MonthlyFinance) {
+  const totalIncome = (f.income.gui || 0) + (f.income.jahdy || 0) + (f.income.extras || 0);
+  const totalBudget = f.fixedCosts.reduce((s, c) => s + c.budget, 0);
+  const totalActual = f.fixedCosts.reduce((s, c) => s + (c.actual ?? c.budget), 0);
+  const totalDebts = (f.debts.contador || 0) + (f.debts.nacional || 0) + (f.debts.cartao || 0);
+  const surplus = totalIncome - totalActual - totalDebts;
+  return {
+    totalIncome, totalBudget, totalActual, totalDebts, surplus,
+    allocation: {
+      casa: surplus > 0 ? Math.round(surplus * 0.2 * 100) / 100 : 0,
+      reservaEmergencia: surplus > 0 ? Math.round(surplus * 0.1 * 100) / 100 : 0,
+      dividas: surplus > 0 ? Math.round(surplus * 0.7 * 100) / 100 : 0,
+    },
+  };
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -140,7 +156,7 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["finances-savings"] }),
   });
 
-  const summary = finQuery.data?.summary;
+  const summary = useMemo(() => (finance ? computeSummary(finance) : null), [finance]);
 
   if (finQuery.isPending) return <div className="query-status">Loading…</div>;
   if (!finance) return null;
