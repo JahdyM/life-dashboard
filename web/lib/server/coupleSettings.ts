@@ -29,76 +29,129 @@ async function setCoupleRaw(userEmail: string, subkey: string, value: string): P
   });
 }
 
-// ---- Expenses ---------------------------------------------------------------
+// ---- Monthly Finance (budget-based model matching their Excel) ---------------
 
-export type Expense = {
+export type PaidStatus = "pago" | "nao_pago" | "sim" | "nao";
+
+export type FixedCostItem = {
   id: string;
-  amount: number;
-  category: string;
-  description: string | null;
-  date: string;
-  paidBy: string;
-  createdAt: string;
+  label: string;
+  budget: number;
+  actual: number | null;
+  paid: PaidStatus;
 };
 
-function expenseKey(year: number, month: number) {
-  return `expenses::${year}::${month}`;
+export type MonthlyIncome = {
+  gui: number;
+  jahdy: number | null; // null = sem salário esse mês
+  extras: number;
+};
+
+export type MonthlyDebts = {
+  contador: number;
+  nacional: number;
+  cartao: number;
+};
+
+export type MonthlyFinance = {
+  income: MonthlyIncome;
+  fixedCosts: FixedCostItem[];
+  debts: MonthlyDebts;
+};
+
+// Custos fixos padrão baseados na planilha real do casal
+export const DEFAULT_FIXED_COSTS: Omit<FixedCostItem, "actual" | "paid">[] = [
+  { id: "energia",      label: "Energia",           budget: 180  },
+  { id: "agua",         label: "Água",               budget: 150  },
+  { id: "mercado",      label: "Mercado",            budget: 1000 },
+  { id: "internet",     label: "Internet",           budget: 150  },
+  { id: "celular",      label: "Celular",            budget: 150  },
+  { id: "gasolina",     label: "Gasolina",           budget: 200  },
+  { id: "seguro_carro", label: "Seguro do carro",    budget: 100  },
+  { id: "guarde_ja",    label: "Guarde Já",          budget: 290  },
+  { id: "cassems",      label: "Cassems - Gui",      budget: 470  },
+  { id: "academia",     label: "Academia",           budget: 120  },
+  { id: "saude_plus",   label: "Saúde+",             budget: 390  },
+  { id: "mei",          label: "MEI",                budget: 87   },
+  { id: "das",          label: "DAS",                budget: 540  },
+  { id: "contador_fixo",label: "Contador",           budget: 300  },
+];
+
+function makeDefaultFinance(): MonthlyFinance {
+  return {
+    income: { gui: 9000, jahdy: null, extras: 220 },
+    fixedCosts: DEFAULT_FIXED_COSTS.map((c) => ({
+      ...c,
+      actual: null,
+      paid: "nao" as PaidStatus,
+    })),
+    debts: { contador: 0, nacional: 0, cartao: 0 },
+  };
 }
 
-export async function getExpenses(
+function financeKey(year: number, month: number) {
+  return `monthly_finance::${year}::${month}`;
+}
+
+export async function getMonthlyFinance(
   userEmail: string,
   year: number,
   month: number
-): Promise<Expense[]> {
-  const raw = await getCoupleRaw(userEmail, expenseKey(year, month));
-  if (!raw) return [];
+): Promise<MonthlyFinance> {
+  const raw = await getCoupleRaw(userEmail, financeKey(year, month));
+  if (!raw) return makeDefaultFinance();
   try {
-    const items = JSON.parse(raw);
-    return Array.isArray(items) ? items : [];
+    const parsed = JSON.parse(raw) as Partial<MonthlyFinance>;
+    const def = makeDefaultFinance();
+    // Merge: keep default fixed costs structure, override with saved values
+    const savedCosts = Array.isArray(parsed.fixedCosts) ? parsed.fixedCosts : [];
+    const savedById = new Map(savedCosts.map((c) => [c.id, c]));
+    const fixedCosts = def.fixedCosts.map((defItem) => {
+      const saved = savedById.get(defItem.id);
+      return saved ? { ...defItem, ...saved } : defItem;
+    });
+    // Append any custom items not in defaults
+    savedCosts.forEach((c) => {
+      if (!def.fixedCosts.find((d) => d.id === c.id)) fixedCosts.push(c);
+    });
+    return {
+      income: { ...def.income, ...(parsed.income || {}) },
+      fixedCosts,
+      debts: { ...def.debts, ...(parsed.debts || {}) },
+    };
   } catch {
-    return [];
+    return makeDefaultFinance();
   }
 }
 
-async function saveExpenses(
+export async function saveMonthlyFinance(
   userEmail: string,
   year: number,
   month: number,
-  items: Expense[]
+  data: MonthlyFinance
 ): Promise<void> {
-  await setCoupleRaw(userEmail, expenseKey(year, month), JSON.stringify(items));
+  await setCoupleRaw(userEmail, financeKey(year, month), JSON.stringify(data));
 }
 
-export async function addExpense(
-  userEmail: string,
-  year: number,
-  month: number,
-  data: Omit<Expense, "id" | "createdAt">
-): Promise<Expense> {
-  const items = await getExpenses(userEmail, year, month);
-  const record: Expense = {
-    id: crypto.randomUUID().replace(/-/g, ""),
-    createdAt: new Date().toISOString(),
-    ...data,
+export function computeFinanceSummary(f: MonthlyFinance) {
+  const totalIncome = (f.income.gui || 0) + (f.income.jahdy || 0) + (f.income.extras || 0);
+  const totalBudget = f.fixedCosts.reduce((s, c) => s + c.budget, 0);
+  const totalActual = f.fixedCosts.reduce((s, c) => s + (c.actual ?? c.budget), 0);
+  const totalDebts = (f.debts.contador || 0) + (f.debts.nacional || 0) + (f.debts.cartao || 0);
+  const surplus = totalIncome - totalActual - totalDebts;
+  // Divisão padrão do sobrado: 20% casa, 10% R.E., resto dívidas
+  return {
+    totalIncome,
+    totalBudget,
+    totalActual,
+    totalDebts,
+    surplus,
+    allocation: {
+      casa: surplus > 0 ? Math.round(surplus * 0.2 * 100) / 100 : 0,
+      reservaEmergencia: surplus > 0 ? Math.round(surplus * 0.1 * 100) / 100 : 0,
+      dividas: surplus > 0 ? Math.round(surplus * 0.7 * 100) / 100 : 0,
+    },
   };
-  items.push(record);
-  await saveExpenses(userEmail, year, month, items);
-  return record;
-}
-
-export async function removeExpense(
-  userEmail: string,
-  year: number,
-  month: number,
-  id: string
-): Promise<void> {
-  const items = await getExpenses(userEmail, year, month);
-  await saveExpenses(
-    userEmail,
-    year,
-    month,
-    items.filter((e) => e.id !== id)
-  );
 }
 
 // ---- Savings Goals ----------------------------------------------------------
@@ -112,9 +165,21 @@ export type SavingsGoal = {
   createdAt: string;
 };
 
+// Metas padrão pré-populadas com base na planilha
+const DEFAULT_SAVINGS_GOALS: Omit<SavingsGoal, "createdAt">[] = [
+  { id: "reserva_emergencia", title: "Reserva de emergência", target: 24762, current: 0, emoji: "🛡️" },
+  { id: "quitar_dividas",     title: "Quitar dívidas",        target: 17000, current: 0, emoji: "💳" },
+  { id: "casa",               title: "Casa própria",          target: 50000, current: 0, emoji: "🏠" },
+];
+
 export async function getSavingsGoals(userEmail: string): Promise<SavingsGoal[]> {
   const raw = await getCoupleRaw(userEmail, "savings_goals");
-  if (!raw) return [];
+  if (!raw) {
+    // First access: seed with defaults
+    const defaults = DEFAULT_SAVINGS_GOALS.map((g) => ({ ...g, createdAt: new Date().toISOString() }));
+    await saveSavingsGoals(userEmail, defaults);
+    return defaults;
+  }
   try {
     const items = JSON.parse(raw);
     return Array.isArray(items) ? items : [];
@@ -298,10 +363,7 @@ export async function removeBucketItem(userEmail: string, id: string): Promise<v
 
 // ---- Weekly Check-in --------------------------------------------------------
 
-export async function getWeeklyCheckin(
-  userEmail: string,
-  weekIso: string
-): Promise<string> {
+export async function getWeeklyCheckin(userEmail: string, weekIso: string): Promise<string> {
   const raw = await getCoupleRaw(userEmail, `weekly_checkin::${weekIso}`);
   return raw || "";
 }
