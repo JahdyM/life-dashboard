@@ -4,13 +4,14 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import InlineActionNotice from "@/components/common/InlineActionNotice";
 import { fetchJson } from "@/lib/client/api";
-import type { DespertaiIssue, ReadingPageData } from "@/lib/types";
+import type { DespertaiIssue, ReadingPageData, ReadingVideo } from "@/lib/types";
 
 type ReadingPatchPayload =
   | { type: "import_despertai"; raw: string }
   | { type: "toggle_despertai_topic"; issue_id: string; topic_id: string; read: boolean }
   | { type: "toggle_despertai_issue"; issue_id: string; read: boolean }
   | { type: "set_despertai_read_count"; issue_id: string; read_count: number }
+  | { type: "toggle_reading_video"; video_id: string; read: boolean }
   | { type: "toggle_bible_chapter"; book_key: string; chapter: number; read: boolean };
 
 type DespertaiClientProps = {
@@ -23,6 +24,15 @@ type ProgressStyle = CSSProperties & {
 
 type DespertaiWheelSegment = {
   issue: DespertaiIssue;
+  startAngle: number;
+  endAngle: number;
+  midAngle: number;
+  span: number;
+  color: string;
+};
+
+type VideoWheelSegment = {
+  video: ReadingVideo;
   startAngle: number;
   endAngle: number;
   midAngle: number;
@@ -106,7 +116,10 @@ function truncateWheelLabel(text: string, maxLength: number) {
   return `${cleaned.slice(0, maxLength - 1)}…`;
 }
 
-function findWheelSegmentAtPointer(segments: DespertaiWheelSegment[], rotationDeg: number) {
+function findWheelSegmentAtPointer<T extends { startAngle: number; endAngle: number }>(
+  segments: T[],
+  rotationDeg: number
+) {
   if (!segments.length) return null;
   const pointerAngle = ((-rotationDeg % 360) + 360) % 360;
   return (
@@ -119,6 +132,19 @@ function findWheelSegmentAtPointer(segments: DespertaiWheelSegment[], rotationDe
 
 function issueElementId(issueId: string) {
   return `despertai-issue-${issueId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+}
+
+function videoElementId(videoId: string) {
+  return `reading-video-${videoId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+}
+
+function formatDuration(seconds: number) {
+  const total = Math.max(0, Math.round(seconds));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  if (hours > 0) return `${hours}h ${minutes}min`;
+  if (minutes > 0) return `${minutes}min`;
+  return `${total}s`;
 }
 
 function progressStyle(value: number): ProgressStyle {
@@ -243,9 +269,51 @@ function IssueCard({
   );
 }
 
+function VideoCard({
+  video,
+  onPatch,
+  busy,
+  selected,
+}: {
+  video: ReadingVideo;
+  onPatch: (payload: ReadingPatchPayload) => void;
+  busy: boolean;
+  selected: boolean;
+}) {
+  return (
+    <article
+      id={videoElementId(video.id)}
+      className={`reading-video-card ${video.read ? "finished" : ""} ${selected ? "wheel-selected" : ""}`}
+    >
+      <div className="reading-video-main">
+        <div>
+          <p className="panel-kicker">{formatDuration(video.durationSeconds)}</p>
+          <h4>{video.title}</h4>
+          {video.naturalKey ? <p>{video.naturalKey}</p> : null}
+        </div>
+        <label className="despertai-read-all">
+          <input
+            type="checkbox"
+            checked={video.read}
+            disabled={busy}
+            onChange={(event) =>
+              onPatch({
+                type: "toggle_reading_video",
+                video_id: video.id,
+                read: event.target.checked,
+              })
+            }
+          />
+          <span>Visto</span>
+        </label>
+      </div>
+    </article>
+  );
+}
+
 export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"despertai" | "bible">("despertai");
+  const [activeTab, setActiveTab] = useState<"despertai" | "videos" | "bible">("despertai");
   const [importText, setImportText] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [expandedIssues, setExpandedIssues] = useState<Set<string>>(() => new Set());
@@ -256,6 +324,13 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const [wheelShuffleNonce, setWheelShuffleNonce] = useState(0);
   const [pendingRevealIssueId, setPendingRevealIssueId] = useState<string | null>(null);
   const wheelSpinTimeoutRef = useRef<number | null>(null);
+  const [videoWheelSpinning, setVideoWheelSpinning] = useState(false);
+  const [videoWheelRotation, setVideoWheelRotation] = useState(0);
+  const [videoWheelResultId, setVideoWheelResultId] = useState<string | null>(null);
+  const [videoWheelLastId, setVideoWheelLastId] = useState<string | null>(null);
+  const [videoWheelShuffleNonce, setVideoWheelShuffleNonce] = useState(0);
+  const [pendingRevealVideoId, setPendingRevealVideoId] = useState<string | null>(null);
+  const videoWheelSpinTimeoutRef = useRef<number | null>(null);
 
   const readingQuery = useQuery({
     queryKey,
@@ -334,6 +409,48 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       }) as CSSProperties,
     [wheelRotation]
   );
+  const videoWheelEligibleItems = useMemo(() => {
+    const pending = data.videos.pendingVideosList;
+    if (!videoWheelLastId || pending.length <= 1) return pending;
+    const filtered = pending.filter((video) => video.id !== videoWheelLastId);
+    return filtered.length ? filtered : pending;
+  }, [data.videos.pendingVideosList, videoWheelLastId]);
+  const videoWheelOrderedItems = useMemo(() => {
+    const sorted = [...videoWheelEligibleItems].sort((a, b) => a.id.localeCompare(b.id));
+    if (sorted.length <= 1) return sorted;
+    const seed = hashWheelSeed(
+      `${videoWheelShuffleNonce}:${sorted.map((video) => video.id).join("|")}`
+    );
+    return shuffleWithSeed(sorted, seed);
+  }, [videoWheelEligibleItems, videoWheelShuffleNonce]);
+  const videoWheelSegments = useMemo<VideoWheelSegment[]>(() => {
+    if (!videoWheelOrderedItems.length) return [];
+    const span = 360 / videoWheelOrderedItems.length;
+    return videoWheelOrderedItems.map((video, index) => {
+      const startAngle = index * span;
+      const endAngle = startAngle + span;
+      return {
+        video,
+        startAngle,
+        endAngle,
+        midAngle: startAngle + span / 2,
+        span,
+        color: DESPERTAI_WHEEL_COLORS[index % DESPERTAI_WHEEL_COLORS.length],
+      };
+    });
+  }, [videoWheelOrderedItems]);
+  const videoWheelResult = useMemo(
+    () => data.videos.pendingVideosList.find((video) => video.id === videoWheelResultId) || null,
+    [data.videos.pendingVideosList, videoWheelResultId]
+  );
+  const videoWheelRotorStyle = useMemo(
+    () =>
+      ({
+        transform: `rotate(${videoWheelRotation}deg)`,
+        transition: `transform ${DESPERTAI_WHEEL_SPIN_DURATION_MS}ms cubic-bezier(0.12, 0.88, 0.16, 1)`,
+      }) as CSSProperties,
+    [videoWheelRotation]
+  );
 
   useEffect(() => {
     if (wheelResultIssueId && !data.despertai.pendingIssues.some((issue) => issue.id === wheelResultIssueId)) {
@@ -342,9 +459,18 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   }, [data.despertai.pendingIssues, wheelResultIssueId]);
 
   useEffect(() => {
+    if (videoWheelResultId && !data.videos.pendingVideosList.some((video) => video.id === videoWheelResultId)) {
+      setVideoWheelResultId(null);
+    }
+  }, [data.videos.pendingVideosList, videoWheelResultId]);
+
+  useEffect(() => {
     return () => {
       if (wheelSpinTimeoutRef.current) {
         window.clearTimeout(wheelSpinTimeoutRef.current);
+      }
+      if (videoWheelSpinTimeoutRef.current) {
+        window.clearTimeout(videoWheelSpinTimeoutRef.current);
       }
     };
   }, []);
@@ -370,6 +496,28 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       window.cancelAnimationFrame(secondFrame);
     };
   }, [activeTab, expandedIssues, pendingRevealIssueId]);
+
+  useEffect(() => {
+    if (!pendingRevealVideoId || activeTab !== "videos") {
+      return;
+    }
+
+    let firstFrame = 0;
+    let secondFrame = 0;
+    firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        const target = document.getElementById(videoElementId(pendingRevealVideoId));
+        if (!target) return;
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        setPendingRevealVideoId(null);
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
+  }, [activeTab, pendingRevealVideoId]);
 
   const patch = (payload: ReadingPatchPayload) => {
     patchMutation.mutate(payload);
@@ -442,6 +590,58 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
     revealIssueFromWheel(wheelResultIssue.id);
   };
 
+  const revealVideoFromWheel = (videoId: string) => {
+    setActiveTab("videos");
+    setPendingRevealVideoId(videoId);
+  };
+
+  const spinVideoWheel = () => {
+    if (videoWheelSpinning || !videoWheelSegments.length) return;
+    if (videoWheelSegments.length === 1) {
+      const onlyVideo = videoWheelSegments[0].video;
+      setVideoWheelResultId(onlyVideo.id);
+      setVideoWheelLastId(onlyVideo.id);
+      revealVideoFromWheel(onlyVideo.id);
+      return;
+    }
+
+    const selectedSegment = videoWheelSegments[Math.floor(Math.random() * videoWheelSegments.length)];
+    const safeMargin = Math.min(10, selectedSegment.span * 0.2);
+    const minStop = selectedSegment.startAngle + safeMargin;
+    const maxStop = selectedSegment.endAngle - safeMargin;
+    const stopAngle =
+      maxStop > minStop
+        ? minStop + Math.random() * (maxStop - minStop)
+        : selectedSegment.midAngle;
+    const currentRotation = ((videoWheelRotation % 360) + 360) % 360;
+    const targetRotationMod = (360 - stopAngle + 360) % 360;
+    let delta = targetRotationMod - currentRotation;
+    if (delta < 0) delta += 360;
+    const finalRotation = videoWheelRotation + 1800 + delta;
+
+    setVideoWheelResultId(null);
+    setVideoWheelSpinning(true);
+    setVideoWheelRotation(finalRotation);
+    if (videoWheelSpinTimeoutRef.current) {
+      window.clearTimeout(videoWheelSpinTimeoutRef.current);
+    }
+    videoWheelSpinTimeoutRef.current = window.setTimeout(() => {
+      const resultSegment = findWheelSegmentAtPointer(videoWheelSegments, finalRotation);
+      const resultVideoId = resultSegment?.video.id || selectedSegment.video.id;
+      setVideoWheelResultId(resultVideoId);
+      setVideoWheelLastId(resultVideoId);
+      setVideoWheelSpinning(false);
+      revealVideoFromWheel(resultVideoId);
+    }, DESPERTAI_WHEEL_SPIN_DURATION_MS);
+  };
+
+  const shuffleVideoWheel = () => {
+    if (videoWheelSpinning) return;
+    setVideoWheelShuffleNonce((current) => current + 1);
+    setVideoWheelResultId(null);
+    setVideoWheelRotation((current) => current + 45 + Math.floor(Math.random() * 150));
+  };
+
   return (
     <div className="card despertai-shell">
       <div className="despertai-tabs" role="tablist" aria-label="Reading sections">
@@ -451,6 +651,13 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
           onClick={() => setActiveTab("despertai")}
         >
           Despertai
+        </button>
+        <button
+          type="button"
+          className={activeTab === "videos" ? "active" : ""}
+          onClick={() => setActiveTab("videos")}
+        >
+          Vídeos
         </button>
         <button
           type="button"
@@ -719,6 +926,232 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
               </div>
             ) : (
               <div className="line-empty">Nenhuma revista concluída.</div>
+            )}
+          </section>
+        </section>
+      ) : activeTab === "videos" ? (
+        <section className="despertai-tab-panel">
+          <div className="reading-summary-grid">
+            <article className="reading-summary-card main">
+              <ProgressDonut value={data.videos.progressPercent} label="vídeos" />
+              <div>
+                <p className="panel-kicker">Vídeos</p>
+                <h3>{data.videos.finishedVideos}/{data.videos.totalVideos} vistos</h3>
+              </div>
+            </article>
+            <article className="reading-summary-card">
+              <span>Pendentes</span>
+              <strong>{data.videos.pendingVideos}</strong>
+            </article>
+            <article className="reading-summary-card">
+              <span>Tempo visto</span>
+              <strong>{formatDuration(data.videos.watchedDurationSeconds)}</strong>
+            </article>
+          </div>
+
+          <section className="despertai-wheel-card">
+            <div className="activity-wheel-head">
+              <div>
+                <p className="panel-kicker">Roleta</p>
+                <h3>Vídeos</h3>
+                <p className="activity-wheel-copy">Clique no centro para sortear.</p>
+              </div>
+              <button
+                type="button"
+                className="secondary"
+                onClick={shuffleVideoWheel}
+                disabled={videoWheelSpinning || videoWheelOrderedItems.length <= 1}
+              >
+                Embaralhar
+              </button>
+            </div>
+
+            <div className="activity-wheel-controls">
+              <span className="activity-wheel-meta">
+                {videoWheelEligibleItems.length} vídeos
+              </span>
+            </div>
+
+            <div className="activity-wheel-stage">
+              <div className={`activity-wheel-dial-wrap ${videoWheelSpinning ? "spinning" : ""}`}>
+                <span className="activity-wheel-pointer" aria-hidden="true" />
+                <div className="activity-wheel-dial-shell">
+                  <svg
+                    className="activity-wheel-dial"
+                    viewBox="0 0 260 260"
+                    role="img"
+                    aria-label="Roleta de vídeos não vistos"
+                  >
+                    <g
+                      className={`activity-wheel-rotor ${videoWheelSpinning ? "spinning" : ""}`}
+                      style={videoWheelRotorStyle}
+                    >
+                      {videoWheelSegments.map((segment) => {
+                        const labelPoint = polar(
+                          DESPERTAI_WHEEL_CENTER,
+                          DESPERTAI_WHEEL_CENTER,
+                          DESPERTAI_WHEEL_LABEL_RADIUS,
+                          segment.midAngle
+                        );
+                        const labelMaxLength =
+                          segment.span >= 72 ? 11 : segment.span >= 45 ? 9 : 8;
+                        const label = truncateWheelLabel(segment.video.title, labelMaxLength);
+                        const canRenderLabel = segment.span >= 24;
+
+                        return (
+                          <g key={segment.video.id}>
+                            <path
+                              d={describeWheelSlice(
+                                DESPERTAI_WHEEL_CENTER,
+                                DESPERTAI_WHEEL_CENTER,
+                                DESPERTAI_WHEEL_RADIUS,
+                                segment.startAngle,
+                                segment.endAngle
+                              )}
+                              className={`activity-wheel-slice ${
+                                !videoWheelSpinning && segment.video.id === videoWheelResultId
+                                  ? "is-result"
+                                  : ""
+                              }`}
+                              style={{ fill: segment.color }}
+                            >
+                              <title>{segment.video.title}</title>
+                            </path>
+                            {canRenderLabel ? (
+                              <text
+                                x={labelPoint.x}
+                                y={labelPoint.y}
+                                className="activity-wheel-slice-label"
+                                dominantBaseline="middle"
+                                textAnchor="middle"
+                              >
+                                {label}
+                              </text>
+                            ) : null}
+                          </g>
+                        );
+                      })}
+                      <circle
+                        cx={DESPERTAI_WHEEL_CENTER}
+                        cy={DESPERTAI_WHEEL_CENTER}
+                        r={DESPERTAI_WHEEL_RADIUS}
+                        className="activity-wheel-rim"
+                      />
+                    </g>
+                    <circle
+                      cx={DESPERTAI_WHEEL_CENTER}
+                      cy={DESPERTAI_WHEEL_CENTER}
+                      r="31"
+                      className="activity-wheel-hub"
+                    />
+                    <circle
+                      cx={DESPERTAI_WHEEL_CENTER}
+                      cy={DESPERTAI_WHEEL_CENTER}
+                      r="6"
+                      className="activity-wheel-hub-dot"
+                    />
+                  </svg>
+                  <button
+                    type="button"
+                    className="activity-wheel-hub-button"
+                    onClick={spinVideoWheel}
+                    disabled={videoWheelSpinning || videoWheelEligibleItems.length === 0}
+                    aria-label={
+                      videoWheelSpinning
+                        ? "Roleta girando"
+                        : videoWheelEligibleItems.length === 0
+                          ? "Nenhum vídeo pendente"
+                          : "Sortear vídeo"
+                    }
+                  >
+                    {videoWheelSpinning ? "..." : "Girar"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="activity-wheel-result despertai-wheel-result">
+                {videoWheelEligibleItems.length === 0 ? (
+                  <p className="line-empty">Nenhum vídeo pendente.</p>
+                ) : videoWheelResult ? (
+                  <article className="activity-wheel-result-card despertai-wheel-result-card">
+                    <strong>{videoWheelResult.title}</strong>
+                    <p>{formatDuration(videoWheelResult.durationSeconds)}</p>
+                    <div className="activity-wheel-result-actions">
+                      <button type="button" className="secondary" onClick={() => revealVideoFromWheel(videoWheelResult.id)}>
+                        Ver
+                      </button>
+                      <button
+                        type="button"
+                        className="page-link inline muted"
+                        onClick={spinVideoWheel}
+                        disabled={videoWheelSpinning}
+                      >
+                        Sortear de novo
+                      </button>
+                    </div>
+                  </article>
+                ) : (
+                  <article className="activity-wheel-summary-card">
+                    <p className="activity-wheel-summary-title">Na roleta</p>
+                    <ul className="activity-wheel-task-list">
+                      {videoWheelOrderedItems.slice(0, 8).map((video) => (
+                        <li key={video.id} title={video.title}>
+                          <span>{truncateWheelLabel(video.title, 30)}</span>
+                          <small>{formatDuration(video.durationSeconds)}</small>
+                        </li>
+                      ))}
+                    </ul>
+                    {videoWheelOrderedItems.length > 8 ? (
+                      <p className="activity-wheel-more">+{videoWheelOrderedItems.length - 8} mais</p>
+                    ) : null}
+                    <p className="activity-wheel-tip">O nome completo aparece depois do sorteio.</p>
+                  </article>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section className="despertai-list-section">
+            <div className="despertai-section-title">
+              <h3>Não vistos</h3>
+              <span>{data.videos.pendingVideos}</span>
+            </div>
+            {data.videos.pendingVideosList.length ? (
+              <div className="reading-video-list">
+                {data.videos.pendingVideosList.map((video) => (
+                  <VideoCard
+                    key={video.id}
+                    video={video}
+                    busy={patchMutation.isPending}
+                    onPatch={patch}
+                    selected={videoWheelResultId === video.id}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="line-empty">Todos os vídeos foram vistos.</div>
+            )}
+          </section>
+
+          <section className="despertai-list-section">
+            <div className="despertai-section-title">
+              <h3>Vistos</h3>
+              <span>{data.videos.finishedVideos}</span>
+            </div>
+            {data.videos.finishedVideosList.length ? (
+              <div className="reading-video-list reading-video-finished-list">
+                {data.videos.finishedVideosList.map((video) => (
+                  <VideoCard
+                    key={video.id}
+                    video={video}
+                    busy={patchMutation.isPending}
+                    onPatch={patch}
+                    selected={videoWheelResultId === video.id}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="line-empty">Nenhum vídeo visto ainda.</div>
             )}
           </section>
         </section>

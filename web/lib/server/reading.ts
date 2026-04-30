@@ -1,8 +1,9 @@
 import { randomUUID } from "crypto";
 import despertaiCatalog from "@/lib/config/despertaiPublications.json";
+import videoCatalog from "@/lib/config/readingVideos.json";
 import { BIBLE_BOOK_BY_KEY, BIBLE_SECTIONS, BIBLE_TOTAL_CHAPTERS } from "@/lib/config/bible";
 import { getSetting, setSetting } from "@/lib/server/settings";
-import type { DespertaiIssue, DespertaiTopic, ReadingPageData } from "@/lib/types";
+import type { DespertaiIssue, DespertaiTopic, ReadingPageData, ReadingVideo } from "@/lib/types";
 
 type StoredDespertaiTopic = {
   id: string;
@@ -23,6 +24,7 @@ type StoredDespertaiIssue = {
 
 type StoredReadingState = {
   despertai_issues: StoredDespertaiIssue[];
+  videos: StoredReadingVideo[];
   bible_read_chapters: Record<string, number[]>;
 };
 
@@ -36,6 +38,27 @@ type CatalogDespertaiIssue = {
   title: string;
   url?: string | null;
   topics: string[];
+};
+
+type CatalogReadingVideo = {
+  id: string;
+  title: string;
+  duration_seconds?: number;
+  natural_key?: string | null;
+  document_id?: string | null;
+  url?: string | null;
+};
+
+type StoredReadingVideo = {
+  id: string;
+  title: string;
+  duration_seconds: number;
+  natural_key?: string | null;
+  document_id?: string | null;
+  url?: string | null;
+  read: boolean;
+  created_at: string;
+  updated_at: string;
 };
 
 const DEFAULT_DESPERTAI_ISSUES: StoredDespertaiIssue[] = (despertaiCatalog as CatalogDespertaiIssue[])
@@ -54,9 +77,23 @@ const DEFAULT_DESPERTAI_ISSUES: StoredDespertaiIssue[] = (despertaiCatalog as Ca
     updated_at: CATALOG_CREATED_AT,
   }));
 
+const DEFAULT_READING_VIDEOS: StoredReadingVideo[] = (videoCatalog as CatalogReadingVideo[])
+  .map((video) => ({
+    id: video.id,
+    title: video.title,
+    duration_seconds: Math.max(0, Math.trunc(Number(video.duration_seconds) || 0)),
+    natural_key: video.natural_key || null,
+    document_id: video.document_id || null,
+    url: video.url || null,
+    read: false,
+    created_at: CATALOG_CREATED_AT,
+    updated_at: CATALOG_CREATED_AT,
+  }));
+
 function defaultState(): StoredReadingState {
   return {
     despertai_issues: DEFAULT_DESPERTAI_ISSUES,
+    videos: DEFAULT_READING_VIDEOS,
     bible_read_chapters: {},
   };
 }
@@ -104,8 +141,41 @@ function normalizeIssue(raw: Partial<StoredDespertaiIssue>, nowIso: string): Sto
   };
 }
 
+function normalizeVideo(raw: Partial<StoredReadingVideo>, nowIso: string): StoredReadingVideo | null {
+  const title = normalizeText(raw.title, 280);
+  if (!title) return null;
+  return {
+    id: String(raw.id || randomUUID()),
+    title,
+    duration_seconds: Math.max(0, Math.trunc(Number(raw.duration_seconds) || 0)),
+    natural_key: normalizeText(raw.natural_key, 160) || null,
+    document_id: normalizeText(raw.document_id, 160) || null,
+    url: normalizeText(raw.url, 600) || null,
+    read: Boolean(raw.read),
+    created_at: String(raw.created_at || nowIso),
+    updated_at: String(raw.updated_at || nowIso),
+  };
+}
+
 function mergeWithDefaultIssues(issues: StoredDespertaiIssue[]) {
   return mergeIssues(DEFAULT_DESPERTAI_ISSUES, issues);
+}
+
+function mergeWithDefaultVideos(videos: StoredReadingVideo[]) {
+  const next = [...DEFAULT_READING_VIDEOS];
+  videos.forEach((video) => {
+    const existingIndex = next.findIndex((item) => item.id === video.id);
+    if (existingIndex < 0) {
+      next.push(video);
+      return;
+    }
+    next[existingIndex] = {
+      ...next[existingIndex],
+      ...video,
+      read: Boolean(video.read),
+    };
+  });
+  return next;
 }
 
 function normalizeBibleReadChapters(raw: unknown): Record<string, number[]> {
@@ -136,6 +206,11 @@ function normalizeState(raw: unknown): StoredReadingState {
           .map((issue) => normalizeIssue(issue, nowIso))
           .filter((issue): issue is StoredDespertaiIssue => Boolean(issue)))
       : DEFAULT_DESPERTAI_ISSUES,
+    videos: Array.isArray(state.videos)
+      ? mergeWithDefaultVideos(state.videos
+          .map((video) => normalizeVideo(video, nowIso))
+          .filter((video): video is StoredReadingVideo => Boolean(video)))
+      : DEFAULT_READING_VIDEOS,
     bible_read_chapters: normalizeBibleReadChapters(state.bible_read_chapters),
   };
 }
@@ -188,12 +263,35 @@ function sortIssues(left: DespertaiIssue, right: DespertaiIssue) {
   return right.updatedAt.localeCompare(left.updatedAt);
 }
 
+function videoProgress(video: StoredReadingVideo): ReadingVideo {
+  return {
+    id: video.id,
+    title: video.title,
+    durationSeconds: video.duration_seconds,
+    naturalKey: video.natural_key || null,
+    documentId: video.document_id || null,
+    url: video.url || null,
+    read: Boolean(video.read),
+    createdAt: video.created_at,
+    updatedAt: video.updated_at,
+  };
+}
+
+function sortVideos(left: ReadingVideo, right: ReadingVideo) {
+  return left.title.localeCompare(right.title, "pt-BR");
+}
+
 function toPageData(state: StoredReadingState): ReadingPageData {
   const issues = state.despertai_issues.map(issueProgress);
   const pendingIssues = issues.filter((issue) => !issue.isFinished).sort(sortIssues);
   const finishedIssuesList = issues.filter((issue) => issue.isFinished).sort(sortIssues);
   const totalTopics = issues.reduce((sum, issue) => sum + issue.totalTopics, 0);
   const readTopics = issues.reduce((sum, issue) => sum + issue.readCount, 0);
+  const videos = state.videos.map(videoProgress);
+  const pendingVideosList = videos.filter((video) => !video.read).sort(sortVideos);
+  const finishedVideosList = videos.filter((video) => video.read).sort(sortVideos);
+  const totalDurationSeconds = videos.reduce((sum, video) => sum + video.durationSeconds, 0);
+  const watchedDurationSeconds = finishedVideosList.reduce((sum, video) => sum + video.durationSeconds, 0);
 
   const sections = BIBLE_SECTIONS.map((section) => ({
     title: section.title,
@@ -223,6 +321,16 @@ function toPageData(state: StoredReadingState): ReadingPageData {
       progressPercent: totalTopics ? Math.round((readTopics / totalTopics) * 100) : 0,
       pendingIssues,
       finishedIssuesList,
+    },
+    videos: {
+      totalVideos: videos.length,
+      finishedVideos: finishedVideosList.length,
+      pendingVideos: pendingVideosList.length,
+      totalDurationSeconds,
+      watchedDurationSeconds,
+      progressPercent: videos.length ? Math.round((finishedVideosList.length / videos.length) * 100) : 0,
+      pendingVideosList,
+      finishedVideosList,
     },
     bible: {
       totalChapters: BIBLE_TOTAL_CHAPTERS,
@@ -447,6 +555,17 @@ export async function setDespertaiIssueReadCount(userEmail: string, issueId: str
     };
   });
   const nextState = { ...state, despertai_issues: nextIssues };
+  await saveState(userEmail, nextState);
+  return toPageData(nextState);
+}
+
+export async function setReadingVideoRead(userEmail: string, videoId: string, read: boolean) {
+  const state = await getState(userEmail);
+  const nowIso = new Date().toISOString();
+  const nextVideos = state.videos.map((video) =>
+    video.id === videoId ? { ...video, read, updated_at: nowIso } : video
+  );
+  const nextState = { ...state, videos: nextVideos };
   await saveState(userEmail, nextState);
   return toPageData(nextState);
 }

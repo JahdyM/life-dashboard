@@ -1,0 +1,2914 @@
+[
+  {
+    "id": "video-docid-502013385-t-1-video",
+    "title": "\"Eu amo a Bíblia em língua de sinais\"",
+    "duration_seconds": 320,
+    "natural_key": "docid-502013385_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201412-1-video",
+    "title": "\"Há mais felicidade em dar do que em receber\"",
+    "duration_seconds": 287,
+    "natural_key": "pub-jwbai_T_201412_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ciw-t-x-video",
+    "title": "\"Para isto vim ao mundo\" (Mateus 21:23-46; Mateus 22:15-33; Mateus 22:34-46)",
+    "duration_seconds": 1342,
+    "natural_key": "pub-ciw_T_x_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ojs-t-x-video",
+    "title": "\"Quem está do lado de Jeová?\"",
+    "duration_seconds": 1519,
+    "natural_key": "pub-ojs_T_x_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ivnwf-t-x-video",
+    "title": "'Não falhou nem uma única palavra'",
+    "duration_seconds": 1686,
+    "natural_key": "pub-ivnwf_T_x_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-101-t-4-video",
+    "title": "A Bíblia de Magdeburgo — Um tesouro escondido por muito tempo",
+    "duration_seconds": 301,
+    "natural_key": "pub-jwb-101_T_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-1001072341-t-1-video",
+    "title": "A Guarda Pretoriana",
+    "duration_seconds": 84,
+    "natural_key": "docid-1001072341_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502019103-t-1-video",
+    "title": "A Palavra de Deus toca o coração dos surdos",
+    "duration_seconds": 306,
+    "natural_key": "docid-502019103_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201810-5-video",
+    "title": "A Tradução do Novo Mundo em mais quatro idiomas",
+    "duration_seconds": 319,
+    "natural_key": "pub-jwb_T_201810_5_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-1001072256-t-1-video",
+    "title": "A armadura de um soldado romano",
+    "duration_seconds": 156,
+    "natural_key": "docid-1001072256_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-1001072172-t-1-video",
+    "title": "A cidade de Roma",
+    "duration_seconds": 207,
+    "natural_key": "docid-1001072172_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov21-t-7-video",
+    "title": "A criação aumenta nossa fé",
+    "duration_seconds": 731,
+    "natural_key": "pub-jwbcov21_T_7_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov20-t-7-video",
+    "title": "A criação mostra que Jeová quer que você se alegre",
+    "duration_seconds": 719,
+    "natural_key": "pub-jwbcov20_T_7_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-202501-2-video",
+    "title": "A criação mostra que Jeová quer que você se alegre — Alimentos saborosos e sons agradáveis",
+    "duration_seconds": 239,
+    "natural_key": "pub-mwbv_T_202501_2_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-202503-3-video",
+    "title": "A criação mostra que Jeová quer que você se alegre — Animais fascinantes",
+    "duration_seconds": 126,
+    "natural_key": "pub-mwbv_T_202503_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201805-19-video",
+    "title": "A criação nos ensina a ser corajosos",
+    "duration_seconds": 605,
+    "natural_key": "pub-jwbcov_T_201805_19_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201705-9-video",
+    "title": "A criação nos ensina sobre perseverança",
+    "duration_seconds": 376,
+    "natural_key": "pub-jwbcov_T_201705_9_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201905-11-video",
+    "title": "A criação revela o amor de Jeová",
+    "duration_seconds": 593,
+    "natural_key": "pub-jwbcov_T_201905_11_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jlj-t-1-video",
+    "title": "A história de Josias: Ame a Jeová; odeie o que é mau — Parte 1",
+    "duration_seconds": 1909,
+    "natural_key": "pub-jlj_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jlj-t-2-video",
+    "title": "A história de Josias: Ame a Jeová; odeie o que é mau — Parte 2",
+    "duration_seconds": 1877,
+    "natural_key": "pub-jlj_T_2_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201405-5-video",
+    "title": "A ressurreição logo será realidade",
+    "duration_seconds": 221,
+    "natural_key": "pub-jwbcov_T_201405_5_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-1001072324-t-1-video",
+    "title": "A tenda",
+    "duration_seconds": 215,
+    "natural_key": "docid-1001072324_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502014271-t-1-video",
+    "title": "A tradução “das proclamações sagradas de Deus” — Romanos 3:2",
+    "duration_seconds": 726,
+    "natural_key": "docid-502014271_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-202002-10-video",
+    "title": "A versão completa da Tradução do Novo Mundo da Bíblia está disponível em língua de sinais americana",
+    "duration_seconds": 389,
+    "natural_key": "pub-jwb_T_202002_10_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201804-3-video",
+    "title": "A vida é preciosa para Jeová",
+    "duration_seconds": 300,
+    "natural_key": "pub-jwb_T_201804_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201805-26-video",
+    "title": "Acontecimentos no futuro que vão exigir coragem",
+    "duration_seconds": 1280,
+    "natural_key": "pub-jwbcov_T_201805_26_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-202008-3-video",
+    "title": "Acontecimentos no futuro que vão exigir coragem — Trecho",
+    "duration_seconds": 383,
+    "natural_key": "pub-mwbv_T_202008_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201706-3-video",
+    "title": "Adoração em família: Jonas — Aprenda da misericórdia de Jeová",
+    "duration_seconds": 424,
+    "natural_key": "pub-jwb_T_201706_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201605-1-video",
+    "title": "Adoração em família: Noé — Ele andava com Deus",
+    "duration_seconds": 358,
+    "natural_key": "pub-jwbai_T_201605_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201701-5-video",
+    "title": "Adoração em família: Paulo — Ele pregou cabalmente as boas novas",
+    "duration_seconds": 327,
+    "natural_key": "pub-jwb_T_201701_5_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201511-1-video",
+    "title": "Ajudar os inativos",
+    "duration_seconds": 429,
+    "natural_key": "pub-jwbai_T_201511_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-202411-2-video",
+    "title": "Alegre-se com as Promessas de Deus de Trazer Paz — Trecho",
+    "duration_seconds": 454,
+    "natural_key": "pub-mwbv_T_202411_2_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov22-t-5-video",
+    "title": "Alegre-se com as promessas de Deus de trazer paz",
+    "duration_seconds": 555,
+    "natural_key": "pub-jwbcov22_T_5_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201604-1-video",
+    "title": "Alegrem-se na esperança",
+    "duration_seconds": 334,
+    "natural_key": "pub-jwbai_T_201604_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov22-t-7-video",
+    "title": "Apoie de todo o coração o “Príncipe da Paz”",
+    "duration_seconds": 166,
+    "natural_key": "pub-jwbcov22_T_7_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201405-1-video",
+    "title": "Aprecie os benefícios do governo do Reino",
+    "duration_seconds": 142,
+    "natural_key": "pub-jwbcov_T_201405_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502018516-t-1-video",
+    "title": "As boas novas são pregadas nos Andes",
+    "duration_seconds": 332,
+    "natural_key": "docid-502018516_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ivwc-t-1-video",
+    "title": "As maravilhas da criação revelam a glória de Deus",
+    "duration_seconds": 1981,
+    "natural_key": "pub-ivwc_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ivwc-t-6-video",
+    "title": "As maravilhas da criação revelam a glória de Deus — Galeria de fotos",
+    "duration_seconds": 160,
+    "natural_key": "pub-ivwc_T_6_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ivwc-t-2-video",
+    "title": "As maravilhas da criação revelam a glória de Deus — Luz e cores",
+    "duration_seconds": 315,
+    "natural_key": "pub-ivwc_T_2_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ivwc-t-4-video",
+    "title": "As maravilhas da criação revelam a glória de Deus — O projeto da vida",
+    "duration_seconds": 325,
+    "natural_key": "pub-ivwc_T_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ivwc-t-5-video",
+    "title": "As maravilhas da criação revelam a glória de Deus — Padrões",
+    "duration_seconds": 296,
+    "natural_key": "pub-ivwc_T_5_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ivwc-t-3-video",
+    "title": "As maravilhas da criação revelam a glória de Deus — Água",
+    "duration_seconds": 283,
+    "natural_key": "pub-ivwc_T_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-124-t-7-video",
+    "title": "Benjamin Boothroyd: Um homem simples que se tornou tradutor da Bíblia",
+    "duration_seconds": 437,
+    "natural_key": "pub-jwb-124_T_7_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-1001072108-t-1-video",
+    "title": "Betfagé, o monte das Oliveiras e Jerusalém",
+    "duration_seconds": 108,
+    "natural_key": "docid-1001072108_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-131-t-6-video",
+    "title": "Busque por Tesouros — Amós",
+    "duration_seconds": 350,
+    "natural_key": "pub-jwb-131_T_6_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-130-t-6-video",
+    "title": "Busque por Tesouros — Joel",
+    "duration_seconds": 369,
+    "natural_key": "pub-jwb-130_T_6_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-135-t-3-video",
+    "title": "Busque por Tesouros — Jonas",
+    "duration_seconds": 359,
+    "natural_key": "pub-jwb-135_T_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-136-t-7-video",
+    "title": "Busque por Tesouros — Miqueias",
+    "duration_seconds": 373,
+    "natural_key": "pub-jwb-136_T_7_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-132-t-4-video",
+    "title": "Busque por Tesouros — Obadias",
+    "duration_seconds": 340,
+    "natural_key": "pub-jwb-132_T_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-129-t-3-video",
+    "title": "Busque por Tesouros — Oseias",
+    "duration_seconds": 418,
+    "natural_key": "pub-jwb-129_T_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-1001072090-t-1-video",
+    "title": "Cafarnaum, Corazim e Betsaida",
+    "duration_seconds": 77,
+    "natural_key": "docid-1001072090_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-1001072134-t-1-video",
+    "title": "Cesareia",
+    "duration_seconds": 186,
+    "natural_key": "docid-1001072134_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-201708-5-video",
+    "title": "Coisas Que Enfraquecem a Lealdade — Medo do Homem",
+    "duration_seconds": 182,
+    "natural_key": "pub-mwbv_T_201708_5_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-201708-4-video",
+    "title": "Coisas Que Enfraquecem a Lealdade — Orgulho",
+    "duration_seconds": 181,
+    "natural_key": "pub-mwbv_T_201708_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-201708-6-video",
+    "title": "Coisas Que Fortalecem a Lealdade — Fé",
+    "duration_seconds": 242,
+    "natural_key": "pub-mwbv_T_201708_6_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201605-8-video",
+    "title": "Coisas que enfraquecem a lealdade",
+    "duration_seconds": 758,
+    "natural_key": "pub-jwbcov_T_201605_8_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-201909-7-video",
+    "title": "Coisas que enfraquecem a lealdade — Diversões impróprias",
+    "duration_seconds": 140,
+    "natural_key": "pub-mwbv_T_201909_7_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-202111-6-video",
+    "title": "Coisas que enfraquecem a lealdade — Más companhias",
+    "duration_seconds": 270,
+    "natural_key": "pub-mwbv_T_202111_6_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201605-9-video",
+    "title": "Coisas que fortalecem a lealdade",
+    "duration_seconds": 791,
+    "natural_key": "pub-jwbcov_T_201605_9_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-lffv-t-423-video",
+    "title": "Coloque em prática o que Jeová diz sobre o casamento",
+    "duration_seconds": 254,
+    "natural_key": "pub-lffv_T_423_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-como-aplicar-principios-biblicos",
+    "title": "Como Aplicar Princípios Bíblicos",
+    "duration_seconds": 0,
+    "natural_key": null,
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201705-5-video",
+    "title": "Como Jeová “dá perseverança e consolo”",
+    "duration_seconds": 696,
+    "natural_key": "pub-jwbcov_T_201705_5_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ebtv-t-13-video",
+    "title": "Como Ler a Bíblia",
+    "duration_seconds": 226,
+    "natural_key": "pub-ebtv_T_13_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-124-t-5-video",
+    "title": "Como a Palavra de Deus foi escrita",
+    "duration_seconds": 302,
+    "natural_key": "pub-jwb-124_T_5_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-501100015-t-1-video",
+    "title": "Como lidar com a dor da morte",
+    "duration_seconds": 306,
+    "natural_key": "docid-501100015_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov22-t-3-video",
+    "title": "Como o amor traz paz verdadeira",
+    "duration_seconds": 773,
+    "natural_key": "pub-jwbcov22_T_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502015752-t-1-video",
+    "title": "Como podemos ter certeza de que a Bíblia é verdadeira?",
+    "duration_seconds": 257,
+    "natural_key": "docid-502015752_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201707-6-video",
+    "title": "Como se preparar para um desastre?",
+    "duration_seconds": 331,
+    "natural_key": "pub-jwb_T_201707_6_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ebtv-t-1-video",
+    "title": "Como surgiu o Universo?",
+    "duration_seconds": 261,
+    "natural_key": "pub-ebtv_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-202505-2-video",
+    "title": "Como ter paz na família — Melhore a comunicação",
+    "duration_seconds": 329,
+    "natural_key": "pub-mwbv_T_202505_2_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-lffv-t-391-video",
+    "title": "Como tomar decisões sobre tratamentos de saúde que envolvam o uso do sangue",
+    "duration_seconds": 348,
+    "natural_key": "pub-lffv_T_391_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201505-11-video",
+    "title": "Concentre-se em Jesus à medida que a grande tempestade se aproxima! — Futuras bênçãos do Reino",
+    "duration_seconds": 278,
+    "natural_key": "pub-jwbcov_T_201505_11_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-501100047-t-1-video",
+    "title": "Consolo para quem perdeu alguém na morte",
+    "duration_seconds": 131,
+    "natural_key": "docid-501100047_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-117-t-4-video",
+    "title": "Continue Focado em Coisas Espirituais — Parte 2",
+    "duration_seconds": 315,
+    "natural_key": "pub-jwb-117_T_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201411-1-video",
+    "title": "Continue Melhorando Sua Adoração em Família",
+    "duration_seconds": 358,
+    "natural_key": "pub-jwbai_T_201411_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201911-9-video",
+    "title": "Continue a amar a Deus",
+    "duration_seconds": 305,
+    "natural_key": "pub-jwb_T_201911_9_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-115-t-3-video",
+    "title": "Continue focado em coisas espirituais — Parte 1",
+    "duration_seconds": 381,
+    "natural_key": "pub-jwb-115_T_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201605-1-video",
+    "title": "Continue leal em pensamentos, palavras e ações",
+    "duration_seconds": 496,
+    "natural_key": "pub-jwbcov_T_201605_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201602-1-video",
+    "title": "Convença o seu coração",
+    "duration_seconds": 385,
+    "natural_key": "pub-jwbai_T_201602_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-1001072308-t-1-video",
+    "title": "Corinto — Uma metrópole próspera",
+    "duration_seconds": 272,
+    "natural_key": "docid-1001072308_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-criacao",
+    "title": "Criação",
+    "duration_seconds": 0,
+    "natural_key": null,
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201508-1-video",
+    "title": "Cuidado com a inveja",
+    "duration_seconds": 434,
+    "natural_key": "pub-jwbai_T_201508_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-096-t-4-video",
+    "title": "Cuide bem da sua família",
+    "duration_seconds": 372,
+    "natural_key": "pub-jwb-096_T_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-dlf-t-1-video",
+    "title": "Daniel: Uma história de fé — Parte 1",
+    "duration_seconds": 3688,
+    "natural_key": "pub-dlf_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-dlf-t-2-video",
+    "title": "Daniel: Uma história de fé — Parte 2",
+    "duration_seconds": 2922,
+    "natural_key": "pub-dlf_T_2_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-dwj-t-1-video",
+    "title": "Davi esperou em Jeová",
+    "duration_seconds": 1739,
+    "natural_key": "pub-dwj_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201802-3-video",
+    "title": "Defenda sua fé mesmo enfrentando oposição",
+    "duration_seconds": 309,
+    "natural_key": "pub-jwb_T_201802_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502014331-t-1-video",
+    "title": "Deus tem nome?",
+    "duration_seconds": 256,
+    "natural_key": "docid-502014331_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201607-1-video",
+    "title": "Deus “conhece os segredos do coração”",
+    "duration_seconds": 390,
+    "natural_key": "pub-jwbai_T_201607_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502017151-t-1-video",
+    "title": "Eles Amavam a Bíblia",
+    "duration_seconds": 867,
+    "natural_key": "docid-502017151_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov21-t-19-video",
+    "title": "Eles lutam pela fé e vencem — Os que são solteiros",
+    "duration_seconds": 190,
+    "natural_key": "pub-jwbcov21_T_19_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov22-t-17-video",
+    "title": "Eles semearam e colheram a paz",
+    "duration_seconds": 1386,
+    "natural_key": "pub-jwbcov22_T_17_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-wcgv-t-4-video",
+    "title": "Eles semearam e colheram a paz — Mefibosete",
+    "duration_seconds": 206,
+    "natural_key": "pub-wcgv_T_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-apv-t-1-video",
+    "title": "Encontre amigos onde menos espera",
+    "duration_seconds": 307,
+    "natural_key": "pub-apv_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201504-1-video",
+    "title": "Encoraje seu marido pelo seu exemplo",
+    "duration_seconds": 359,
+    "natural_key": "pub-jwbai_T_201504_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-ensinos-da-biblia",
+    "title": "Ensinos da Bíblia",
+    "duration_seconds": 0,
+    "natural_key": null,
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-1001072072-t-1-video",
+    "title": "Entrada do santuário do templo de Herodes",
+    "duration_seconds": 84,
+    "natural_key": "docid-1001072072_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-202012-12-video",
+    "title": "Epidemias — O que você pode fazer?",
+    "duration_seconds": 187,
+    "natural_key": "pub-jwb_T_202012_12_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201507-1-video",
+    "title": "Escolha uma carreira com um futuro eterno",
+    "duration_seconds": 299,
+    "natural_key": "pub-jwbai_T_201507_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-apv-t-3-video",
+    "title": "Escute o conselho e torne-se sábio",
+    "duration_seconds": 289,
+    "natural_key": "pub-apv_T_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-201807-4-video",
+    "title": "Estrada de Jerusalém para Jericó",
+    "duration_seconds": 89,
+    "natural_key": "pub-mwbv_T_201807_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201702-3-video",
+    "title": "Evite as más companhias",
+    "duration_seconds": 378,
+    "natural_key": "pub-jwb_T_201702_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ivwx-t-x-video",
+    "title": "Exemplos de Aviso para os Nossos Dias",
+    "duration_seconds": 2246,
+    "natural_key": "pub-ivwx_T_x_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-202103-6-video",
+    "title": "Exemplos de Aviso para os Nossos Dias (Trecho)",
+    "duration_seconds": 517,
+    "natural_key": "pub-mwbv_T_202103_6_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-202104-4-video",
+    "title": "Exemplos para Nós — Filipe, o evangelizador",
+    "duration_seconds": 434,
+    "natural_key": "pub-jwb_T_202104_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-202010-3-video",
+    "title": "Exemplos para Nós — Pedro",
+    "duration_seconds": 409,
+    "natural_key": "pub-jwb_T_202010_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-099-t-3-video",
+    "title": "Exemplos para nós — João Batista",
+    "duration_seconds": 418,
+    "natural_key": "pub-jwb-099_T_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201910-3-video",
+    "title": "Fale ‘o que for bom para edificar’ outros",
+    "duration_seconds": 247,
+    "natural_key": "pub-jwb_T_201910_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201509-1-video",
+    "title": "Faça da sua condição de solteiro um sucesso",
+    "duration_seconds": 315,
+    "natural_key": "pub-jwbai_T_201509_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-083-t-4-video",
+    "title": "Faça o que puder",
+    "duration_seconds": 309,
+    "natural_key": "pub-jwb-083_T_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201711-9-video",
+    "title": "Feriados e celebrações que desagradam a Deus",
+    "duration_seconds": 308,
+    "natural_key": "pub-jwb_T_201711_9_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201709-3-video",
+    "title": "Fortaleça seu casamento",
+    "duration_seconds": 307,
+    "natural_key": "pub-jwb_T_201709_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201907-3-video",
+    "title": "Fuja da imoralidade",
+    "duration_seconds": 306,
+    "natural_key": "pub-jwb_T_201907_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-202002-3-video",
+    "title": "Honre seus pais idosos",
+    "duration_seconds": 286,
+    "natural_key": "pub-jwb_T_202002_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201502-2-video",
+    "title": "Idosos, vocês são muito importantes",
+    "duration_seconds": 346,
+    "natural_key": "pub-jwbai_T_201502_2_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-102-t-7-video",
+    "title": "Imite a Sua Fé — Abraão, Parte 1",
+    "duration_seconds": 643,
+    "natural_key": "pub-jwb-102_T_7_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-106-t-4-video",
+    "title": "Imite a Sua Fé — Abraão, Parte 2",
+    "duration_seconds": 670,
+    "natural_key": "pub-jwb-106_T_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-itf-t-4-video",
+    "title": "Imite a Sua Fé — Miriã",
+    "duration_seconds": 644,
+    "natural_key": "pub-itf_T_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-itf-t-3-video",
+    "title": "Imite a Sua Fé — Rebeca",
+    "duration_seconds": 722,
+    "natural_key": "pub-itf_T_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov21-t-23-video",
+    "title": "Imite mulheres que mostraram forte fé!",
+    "duration_seconds": 1668,
+    "natural_key": "pub-jwbcov21_T_23_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-202509-3-video",
+    "title": "Imite mulheres que mostraram forte fé! — Marta",
+    "duration_seconds": 202,
+    "natural_key": "pub-mwbv_T_202509_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201505-7-video",
+    "title": "Imite o modo como Jesus usou seu poder — Solteiros fiéis",
+    "duration_seconds": 195,
+    "natural_key": "pub-jwbcov_T_201505_7_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov21-t-9-video",
+    "title": "Imite os fiéis, não os infiéis — Imite Enoque, não Lameque",
+    "duration_seconds": 173,
+    "natural_key": "pub-jwbcov21_T_9_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-460-video",
+    "title": "Introdução a 1 Coríntios",
+    "duration_seconds": 229,
+    "natural_key": "pub-nwtsv_T_460_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-130-video",
+    "title": "Introdução a 1 Crônicas",
+    "duration_seconds": 290,
+    "natural_key": "pub-nwtsv_T_130_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-620-video",
+    "title": "Introdução a 1 João",
+    "duration_seconds": 184,
+    "natural_key": "pub-nwtsv_T_620_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-600-video",
+    "title": "Introdução a 1 Pedro",
+    "duration_seconds": 197,
+    "natural_key": "pub-nwtsv_T_600_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-110-video",
+    "title": "Introdução a 1 Reis",
+    "duration_seconds": 303,
+    "natural_key": "pub-nwtsv_T_110_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-90-video",
+    "title": "Introdução a 1 Samuel",
+    "duration_seconds": 331,
+    "natural_key": "pub-nwtsv_T_90_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-520-video",
+    "title": "Introdução a 1 Tessalonicenses",
+    "duration_seconds": 184,
+    "natural_key": "pub-nwtsv_T_520_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-540-video",
+    "title": "Introdução a 1 Timóteo",
+    "duration_seconds": 223,
+    "natural_key": "pub-nwtsv_T_540_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-470-video",
+    "title": "Introdução a 2 Coríntios",
+    "duration_seconds": 259,
+    "natural_key": "pub-nwtsv_T_470_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-140-video",
+    "title": "Introdução a 2 Crônicas",
+    "duration_seconds": 338,
+    "natural_key": "pub-nwtsv_T_140_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-630-video",
+    "title": "Introdução a 2 João",
+    "duration_seconds": 149,
+    "natural_key": "pub-nwtsv_T_630_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-610-video",
+    "title": "Introdução a 2 Pedro",
+    "duration_seconds": 175,
+    "natural_key": "pub-nwtsv_T_610_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-120-video",
+    "title": "Introdução a 2 Reis",
+    "duration_seconds": 316,
+    "natural_key": "pub-nwtsv_T_120_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-100-video",
+    "title": "Introdução a 2 Samuel",
+    "duration_seconds": 323,
+    "natural_key": "pub-nwtsv_T_100_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-530-video",
+    "title": "Introdução a 2 Tessalonicenses",
+    "duration_seconds": 183,
+    "natural_key": "pub-nwtsv_T_530_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-550-video",
+    "title": "Introdução a 2 Timóteo",
+    "duration_seconds": 215,
+    "natural_key": "pub-nwtsv_T_550_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-640-video",
+    "title": "Introdução a 3 João",
+    "duration_seconds": 150,
+    "natural_key": "pub-nwtsv_T_640_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-370-video",
+    "title": "Introdução a Ageu",
+    "duration_seconds": 196,
+    "natural_key": "pub-nwtsv_T_370_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-300-video",
+    "title": "Introdução a Amós",
+    "duration_seconds": 184,
+    "natural_key": "pub-nwtsv_T_300_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-660-video",
+    "title": "Introdução a Apocalipse",
+    "duration_seconds": 354,
+    "natural_key": "pub-nwtsv_T_660_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-440-video",
+    "title": "Introdução a Atos dos Apóstolos",
+    "duration_seconds": 346,
+    "natural_key": "pub-nwtsv_T_440_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-510-video",
+    "title": "Introdução a Colossenses",
+    "duration_seconds": 222,
+    "natural_key": "pub-nwtsv_T_510_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-220-video",
+    "title": "Introdução a Cântico de Salomão",
+    "duration_seconds": 197,
+    "natural_key": "pub-nwtsv_T_220_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-270-video",
+    "title": "Introdução a Daniel",
+    "duration_seconds": 345,
+    "natural_key": "pub-nwtsv_T_270_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-50-video",
+    "title": "Introdução a Deuteronômio",
+    "duration_seconds": 321,
+    "natural_key": "pub-nwtsv_T_50_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-210-video",
+    "title": "Introdução a Eclesiastes",
+    "duration_seconds": 158,
+    "natural_key": "pub-nwtsv_T_210_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-490-video",
+    "title": "Introdução a Efésios",
+    "duration_seconds": 246,
+    "natural_key": "pub-nwtsv_T_490_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-150-video",
+    "title": "Introdução a Esdras",
+    "duration_seconds": 153,
+    "natural_key": "pub-nwtsv_T_150_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-170-video",
+    "title": "Introdução a Ester",
+    "duration_seconds": 207,
+    "natural_key": "pub-nwtsv_T_170_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-260-video",
+    "title": "Introdução a Ezequiel",
+    "duration_seconds": 251,
+    "natural_key": "pub-nwtsv_T_260_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-500-video",
+    "title": "Introdução a Filipenses",
+    "duration_seconds": 211,
+    "natural_key": "pub-nwtsv_T_500_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-570-video",
+    "title": "Introdução a Filêmon",
+    "duration_seconds": 160,
+    "natural_key": "pub-nwtsv_T_570_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-480-video",
+    "title": "Introdução a Gálatas",
+    "duration_seconds": 209,
+    "natural_key": "pub-nwtsv_T_480_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-10-video",
+    "title": "Introdução a Gênesis",
+    "duration_seconds": 391,
+    "natural_key": "pub-nwtsv_T_10_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-350-video",
+    "title": "Introdução a Habacuque",
+    "duration_seconds": 167,
+    "natural_key": "pub-nwtsv_T_350_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-580-video",
+    "title": "Introdução a Hebreus",
+    "duration_seconds": 284,
+    "natural_key": "pub-nwtsv_T_580_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-230-video",
+    "title": "Introdução a Isaías",
+    "duration_seconds": 295,
+    "natural_key": "pub-nwtsv_T_230_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-240-video",
+    "title": "Introdução a Jeremias",
+    "duration_seconds": 319,
+    "natural_key": "pub-nwtsv_T_240_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-290-video",
+    "title": "Introdução a Joel",
+    "duration_seconds": 144,
+    "natural_key": "pub-nwtsv_T_290_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-320-video",
+    "title": "Introdução a Jonas",
+    "duration_seconds": 203,
+    "natural_key": "pub-nwtsv_T_320_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-60-video",
+    "title": "Introdução a Josué",
+    "duration_seconds": 306,
+    "natural_key": "pub-nwtsv_T_60_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-430-video",
+    "title": "Introdução a João",
+    "duration_seconds": 291,
+    "natural_key": "pub-nwtsv_T_430_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-650-video",
+    "title": "Introdução a Judas",
+    "duration_seconds": 166,
+    "natural_key": "pub-nwtsv_T_650_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-70-video",
+    "title": "Introdução a Juízes",
+    "duration_seconds": 306,
+    "natural_key": "pub-nwtsv_T_70_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-180-video",
+    "title": "Introdução a Jó",
+    "duration_seconds": 237,
+    "natural_key": "pub-nwtsv_T_180_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-250-video",
+    "title": "Introdução a Lamentações",
+    "duration_seconds": 166,
+    "natural_key": "pub-nwtsv_T_250_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-30-video",
+    "title": "Introdução a Levítico",
+    "duration_seconds": 277,
+    "natural_key": "pub-nwtsv_T_30_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-420-video",
+    "title": "Introdução a Lucas",
+    "duration_seconds": 300,
+    "natural_key": "pub-nwtsv_T_420_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-390-video",
+    "title": "Introdução a Malaquias",
+    "duration_seconds": 165,
+    "natural_key": "pub-nwtsv_T_390_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-410-video",
+    "title": "Introdução a Marcos",
+    "duration_seconds": 198,
+    "natural_key": "pub-nwtsv_T_410_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-400-video",
+    "title": "Introdução a Mateus",
+    "duration_seconds": 182,
+    "natural_key": "pub-nwtsv_T_400_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-330-video",
+    "title": "Introdução a Miqueias",
+    "duration_seconds": 212,
+    "natural_key": "pub-nwtsv_T_330_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-340-video",
+    "title": "Introdução a Naum",
+    "duration_seconds": 189,
+    "natural_key": "pub-nwtsv_T_340_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-160-video",
+    "title": "Introdução a Neemias",
+    "duration_seconds": 195,
+    "natural_key": "pub-nwtsv_T_160_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-40-video",
+    "title": "Introdução a Números",
+    "duration_seconds": 290,
+    "natural_key": "pub-nwtsv_T_40_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-310-video",
+    "title": "Introdução a Obadias",
+    "duration_seconds": 153,
+    "natural_key": "pub-nwtsv_T_310_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-280-video",
+    "title": "Introdução a Oseias",
+    "duration_seconds": 197,
+    "natural_key": "pub-nwtsv_T_280_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-200-video",
+    "title": "Introdução a Provérbios",
+    "duration_seconds": 217,
+    "natural_key": "pub-nwtsv_T_200_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-450-video",
+    "title": "Introdução a Romanos",
+    "duration_seconds": 256,
+    "natural_key": "pub-nwtsv_T_450_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-80-video",
+    "title": "Introdução a Rute",
+    "duration_seconds": 238,
+    "natural_key": "pub-nwtsv_T_80_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-190-video",
+    "title": "Introdução a Salmos",
+    "duration_seconds": 262,
+    "natural_key": "pub-nwtsv_T_190_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-360-video",
+    "title": "Introdução a Sofonias",
+    "duration_seconds": 147,
+    "natural_key": "pub-nwtsv_T_360_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-590-video",
+    "title": "Introdução a Tiago",
+    "duration_seconds": 228,
+    "natural_key": "pub-nwtsv_T_590_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-560-video",
+    "title": "Introdução a Tito",
+    "duration_seconds": 195,
+    "natural_key": "pub-nwtsv_T_560_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-380-video",
+    "title": "Introdução a Zacarias",
+    "duration_seconds": 201,
+    "natural_key": "pub-nwtsv_T_380_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-20-video",
+    "title": "Introdução a Êxodo",
+    "duration_seconds": 335,
+    "natural_key": "pub-nwtsv_T_20_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-nwtsv-t-1-video",
+    "title": "Introdução à Bíblia",
+    "duration_seconds": 328,
+    "natural_key": "pub-nwtsv_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201512-1-video",
+    "title": "Irmãos — Trabalhem para Jeová",
+    "duration_seconds": 324,
+    "natural_key": "pub-jwbai_T_201512_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jlp-t-x-video",
+    "title": "Jacó — Um homem que amava a paz",
+    "duration_seconds": 1966,
+    "natural_key": "pub-jlp_T_x_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201501-1-video",
+    "title": "Jeová abençoa quem faz as pazes",
+    "duration_seconds": 361,
+    "natural_key": "pub-jwbai_T_201501_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-pk-t-9-video",
+    "title": "Jeová criou todas as coisas",
+    "duration_seconds": 157,
+    "natural_key": "pub-pk_T_9_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-pk-t-24-video",
+    "title": "Jeová fez tudo bonito!",
+    "duration_seconds": 127,
+    "natural_key": "pub-pk_T_24_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jdp-t-x-video",
+    "title": "Jeová liberta seu povo (Êxodo 3:​1-22; 4:​1-9; 5:​1-9; 6:​1-8; 7:​1-7; 14:​5-10, 13-31; 15:​1-21.)",
+    "duration_seconds": 1838,
+    "natural_key": "pub-jdp_T_x_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-wpc-t-1-video",
+    "title": "Jeová nos guia no caminho da paz — Parte 1",
+    "duration_seconds": 1838,
+    "natural_key": "pub-wpc_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-wpc-t-2-video",
+    "title": "Jeová nos guia no caminho da paz — Parte 2",
+    "duration_seconds": 2354,
+    "natural_key": "pub-wpc_T_2_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201606-1-video",
+    "title": "Jeová nunca abandona uma ovelha",
+    "duration_seconds": 350,
+    "natural_key": "pub-jwbai_T_201606_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ksl-t-x-video",
+    "title": "Jeová sempre mostra amor leal",
+    "duration_seconds": 1812,
+    "natural_key": "pub-ksl_T_x_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201505-1-video",
+    "title": "Jeová sempre vai cuidar das nossas necessidades",
+    "duration_seconds": 391,
+    "natural_key": "pub-jwbai_T_201505_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-apv-t-2-video",
+    "title": "Jeová vai ajudar você",
+    "duration_seconds": 170,
+    "natural_key": "pub-apv_T_2_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ivjtg-t-x-video",
+    "title": "Jeová é o único Deus verdadeiro (1 Reis 16:29-33; 1 Reis 17:1-7; 1 Reis 18:17-46; 1 Reis 19:1-8)",
+    "duration_seconds": 1729,
+    "natural_key": "pub-ivjtg_T_x_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201505-4-video",
+    "title": "Jesus “veio procurar e salvar o que estava perdido”",
+    "duration_seconds": 170,
+    "natural_key": "pub-jwbcov_T_201505_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jcm-t-x-video",
+    "title": "Jonas — Uma lição de coragem e compaixão",
+    "duration_seconds": 2707,
+    "natural_key": "pub-jcm_T_x_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-1001072139-t-1-video",
+    "title": "Jope",
+    "duration_seconds": 65,
+    "natural_key": "docid-1001072139_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-202010-8-video",
+    "title": "Lançamento da Tradução do Novo Mundo revisada em espanhol",
+    "duration_seconds": 262,
+    "natural_key": "pub-jwb_T_202010_8_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201910-11-video",
+    "title": "Lançamento da edição revisada da Tradução do Novo Mundo em italiano",
+    "duration_seconds": 278,
+    "natural_key": "pub-jwb_T_201910_11_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-leitura-e-estudo-da-biblia",
+    "title": "Leitura e Estudo da Bíblia",
+    "duration_seconds": 0,
+    "natural_key": null,
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201905-23-video",
+    "title": "Lembre-se de que o amor . . .",
+    "duration_seconds": 1231,
+    "natural_key": "pub-jwbcov_T_201905_23_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-wcgv-t-3-video",
+    "title": "Lembre-se de que o amor . . . Não procura os seus próprios interesses",
+    "duration_seconds": 74,
+    "natural_key": "pub-wcgv_T_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-wcgv-t-2-video",
+    "title": "Lembre-se de que o amor . . . Suporta todas as coisas",
+    "duration_seconds": 89,
+    "natural_key": "pub-wcgv_T_2_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-202205-5-video",
+    "title": "Lembre-se de que o amor . . . espera todas as coisas",
+    "duration_seconds": 96,
+    "natural_key": "pub-mwbv_T_202205_5_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-202205-4-video",
+    "title": "Lembre-se de que o amor . . . não se alegra com a injustiça",
+    "duration_seconds": 99,
+    "natural_key": "pub-mwbv_T_202205_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-202205-9-video",
+    "title": "Lembre-se de que o amor . . . não é orgulhoso",
+    "duration_seconds": 82,
+    "natural_key": "pub-mwbv_T_202205_9_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-202205-6-video",
+    "title": "Lembre-se de que o amor . . . é bondoso",
+    "duration_seconds": 90,
+    "natural_key": "pub-mwbv_T_202205_6_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-livros-da-biblia",
+    "title": "Livros da Bíblia",
+    "duration_seconds": 0,
+    "natural_key": null,
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov24-t-9-video",
+    "title": "Lições da terra de Jesus",
+    "duration_seconds": 1536,
+    "natural_key": "pub-jwbcov24_T_9_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov25-t-7-video",
+    "title": "Lições da terra de Jesus — Lugares",
+    "duration_seconds": 1741,
+    "natural_key": "pub-jwbcov25_T_7_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-1001072115-t-1-video",
+    "title": "Monte Gerizim",
+    "duration_seconds": 96,
+    "natural_key": "docid-1001072115_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201605-2-video",
+    "title": "Mudar-se e continuar espiritualmente firme",
+    "duration_seconds": 319,
+    "natural_key": "pub-jwbai_T_201605_2_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jjs-t-1-video",
+    "title": "Neemias: ‘A alegria de Jeová é a força de vocês’ (Parte 1)",
+    "duration_seconds": 2066,
+    "natural_key": "pub-jjs_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jjs-t-2-video",
+    "title": "Neemias: ‘A alegria de Jeová é a força de vocês’ (Parte 2)",
+    "duration_seconds": 2518,
+    "natural_key": "pub-jjs_T_2_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-fmh-t-x-video",
+    "title": "Noé — Um exemplo de fé e obediência",
+    "duration_seconds": 2320,
+    "natural_key": "pub-fmh_T_x_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-090-t-6-video",
+    "title": "Não escute “a voz de estranhos”",
+    "duration_seconds": 445,
+    "natural_key": "pub-jwb-090_T_6_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201605-4-video",
+    "title": "Não imite os desleais",
+    "duration_seconds": 485,
+    "natural_key": "pub-jwbcov_T_201605_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201708-3-video",
+    "title": "Não pare de ter alvos espirituais",
+    "duration_seconds": 308,
+    "natural_key": "pub-jwb_T_201708_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov22-t-10-video",
+    "title": "Não seja enganado pela falsa paz! — Thea van Leeuwen",
+    "duration_seconds": 192,
+    "natural_key": "pub-jwbcov22_T_10_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502015255-t-1-video",
+    "title": "O Que Outros Jovens Dizem — Deus existe?",
+    "duration_seconds": 163,
+    "natural_key": "docid-502015255_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-lffv-t-321-video",
+    "title": "O Reino de Deus começou a governar em 1914",
+    "duration_seconds": 303,
+    "natural_key": "pub-lffv_T_321_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201502-1-video",
+    "title": "O amor e o respeito unem a família",
+    "duration_seconds": 189,
+    "natural_key": "pub-jwbai_T_201502_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-lffv-t-322-video",
+    "title": "O mundo mudou desde 1914",
+    "duration_seconds": 70,
+    "natural_key": "pub-lffv_T_322_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201902-11-video",
+    "title": "O nome de Deus é glorificado na Escandinávia",
+    "duration_seconds": 324,
+    "natural_key": "pub-jwb_T_201902_11_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ebtv-t-8-video",
+    "title": "O que Deus pensa sobre o casamento?",
+    "duration_seconds": 181,
+    "natural_key": "pub-ebtv_T_8_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ebtv-t-3-video",
+    "title": "O que Deus pensa sobre o uso de imagens?",
+    "duration_seconds": 206,
+    "natural_key": "pub-ebtv_T_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov23-t-11-video",
+    "title": "O que a criação nos ensina sobre o tempo de Jeová",
+    "duration_seconds": 631,
+    "natural_key": "pub-jwbcov23_T_11_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502017858-t-1-video",
+    "title": "O que acontece quando morremos?",
+    "duration_seconds": 163,
+    "natural_key": "docid-502017858_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201805-8-video",
+    "title": "O que enfraquece e o que fortalece a coragem",
+    "duration_seconds": 1364,
+    "natural_key": "pub-jwbcov_T_201805_8_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov20-t-3-video",
+    "title": "O que nos dá alegria?",
+    "duration_seconds": 1035,
+    "natural_key": "pub-jwbcov20_T_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201605-7-video",
+    "title": "O que o livro de Jó nos ensina — Animais",
+    "duration_seconds": 500,
+    "natural_key": "pub-jwbcov_T_201605_7_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201605-6-video",
+    "title": "O que o livro de Jó nos ensina — As forças da natureza",
+    "duration_seconds": 305,
+    "natural_key": "pub-jwbcov_T_201605_6_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201810-3-video",
+    "title": "O que são as Referências “J”?",
+    "duration_seconds": 264,
+    "natural_key": "pub-jwb_T_201810_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502017850-t-1-video",
+    "title": "O que é o Reino de Deus?",
+    "duration_seconds": 187,
+    "natural_key": "docid-502017850_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-1001072140-t-1-video",
+    "title": "O teatro de Éfeso e arredores",
+    "duration_seconds": 80,
+    "natural_key": "docid-1001072140_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ebtv-t-10-video",
+    "title": "Onde você pode encontrar as respostas mais importantes da vida?",
+    "duration_seconds": 167,
+    "natural_key": "pub-ebtv_T_10_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-096-t-15-video",
+    "title": "Os Evangelhos de Mateus e João são lançados na língua de sinais alemã",
+    "duration_seconds": 230,
+    "natural_key": "pub-jwb-096_T_15_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201805-4-video",
+    "title": "Os pioneiros fortalecem a congregação",
+    "duration_seconds": 282,
+    "natural_key": "pub-jwb_T_201805_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201405-4-video",
+    "title": "Os “pobres” herdarão o Reino",
+    "duration_seconds": 117,
+    "natural_key": "pub-jwbcov_T_201405_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201605-3-video",
+    "title": "Para quem pensa em se casar — Parte 1: Já posso começar a namorar?",
+    "duration_seconds": 382,
+    "natural_key": "pub-jwbai_T_201605_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-202503-2-video",
+    "title": "Para quem pensa em se casar — Parte 1: Já posso começar a namorar? — Trecho.",
+    "duration_seconds": 349,
+    "natural_key": "pub-mwbv_T_202503_2_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201610-1-video",
+    "title": "Para quem pensa em se casar — Parte 3: ’Calcule as despesas’",
+    "duration_seconds": 373,
+    "natural_key": "pub-jwbai_T_201610_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-201806-5-video",
+    "title": "Parapeito do templo",
+    "duration_seconds": 80,
+    "natural_key": "pub-mwbv_T_201806_5_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pessoas-lugares-e-coisas",
+    "title": "Pessoas, Lugares e Coisas",
+    "duration_seconds": 0,
+    "natural_key": null,
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502017855-t-1-video",
+    "title": "Por que Deus criou a Terra?",
+    "duration_seconds": 218,
+    "natural_key": "docid-502017855_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502016853-t-1-video",
+    "title": "Por que Jesus morreu?",
+    "duration_seconds": 252,
+    "natural_key": "docid-502016853_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-wsb-t-2-video",
+    "title": "Por que estudar a Bíblia?",
+    "duration_seconds": 77,
+    "natural_key": "pub-wsb_T_2_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-wsb-t-1-video",
+    "title": "Por que estudar a Bíblia? — Versão completa",
+    "duration_seconds": 220,
+    "natural_key": "pub-wsb_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502018850-t-1-video",
+    "title": "Por que existe tanto sofrimento?",
+    "duration_seconds": 206,
+    "natural_key": "docid-502018850_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov21-t-4-video",
+    "title": "Por que temos fé . . . na Palavra de Deus",
+    "duration_seconds": 231,
+    "natural_key": "pub-jwbcov21_T_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov25-t-21-video",
+    "title": "Por que você acredita no que acredita?",
+    "duration_seconds": 148,
+    "natural_key": "pub-jwbcov25_T_21_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-1001072063-t-1-video",
+    "title": "Primeiros assentos na sinagoga",
+    "duration_seconds": 93,
+    "natural_key": "docid-1001072063_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201904-5-video",
+    "title": "Produção da Bíblia revisada em braile — inglês e português",
+    "duration_seconds": 331,
+    "natural_key": "pub-jwb_T_201904_5_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-080-t-10-video",
+    "title": "Profecias da Bíblia — Daniel, capítulo 11",
+    "duration_seconds": 282,
+    "natural_key": "pub-jwb-080_T_10_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov22-t-16-video",
+    "title": "Proteja o “vínculo unificador da paz”!",
+    "duration_seconds": 286,
+    "natural_key": "pub-jwbcov22_T_16_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-1001072131-t-1-video",
+    "title": "Pórtico de Salomão",
+    "duration_seconds": 101,
+    "natural_key": "docid-1001072131_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ebtv-t-12-video",
+    "title": "Qual é a origem do Natal?",
+    "duration_seconds": 238,
+    "natural_key": "pub-ebtv_T_12_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ebtv-t-9-video",
+    "title": "Qual é o objetivo da vida?",
+    "duration_seconds": 197,
+    "natural_key": "pub-ebtv_T_9_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201705-4-video",
+    "title": "Qualidades que nos ajudam a não desistir",
+    "duration_seconds": 1076,
+    "natural_key": "pub-jwbcov_T_201705_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201809-3-video",
+    "title": "Que tipo de diversão é melhor para mim?",
+    "duration_seconds": 279,
+    "natural_key": "pub-jwb_T_201809_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502016852-t-1-video",
+    "title": "Quem é o autor da Bíblia?",
+    "duration_seconds": 195,
+    "natural_key": "docid-502016852_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201609-1-video",
+    "title": "Recupere a alegria por meio do estudo e da meditação",
+    "duration_seconds": 325,
+    "natural_key": "pub-jwbai_T_201609_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-relatos-da-biblia",
+    "title": "Relatos da Bíblia",
+    "duration_seconds": 0,
+    "natural_key": null,
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ivru-t-x-video",
+    "title": "Respeite a Autoridade de Jeová",
+    "duration_seconds": 3282,
+    "natural_key": "pub-ivru_T_x_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201612-1-video",
+    "title": "Respeite os homens mais experientes",
+    "duration_seconds": 289,
+    "natural_key": "pub-jwbai_T_201612_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-1001072082-t-1-video",
+    "title": "Restos de um barco de pesca da Galileia",
+    "duration_seconds": 64,
+    "natural_key": "docid-1001072082_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-lffv-t-581-video",
+    "title": "Saiam de Babilônia, a Grande!",
+    "duration_seconds": 306,
+    "natural_key": "pub-lffv_T_581_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-201709-5-video",
+    "title": "Seja Leal como Jesus Foi — Quando for Tentado",
+    "duration_seconds": 205,
+    "natural_key": "pub-mwbv_T_201709_5_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-bcs-t-x-video",
+    "title": "Seja corajoso e forte — Siga em frente!",
+    "duration_seconds": 1914,
+    "natural_key": "pub-bcs_T_x_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201803-3-video",
+    "title": "Seja honesto em todas as coisas",
+    "duration_seconds": 331,
+    "natural_key": "pub-jwb_T_201803_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201605-2-video",
+    "title": "Seja leal como Jesus foi",
+    "duration_seconds": 1376,
+    "natural_key": "pub-jwbcov_T_201605_2_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201611-1-video",
+    "title": "Seja leal de todo o coração",
+    "duration_seconds": 363,
+    "natural_key": "pub-jwbai_T_201611_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201904-3-video",
+    "title": "Seja limpo e agrade a Jeová",
+    "duration_seconds": 251,
+    "natural_key": "pub-jwb_T_201904_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201903-4-video",
+    "title": "Seja neutro em pensamentos e ações",
+    "duration_seconds": 308,
+    "natural_key": "pub-jwb_T_201903_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201903-3-video",
+    "title": "Seja neutro em todas as ocasiões",
+    "duration_seconds": 265,
+    "natural_key": "pub-jwb_T_201903_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-094-t-5-video",
+    "title": "Seja paciente",
+    "duration_seconds": 406,
+    "natural_key": "pub-jwb-094_T_5_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-tiy-t-1-video",
+    "title": "Sempre Confie em Jeová",
+    "duration_seconds": 3103,
+    "natural_key": "pub-tiy_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502018853-t-1-video",
+    "title": "Será que Deus aceita todas as religiões?",
+    "duration_seconds": 224,
+    "natural_key": "docid-502018853_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502018856-t-1-video",
+    "title": "Será que Deus escuta todas as orações?",
+    "duration_seconds": 183,
+    "natural_key": "docid-502018856_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ebtv-t-7-video",
+    "title": "Será que Deus existe?",
+    "duration_seconds": 205,
+    "natural_key": "pub-ebtv_T_7_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ebtv-t-2-video",
+    "title": "Será que Jesus é Deus?",
+    "duration_seconds": 202,
+    "natural_key": "pub-ebtv_T_2_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ebtv-t-6-video",
+    "title": "Será que a pornografia é um pecado contra Deus?",
+    "duration_seconds": 229,
+    "natural_key": "pub-ebtv_T_6_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ebtv-t-4-video",
+    "title": "Será que o inferno existe?",
+    "duration_seconds": 187,
+    "natural_key": "pub-ebtv_T_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ebtv-t-5-video",
+    "title": "Será que os desastres naturais são causados por Deus?",
+    "duration_seconds": 288,
+    "natural_key": "pub-ebtv_T_5_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ebtv-t-103-video",
+    "title": "Será que você pode ser amigo de Deus?",
+    "duration_seconds": 216,
+    "natural_key": "pub-ebtv_T_103_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201505-8-video",
+    "title": "Siga a Jesus, mas não “à distância”",
+    "duration_seconds": 246,
+    "natural_key": "pub-jwbcov_T_201505_8_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201505-2-video",
+    "title": "Siga o exemplo de Jesus — Persista em pedir, em buscar e em bater!",
+    "duration_seconds": 161,
+    "natural_key": "pub-jwbcov_T_201505_2_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201510-1-video",
+    "title": "Simplificamos a vida",
+    "duration_seconds": 379,
+    "natural_key": "pub-jwbai_T_201510_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201807-6-video",
+    "title": "Tenha um estudo pessoal profundo da Bíblia",
+    "duration_seconds": 323,
+    "natural_key": "pub-jwb_T_201807_6_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201807-3-video",
+    "title": "Tenha uma boa consciência",
+    "duration_seconds": 313,
+    "natural_key": "pub-jwb_T_201807_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502019454-t-1-video",
+    "title": "Teve um Projeto? — A asa da coruja",
+    "duration_seconds": 79,
+    "natural_key": "docid-502019454_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502200134-t-1-video",
+    "title": "Teve um Projeto? — A beleza artística dos animais",
+    "duration_seconds": 214,
+    "natural_key": "docid-502200134_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502018196-t-1-video",
+    "title": "Teve um Projeto? — A cauda do cavalo-marinho",
+    "duration_seconds": 120,
+    "natural_key": "docid-502018196_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502200116-t-1-video",
+    "title": "Teve um Projeto? — A migração da borboleta-monarca",
+    "duration_seconds": 221,
+    "natural_key": "docid-502200116_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502200111-t-1-video",
+    "title": "Teve um Projeto? — A pele do tubarão",
+    "duration_seconds": 149,
+    "natural_key": "docid-502200111_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201708-7-video",
+    "title": "Teve um Projeto? — A tromba do elefante",
+    "duration_seconds": 153,
+    "natural_key": "pub-jwb_T_201708_7_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502019461-t-1-video",
+    "title": "Teve um Projeto? — Como as formigas evitam engarrafamentos?",
+    "duration_seconds": 97,
+    "natural_key": "docid-502019461_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502200128-t-1-video",
+    "title": "Teve um Projeto? — Fotossíntese",
+    "duration_seconds": 159,
+    "natural_key": "docid-502200128_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502200145-t-1-video",
+    "title": "Teve um Projeto? — O canto dos pássaros",
+    "duration_seconds": 245,
+    "natural_key": "docid-502200145_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502200113-t-1-video",
+    "title": "Teve um Projeto? — O cérebro do esquilo-do-ártico",
+    "duration_seconds": 169,
+    "natural_key": "docid-502200113_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502200152-t-1-video",
+    "title": "Teve um Projeto? — O sistema circulatório da girafa",
+    "duration_seconds": 224,
+    "natural_key": "docid-502200152_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502200105-t-1-video",
+    "title": "Teve um Projeto? — O voo da abelha mamangava",
+    "duration_seconds": 102,
+    "natural_key": "docid-502200105_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502019458-t-1-video",
+    "title": "Teve um Projeto? — Pássaros com cores que nunca desbotam",
+    "duration_seconds": 102,
+    "natural_key": "docid-502019458_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502200119-t-1-video",
+    "title": "Teve um Projeto? — Show de luzes da natureza",
+    "duration_seconds": 231,
+    "natural_key": "docid-502200119_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502200130-t-1-video",
+    "title": "Teve um Projeto? — Transporte de oxigênio",
+    "duration_seconds": 248,
+    "natural_key": "docid-502200130_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502200120-t-1-video",
+    "title": "Teve um Projeto? — Uso de energia na natureza",
+    "duration_seconds": 271,
+    "natural_key": "docid-502200120_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502200150-t-1-video",
+    "title": "Teve um Projeto? — Uso eficiente de água na natureza",
+    "duration_seconds": 239,
+    "natural_key": "docid-502200150_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbai-t-201603-1-video",
+    "title": "Tire a trave do seu olho",
+    "duration_seconds": 422,
+    "natural_key": "pub-jwbai_T_201603_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201909-3-video",
+    "title": "Trabalhe de toda a alma para Jeová",
+    "duration_seconds": 279,
+    "natural_key": "pub-jwb_T_201909_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-traducoes-da-biblia",
+    "title": "Traduções da Bíblia",
+    "duration_seconds": 0,
+    "natural_key": null,
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502017150-t-1-video",
+    "title": "Trecho do documentário: “Eles amavam a Bíblia” (William Tyndale)",
+    "duration_seconds": 377,
+    "natural_key": "docid-502017150_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201707-5-video",
+    "title": "Treine os jovens para fazer mais para Jeová",
+    "duration_seconds": 262,
+    "natural_key": "pub-jwb_T_201707_5_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201505-9-video",
+    "title": "Treine, confie e delegue como Jesus fez",
+    "duration_seconds": 116,
+    "natural_key": "pub-jwbcov_T_201505_9_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201711-6-video",
+    "title": "Um dia que honra a Jeová",
+    "duration_seconds": 434,
+    "natural_key": "pub-jwb_T_201711_6_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502018464-t-1-video",
+    "title": "Um manuscrito antigo e o nome de Deus",
+    "duration_seconds": 291,
+    "natural_key": "docid-502018464_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbrd-t-201510-3-video",
+    "title": "Um presente muito valioso",
+    "duration_seconds": 333,
+    "natural_key": "pub-jwbrd_T_201510_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502016501-t-1-video",
+    "title": "Uma exposição da Bíblia que honra o nome de Jeová",
+    "duration_seconds": 849,
+    "natural_key": "docid-502016501_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-502015505-t-1-video",
+    "title": "Uma exposição especial sobre a Bíblia",
+    "duration_seconds": 301,
+    "natural_key": "docid-502015505_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbvod24-t-26-video",
+    "title": "Uma tradução perdida da Bíblia é reencontrada",
+    "duration_seconds": 881,
+    "natural_key": "pub-jwbvod24_T_26_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-1001072117-t-1-video",
+    "title": "Vale do Cédron",
+    "duration_seconds": 92,
+    "natural_key": "docid-1001072117_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201710-3-video",
+    "title": "Veja os irmãos com outros olhos",
+    "duration_seconds": 311,
+    "natural_key": "pub-jwb_T_201710_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-wmt-t-3-video",
+    "title": "Visita às exposições de Warwick: “A Bíblia e o Nome de Deus”",
+    "duration_seconds": 634,
+    "natural_key": "pub-wmt_T_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ebtv-t-11-video",
+    "title": "Você precisa fazer parte de uma religião para adorar a Deus?",
+    "duration_seconds": 189,
+    "natural_key": "pub-ebtv_T_11_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov22-t-14-video",
+    "title": "‘Abandone’ características que destroem a paz",
+    "duration_seconds": 787,
+    "natural_key": "pub-jwbcov22_T_14_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-202503-4-video",
+    "title": "‘Abandone’ características que destroem a paz — Trecho",
+    "duration_seconds": 628,
+    "natural_key": "pub-mwbv_T_202503_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-201911-4-video",
+    "title": "‘Ande em segurança no seu caminho’",
+    "duration_seconds": 675,
+    "natural_key": "pub-mwbv_T_201911_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201905-25-video",
+    "title": "‘Considere com atenção os atos de amor leal de Jeová’",
+    "duration_seconds": 279,
+    "natural_key": "pub-jwbcov_T_201905_25_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-089-t-3-video",
+    "title": "‘Façamos o bem aos nossos irmãos’",
+    "duration_seconds": 308,
+    "natural_key": "pub-jwb-089_T_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jcr-t-x-video",
+    "title": "‘Jeová fez com que eles se alegrassem’",
+    "duration_seconds": 1932,
+    "natural_key": "pub-jcr_T_x_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201505-10-video",
+    "title": "‘Tenham amor entre si’",
+    "duration_seconds": 1301,
+    "natural_key": "pub-jwbcov_T_201505_10_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-201810-7-video",
+    "title": "‘Tenham amor entre si’ — Alegre-se, não com a injustiça, mas com a verdade",
+    "duration_seconds": 111,
+    "natural_key": "pub-mwbv_T_201810_7_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-201810-6-video",
+    "title": "‘Tenham amor entre si’ — Não leve em conta o dano",
+    "duration_seconds": 250,
+    "natural_key": "pub-mwbv_T_201810_6_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-201809-10-video",
+    "title": "‘Tenham amor entre si’ — Não tenha ciúmes nem se gabe: Parte 2",
+    "duration_seconds": 66,
+    "natural_key": "pub-mwbv_T_201809_10_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-201809-12-video",
+    "title": "‘Tenham amor entre si’ — Rejeite o orgulho e não aja de modo impróprio: Parte 2",
+    "duration_seconds": 112,
+    "natural_key": "pub-mwbv_T_201809_12_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-wcgv-t-13-video",
+    "title": "“A gente precisava corrigir aquela situação”",
+    "duration_seconds": 204,
+    "natural_key": "pub-wcgv_T_13_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov22-t-15-video",
+    "title": "“Busque a paz e se empenhe por ela”",
+    "duration_seconds": 684,
+    "natural_key": "pub-jwbcov22_T_15_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201705-18-video",
+    "title": "“Corramos com perseverança” — Acredite que vai ganhar",
+    "duration_seconds": 184,
+    "natural_key": "pub-jwbcov_T_201705_18_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201705-16-video",
+    "title": "“Corramos com perseverança” — Beba muita água",
+    "duration_seconds": 183,
+    "natural_key": "pub-jwbcov_T_201705_16_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201705-11-video",
+    "title": "“Corramos com perseverança” — Corra para vencer!",
+    "duration_seconds": 162,
+    "natural_key": "pub-jwbcov_T_201705_11_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201705-14-video",
+    "title": "“Corramos com perseverança” — Imite bons exemplos",
+    "duration_seconds": 193,
+    "natural_key": "pub-jwbcov_T_201705_14_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201705-13-video",
+    "title": "“Corramos com perseverança” — Livre-se de pesos desnecessários",
+    "duration_seconds": 176,
+    "natural_key": "pub-jwbcov_T_201705_13_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201705-12-video",
+    "title": "“Corramos com perseverança” — Treine com disciplina",
+    "duration_seconds": 168,
+    "natural_key": "pub-jwbcov_T_201705_12_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-202004-3-video",
+    "title": "“Jeová está perto dos que têm coração quebrantado”",
+    "duration_seconds": 290,
+    "natural_key": "pub-jwb_T_202004_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201605-11-video",
+    "title": "“Jeová tratará de modo especial aquele que lhe é leal”",
+    "duration_seconds": 239,
+    "natural_key": "pub-jwbcov_T_201605_11_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-ndl-t-1-video",
+    "title": "“Não haverá mais demora”",
+    "duration_seconds": 1623,
+    "natural_key": "pub-ndl_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-1001072331-t-1-video",
+    "title": "“O muro que havia no meio”",
+    "duration_seconds": 117,
+    "natural_key": "docid-1001072331_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov22-t-4-video",
+    "title": "“O resultado da verdadeira justiça será a paz”",
+    "duration_seconds": 331,
+    "natural_key": "pub-jwbcov22_T_4_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-t-201908-3-video",
+    "title": "“Oponham-se ao Diabo”",
+    "duration_seconds": 302,
+    "natural_key": "pub-jwb_T_201908_3_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-mwbv-t-202507-2-video",
+    "title": "“Para tudo há um tempo determinado” — Desenvolver amizades leva tempo",
+    "duration_seconds": 212,
+    "natural_key": "pub-mwbv_T_202507_2_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwbcov-t-201905-13-video",
+    "title": "“Revistam-se de amor”",
+    "duration_seconds": 183,
+    "natural_key": "pub-jwbcov_T_201905_13_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-docid-702012009-t-1-video",
+    "title": "“Sem ela, eu me sentiria perdido”",
+    "duration_seconds": 196,
+    "natural_key": "docid-702012009_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-lrc-t-1-video",
+    "title": "“Tenha a plena certeza de que Deus o fez Senhor e Cristo” — Parte 1",
+    "duration_seconds": 2125,
+    "natural_key": "pub-lrc_T_1_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-lrc-t-2-video",
+    "title": "“Tenha a plena certeza de que Deus o fez Senhor e Cristo” — Parte 2",
+    "duration_seconds": 2106,
+    "natural_key": "pub-lrc_T_2_VIDEO",
+    "document_id": null,
+    "url": null
+  },
+  {
+    "id": "video-pub-jwb-087-t-4-video",
+    "title": "“Todos nós tropeçamos muitas vezes”",
+    "duration_seconds": 309,
+    "natural_key": "pub-jwb-087_T_4_VIDEO",
+    "document_id": null,
+    "url": null
+  }
+]

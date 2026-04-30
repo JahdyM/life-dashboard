@@ -389,6 +389,13 @@ export const readingPatchSchema = z.discriminatedUnion("type", [
     .strict(),
   z
     .object({
+      type: z.literal("toggle_reading_video"),
+      video_id: taskIdSchema,
+      read: z.boolean(),
+    })
+    .strict(),
+  z
+    .object({
       type: z.literal("toggle_bible_chapter"),
       book_key: z.string().trim().min(1).max(80),
       chapter: z.number().int().min(1).max(200),

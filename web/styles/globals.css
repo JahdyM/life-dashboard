@@ -7005,6 +7005,61 @@ textarea:hover {
   align-items: center;
 }
 
+.reading-video-list {
+  display: grid;
+  gap: 10px;
+}
+
+.reading-video-finished-list {
+  opacity: 0.82;
+}
+
+.reading-video-card {
+  border: 1px solid rgba(226, 213, 191, 0.13);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.032);
+  padding: 13px 14px;
+  scroll-margin-top: 110px;
+}
+
+.reading-video-card.finished {
+  border-color: rgba(143, 191, 122, 0.28);
+}
+
+.reading-video-card.wheel-selected {
+  border-color: rgba(244, 215, 161, 0.52);
+  box-shadow:
+    0 0 0 1px rgba(244, 215, 161, 0.16),
+    0 18px 38px rgba(0, 0, 0, 0.22);
+}
+
+.reading-video-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.reading-video-main h4,
+.reading-video-main p {
+  margin: 0;
+}
+
+.reading-video-main h4 {
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.reading-video-main p:not(.panel-kicker) {
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .despertai-issue-title-block {
   min-width: 0;
 }
