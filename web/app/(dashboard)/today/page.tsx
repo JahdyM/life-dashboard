@@ -59,43 +59,6 @@ function getNextTaskGroup<T extends { title: string; scheduledTime?: string | nu
   };
 }
 
-function buildPrimaryAction(args: {
-  hasPendingTasks: boolean;
-  hasMood: boolean;
-  hasNotes: boolean;
-  hasCompletedItems: boolean;
-}) {
-  if (args.hasPendingTasks) {
-    return {
-      href: "/calendar",
-      label: "Continue",
-      description: "Go to your next step.",
-    };
-  }
-
-  if (!args.hasMood) {
-    return {
-      href: "/mood",
-      label: "Mood",
-      description: "Log one quick check-in.",
-    };
-  }
-
-  if (!args.hasNotes && !args.hasCompletedItems) {
-    return {
-      href: "/calendar",
-      label: "Plan",
-      description: "Add one task for today.",
-    };
-  }
-
-  return {
-    href: "/calendar",
-    label: "Review",
-    description: "Check your day and close the loop.",
-  };
-}
-
 function formatCompletedMeta(item: { kind: "task" | "habit"; meta: string | null }) {
   if (item.kind === "habit") return "Habit";
   return item.meta || "Task";
@@ -144,23 +107,16 @@ export default async function TodayPage() {
   const pendingPreview = pendingTasks.slice(0, 6);
   const notePreview = overview.quickNotesText.trim();
   const moodOptions = buildMoodOptions(preferences);
-  const sleepLabel =
-    overview.sleepHours === null || overview.sleepHours === undefined
-      ? "Sleep not logged"
-      : `${overview.sleepHours}h sleep`;
-
-  const primaryAction = buildPrimaryAction({
-    hasPendingTasks: pendingTasks.length > 0,
-    hasMood: Boolean(moodMeta),
-    hasNotes: Boolean(notePreview),
-    hasCompletedItems: completedItems.length > 0,
-  });
+  const habitsCompleted = overview.header.habits_completed;
+  const habitsTotal = overview.header.habits_total;
+  const habitsPercent = overview.header.habits_percent;
+  const completedTaskCount = overview.completedTasks.length;
+  const totalTaskCount = completedTaskCount + pendingTasks.length;
+  const taskPercent = totalTaskCount ? Math.round((completedTaskCount / totalTaskCount) * 100) : 0;
 
   return (
     <div className="route-stack">
-      <MorningCheckin />
-
-      <section className="today-panel today-panel-hero">
+      <section className="today-panel today-panel-hero today-minimal-hero">
         <div className="today-panel-head today-panel-head-hero">
           <div className="today-hero-copy">
             <p className="panel-kicker">Today</p>
@@ -170,14 +126,11 @@ export default async function TodayPage() {
                 : nextTaskGroup.items[0]?.title || "Calm start"}
             </h2>
             <p className="today-panel-copy">
-              {pendingTasks.length ? primaryAction.description : "Mood, sleep, tasks, done."}
+              {moodMeta ? `${moodMeta.emoji} ${moodMeta.label}` : "Mood, next step, progress."}
             </p>
             <div className="today-primary-actions">
-              <Link href={primaryAction.href} className="page-link primary">
-                {primaryAction.label}
-              </Link>
-              <Link href="/calendar" className="page-link inline muted">
-                Calendar
+              <Link href="/calendar" className="page-link primary">
+                Open
               </Link>
               {!preferences.completed ? (
                 <Link href="/onboarding" className="page-link inline muted">
@@ -187,18 +140,29 @@ export default async function TodayPage() {
             </div>
           </div>
 
-          <div className="today-next-card">
-            <span className="today-next-label">Day</span>
-            <strong>{pendingTasks.length} pending</strong>
-            <p>{completedItems.length} done</p>
-            <p>{sleepLabel}</p>
-            {moodMeta ? (
-              <p className="today-next-single-title">
-                {moodMeta.emoji} {moodMeta.label}
-              </p>
-            ) : (
-              <p className="today-next-single-title">No mood yet</p>
-            )}
+          <div className="today-progress-strip" aria-label="Day progress">
+            <div className="today-progress-item">
+              <div>
+                <span>Habits</span>
+                <strong>
+                  {habitsCompleted}/{habitsTotal}
+                </strong>
+              </div>
+              <div className="today-progress-bar" aria-hidden="true">
+                <span style={{ width: `${habitsPercent}%` }} />
+              </div>
+            </div>
+            <div className="today-progress-item">
+              <div>
+                <span>Tasks</span>
+                <strong>
+                  {completedTaskCount}/{totalTaskCount}
+                </strong>
+              </div>
+              <div className="today-progress-bar" aria-hidden="true">
+                <span style={{ width: `${taskPercent}%` }} />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -210,7 +174,7 @@ export default async function TodayPage() {
                   <p className="today-task-title">{task.title}</p>
                   <p className="today-task-meta">
                     {formatTaskMeta(task.scheduledTime, task.estimatedMinutes) ||
-                      (getFocusOrder(task) ? "Focus" : "No time set")}
+                      (getFocusOrder(task) ? "Focus" : "No time")}
                   </p>
                 </div>
                 <span className="today-task-state">Next</span>
@@ -224,7 +188,7 @@ export default async function TodayPage() {
         )}
       </section>
 
-      <section className="today-grid">
+      <section className="today-minimal-grid">
         <TodayQuickLog
           todayIso={overview.todayIso}
           initialMoodCategory={overview.moodCategory}
@@ -232,92 +196,98 @@ export default async function TodayPage() {
           moodOptions={moodOptions}
         />
 
-        <article className="today-panel">
-          <div className="today-panel-head compact">
-            <div>
-              <p className="panel-kicker">Plan</p>
-              <h2>Tasks</h2>
-            </div>
-            <Link href="/calendar" className="page-link inline muted">
-              Open
-            </Link>
-          </div>
-          {pendingPreview.length ? (
-            <ul className="today-compact-list">
-              {pendingPreview.map((task) => (
-                <li key={task.id}>
-                  <span>{task.title}</span>
-                  <small>
-                    {formatTaskMeta(task.scheduledTime, task.estimatedMinutes) ||
-                      (getFocusOrder(task) ? "Next" : "No time")}
-                  </small>
-                </li>
-              ))}
-              {pendingTasks.length > pendingPreview.length ? (
-                <li>
-                  <span>+{pendingTasks.length - pendingPreview.length} more</span>
-                  <small>Calendar</small>
-                </li>
-              ) : null}
-            </ul>
-          ) : (
-            <div className="today-empty">
-              <p>No pending tasks.</p>
-            </div>
-          )}
-        </article>
-
-        <article className="today-panel">
-          <div className="today-panel-head compact">
-            <div>
-              <p className="panel-kicker">Completed</p>
-              <h2>Done</h2>
-            </div>
-            <Link href="/calendar" className="page-link inline muted">
-              Open
-            </Link>
-          </div>
-          {completedItems.length ? (
-            <ul className="today-compact-list">
-              {completedItems.map((item) => (
-                <li key={item.id}>
-                  <span>{item.title}</span>
-                  <small>{formatCompletedMeta(item)}</small>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="today-empty">
-              <p>Nothing done yet.</p>
-            </div>
-          )}
-        </article>
-
-        <article className="today-panel">
-          <div className="today-panel-head compact">
-            <div>
-              <p className="panel-kicker">Notes</p>
-              <h2>Notes</h2>
-            </div>
-            <Link href="/calendar" className="page-link inline muted">
-              Open
-            </Link>
-          </div>
-          {notePreview ? (
-            <p className="today-note-preview">{notePreview}</p>
-          ) : (
-            <div className="today-empty">
-              <p>No notes yet.</p>
-            </div>
-          )}
-        </article>
-      </section>
-
-      <section className="today-grid" style={{ marginTop: 0 }}>
         <Suspense>
           <WordOfDay />
         </Suspense>
       </section>
+
+      <details className="today-more-panel">
+        <summary>Ver mais</summary>
+        <div className="today-more-content">
+          <MorningCheckin />
+          <section className="today-grid today-more-grid">
+            <article className="today-panel">
+              <div className="today-panel-head compact">
+                <div>
+                  <p className="panel-kicker">Plan</p>
+                  <h2>Tasks</h2>
+                </div>
+                <Link href="/calendar" className="page-link inline muted">
+                  Open
+                </Link>
+              </div>
+              {pendingPreview.length ? (
+                <ul className="today-compact-list">
+                  {pendingPreview.map((task) => (
+                    <li key={task.id}>
+                      <span>{task.title}</span>
+                      <small>
+                        {formatTaskMeta(task.scheduledTime, task.estimatedMinutes) ||
+                          (getFocusOrder(task) ? "Next" : "No time")}
+                      </small>
+                    </li>
+                  ))}
+                  {pendingTasks.length > pendingPreview.length ? (
+                    <li>
+                      <span>+{pendingTasks.length - pendingPreview.length} more</span>
+                      <small>Calendar</small>
+                    </li>
+                  ) : null}
+                </ul>
+              ) : (
+                <div className="today-empty">
+                  <p>No pending tasks.</p>
+                </div>
+              )}
+            </article>
+
+            <article className="today-panel">
+              <div className="today-panel-head compact">
+                <div>
+                  <p className="panel-kicker">Completed</p>
+                  <h2>Done</h2>
+                </div>
+                <Link href="/calendar" className="page-link inline muted">
+                  Open
+                </Link>
+              </div>
+              {completedItems.length ? (
+                <ul className="today-compact-list">
+                  {completedItems.map((item) => (
+                    <li key={item.id}>
+                      <span>{item.title}</span>
+                      <small>{formatCompletedMeta(item)}</small>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="today-empty">
+                  <p>Nothing done yet.</p>
+                </div>
+              )}
+            </article>
+
+            <article className="today-panel">
+              <div className="today-panel-head compact">
+                <div>
+                  <p className="panel-kicker">Notes</p>
+                  <h2>Notes</h2>
+                </div>
+                <Link href="/calendar" className="page-link inline muted">
+                  Open
+                </Link>
+              </div>
+              {notePreview ? (
+                <p className="today-note-preview">{notePreview}</p>
+              ) : (
+                <div className="today-empty">
+                  <p>No notes yet.</p>
+                </div>
+              )}
+            </article>
+          </section>
+        </div>
+      </details>
     </div>
   );
 }
