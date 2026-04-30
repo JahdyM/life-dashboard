@@ -178,6 +178,17 @@ export const DASHBOARD_MODULES: DashboardModuleConfig[] = [
   },
 ];
 
+function normalizeDashboardModuleLabel(
+  module: DashboardModuleConfig,
+  preference?: Partial<DashboardModulePreference>
+) {
+  const storedLabel = String(preference?.label || "").trim();
+  if (module.key === "despertai" && storedLabel.toLowerCase() === "despertai") {
+    return module.label;
+  }
+  return storedLabel || module.label;
+}
+
 export function buildDashboardModuleViews(
   preferences: Partial<DashboardModulePreference>[] = []
 ): DashboardModuleView[] {
@@ -187,7 +198,7 @@ export function buildDashboardModuleViews(
     const enabled = module.key === "today" ? true : (preference?.enabled ?? module.defaultEnabled);
     return {
       ...module,
-      label: String(preference?.label || module.label).trim() || module.label,
+      label: normalizeDashboardModuleLabel(module, preference),
       navGroup: preference?.navGroup || module.navGroup,
       order: preference?.order ?? module.order,
       enabled,
