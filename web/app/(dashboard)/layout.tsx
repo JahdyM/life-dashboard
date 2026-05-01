@@ -69,6 +69,9 @@ export default async function DashboardLayout({
             <Link href="/onboarding" prefetch={false} className="page-link inline muted">
               Customize
             </Link>
+            <Link href="/settings/tokens" prefetch={false} className="page-link inline muted">
+              Tokens
+            </Link>
             <LogoutButton />
           </div>
         </header>

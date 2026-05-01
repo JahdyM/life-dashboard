@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    const userEmail = await requireUserEmail();
+    const userEmail = await requireUserEmail(request);
     const date = new URL(request.url).searchParams.get("date") || new Date().toISOString().slice(0, 10);
     const data = await getMorningCheckin(userEmail, date);
     const streak = data ? await getCheckinStreak(userEmail, date) : 0;
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const userEmail = await requireUserEmail();
+    const userEmail = await requireUserEmail(request);
     const body = await request.json();
     const data = { ...body, completedAt: new Date().toISOString() };
     await saveMorningCheckin(userEmail, data);

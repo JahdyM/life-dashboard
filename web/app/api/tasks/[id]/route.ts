@@ -24,7 +24,7 @@ export async function PATCH(
   context: { params: { id: string } }
 ) {
   try {
-    const userEmail = await requireUserEmail();
+    const userEmail = await requireUserEmail(request);
     const idParsed = taskIdSchema.safeParse(context.params.id);
     if (!idParsed.success) return jsonError(zodErrorMessage(idParsed.error), 400);
     const taskId = idParsed.data;
@@ -120,11 +120,11 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: { id: string } }
 ) {
   try {
-    const userEmail = await requireUserEmail();
+    const userEmail = await requireUserEmail(request);
     const idParsed = taskIdSchema.safeParse(context.params.id);
     if (!idParsed.success) return jsonError(zodErrorMessage(idParsed.error), 400);
     const taskId = idParsed.data;

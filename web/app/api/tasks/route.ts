@@ -32,7 +32,7 @@ function googleCreateWarning(error: unknown) {
 
 export async function GET(request: NextRequest) {
   try {
-    const userEmail = await requireUserEmail();
+    const userEmail = await requireUserEmail(request);
     const { searchParams } = new URL(request.url);
     const queryParsed = taskListQuerySchema.safeParse({
       start: searchParams.get("start"),
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const userEmail = await requireUserEmail();
+    const userEmail = await requireUserEmail(request);
     let rawPayload: unknown;
     try {
       rawPayload = await request.json();

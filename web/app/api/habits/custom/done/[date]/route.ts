@@ -14,11 +14,11 @@ import { addPointsOnce, POINTS } from "@/lib/server/rewards";
 export const dynamic = "force-dynamic";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: { date: string } }
 ) {
   try {
-    const userEmail = await requireUserEmail();
+    const userEmail = await requireUserEmail(request);
     const paramsParsed = dateParamSchema.safeParse(context.params);
     if (!paramsParsed.success) return jsonError(zodErrorMessage(paramsParsed.error), 400);
     const payload = await getCustomHabitDone(userEmail, paramsParsed.data.date);
@@ -40,7 +40,7 @@ export async function PUT(
   context: { params: { date: string } }
 ) {
   try {
-    const userEmail = await requireUserEmail();
+    const userEmail = await requireUserEmail(request);
     const paramsParsed = dateParamSchema.safeParse(context.params);
     if (!paramsParsed.success) return jsonError(zodErrorMessage(paramsParsed.error), 400);
     let rawPayload: unknown;

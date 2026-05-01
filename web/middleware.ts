@@ -30,6 +30,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Allow Bearer-authenticated requests through — the route handler will
+  // validate the token. Middleware runs in the edge runtime and can't use
+  // Prisma, so verification happens downstream.
+  const authHeader = request.headers.get("authorization");
+  if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
+    return NextResponse.next();
+  }
+
   const token = await getToken({
     req: request as unknown as Parameters<typeof getToken>[0]["req"],
     secret: process.env.NEXTAUTH_SECRET,

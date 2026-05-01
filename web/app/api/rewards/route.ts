@@ -11,7 +11,7 @@ function todayIso() {
 
 export async function GET(request: NextRequest) {
   try {
-    const userEmail = await requireUserEmail();
+    const userEmail = await requireUserEmail(request);
     const date = new URL(request.url).searchParams.get("date") || todayIso();
     return jsonOk(await getRewardsState(userEmail, date));
   } catch (err) {
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const userEmail = await requireUserEmail();
+    const userEmail = await requireUserEmail(request);
     const body = await request.json();
     const action = String(body.action || "");
     const date = String(body.date || todayIso());
