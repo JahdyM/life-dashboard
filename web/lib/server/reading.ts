@@ -253,6 +253,11 @@ async function saveState(userEmail: string, state: StoredReadingState) {
   await setSetting(userEmail, READING_STATE_KEY, JSON.stringify(normalizeState(state)));
 }
 
+function percent(part: number, total: number) {
+  if (!total) return 0;
+  return Number(((part / total) * 100).toFixed(2));
+}
+
 function issueProgress(issue: StoredDespertaiIssue): DespertaiIssue {
   const topics: DespertaiTopic[] = issue.topics.map((topic) => ({
     id: topic.id,
@@ -261,7 +266,7 @@ function issueProgress(issue: StoredDespertaiIssue): DespertaiIssue {
   }));
   const totalTopics = topics.length;
   const readCount = topics.filter((topic) => topic.read).length;
-  const progressPercent = totalTopics ? Math.round((readCount / totalTopics) * 100) : 0;
+  const progressPercent = percent(readCount, totalTopics);
 
   return {
     id: issue.id,
@@ -318,7 +323,7 @@ function videoSectionProgress(videos: StoredReadingVideo[]) {
     pendingVideos: pendingVideosList.length,
     totalDurationSeconds,
     watchedDurationSeconds,
-    progressPercent: allVideos.length ? Math.round((finishedVideosList.length / allVideos.length) * 100) : 0,
+    progressPercent: percent(finishedVideosList.length, allVideos.length),
     pendingVideosList,
     finishedVideosList,
   };
@@ -343,7 +348,7 @@ function toPageData(state: StoredReadingState): ReadingPageData {
         chapters: book.chapters,
         readChapters,
         readCount: readChapters.length,
-        progressPercent: book.chapters ? Math.round((readChapters.length / book.chapters) * 100) : 0,
+        progressPercent: percent(readChapters.length, book.chapters),
       };
     }),
   }));
@@ -358,7 +363,7 @@ function toPageData(state: StoredReadingState): ReadingPageData {
       finishedIssues: finishedIssuesList.length,
       totalTopics,
       readTopics,
-      progressPercent: totalTopics ? Math.round((readTopics / totalTopics) * 100) : 0,
+      progressPercent: percent(readTopics, totalTopics),
       pendingIssues,
       finishedIssuesList,
     },
@@ -367,7 +372,7 @@ function toPageData(state: StoredReadingState): ReadingPageData {
     bible: {
       totalChapters: BIBLE_TOTAL_CHAPTERS,
       readChapters: readBibleChapters,
-      progressPercent: Math.round((readBibleChapters / BIBLE_TOTAL_CHAPTERS) * 100),
+      progressPercent: percent(readBibleChapters, BIBLE_TOTAL_CHAPTERS),
       sections,
     },
   };

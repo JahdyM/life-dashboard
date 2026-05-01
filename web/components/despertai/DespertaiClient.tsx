@@ -187,10 +187,15 @@ function progressStyle(value: number): ProgressStyle {
   return { "--progress-angle": `${progress * 3.6}deg` } as ProgressStyle;
 }
 
+function formatPercent(value: number) {
+  return `${Math.max(0, Math.min(100, value)).toFixed(2)}%`;
+}
+
 function ProgressDonut({ value, label }: { value: number; label: string }) {
+  const percentLabel = formatPercent(value);
   return (
-    <div className="reading-donut" style={progressStyle(value)} aria-label={label ? `${label}: ${value}%` : `${value}%`}>
-      <strong>{value}%</strong>
+    <div className="reading-donut" style={progressStyle(value)} aria-label={label ? `${label}: ${percentLabel}` : percentLabel}>
+      <strong>{percentLabel}</strong>
       {label ? <span>{label}</span> : null}
     </div>
   );
