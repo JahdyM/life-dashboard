@@ -13,6 +13,7 @@ type ReadingPatchPayload =
   | { type: "toggle_despertai_issue"; issue_id: string; read: boolean }
   | { type: "set_despertai_read_count"; issue_id: string; read_count: number }
   | { type: "toggle_reading_video"; video_id: string; read: boolean }
+  | { type: "toggle_broadcasting_video"; video_id: string; read: boolean }
   | { type: "toggle_bible_chapter"; book_key: string; chapter: number; read: boolean };
 
 type DespertaiClientProps = {
@@ -164,6 +165,10 @@ function videoElementId(videoId: string) {
   return `reading-video-${videoId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 }
 
+function broadcastingElementId(videoId: string) {
+  return `broadcasting-video-${videoId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+}
+
 function formatDuration(seconds: number) {
   const total = Math.max(0, Math.round(seconds));
   const hours = Math.floor(total / 3600);
@@ -171,6 +176,10 @@ function formatDuration(seconds: number) {
   if (hours > 0) return `${hours}h ${minutes}min`;
   if (minutes > 0) return `${minutes}min`;
   return `${total}s`;
+}
+
+function videoMetaLabel(video: ReadingVideo, fallback = "Vídeo") {
+  return video.durationSeconds > 0 ? formatDuration(video.durationSeconds) : fallback;
 }
 
 function progressStyle(value: number): ProgressStyle {
@@ -300,20 +309,24 @@ function VideoCard({
   onPatch,
   busy,
   selected,
+  elementId,
+  toggleType,
 }: {
   video: ReadingVideo;
   onPatch: (payload: ReadingPatchPayload) => void;
   busy: boolean;
   selected: boolean;
+  elementId: string;
+  toggleType: "toggle_reading_video" | "toggle_broadcasting_video";
 }) {
   return (
     <article
-      id={videoElementId(video.id)}
+      id={elementId}
       className={`reading-video-card ${video.read ? "finished" : ""} ${selected ? "wheel-selected" : ""}`}
     >
       <div className="reading-video-main">
         <div>
-          <p className="panel-kicker">{formatDuration(video.durationSeconds)}</p>
+          <p className="panel-kicker">{videoMetaLabel(video)}</p>
           <h4>{video.title}</h4>
           {video.naturalKey ? <p>{video.naturalKey}</p> : null}
         </div>
@@ -325,7 +338,7 @@ function VideoCard({
             disabled={busy}
             onChange={(event) =>
               onPatch({
-                type: "toggle_reading_video",
+                type: toggleType,
                 video_id: video.id,
                 read: event.target.checked,
               })
@@ -393,10 +406,11 @@ function WheelFilterField({
 
 export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"despertai" | "videos" | "bible">("despertai");
+  const [activeTab, setActiveTab] = useState<"despertai" | "videos" | "broadcasting" | "bible">("despertai");
   const [importText, setImportText] = useState("");
   const [despertaiSearch, setDespertaiSearch] = useState("");
   const [videoSearch, setVideoSearch] = useState("");
+  const [broadcastingSearch, setBroadcastingSearch] = useState("");
   const [issueWheelMinYear, setIssueWheelMinYear] = useState("");
   const [issueWheelMaxYear, setIssueWheelMaxYear] = useState("");
   const [issueWheelMinTopics, setIssueWheelMinTopics] = useState("");
@@ -419,6 +433,13 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const [videoWheelShuffleNonce, setVideoWheelShuffleNonce] = useState(0);
   const [pendingRevealVideoId, setPendingRevealVideoId] = useState<string | null>(null);
   const videoWheelSpinTimeoutRef = useRef<number | null>(null);
+  const [broadcastingWheelSpinning, setBroadcastingWheelSpinning] = useState(false);
+  const [broadcastingWheelRotation, setBroadcastingWheelRotation] = useState(0);
+  const [broadcastingWheelResultId, setBroadcastingWheelResultId] = useState<string | null>(null);
+  const [broadcastingWheelLastId, setBroadcastingWheelLastId] = useState<string | null>(null);
+  const [broadcastingWheelShuffleNonce, setBroadcastingWheelShuffleNonce] = useState(0);
+  const [pendingRevealBroadcastingId, setPendingRevealBroadcastingId] = useState<string | null>(null);
+  const broadcastingWheelSpinTimeoutRef = useRef<number | null>(null);
 
   const readingQuery = useQuery({
     queryKey,
@@ -457,6 +478,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   );
   const despertaiSearchTerm = normalizeSearchText(despertaiSearch);
   const videoSearchTerm = normalizeSearchText(videoSearch);
+  const broadcastingSearchTerm = normalizeSearchText(broadcastingSearch);
   const filteredPendingIssues = useMemo(() => {
     if (!despertaiSearchTerm) return data.despertai.pendingIssues;
     return data.despertai.pendingIssues.filter((issue) =>
@@ -481,6 +503,18 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       matchesSearchText(`${video.title} ${video.naturalKey || ""}`, videoSearchTerm)
     );
   }, [data.videos.finishedVideosList, videoSearchTerm]);
+  const filteredPendingBroadcasting = useMemo(() => {
+    if (!broadcastingSearchTerm) return data.broadcasting.pendingVideosList;
+    return data.broadcasting.pendingVideosList.filter((video) =>
+      matchesSearchText(`${video.title} ${video.naturalKey || ""}`, broadcastingSearchTerm)
+    );
+  }, [data.broadcasting.pendingVideosList, broadcastingSearchTerm]);
+  const filteredFinishedBroadcasting = useMemo(() => {
+    if (!broadcastingSearchTerm) return data.broadcasting.finishedVideosList;
+    return data.broadcasting.finishedVideosList.filter((video) =>
+      matchesSearchText(`${video.title} ${video.naturalKey || ""}`, broadcastingSearchTerm)
+    );
+  }, [data.broadcasting.finishedVideosList, broadcastingSearchTerm]);
   const issueWheelFilteredPool = useMemo(() => {
     const minYear = optionalPositiveNumber(issueWheelMinYear);
     const maxYear = optionalPositiveNumber(issueWheelMaxYear);
@@ -510,6 +544,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       return true;
     });
   }, [data.videos.pendingVideosList, videoWheelMaxMinutes, videoWheelMinMinutes]);
+  const broadcastingWheelFilteredPool = data.broadcasting.pendingVideosList;
   const issueWheelHasFilters = Boolean(
     issueWheelMinYear || issueWheelMaxYear || issueWheelMinTopics || issueWheelMaxTopics
   );
@@ -598,6 +633,48 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       }) as CSSProperties,
     [videoWheelRotation]
   );
+  const broadcastingWheelEligibleItems = useMemo(() => {
+    const pending = broadcastingWheelFilteredPool;
+    if (!broadcastingWheelLastId || pending.length <= 1) return pending;
+    const filtered = pending.filter((video) => video.id !== broadcastingWheelLastId);
+    return filtered.length ? filtered : pending;
+  }, [broadcastingWheelFilteredPool, broadcastingWheelLastId]);
+  const broadcastingWheelOrderedItems = useMemo(() => {
+    const sorted = [...broadcastingWheelEligibleItems].sort((a, b) => a.id.localeCompare(b.id));
+    if (sorted.length <= 1) return sorted;
+    const seed = hashWheelSeed(
+      `${broadcastingWheelShuffleNonce}:${sorted.map((video) => video.id).join("|")}`
+    );
+    return shuffleWithSeed(sorted, seed);
+  }, [broadcastingWheelEligibleItems, broadcastingWheelShuffleNonce]);
+  const broadcastingWheelSegments = useMemo<VideoWheelSegment[]>(() => {
+    if (!broadcastingWheelOrderedItems.length) return [];
+    const span = 360 / broadcastingWheelOrderedItems.length;
+    return broadcastingWheelOrderedItems.map((video, index) => {
+      const startAngle = index * span;
+      const endAngle = startAngle + span;
+      return {
+        video,
+        startAngle,
+        endAngle,
+        midAngle: startAngle + span / 2,
+        span,
+        color: DESPERTAI_WHEEL_COLORS[index % DESPERTAI_WHEEL_COLORS.length],
+      };
+    });
+  }, [broadcastingWheelOrderedItems]);
+  const broadcastingWheelResult = useMemo(
+    () => data.broadcasting.pendingVideosList.find((video) => video.id === broadcastingWheelResultId) || null,
+    [data.broadcasting.pendingVideosList, broadcastingWheelResultId]
+  );
+  const broadcastingWheelRotorStyle = useMemo(
+    () =>
+      ({
+        transform: `rotate(${broadcastingWheelRotation}deg)`,
+        transition: `transform ${DESPERTAI_WHEEL_SPIN_DURATION_MS}ms cubic-bezier(0.12, 0.88, 0.16, 1)`,
+      }) as CSSProperties,
+    [broadcastingWheelRotation]
+  );
 
   useEffect(() => {
     if (wheelResultIssueId && !issueWheelFilteredPool.some((issue) => issue.id === wheelResultIssueId)) {
@@ -612,12 +689,24 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   }, [videoWheelFilteredPool, videoWheelResultId]);
 
   useEffect(() => {
+    if (
+      broadcastingWheelResultId &&
+      !broadcastingWheelFilteredPool.some((video) => video.id === broadcastingWheelResultId)
+    ) {
+      setBroadcastingWheelResultId(null);
+    }
+  }, [broadcastingWheelFilteredPool, broadcastingWheelResultId]);
+
+  useEffect(() => {
     return () => {
       if (wheelSpinTimeoutRef.current) {
         window.clearTimeout(wheelSpinTimeoutRef.current);
       }
       if (videoWheelSpinTimeoutRef.current) {
         window.clearTimeout(videoWheelSpinTimeoutRef.current);
+      }
+      if (broadcastingWheelSpinTimeoutRef.current) {
+        window.clearTimeout(broadcastingWheelSpinTimeoutRef.current);
       }
     };
   }, []);
@@ -665,6 +754,28 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       window.cancelAnimationFrame(secondFrame);
     };
   }, [activeTab, pendingRevealVideoId]);
+
+  useEffect(() => {
+    if (!pendingRevealBroadcastingId || activeTab !== "broadcasting") {
+      return;
+    }
+
+    let firstFrame = 0;
+    let secondFrame = 0;
+    firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        const target = document.getElementById(broadcastingElementId(pendingRevealBroadcastingId));
+        if (!target) return;
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        setPendingRevealBroadcastingId(null);
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
+  }, [activeTab, pendingRevealBroadcastingId]);
 
   const patch = (payload: ReadingPatchPayload) => {
     patchMutation.mutate(payload);
@@ -790,6 +901,59 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
     setVideoWheelRotation((current) => current + 45 + Math.floor(Math.random() * 150));
   };
 
+  const revealBroadcastingFromWheel = (videoId: string) => {
+    setActiveTab("broadcasting");
+    setBroadcastingSearch("");
+    setPendingRevealBroadcastingId(videoId);
+  };
+
+  const spinBroadcastingWheel = () => {
+    if (broadcastingWheelSpinning || !broadcastingWheelSegments.length) return;
+    if (broadcastingWheelSegments.length === 1) {
+      const onlyVideo = broadcastingWheelSegments[0].video;
+      setBroadcastingWheelResultId(onlyVideo.id);
+      setBroadcastingWheelLastId(onlyVideo.id);
+      revealBroadcastingFromWheel(onlyVideo.id);
+      return;
+    }
+
+    const selectedSegment = broadcastingWheelSegments[Math.floor(Math.random() * broadcastingWheelSegments.length)];
+    const safeMargin = Math.min(10, selectedSegment.span * 0.2);
+    const minStop = selectedSegment.startAngle + safeMargin;
+    const maxStop = selectedSegment.endAngle - safeMargin;
+    const stopAngle =
+      maxStop > minStop
+        ? minStop + Math.random() * (maxStop - minStop)
+        : selectedSegment.midAngle;
+    const currentRotation = ((broadcastingWheelRotation % 360) + 360) % 360;
+    const targetRotationMod = (360 - stopAngle + 360) % 360;
+    let delta = targetRotationMod - currentRotation;
+    if (delta < 0) delta += 360;
+    const finalRotation = broadcastingWheelRotation + 1800 + delta;
+
+    setBroadcastingWheelResultId(null);
+    setBroadcastingWheelSpinning(true);
+    setBroadcastingWheelRotation(finalRotation);
+    if (broadcastingWheelSpinTimeoutRef.current) {
+      window.clearTimeout(broadcastingWheelSpinTimeoutRef.current);
+    }
+    broadcastingWheelSpinTimeoutRef.current = window.setTimeout(() => {
+      const resultSegment = findWheelSegmentAtPointer(broadcastingWheelSegments, finalRotation);
+      const resultVideoId = resultSegment?.video.id || selectedSegment.video.id;
+      setBroadcastingWheelResultId(resultVideoId);
+      setBroadcastingWheelLastId(resultVideoId);
+      setBroadcastingWheelSpinning(false);
+      revealBroadcastingFromWheel(resultVideoId);
+    }, DESPERTAI_WHEEL_SPIN_DURATION_MS);
+  };
+
+  const shuffleBroadcastingWheel = () => {
+    if (broadcastingWheelSpinning) return;
+    setBroadcastingWheelShuffleNonce((current) => current + 1);
+    setBroadcastingWheelResultId(null);
+    setBroadcastingWheelRotation((current) => current + 45 + Math.floor(Math.random() * 150));
+  };
+
   return (
     <div className="card despertai-shell">
       <div className="despertai-tabs" role="tablist" aria-label="Reading sections">
@@ -806,6 +970,13 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
           onClick={() => setActiveTab("videos")}
         >
           Vídeos
+        </button>
+        <button
+          type="button"
+          className={activeTab === "broadcasting" ? "active" : ""}
+          onClick={() => setActiveTab("broadcasting")}
+        >
+          Broadcasting
         </button>
         <button
           type="button"
@@ -1373,6 +1544,8 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
                     busy={patchMutation.isPending}
                     onPatch={patch}
                     selected={videoWheelResultId === video.id}
+                    elementId={videoElementId(video.id)}
+                    toggleType="toggle_reading_video"
                   />
                 ))}
               </div>
@@ -1397,6 +1570,8 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
                     busy={patchMutation.isPending}
                     onPatch={patch}
                     selected={videoWheelResultId === video.id}
+                    elementId={videoElementId(video.id)}
+                    toggleType="toggle_reading_video"
                   />
                 ))}
               </div>
@@ -1404,6 +1579,256 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
               <div className="line-empty">Nenhum vídeo encontrado.</div>
             ) : (
               <div className="line-empty">Nenhum vídeo visto ainda.</div>
+            )}
+          </section>
+        </section>
+      ) : activeTab === "broadcasting" ? (
+        <section className="despertai-tab-panel">
+          <div className="reading-summary-grid">
+            <article className="reading-summary-card main">
+              <ProgressDonut value={data.broadcasting.progressPercent} label="broadcasting" />
+              <div>
+                <p className="panel-kicker">Broadcasting</p>
+                <h3>{data.broadcasting.finishedVideos}/{data.broadcasting.totalVideos} vistos</h3>
+              </div>
+            </article>
+            <article className="reading-summary-card">
+              <span>Pendentes</span>
+              <strong>{data.broadcasting.pendingVideos}</strong>
+            </article>
+            <article className="reading-summary-card">
+              <span>Fonte</span>
+              <strong>Studio</strong>
+            </article>
+          </div>
+
+          <section className="despertai-wheel-card">
+            <div className="activity-wheel-head">
+              <div>
+                <p className="panel-kicker">Roleta</p>
+                <h3>Broadcasting</h3>
+                <p className="activity-wheel-copy">Clique no centro para sortear.</p>
+              </div>
+              <button
+                type="button"
+                className="secondary"
+                onClick={shuffleBroadcastingWheel}
+                disabled={broadcastingWheelSpinning || broadcastingWheelOrderedItems.length <= 1}
+              >
+                Embaralhar
+              </button>
+            </div>
+
+            <div className="activity-wheel-controls">
+              <span className="activity-wheel-meta">
+                {broadcastingWheelEligibleItems.length} programas
+              </span>
+            </div>
+
+            <div className="activity-wheel-stage">
+              <div className={`activity-wheel-dial-wrap ${broadcastingWheelSpinning ? "spinning" : ""}`}>
+                <span className="activity-wheel-pointer" aria-hidden="true" />
+                <div className="activity-wheel-dial-shell">
+                  <svg
+                    className="activity-wheel-dial"
+                    viewBox="0 0 260 260"
+                    role="img"
+                    aria-label="Roleta de programas Broadcasting não vistos"
+                  >
+                    <g
+                      className={`activity-wheel-rotor ${broadcastingWheelSpinning ? "spinning" : ""}`}
+                      style={broadcastingWheelRotorStyle}
+                    >
+                      {broadcastingWheelSegments.map((segment) => {
+                        const labelPoint = polar(
+                          DESPERTAI_WHEEL_CENTER,
+                          DESPERTAI_WHEEL_CENTER,
+                          DESPERTAI_WHEEL_LABEL_RADIUS,
+                          segment.midAngle
+                        );
+                        const labelMaxLength =
+                          segment.span >= 72 ? 11 : segment.span >= 45 ? 9 : 8;
+                        const label = truncateWheelLabel(segment.video.title, labelMaxLength);
+                        const canRenderLabel = segment.span >= 24;
+
+                        return (
+                          <g key={segment.video.id}>
+                            <path
+                              d={describeWheelSlice(
+                                DESPERTAI_WHEEL_CENTER,
+                                DESPERTAI_WHEEL_CENTER,
+                                DESPERTAI_WHEEL_RADIUS,
+                                segment.startAngle,
+                                segment.endAngle
+                              )}
+                              className={`activity-wheel-slice ${
+                                !broadcastingWheelSpinning && segment.video.id === broadcastingWheelResultId
+                                  ? "is-result"
+                                  : ""
+                              }`}
+                              style={{ fill: segment.color }}
+                            >
+                              <title>{segment.video.title}</title>
+                            </path>
+                            {canRenderLabel ? (
+                              <text
+                                x={labelPoint.x}
+                                y={labelPoint.y}
+                                className="activity-wheel-slice-label"
+                                dominantBaseline="middle"
+                                textAnchor="middle"
+                              >
+                                {label}
+                              </text>
+                            ) : null}
+                          </g>
+                        );
+                      })}
+                      <circle
+                        cx={DESPERTAI_WHEEL_CENTER}
+                        cy={DESPERTAI_WHEEL_CENTER}
+                        r={DESPERTAI_WHEEL_RADIUS}
+                        className="activity-wheel-rim"
+                      />
+                    </g>
+                    <circle
+                      cx={DESPERTAI_WHEEL_CENTER}
+                      cy={DESPERTAI_WHEEL_CENTER}
+                      r="31"
+                      className="activity-wheel-hub"
+                    />
+                    <circle
+                      cx={DESPERTAI_WHEEL_CENTER}
+                      cy={DESPERTAI_WHEEL_CENTER}
+                      r="6"
+                      className="activity-wheel-hub-dot"
+                    />
+                  </svg>
+                  <button
+                    type="button"
+                    className="activity-wheel-hub-button"
+                    onClick={spinBroadcastingWheel}
+                    disabled={broadcastingWheelSpinning || broadcastingWheelEligibleItems.length === 0}
+                    aria-label={
+                      broadcastingWheelSpinning
+                        ? "Roleta girando"
+                        : broadcastingWheelEligibleItems.length === 0
+                          ? "Nenhum Broadcasting pendente"
+                          : "Sortear Broadcasting"
+                    }
+                  >
+                    {broadcastingWheelSpinning ? "..." : "Girar"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="activity-wheel-result despertai-wheel-result">
+                {broadcastingWheelEligibleItems.length === 0 ? (
+                  <p className="line-empty">Nenhum Broadcasting pendente.</p>
+                ) : broadcastingWheelResult ? (
+                  <article className="activity-wheel-result-card despertai-wheel-result-card">
+                    <strong>{broadcastingWheelResult.title}</strong>
+                    <p>Programa mensal</p>
+                    <div className="activity-wheel-result-actions">
+                      <button type="button" className="secondary" onClick={() => revealBroadcastingFromWheel(broadcastingWheelResult.id)}>
+                        Ver
+                      </button>
+                      <button
+                        type="button"
+                        className="page-link inline muted"
+                        onClick={spinBroadcastingWheel}
+                        disabled={broadcastingWheelSpinning}
+                      >
+                        Sortear de novo
+                      </button>
+                    </div>
+                  </article>
+                ) : (
+                  <article className="activity-wheel-summary-card">
+                    <p className="activity-wheel-summary-title">Na roleta</p>
+                    <ul className="activity-wheel-task-list">
+                      {broadcastingWheelOrderedItems.slice(0, 8).map((video) => (
+                        <li key={video.id} title={video.title}>
+                          <span>{truncateWheelLabel(video.title, 30)}</span>
+                          <small>Broadcasting</small>
+                        </li>
+                      ))}
+                    </ul>
+                    {broadcastingWheelOrderedItems.length > 8 ? (
+                      <p className="activity-wheel-more">+{broadcastingWheelOrderedItems.length - 8} mais</p>
+                    ) : null}
+                    <p className="activity-wheel-tip">O nome completo aparece depois do sorteio.</p>
+                  </article>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <ReadingSearchField
+            value={broadcastingSearch}
+            onChange={setBroadcastingSearch}
+            placeholder="Buscar Broadcasting"
+          />
+
+          {broadcastingWheelResult ? (
+            <article className="reading-selected-callout">
+              <span>Sorteado</span>
+              <strong>{broadcastingWheelResult.title}</strong>
+              <button type="button" className="page-link inline muted" onClick={() => revealBroadcastingFromWheel(broadcastingWheelResult.id)}>
+                Ver na lista
+              </button>
+            </article>
+          ) : null}
+
+          <section className="despertai-list-section">
+            <div className="despertai-section-title">
+              <h3>Não vistos</h3>
+              <span>{filteredPendingBroadcasting.length}</span>
+            </div>
+            {filteredPendingBroadcasting.length ? (
+              <div className="reading-video-list">
+                {filteredPendingBroadcasting.map((video) => (
+                  <VideoCard
+                    key={video.id}
+                    video={video}
+                    busy={patchMutation.isPending}
+                    onPatch={patch}
+                    selected={broadcastingWheelResultId === video.id}
+                    elementId={broadcastingElementId(video.id)}
+                    toggleType="toggle_broadcasting_video"
+                  />
+                ))}
+              </div>
+            ) : broadcastingSearchTerm ? (
+              <div className="line-empty">Nenhum Broadcasting encontrado.</div>
+            ) : (
+              <div className="line-empty">Todos os Broadcastings foram vistos.</div>
+            )}
+          </section>
+
+          <section className="despertai-list-section">
+            <div className="despertai-section-title">
+              <h3>Vistos</h3>
+              <span>{filteredFinishedBroadcasting.length}</span>
+            </div>
+            {filteredFinishedBroadcasting.length ? (
+              <div className="reading-video-list reading-video-finished-list">
+                {filteredFinishedBroadcasting.map((video) => (
+                  <VideoCard
+                    key={video.id}
+                    video={video}
+                    busy={patchMutation.isPending}
+                    onPatch={patch}
+                    selected={broadcastingWheelResultId === video.id}
+                    elementId={broadcastingElementId(video.id)}
+                    toggleType="toggle_broadcasting_video"
+                  />
+                ))}
+              </div>
+            ) : broadcastingSearchTerm ? (
+              <div className="line-empty">Nenhum Broadcasting encontrado.</div>
+            ) : (
+              <div className="line-empty">Nenhum Broadcasting visto ainda.</div>
             )}
           </section>
         </section>

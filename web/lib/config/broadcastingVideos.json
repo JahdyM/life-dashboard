@@ -1,0 +1,986 @@
+[
+  {
+    "id": "broadcasting-pub-jwb-t-201604-1-video",
+    "title": "JW Broadcasting — Abril 2016",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201604_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201604_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201612-1-video",
+    "title": "JW Broadcasting — Dezembro 2016",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201612_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201612_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201701-1-video",
+    "title": "JW Broadcasting — Janeiro 2017",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201701_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201701_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201505-1-video",
+    "title": "JW Broadcasting — Maio de 2015",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201505_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201505_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201603-1-video",
+    "title": "JW Broadcasting — Março 2016",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201603_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201603_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201611-1-video",
+    "title": "JW Broadcasting — Novembro 2016",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201611_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201611_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-202010-1-video",
+    "title": "JW Broadcasting – Outubro de 2020",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_202010_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_202010_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201704-1-video",
+    "title": "JW Broadcasting — Abril 2017",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201704_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201704_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201804-1-video",
+    "title": "JW Broadcasting — Abril de 2018",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201804_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201804_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201904-1-video",
+    "title": "JW Broadcasting — Abril de 2019",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201904_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201904_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-202004-1-video",
+    "title": "JW Broadcasting — Abril de 2020",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_202004_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_202004_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-202104-1-video",
+    "title": "JW Broadcasting — Abril de 2021",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_202104_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_202104_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-088-t-1-video",
+    "title": "JW Broadcasting — Abril de 2022",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-088_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-088_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-095-t-1-video",
+    "title": "JW Broadcasting — Abril de 2023",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-095_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-095_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-111-t-1-video",
+    "title": "JW Broadcasting — Abril de 2024",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-111_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-111_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-124-t-1-video",
+    "title": "JW Broadcasting — Abril de 2025",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-124_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-124_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-136-t-1-video",
+    "title": "JW Broadcasting — Abril de 2026",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-136_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-136_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201608-1-video",
+    "title": "JW Broadcasting — Agosto 2016",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201608_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201608_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201708-1-video",
+    "title": "JW Broadcasting — Agosto 2017",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201708_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201708_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201808-1-video",
+    "title": "JW Broadcasting — Agosto 2018",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201808_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201808_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201508-1-video",
+    "title": "JW Broadcasting — Agosto de 2015",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201508_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201508_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201908-1-video",
+    "title": "JW Broadcasting — Agosto de 2019",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201908_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201908_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-101-t-1-video",
+    "title": "JW Broadcasting — Agosto de 2023",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-101_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-101_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-115-t-1-video",
+    "title": "JW Broadcasting — Agosto de 2024",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-115_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-115_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-129-t-1-video",
+    "title": "JW Broadcasting — Agosto de 2025",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-129_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-129_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201712-1-video",
+    "title": "JW Broadcasting — Dezembro de 2017: Formatura da turma 143 de Gileade",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201712_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201712_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201812-1-video",
+    "title": "JW Broadcasting — Dezembro de 2018: Formatura da turma 145 de Gileade",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201812_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201812_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201912-1-video",
+    "title": "JW Broadcasting — Dezembro de 2019: Formatura da turma 147 de Gileade",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201912_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201912_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-202012-1-video",
+    "title": "JW Broadcasting — Dezembro de 2020",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_202012_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_202012_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-085-t-1-video",
+    "title": "JW Broadcasting — Dezembro de 2021: Formatura da turma 150 de Gileade",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-085_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-085_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-098-t-1-video",
+    "title": "JW Broadcasting — Dezembro de 2022: Formatura da turma 152 de Gileade",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-098_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-098_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-107-t-1-video",
+    "title": "JW Broadcasting — Dezembro de 2023: Formatura da turma 154 de Gileade",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-107_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-107_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-120-t-1-video",
+    "title": "JW Broadcasting — Dezembro de 2024: Reunião Anual de 2024 (Parte 1)",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-120_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-120_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-133-t-1-video",
+    "title": "JW Broadcasting — Dezembro de 2025: Formatura da Turma 158 de Gileade",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-133_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-133_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201702-1-video",
+    "title": "JW Broadcasting — Fevereiro 2017",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201702_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201702_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201902-1-video",
+    "title": "JW Broadcasting — Fevereiro de 2019",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201902_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201902_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-202002-1-video",
+    "title": "JW Broadcasting — Fevereiro de 2020",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_202002_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_202002_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-202102-1-video",
+    "title": "JW Broadcasting — Fevereiro de 2021: Reunião anual de 2020, parte 3",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_202102_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_202102_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-097-t-1-video",
+    "title": "JW Broadcasting — Fevereiro de 2022: Reunião Anual de 2021 (Parte 2)",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-097_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-097_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-100-t-9-video",
+    "title": "JW Broadcasting — Fevereiro de 2023: Reunião Anual de 2022 (Parte 2)",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-100_T_9_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-100_T_9_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-099-t-1-video",
+    "title": "JW Broadcasting — Fevereiro de 2024",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-099_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-099_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-122-t-1-video",
+    "title": "JW Broadcasting — Fevereiro de 2025",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-122_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-122_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-134-t-9-video",
+    "title": "JW Broadcasting — Fevereiro de 2026: Reunião Anual de 2025 (Parte 2)",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-134_T_9_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-134_T_9_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201801-1-video",
+    "title": "JW Broadcasting — Janeiro 2018: Reunião anual de 2017",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201801_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201801_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201901-1-video",
+    "title": "JW Broadcasting — Janeiro de 2019: Reunião anual de 2018",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201901_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201901_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-202001-1-video",
+    "title": "JW Broadcasting — Janeiro de 2020: Reunião Anual de 2019",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_202001_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_202001_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-202101-1-video",
+    "title": "JW Broadcasting — Janeiro de 2021: Reunião anual de 2020, parte 1",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_202101_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_202101_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-086-t-1-video",
+    "title": "JW Broadcasting — Janeiro de 2022: Reunião Anual de 2021 (Parte 1)",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-086_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-086_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-100-t-1-video",
+    "title": "JW Broadcasting — Janeiro de 2023: Reunião Anual de 2022 (Parte 1)",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-100_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-100_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-108-t-8-video",
+    "title": "JW Broadcasting — Janeiro de 2024: Reunião Anual de 2023 (Parte 2)",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-108_T_8_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-108_T_8_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-120-t-11-video",
+    "title": "JW Broadcasting — Janeiro de 2025: Reunião Anual de 2024 (Parte 2)",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-120_T_11_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-120_T_11_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-134-t-1-video",
+    "title": "JW Broadcasting — Janeiro de 2026: Reunião Anual de 2025 (Parte 1)",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-134_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-134_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201607-1-video",
+    "title": "JW Broadcasting — Julho 2016",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201607_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201607_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201707-1-video",
+    "title": "JW Broadcasting — Julho 2017",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201707_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201707_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201507-1-video",
+    "title": "JW Broadcasting — Julho de 2015",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201507_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201507_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201807-1-video",
+    "title": "JW Broadcasting — Julho de 2018",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201807_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201807_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201907-1-video",
+    "title": "JW Broadcasting — Julho de 2019",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201907_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201907_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-105-t-1-video",
+    "title": "JW Broadcasting — Julho de 2023",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-105_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-105_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-114-t-1-video",
+    "title": "JW Broadcasting — Julho de 2024",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-114_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-114_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-128-t-1-video",
+    "title": "JW Broadcasting — Julho de 2025",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-128_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-128_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201606-1-video",
+    "title": "JW Broadcasting — Junho 2016",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201606_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201606_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201506-1-video",
+    "title": "JW Broadcasting — Junho de 2015",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201506_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201506_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201706-1-video",
+    "title": "JW Broadcasting — Junho de 2017",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201706_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201706_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201806-1-video",
+    "title": "JW Broadcasting — Junho de 2018: Formatura da turma 144 de Gileade",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201806_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201806_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201906-1-video",
+    "title": "JW Broadcasting — Junho de 2019: Formatura da turma 146 de Gileade",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201906_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201906_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-202006-1-video",
+    "title": "JW Broadcasting — Junho de 2020: Formatura da turma 148 de Gileade",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_202006_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_202006_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-081-t-1-video",
+    "title": "JW Broadcasting — Junho de 2021: Formatura da turma 149 de Gileade",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-081_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-081_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-091-t-1-video",
+    "title": "JW Broadcasting — Junho de 2022: Formatura da turma 151 de Gileade",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-091_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-091_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-104-t-1-video",
+    "title": "JW Broadcasting — Junho de 2023: Formatura da turma 153 de Gileade",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-104_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-104_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-113-t-1-video",
+    "title": "JW Broadcasting — Junho de 2024: Formatura da turma 155 de Gileade",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-113_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-113_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-125-t-1-video",
+    "title": "JW Broadcasting — Junho de 2025: Formatura da turma 157 de Gileade",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-125_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-125_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201705-1-video",
+    "title": "JW Broadcasting — Maio 2017",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201705_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201705_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201805-1-video",
+    "title": "JW Broadcasting — Maio de 2018",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201805_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201805_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201905-1-video",
+    "title": "JW Broadcasting — Maio de 2019",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201905_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201905_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-202005-1-video",
+    "title": "JW Broadcasting — Maio de 2020",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_202005_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_202005_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-080-t-1-video",
+    "title": "JW Broadcasting — Maio de 2021",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-080_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-080_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-089-t-1-video",
+    "title": "JW Broadcasting — Maio de 2022",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-089_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-089_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-096-t-1-video",
+    "title": "JW Broadcasting — Maio de 2023",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-096_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-096_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-112-t-1-video",
+    "title": "JW Broadcasting — Maio de 2024",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-112_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-112_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-126-t-1-video",
+    "title": "JW Broadcasting — Maio de 2025",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-126_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-126_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201703-1-video",
+    "title": "JW Broadcasting — Março 2017",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201703_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201703_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201803-1-video",
+    "title": "JW Broadcasting — Março de 2018",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201803_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201803_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201903-1-video",
+    "title": "JW Broadcasting — Março de 2019",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201903_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201903_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-202103-1-video",
+    "title": "JW Broadcasting — Março de 2021",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_202103_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_202103_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-087-t-1-video",
+    "title": "JW Broadcasting — Março de 2022",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-087_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-087_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-092-t-1-video",
+    "title": "JW Broadcasting — Março de 2023",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-092_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-092_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-110-t-1-video",
+    "title": "JW Broadcasting — Março de 2024",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-110_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-110_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-123-t-1-video",
+    "title": "JW Broadcasting — Março de 2025",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-123_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-123_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-135-t-1-video",
+    "title": "JW Broadcasting — Março de 2026",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-135_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-135_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201711-1-video",
+    "title": "JW Broadcasting — Novembro 2017",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201711_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201711_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201811-1-video",
+    "title": "JW Broadcasting — Novembro de 2018",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201811_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201811_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201911-1-video",
+    "title": "JW Broadcasting — Novembro de 2019",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201911_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201911_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-202011-1-video",
+    "title": "JW Broadcasting — Novembro de 2020",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_202011_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_202011_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-084-t-1-video",
+    "title": "JW Broadcasting — Novembro de 2021",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-084_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-084_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-094-t-1-video",
+    "title": "JW Broadcasting — Novembro de 2022",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-094_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-094_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-108-t-1-video",
+    "title": "JW Broadcasting — Novembro de 2023: Reunião Anual de 2023 (Parte 1)",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-108_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-108_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-119-t-1-video",
+    "title": "JW Broadcasting — Novembro de 2024",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-119_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-119_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-132-t-1-video",
+    "title": "JW Broadcasting — Novembro de 2025",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-132_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-132_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201910-1-video",
+    "title": "JW Broadcasting — Outubro de 2019",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201910_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201910_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-083-t-1-video",
+    "title": "JW Broadcasting — Outubro de 2021",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-083_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-083_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-093-t-1-video",
+    "title": "JW Broadcasting — Outubro de 2022",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-093_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-093_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-106-t-1-video",
+    "title": "JW Broadcasting — Outubro de 2023",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-106_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-106_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-117-t-1-video",
+    "title": "JW Broadcasting — Outubro de 2024",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-117_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-117_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-131-t-1-video",
+    "title": "JW Broadcasting — Outubro de 2025",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-131_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-131_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201609-1-video",
+    "title": "JW Broadcasting — Setembro 2016",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201609_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201609_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201709-1-video",
+    "title": "JW Broadcasting — Setembro 2017",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201709_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201709_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201909-1-video",
+    "title": "JW Broadcasting — Setembro de 2019",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201909_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201909_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-202009-1-video",
+    "title": "JW Broadcasting — Setembro de 2020",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_202009_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_202009_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-082-t-1-video",
+    "title": "JW Broadcasting — Setembro de 2021",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-082_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-082_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-090-t-1-video",
+    "title": "JW Broadcasting — Setembro de 2022",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-090_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-090_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-102-t-1-video",
+    "title": "JW Broadcasting — Setembro de 2023",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-102_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-102_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-118-t-1-video",
+    "title": "JW Broadcasting — Setembro de 2024",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-118_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-118_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-130-t-1-video",
+    "title": "JW Broadcasting — Setembro de 2025",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb-130_T_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb-130_T_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201810-1-video",
+    "title": "JW Broadcasting —Outubro de 2018",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201810_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201810_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201512-1-video",
+    "title": "JW Broadcasting — Dezembro de 2015",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201512_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201512_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201602-1-video",
+    "title": "JW Broadcasting — Fevereiro 2016",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201602_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201602_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201601-1-video",
+    "title": "JW Broadcasting — Janeiro de 2016",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201601_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201601_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201605-1-video",
+    "title": "JW Broadcasting — Maio 2016",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201605_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201605_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201511-1-video",
+    "title": "JW Broadcasting — Novembro de 2015",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201511_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201511_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201610-1-video",
+    "title": "JW Broadcasting — Outubro 2016",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201610_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201610_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201510-1-video",
+    "title": "JW Broadcasting — Outubro de 2015",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201510_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201510_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201509-1-video",
+    "title": "JW Broadcasting — Setembro de 2015",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201509_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201509_1_VIDEO"
+  },
+  {
+    "id": "broadcasting-pub-jwb-t-201710-1-video",
+    "title": "JW Broadcasting—Outubro 2017",
+    "duration_seconds": 0,
+    "natural_key": "pub-jwb_T_201710_1_VIDEO",
+    "document_id": null,
+    "url": "https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/StudioMonthlyPrograms/pub-jwb_T_201710_1_VIDEO"
+  }
+]

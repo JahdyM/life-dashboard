@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import despertaiCatalog from "@/lib/config/despertaiPublications.json";
+import broadcastingCatalog from "@/lib/config/broadcastingVideos.json";
 import videoCatalog from "@/lib/config/readingVideos.json";
 import { BIBLE_BOOK_BY_KEY, BIBLE_SECTIONS, BIBLE_TOTAL_CHAPTERS } from "@/lib/config/bible";
 import { getSetting, setSetting } from "@/lib/server/settings";
@@ -25,6 +26,7 @@ type StoredDespertaiIssue = {
 type StoredReadingState = {
   despertai_issues: StoredDespertaiIssue[];
   videos: StoredReadingVideo[];
+  broadcasting_videos: StoredReadingVideo[];
   bible_read_chapters: Record<string, number[]>;
 };
 
@@ -90,10 +92,24 @@ const DEFAULT_READING_VIDEOS: StoredReadingVideo[] = (videoCatalog as CatalogRea
     updated_at: CATALOG_CREATED_AT,
   }));
 
+const DEFAULT_BROADCASTING_VIDEOS: StoredReadingVideo[] = (broadcastingCatalog as CatalogReadingVideo[])
+  .map((video) => ({
+    id: video.id,
+    title: video.title,
+    duration_seconds: Math.max(0, Math.trunc(Number(video.duration_seconds) || 0)),
+    natural_key: video.natural_key || null,
+    document_id: video.document_id || null,
+    url: video.url || null,
+    read: false,
+    created_at: CATALOG_CREATED_AT,
+    updated_at: CATALOG_CREATED_AT,
+  }));
+
 function defaultState(): StoredReadingState {
   return {
     despertai_issues: DEFAULT_DESPERTAI_ISSUES,
     videos: DEFAULT_READING_VIDEOS,
+    broadcasting_videos: DEFAULT_BROADCASTING_VIDEOS,
     bible_read_chapters: {},
   };
 }
@@ -161,8 +177,8 @@ function mergeWithDefaultIssues(issues: StoredDespertaiIssue[]) {
   return mergeIssues(DEFAULT_DESPERTAI_ISSUES, issues);
 }
 
-function mergeWithDefaultVideos(videos: StoredReadingVideo[]) {
-  const next = [...DEFAULT_READING_VIDEOS];
+function mergeWithDefaultVideos(videos: StoredReadingVideo[], defaults = DEFAULT_READING_VIDEOS) {
+  const next = [...defaults];
   videos.forEach((video) => {
     const existingIndex = next.findIndex((item) => item.id === video.id);
     if (existingIndex < 0) {
@@ -211,6 +227,14 @@ function normalizeState(raw: unknown): StoredReadingState {
           .map((video) => normalizeVideo(video, nowIso))
           .filter((video): video is StoredReadingVideo => Boolean(video)))
       : DEFAULT_READING_VIDEOS,
+    broadcasting_videos: Array.isArray(state.broadcasting_videos)
+      ? mergeWithDefaultVideos(
+          state.broadcasting_videos
+            .map((video) => normalizeVideo(video, nowIso))
+            .filter((video): video is StoredReadingVideo => Boolean(video)),
+          DEFAULT_BROADCASTING_VIDEOS
+        )
+      : DEFAULT_BROADCASTING_VIDEOS,
     bible_read_chapters: normalizeBibleReadChapters(state.bible_read_chapters),
   };
 }
@@ -281,17 +305,33 @@ function sortVideos(left: ReadingVideo, right: ReadingVideo) {
   return left.title.localeCompare(right.title, "pt-BR");
 }
 
+function videoSectionProgress(videos: StoredReadingVideo[]) {
+  const allVideos = videos.map(videoProgress);
+  const pendingVideosList = allVideos.filter((video) => !video.read).sort(sortVideos);
+  const finishedVideosList = allVideos.filter((video) => video.read).sort(sortVideos);
+  const totalDurationSeconds = allVideos.reduce((sum, video) => sum + video.durationSeconds, 0);
+  const watchedDurationSeconds = finishedVideosList.reduce((sum, video) => sum + video.durationSeconds, 0);
+
+  return {
+    totalVideos: allVideos.length,
+    finishedVideos: finishedVideosList.length,
+    pendingVideos: pendingVideosList.length,
+    totalDurationSeconds,
+    watchedDurationSeconds,
+    progressPercent: allVideos.length ? Math.round((finishedVideosList.length / allVideos.length) * 100) : 0,
+    pendingVideosList,
+    finishedVideosList,
+  };
+}
+
 function toPageData(state: StoredReadingState): ReadingPageData {
   const issues = state.despertai_issues.map(issueProgress);
   const pendingIssues = issues.filter((issue) => !issue.isFinished).sort(sortIssues);
   const finishedIssuesList = issues.filter((issue) => issue.isFinished).sort(sortIssues);
   const totalTopics = issues.reduce((sum, issue) => sum + issue.totalTopics, 0);
   const readTopics = issues.reduce((sum, issue) => sum + issue.readCount, 0);
-  const videos = state.videos.map(videoProgress);
-  const pendingVideosList = videos.filter((video) => !video.read).sort(sortVideos);
-  const finishedVideosList = videos.filter((video) => video.read).sort(sortVideos);
-  const totalDurationSeconds = videos.reduce((sum, video) => sum + video.durationSeconds, 0);
-  const watchedDurationSeconds = finishedVideosList.reduce((sum, video) => sum + video.durationSeconds, 0);
+  const videos = videoSectionProgress(state.videos);
+  const broadcasting = videoSectionProgress(state.broadcasting_videos);
 
   const sections = BIBLE_SECTIONS.map((section) => ({
     title: section.title,
@@ -322,16 +362,8 @@ function toPageData(state: StoredReadingState): ReadingPageData {
       pendingIssues,
       finishedIssuesList,
     },
-    videos: {
-      totalVideos: videos.length,
-      finishedVideos: finishedVideosList.length,
-      pendingVideos: pendingVideosList.length,
-      totalDurationSeconds,
-      watchedDurationSeconds,
-      progressPercent: videos.length ? Math.round((finishedVideosList.length / videos.length) * 100) : 0,
-      pendingVideosList,
-      finishedVideosList,
-    },
+    videos,
+    broadcasting,
     bible: {
       totalChapters: BIBLE_TOTAL_CHAPTERS,
       readChapters: readBibleChapters,
@@ -566,6 +598,17 @@ export async function setReadingVideoRead(userEmail: string, videoId: string, re
     video.id === videoId ? { ...video, read, updated_at: nowIso } : video
   );
   const nextState = { ...state, videos: nextVideos };
+  await saveState(userEmail, nextState);
+  return toPageData(nextState);
+}
+
+export async function setBroadcastingVideoRead(userEmail: string, videoId: string, read: boolean) {
+  const state = await getState(userEmail);
+  const nowIso = new Date().toISOString();
+  const nextVideos = state.broadcasting_videos.map((video) =>
+    video.id === videoId ? { ...video, read, updated_at: nowIso } : video
+  );
+  const nextState = { ...state, broadcasting_videos: nextVideos };
   await saveState(userEmail, nextState);
   return toPageData(nextState);
 }

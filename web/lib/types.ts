@@ -572,6 +572,17 @@ export type ReadingVideo = {
   updatedAt: string;
 };
 
+export type ReadingVideoSection = {
+  totalVideos: number;
+  finishedVideos: number;
+  pendingVideos: number;
+  totalDurationSeconds: number;
+  watchedDurationSeconds: number;
+  progressPercent: number;
+  pendingVideosList: ReadingVideo[];
+  finishedVideosList: ReadingVideo[];
+};
+
 export type BibleBookProgress = {
   key: string;
   name: string;
@@ -596,16 +607,8 @@ export type ReadingPageData = {
     pendingIssues: DespertaiIssue[];
     finishedIssuesList: DespertaiIssue[];
   };
-  videos: {
-    totalVideos: number;
-    finishedVideos: number;
-    pendingVideos: number;
-    totalDurationSeconds: number;
-    watchedDurationSeconds: number;
-    progressPercent: number;
-    pendingVideosList: ReadingVideo[];
-    finishedVideosList: ReadingVideo[];
-  };
+  videos: ReadingVideoSection;
+  broadcasting: ReadingVideoSection;
   bible: {
     totalChapters: number;
     readChapters: number;
