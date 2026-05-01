@@ -3,7 +3,19 @@ import { prisma } from "@/lib/db/prisma";
 import { addDaysIso } from "@/lib/spiritualStreaks";
 import { getMorningCheckin, getCheckinStreak } from "./checkin";
 
-export const STREAK_FREEZE_COST = 30;
+export const STREAK_FREEZE_COST = 200;
+
+// Point values — centralized so the UI and server stay in sync
+export const POINTS = {
+  morningCheckin: 5,
+  eveningCheckin: 5,
+  fullDayBonus: 3,     // both check-ins on same day
+  sharedHabit: 2,      // per shared habit toggled ON
+  customHabit: 1,      // per custom habit toggled ON
+  taskShort: 2,        // task done, <30 min or no estimate
+  taskMedium: 3,       // task done, 30–59 min
+  taskDeep: 4,         // task done, ≥60 min
+} as const;
 
 export type RewardsState = {
   points: number;
@@ -11,6 +23,16 @@ export type RewardsState = {
   freezeCost: number;
   canUseMorningGrace: boolean;
   morningGraceDate: string | null;
+  pointsTable: {
+    morningCheckin: number;
+    eveningCheckin: number;
+    fullDayBonus: number;
+    sharedHabit: number;
+    customHabit: number;
+    taskShort: number;
+    taskMedium: number;
+    taskDeep: number;
+  };
 };
 
 const prefixFor = (userEmail: string) => `rewards::${userEmail.toLowerCase()}::`;
@@ -124,5 +146,15 @@ export async function getRewardsState(userEmail: string, todayIso: string): Prom
     freezeCost: STREAK_FREEZE_COST,
     canUseMorningGrace,
     morningGraceDate: canUseMorningGrace ? graceDate : null,
+    pointsTable: {
+      morningCheckin: POINTS.morningCheckin,
+      eveningCheckin: POINTS.eveningCheckin,
+      fullDayBonus: POINTS.fullDayBonus,
+      sharedHabit: POINTS.sharedHabit,
+      customHabit: POINTS.customHabit,
+      taskShort: POINTS.taskShort,
+      taskMedium: POINTS.taskMedium,
+      taskDeep: POINTS.taskDeep,
+    },
   };
 }

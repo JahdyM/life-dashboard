@@ -9,6 +9,7 @@ import {
 import { getCustomHabitDone, setCustomHabitDone } from "@/lib/server/settings";
 import { customHabitDoneSchema, dateParamSchema } from "@/lib/server/schemas";
 import { logServerEvent } from "@/lib/server/logger";
+import { addPointsOnce, POINTS } from "@/lib/server/rewards";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +51,25 @@ export async function PUT(
     }
     const parsed = customHabitDoneSchema.safeParse(rawPayload);
     if (!parsed.success) return jsonError(zodErrorMessage(parsed.error), 400);
-    await setCustomHabitDone(userEmail, paramsParsed.data.date, parsed.data.done);
+    const dateIso = paramsParsed.data.date;
+    const newDone = parsed.data.done;
+
+    // Detect which habits just turned ON to award points
+    const oldDone = await getCustomHabitDone(userEmail, dateIso);
+    await setCustomHabitDone(userEmail, dateIso, newDone);
+
+    // Award +1 per custom habit newly toggled ON (idempotent via ledger)
+    const newlyOn = Object.entries(newDone)
+      .filter(([id, v]) => v === 1 && !oldDone[id])
+      .map(([id]) => id);
+    if (newlyOn.length > 0) {
+      await Promise.all(
+        newlyOn.map((id) =>
+          addPointsOnce(userEmail, `habit::custom::${dateIso}::${id}`, POINTS.customHabit)
+        )
+      );
+    }
+
     return jsonOk({ ok: true });
   } catch (err) {
     logServerEvent("error", {

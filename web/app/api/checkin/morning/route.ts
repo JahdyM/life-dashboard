@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import { requireUserEmail } from "@/lib/server/auth";
 import { handleAuthError, jsonError, jsonOk } from "@/lib/server/response";
-import { getMorningCheckin, saveMorningCheckin, getCheckinStreak } from "@/lib/server/checkin";
-import { addPointsOnce } from "@/lib/server/rewards";
+import { getMorningCheckin, saveMorningCheckin, getCheckinStreak, getEveningCheckin } from "@/lib/server/checkin";
+import { addPointsOnce, POINTS } from "@/lib/server/rewards";
 
 export const dynamic = "force-dynamic";
 
@@ -27,9 +27,18 @@ export async function POST(request: NextRequest) {
     const data = { ...body, completedAt: new Date().toISOString() };
     await saveMorningCheckin(userEmail, data);
     const streak = await getCheckinStreak(userEmail, data.date);
-    const base = await addPointsOnce(userEmail, `morning_checkin::${data.date}`, 5);
+    const base = await addPointsOnce(userEmail, `morning_checkin::${data.date}`, POINTS.morningCheckin);
     let earned = base.awarded;
     let points = base.balance;
+
+    // Full-day bonus if evening check-in already done
+    const eveningAlreadyDone = await getEveningCheckin(userEmail, data.date);
+    if (eveningAlreadyDone) {
+      const fullDay = await addPointsOnce(userEmail, `full_day::${data.date}`, POINTS.fullDayBonus);
+      earned += fullDay.awarded;
+      points = fullDay.balance;
+    }
+
     // Streak milestone bonuses (awarded once per milestone)
     if (streak === 7 || streak === 14 || streak === 30 || streak === 60 || streak === 100) {
       const bonus = streak >= 100 ? 50 : streak >= 60 ? 30 : streak >= 30 ? 20 : streak >= 14 ? 15 : 10;

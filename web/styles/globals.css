@@ -771,6 +771,103 @@ a {
   background: rgba(255, 255, 255, 0.035);
 }
 
+/* Freeze progress section */
+.rewards-freeze-section {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(223, 236, 236, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.rewards-freeze-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.rewards-freeze-stock {
+  color: #9DCFB7;
+  font-size: 0.78rem;
+}
+
+.rewards-freeze-bar {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.rewards-freeze-bar > div {
+  height: 100%;
+  background: linear-gradient(90deg, #8e79af, #9DCFB7);
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+.rewards-freeze-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Earn table in rewards store */
+.rewards-earn-details {
+  border-radius: 10px;
+  border: 1px solid rgba(223, 236, 236, 0.08);
+  overflow: hidden;
+}
+
+.rewards-earn-details > summary {
+  padding: 9px 12px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+
+.rewards-earn-details > summary::-webkit-details-marker { display: none; }
+.rewards-earn-details > summary::after { content: " ›"; }
+.rewards-earn-details[open] > summary::after { content: " ‹"; }
+
+.rewards-earn-table {
+  padding: 4px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rewards-earn-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.76rem;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.rewards-earn-row:last-child { border-bottom: none; }
+
+.rewards-earn-pts {
+  font-weight: 700;
+  color: #D9C979;
+  white-space: nowrap;
+}
+
+.rewards-earn-pts em {
+  font-style: normal;
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
 .rewards-store-item span {
   color: var(--text-muted);
 }

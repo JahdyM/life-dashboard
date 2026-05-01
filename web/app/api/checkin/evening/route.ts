@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireUserEmail } from "@/lib/server/auth";
-import { getEveningCheckin, saveEveningCheckin } from "@/lib/server/checkin";
-import { addPointsOnce } from "@/lib/server/rewards";
+import { getEveningCheckin, saveEveningCheckin, getMorningCheckin } from "@/lib/server/checkin";
+import { addPointsOnce, POINTS } from "@/lib/server/rewards";
 import { handleAuthError, jsonError, jsonOk } from "@/lib/server/response";
 
 export const dynamic = "force-dynamic";
@@ -32,8 +32,19 @@ export async function POST(request: NextRequest) {
     }
     const data = { date, energy, wentWell, tomorrow, completedAt: new Date().toISOString() };
     await saveEveningCheckin(userEmail, data);
-    const result = await addPointsOnce(userEmail, `evening_checkin::${date}`, 5);
-    return jsonOk({ ok: true, data, points: result.balance, earned: result.awarded });
+    const result = await addPointsOnce(userEmail, `evening_checkin::${date}`, POINTS.eveningCheckin);
+    let earned = result.awarded;
+    let points = result.balance;
+
+    // Full-day bonus if morning check-in already done
+    const morningAlreadyDone = await getMorningCheckin(userEmail, date);
+    if (morningAlreadyDone) {
+      const fullDay = await addPointsOnce(userEmail, `full_day::${date}`, POINTS.fullDayBonus);
+      earned += fullDay.awarded;
+      points = fullDay.balance;
+    }
+
+    return jsonOk({ ok: true, data, points, earned });
   } catch (err) {
     const authError = handleAuthError(err);
     if (authError) return authError;

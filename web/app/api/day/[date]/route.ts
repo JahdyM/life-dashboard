@@ -9,6 +9,15 @@ import {
 } from "@/lib/server/response";
 import { dateParamSchema, dayPatchSchema } from "@/lib/server/schemas";
 import { logServerEvent } from "@/lib/server/logger";
+import { addPointsOnce, POINTS } from "@/lib/server/rewards";
+import { getHabitField } from "@/lib/config/habits";
+
+// Shared habit keys that map to boolish DB fields (excludes metrics)
+const SHARED_HABIT_PATCH_KEYS = new Set([
+  "bible_reading", "bible_study", "dissertation_work", "workout",
+  "general_reading", "shower", "daily_text", "meeting_attended",
+  "prepare_meeting", "family_worship", "writing", "scientific_writing",
+]);
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +65,33 @@ export async function PATCH(
     if (Array.isArray(payload.mood_tags_json)) {
       payload.mood_tags_json = JSON.stringify(payload.mood_tags_json);
     }
+
+    // Snapshot old values for any habit fields about to be toggled ON
+    const habitKeysBeingSetOn = Object.entries(payload)
+      .filter(([k, v]) => SHARED_HABIT_PATCH_KEYS.has(k) && (v === 1 || v === true))
+      .map(([k]) => k);
+
+    let oldEntry: Awaited<ReturnType<typeof getDailyEntry>> | null = null;
+    if (habitKeysBeingSetOn.length > 0) {
+      oldEntry = await getDailyEntry(userEmail, dateIso);
+    }
+
     const entry = await updateDailyEntry(userEmail, dateIso, payload);
+
+    // Award +2 per shared habit that just turned ON (idempotent via ledger)
+    if (oldEntry && habitKeysBeingSetOn.length > 0) {
+      await Promise.all(
+        habitKeysBeingSetOn
+          .filter((k) => {
+            const field = getHabitField(k);
+            return field && !oldEntry![field as keyof typeof oldEntry];
+          })
+          .map((k) =>
+            addPointsOnce(userEmail, `habit::shared::${dateIso}::${k}`, POINTS.sharedHabit)
+          )
+      );
+    }
+
     return jsonOk({ entry });
   } catch (err) {
     logServerEvent("error", {

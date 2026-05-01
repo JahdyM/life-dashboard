@@ -8,6 +8,7 @@ import {
 } from "@/lib/server/response";
 import { updateTask, deleteTask } from "@/lib/server/tasks";
 import { prisma } from "@/lib/db/prisma";
+import { addPointsOnce, POINTS } from "@/lib/server/rewards";
 import { updateGoogleEvent, deleteGoogleEvent } from "@/lib/server/googleCalendar";
 import { getUserTimeZone } from "@/lib/server/settings";
 import { rememberDeletedGoogleTask } from "@/lib/server/taskTombstones";
@@ -73,6 +74,17 @@ export async function PATCH(
     if (payload.completed_at !== undefined) updatePayload.completedAt = payload.completed_at;
 
     const updated = await updateTask(userEmail, taskId, updatePayload);
+
+    // Award points when a task is marked done for the first time
+    if (payload.is_done && !existing.isDone) {
+      const mins = existing.estimatedMinutes ?? 0;
+      const taskPts =
+        mins >= 60 ? POINTS.taskDeep :
+        mins >= 30 ? POINTS.taskMedium :
+        POINTS.taskShort;
+      await addPointsOnce(userEmail, `task::done::${taskId}`, taskPts);
+    }
+
     if (
       payload.sync_google &&
       existing.googleEventId &&
