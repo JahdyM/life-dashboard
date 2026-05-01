@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#12100f" />
+    <title>Offline · Life Dashboard</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+      }
+      body {
+        background:
+          radial-gradient(circle at top left, rgba(210, 168, 105, 0.12), transparent 30%),
+          linear-gradient(180deg, #171413 0%, #12100f 50%, #0d0c0b 100%);
+        color: #f6f0e7;
+        font-family: -apple-system, BlinkMacSystemFont, "Avenir Next", "Segoe UI", system-ui, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+      .card {
+        max-width: 340px;
+        text-align: center;
+      }
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #d2a869;
+        margin: 0 auto 18px;
+        box-shadow: 0 0 22px rgba(210, 168, 105, 0.55);
+        animation: pulse 1.6s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 0.5; transform: scale(0.95); }
+        50%      { opacity: 1; transform: scale(1.1); }
+      }
+      h1 { font-size: 1.45rem; margin: 0 0 10px; font-weight: 600; letter-spacing: 0.01em; }
+      p {
+        color: #c9bfaf;
+        line-height: 1.55;
+        margin: 0 0 26px;
+        font-size: 0.95rem;
+      }
+      button {
+        padding: 11px 24px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(255,255,255,0.05);
+        color: #f6f0e7;
+        font: inherit;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: background 0.18s;
+      }
+      button:hover { background: rgba(255,255,255,0.09); }
+      button:active { background: rgba(255,255,255,0.14); }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="dot" aria-hidden="true"></div>
+      <h1>Sem conexão</h1>
+      <p>Tente de novo quando voltar a internet — seus dados estão salvos.</p>
+      <button onclick="location.reload()">Tentar novamente</button>
+    </div>
+  </body>
+</html>
