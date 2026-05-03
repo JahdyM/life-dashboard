@@ -454,6 +454,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const [wheelShuffleNonce, setWheelShuffleNonce] = useState(0);
   const [pendingRevealIssueId, setPendingRevealIssueId] = useState<string | null>(null);
   const wheelSpinTimeoutRef = useRef<number | null>(null);
+  const tabsRef = useRef<HTMLDivElement | null>(null);
   const [videoWheelSpinning, setVideoWheelSpinning] = useState(false);
   const [videoWheelRotation, setVideoWheelRotation] = useState(0);
   const [videoWheelResultId, setVideoWheelResultId] = useState<string | null>(null);
@@ -899,6 +900,19 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
     }
   }, [issueWheelFilteredPool, wheelResultIssueId]);
 
+  // When activeTab changes, center the active button within the horizontally
+  // scrollable tab strip — without ever scrolling the page vertically.
+  useEffect(() => {
+    const container = tabsRef.current;
+    if (!container) return;
+    const activeBtn = container.querySelector<HTMLButtonElement>("button.active");
+    if (!activeBtn) return;
+    const containerRect = container.getBoundingClientRect();
+    const btnRect = activeBtn.getBoundingClientRect();
+    const offset = (btnRect.left - containerRect.left) - (containerRect.width - btnRect.width) / 2;
+    container.scrollTo({ left: container.scrollLeft + offset, behavior: "smooth" });
+  }, [activeTab]);
+
   useEffect(() => {
     if (videoWheelResultId && !videoWheelFilteredPool.some((video) => video.id === videoWheelResultId)) {
       setVideoWheelResultId(null);
@@ -1121,7 +1135,6 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       const onlyIssue = wheelSegments[0].issue;
       setWheelResultIssueId(onlyIssue.id);
       setWheelLastIssueId(onlyIssue.id);
-      revealIssueFromWheel(onlyIssue.id);
       return;
     }
 
@@ -1151,7 +1164,6 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       setWheelResultIssueId(resultIssueId);
       setWheelLastIssueId(resultIssueId);
       setWheelSpinning(false);
-      revealIssueFromWheel(resultIssueId);
     }, DESPERTAI_WHEEL_SPIN_DURATION_MS);
   };
 
@@ -1179,7 +1191,6 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       const onlyVideo = videoWheelSegments[0].video;
       setVideoWheelResultId(onlyVideo.id);
       setVideoWheelLastId(onlyVideo.id);
-      revealVideoFromWheel(onlyVideo.id);
       return;
     }
 
@@ -1209,7 +1220,6 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       setVideoWheelResultId(resultVideoId);
       setVideoWheelLastId(resultVideoId);
       setVideoWheelSpinning(false);
-      revealVideoFromWheel(resultVideoId);
     }, DESPERTAI_WHEEL_SPIN_DURATION_MS);
   };
 
@@ -1232,7 +1242,6 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       const onlyVideo = broadcastingWheelSegments[0].video;
       setBroadcastingWheelResultId(onlyVideo.id);
       setBroadcastingWheelLastId(onlyVideo.id);
-      revealBroadcastingFromWheel(onlyVideo.id);
       return;
     }
 
@@ -1262,7 +1271,6 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       setBroadcastingWheelResultId(resultVideoId);
       setBroadcastingWheelLastId(resultVideoId);
       setBroadcastingWheelSpinning(false);
-      revealBroadcastingFromWheel(resultVideoId);
     }, DESPERTAI_WHEEL_SPIN_DURATION_MS);
   };
 
@@ -1285,7 +1293,6 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       const onlyVideo = articleWheelSegments[0].video;
       setArticleWheelResultId(onlyVideo.id);
       setArticleWheelLastId(onlyVideo.id);
-      revealArticleFromWheel(onlyVideo.id);
       return;
     }
 
@@ -1315,7 +1322,6 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       setArticleWheelResultId(resultVideoId);
       setArticleWheelLastId(resultVideoId);
       setArticleWheelSpinning(false);
-      revealArticleFromWheel(resultVideoId);
     }, DESPERTAI_WHEEL_SPIN_DURATION_MS);
   };
 
@@ -1338,7 +1344,6 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       const onlyVideo = bookWheelSegments[0].video;
       setBookWheelResultId(onlyVideo.id);
       setBookWheelLastId(onlyVideo.id);
-      revealBookFromWheel(onlyVideo.id);
       return;
     }
 
@@ -1368,7 +1373,6 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       setBookWheelResultId(resultVideoId);
       setBookWheelLastId(resultVideoId);
       setBookWheelSpinning(false);
-      revealBookFromWheel(resultVideoId);
     }, DESPERTAI_WHEEL_SPIN_DURATION_MS);
   };
 
@@ -1391,7 +1395,6 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       const onlyVideo = tractWheelSegments[0].video;
       setTractWheelResultId(onlyVideo.id);
       setTractWheelLastId(onlyVideo.id);
-      revealTractFromWheel(onlyVideo.id);
       return;
     }
 
@@ -1421,7 +1424,6 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       setTractWheelResultId(resultVideoId);
       setTractWheelLastId(resultVideoId);
       setTractWheelSpinning(false);
-      revealTractFromWheel(resultVideoId);
     }, DESPERTAI_WHEEL_SPIN_DURATION_MS);
   };
 
@@ -1434,7 +1436,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
 
   return (
     <div className="card despertai-shell">
-      <div className="despertai-tabs" role="tablist" aria-label="Reading sections">
+      <div ref={tabsRef} className="despertai-tabs" role="tablist" aria-label="Reading sections">
         <button
           type="button"
           className={activeTab === "despertai" ? "active" : ""}

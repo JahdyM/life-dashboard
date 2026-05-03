@@ -7731,12 +7731,48 @@ textarea:hover {
     display: grid;
   }
 
-  .despertai-tabs {
-    width: 100%;
+  /* Horizontally scrollable tabs with snap — swipe to navigate categories */
+  .despertai-shell {
+    overflow: visible; /* let tabs bleed full width */
   }
 
+  .despertai-tabs {
+    display: flex;
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    /* edge fade so users discover scrollability */
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 16px,
+      #000 calc(100% - 24px),
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 16px,
+      #000 calc(100% - 24px),
+      transparent 100%
+    );
+  }
+
+  .despertai-tabs::-webkit-scrollbar { display: none; }
+
   .despertai-tabs button {
-    flex: 1;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    scroll-snap-align: center;
+  }
+
+  .despertai-tabs button.active {
+    scroll-snap-align: center;
   }
 
   .bible-book-grid {
