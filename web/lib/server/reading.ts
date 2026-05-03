@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import articleSeriesCatalog from "@/lib/config/articleSeries.json";
 import despertaiCatalog from "@/lib/config/despertaiPublications.json";
 import broadcastingCatalog from "@/lib/config/broadcastingVideos.json";
 import videoCatalog from "@/lib/config/readingVideos.json";
@@ -27,6 +28,7 @@ type StoredReadingState = {
   despertai_issues: StoredDespertaiIssue[];
   videos: StoredReadingVideo[];
   broadcasting_videos: StoredReadingVideo[];
+  article_series: StoredReadingVideo[];
   bible_read_chapters: Record<string, number[]>;
 };
 
@@ -105,11 +107,25 @@ const DEFAULT_BROADCASTING_VIDEOS: StoredReadingVideo[] = (broadcastingCatalog a
     updated_at: CATALOG_CREATED_AT,
   }));
 
+const DEFAULT_ARTICLE_SERIES: StoredReadingVideo[] = (articleSeriesCatalog as CatalogReadingVideo[])
+  .map((item) => ({
+    id: item.id,
+    title: item.title,
+    duration_seconds: Math.max(0, Math.trunc(Number(item.duration_seconds) || 0)),
+    natural_key: item.natural_key || null,
+    document_id: item.document_id || null,
+    url: item.url || null,
+    read: false,
+    created_at: CATALOG_CREATED_AT,
+    updated_at: CATALOG_CREATED_AT,
+  }));
+
 function defaultState(): StoredReadingState {
   return {
     despertai_issues: DEFAULT_DESPERTAI_ISSUES,
     videos: DEFAULT_READING_VIDEOS,
     broadcasting_videos: DEFAULT_BROADCASTING_VIDEOS,
+    article_series: DEFAULT_ARTICLE_SERIES,
     bible_read_chapters: {},
   };
 }
@@ -235,6 +251,14 @@ function normalizeState(raw: unknown): StoredReadingState {
           DEFAULT_BROADCASTING_VIDEOS
         )
       : DEFAULT_BROADCASTING_VIDEOS,
+    article_series: Array.isArray(state.article_series)
+      ? mergeWithDefaultVideos(
+          state.article_series
+            .map((video) => normalizeVideo(video, nowIso))
+            .filter((video): video is StoredReadingVideo => Boolean(video)),
+          DEFAULT_ARTICLE_SERIES
+        )
+      : DEFAULT_ARTICLE_SERIES,
     bible_read_chapters: normalizeBibleReadChapters(state.bible_read_chapters),
   };
 }
@@ -337,6 +361,7 @@ function toPageData(state: StoredReadingState): ReadingPageData {
   const readTopics = issues.reduce((sum, issue) => sum + issue.readCount, 0);
   const videos = videoSectionProgress(state.videos);
   const broadcasting = videoSectionProgress(state.broadcasting_videos);
+  const articleSeries = videoSectionProgress(state.article_series);
 
   const sections = BIBLE_SECTIONS.map((section) => ({
     title: section.title,
@@ -369,6 +394,7 @@ function toPageData(state: StoredReadingState): ReadingPageData {
     },
     videos,
     broadcasting,
+    articleSeries,
     bible: {
       totalChapters: BIBLE_TOTAL_CHAPTERS,
       readChapters: readBibleChapters,
@@ -614,6 +640,17 @@ export async function setBroadcastingVideoRead(userEmail: string, videoId: strin
     video.id === videoId ? { ...video, read, updated_at: nowIso } : video
   );
   const nextState = { ...state, broadcasting_videos: nextVideos };
+  await saveState(userEmail, nextState);
+  return toPageData(nextState);
+}
+
+export async function setArticleSeriesRead(userEmail: string, itemId: string, read: boolean) {
+  const state = await getState(userEmail);
+  const nowIso = new Date().toISOString();
+  const nextItems = state.article_series.map((item) =>
+    item.id === itemId ? { ...item, read, updated_at: nowIso } : item
+  );
+  const nextState = { ...state, article_series: nextItems };
   await saveState(userEmail, nextState);
   return toPageData(nextState);
 }

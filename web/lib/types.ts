@@ -609,6 +609,7 @@ export type ReadingPageData = {
   };
   videos: ReadingVideoSection;
   broadcasting: ReadingVideoSection;
+  articleSeries: ReadingVideoSection;
   bible: {
     totalChapters: number;
     readChapters: number;
