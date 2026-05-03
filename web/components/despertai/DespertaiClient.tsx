@@ -15,6 +15,7 @@ type ReadingPatchPayload =
   | { type: "toggle_reading_video"; video_id: string; read: boolean }
   | { type: "toggle_broadcasting_video"; video_id: string; read: boolean }
   | { type: "toggle_article_series"; video_id: string; read: boolean }
+  | { type: "toggle_reading_book"; video_id: string; read: boolean }
   | { type: "toggle_bible_chapter"; book_key: string; chapter: number; read: boolean };
 
 type DespertaiClientProps = {
@@ -174,6 +175,10 @@ function articleSeriesElementId(videoId: string) {
   return `article-series-${videoId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 }
 
+function readingBookElementId(videoId: string) {
+  return `reading-book-${videoId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+}
+
 function formatDuration(seconds: number) {
   const total = Math.max(0, Math.round(seconds));
   const hours = Math.floor(total / 3600);
@@ -327,7 +332,7 @@ function VideoCard({
   busy: boolean;
   selected: boolean;
   elementId: string;
-  toggleType: "toggle_reading_video" | "toggle_broadcasting_video" | "toggle_article_series";
+  toggleType: "toggle_reading_video" | "toggle_broadcasting_video" | "toggle_article_series" | "toggle_reading_book";
 }) {
   return (
     <article
@@ -416,12 +421,13 @@ function WheelFilterField({
 
 export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"despertai" | "videos" | "broadcasting" | "articles" | "bible">("despertai");
+  const [activeTab, setActiveTab] = useState<"despertai" | "videos" | "broadcasting" | "articles" | "books" | "bible">("despertai");
   const [importText, setImportText] = useState("");
   const [despertaiSearch, setDespertaiSearch] = useState("");
   const [videoSearch, setVideoSearch] = useState("");
   const [broadcastingSearch, setBroadcastingSearch] = useState("");
   const [articleSearch, setArticleSearch] = useState("");
+  const [bookSearch, setBookSearch] = useState("");
   const [issueWheelMinYear, setIssueWheelMinYear] = useState("");
   const [issueWheelMaxYear, setIssueWheelMaxYear] = useState("");
   const [issueWheelMinTopics, setIssueWheelMinTopics] = useState("");
@@ -458,6 +464,13 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const [articleWheelShuffleNonce, setArticleWheelShuffleNonce] = useState(0);
   const [pendingRevealArticleId, setPendingRevealArticleId] = useState<string | null>(null);
   const articleWheelSpinTimeoutRef = useRef<number | null>(null);
+  const [bookWheelSpinning, setBookWheelSpinning] = useState(false);
+  const [bookWheelRotation, setBookWheelRotation] = useState(0);
+  const [bookWheelResultId, setBookWheelResultId] = useState<string | null>(null);
+  const [bookWheelLastId, setBookWheelLastId] = useState<string | null>(null);
+  const [bookWheelShuffleNonce, setBookWheelShuffleNonce] = useState(0);
+  const [pendingRevealBookId, setPendingRevealBookId] = useState<string | null>(null);
+  const bookWheelSpinTimeoutRef = useRef<number | null>(null);
 
   const readingQuery = useQuery({
     queryKey,
@@ -498,6 +511,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const videoSearchTerm = normalizeSearchText(videoSearch);
   const broadcastingSearchTerm = normalizeSearchText(broadcastingSearch);
   const articleSearchTerm = normalizeSearchText(articleSearch);
+  const bookSearchTerm = normalizeSearchText(bookSearch);
   const filteredPendingIssues = useMemo(() => {
     if (!despertaiSearchTerm) return data.despertai.pendingIssues;
     return data.despertai.pendingIssues.filter((issue) =>
@@ -546,6 +560,18 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       matchesSearchText(`${video.title} ${video.naturalKey || ""}`, articleSearchTerm)
     );
   }, [data.articleSeries.finishedVideosList, articleSearchTerm]);
+  const filteredPendingBooks = useMemo(() => {
+    if (!bookSearchTerm) return data.books.pendingVideosList;
+    return data.books.pendingVideosList.filter((video) =>
+      matchesSearchText(`${video.title} ${video.naturalKey || ""}`, bookSearchTerm)
+    );
+  }, [data.books.pendingVideosList, bookSearchTerm]);
+  const filteredFinishedBooks = useMemo(() => {
+    if (!bookSearchTerm) return data.books.finishedVideosList;
+    return data.books.finishedVideosList.filter((video) =>
+      matchesSearchText(`${video.title} ${video.naturalKey || ""}`, bookSearchTerm)
+    );
+  }, [data.books.finishedVideosList, bookSearchTerm]);
   const issueWheelFilteredPool = useMemo(() => {
     const minYear = optionalPositiveNumber(issueWheelMinYear);
     const maxYear = optionalPositiveNumber(issueWheelMaxYear);
@@ -577,6 +603,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   }, [data.videos.pendingVideosList, videoWheelMaxMinutes, videoWheelMinMinutes]);
   const broadcastingWheelFilteredPool = data.broadcasting.pendingVideosList;
   const articleWheelFilteredPool = data.articleSeries.pendingVideosList;
+  const bookWheelFilteredPool = data.books.pendingVideosList;
   const issueWheelHasFilters = Boolean(
     issueWheelMinYear || issueWheelMaxYear || issueWheelMinTopics || issueWheelMaxTopics
   );
@@ -749,6 +776,48 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       }) as CSSProperties,
     [articleWheelRotation]
   );
+  const bookWheelEligibleItems = useMemo(() => {
+    const pending = bookWheelFilteredPool;
+    if (!bookWheelLastId || pending.length <= 1) return pending;
+    const filtered = pending.filter((video) => video.id !== bookWheelLastId);
+    return filtered.length ? filtered : pending;
+  }, [bookWheelFilteredPool, bookWheelLastId]);
+  const bookWheelOrderedItems = useMemo(() => {
+    const sorted = [...bookWheelEligibleItems].sort((a, b) => a.id.localeCompare(b.id));
+    if (sorted.length <= 1) return sorted;
+    const seed = hashWheelSeed(
+      `${bookWheelShuffleNonce}:${sorted.map((video) => video.id).join("|")}`
+    );
+    return shuffleWithSeed(sorted, seed);
+  }, [bookWheelEligibleItems, bookWheelShuffleNonce]);
+  const bookWheelSegments = useMemo<VideoWheelSegment[]>(() => {
+    if (!bookWheelOrderedItems.length) return [];
+    const span = 360 / bookWheelOrderedItems.length;
+    return bookWheelOrderedItems.map((video, index) => {
+      const startAngle = index * span;
+      const endAngle = startAngle + span;
+      return {
+        video,
+        startAngle,
+        endAngle,
+        midAngle: startAngle + span / 2,
+        span,
+        color: DESPERTAI_WHEEL_COLORS[index % DESPERTAI_WHEEL_COLORS.length],
+      };
+    });
+  }, [bookWheelOrderedItems]);
+  const bookWheelResult = useMemo(
+    () => data.books.pendingVideosList.find((video) => video.id === bookWheelResultId) || null,
+    [data.books.pendingVideosList, bookWheelResultId]
+  );
+  const bookWheelRotorStyle = useMemo(
+    () =>
+      ({
+        transform: `rotate(${bookWheelRotation}deg)`,
+        transition: `transform ${DESPERTAI_WHEEL_SPIN_DURATION_MS}ms cubic-bezier(0.12, 0.88, 0.16, 1)`,
+      }) as CSSProperties,
+    [bookWheelRotation]
+  );
 
   useEffect(() => {
     if (wheelResultIssueId && !issueWheelFilteredPool.some((issue) => issue.id === wheelResultIssueId)) {
@@ -781,6 +850,15 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   }, [articleWheelFilteredPool, articleWheelResultId]);
 
   useEffect(() => {
+    if (
+      bookWheelResultId &&
+      !bookWheelFilteredPool.some((video) => video.id === bookWheelResultId)
+    ) {
+      setBookWheelResultId(null);
+    }
+  }, [bookWheelFilteredPool, bookWheelResultId]);
+
+  useEffect(() => {
     return () => {
       if (wheelSpinTimeoutRef.current) {
         window.clearTimeout(wheelSpinTimeoutRef.current);
@@ -793,6 +871,9 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       }
       if (articleWheelSpinTimeoutRef.current) {
         window.clearTimeout(articleWheelSpinTimeoutRef.current);
+      }
+      if (bookWheelSpinTimeoutRef.current) {
+        window.clearTimeout(bookWheelSpinTimeoutRef.current);
       }
     };
   }, []);
@@ -884,6 +965,28 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       window.cancelAnimationFrame(secondFrame);
     };
   }, [activeTab, pendingRevealArticleId]);
+
+  useEffect(() => {
+    if (!pendingRevealBookId || activeTab !== "books") {
+      return;
+    }
+
+    let firstFrame = 0;
+    let secondFrame = 0;
+    firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        const target = document.getElementById(readingBookElementId(pendingRevealBookId));
+        if (!target) return;
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        setPendingRevealBookId(null);
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
+  }, [activeTab, pendingRevealBookId]);
 
   const patch = (payload: ReadingPatchPayload) => {
     patchMutation.mutate(payload);
@@ -1115,6 +1218,59 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
     setArticleWheelRotation((current) => current + 45 + Math.floor(Math.random() * 150));
   };
 
+  const revealBookFromWheel = (videoId: string) => {
+    setActiveTab("books");
+    setBookSearch("");
+    setPendingRevealBookId(videoId);
+  };
+
+  const spinBookWheel = () => {
+    if (bookWheelSpinning || !bookWheelSegments.length) return;
+    if (bookWheelSegments.length === 1) {
+      const onlyVideo = bookWheelSegments[0].video;
+      setBookWheelResultId(onlyVideo.id);
+      setBookWheelLastId(onlyVideo.id);
+      revealBookFromWheel(onlyVideo.id);
+      return;
+    }
+
+    const selectedSegment = bookWheelSegments[Math.floor(Math.random() * bookWheelSegments.length)];
+    const safeMargin = Math.min(10, selectedSegment.span * 0.2);
+    const minStop = selectedSegment.startAngle + safeMargin;
+    const maxStop = selectedSegment.endAngle - safeMargin;
+    const stopAngle =
+      maxStop > minStop
+        ? minStop + Math.random() * (maxStop - minStop)
+        : selectedSegment.midAngle;
+    const currentRotation = ((bookWheelRotation % 360) + 360) % 360;
+    const targetRotationMod = (360 - stopAngle + 360) % 360;
+    let delta = targetRotationMod - currentRotation;
+    if (delta < 0) delta += 360;
+    const finalRotation = bookWheelRotation + 1800 + delta;
+
+    setBookWheelResultId(null);
+    setBookWheelSpinning(true);
+    setBookWheelRotation(finalRotation);
+    if (bookWheelSpinTimeoutRef.current) {
+      window.clearTimeout(bookWheelSpinTimeoutRef.current);
+    }
+    bookWheelSpinTimeoutRef.current = window.setTimeout(() => {
+      const resultSegment = findWheelSegmentAtPointer(bookWheelSegments, finalRotation);
+      const resultVideoId = resultSegment?.video.id || selectedSegment.video.id;
+      setBookWheelResultId(resultVideoId);
+      setBookWheelLastId(resultVideoId);
+      setBookWheelSpinning(false);
+      revealBookFromWheel(resultVideoId);
+    }, DESPERTAI_WHEEL_SPIN_DURATION_MS);
+  };
+
+  const shuffleBookWheel = () => {
+    if (bookWheelSpinning) return;
+    setBookWheelShuffleNonce((current) => current + 1);
+    setBookWheelResultId(null);
+    setBookWheelRotation((current) => current + 45 + Math.floor(Math.random() * 150));
+  };
+
   return (
     <div className="card despertai-shell">
       <div className="despertai-tabs" role="tablist" aria-label="Reading sections">
@@ -1145,6 +1301,13 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
           onClick={() => setActiveTab("articles")}
         >
           Série de Artigos
+        </button>
+        <button
+          type="button"
+          className={activeTab === "books" ? "active" : ""}
+          onClick={() => setActiveTab("books")}
+        >
+          Livros
         </button>
         <button
           type="button"
@@ -2247,6 +2410,256 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
               <div className="line-empty">Nenhum artigo encontrado.</div>
             ) : (
               <div className="line-empty">Nenhum artigo lido ainda.</div>
+            )}
+          </section>
+        </section>
+      ) : activeTab === "books" ? (
+        <section className="despertai-tab-panel">
+          <div className="reading-summary-grid">
+            <article className="reading-summary-card main">
+              <ProgressDonut value={data.books.progressPercent} label="livros" />
+              <div>
+                <p className="panel-kicker">Livros</p>
+                <h3>{data.books.finishedVideos}/{data.books.totalVideos} lidos</h3>
+              </div>
+            </article>
+            <article className="reading-summary-card">
+              <span>Pendentes</span>
+              <strong>{data.books.pendingVideos}</strong>
+            </article>
+            <article className="reading-summary-card">
+              <span>Catálogo</span>
+              <strong>WOL</strong>
+            </article>
+          </div>
+
+          <section className="despertai-wheel-card">
+            <div className="activity-wheel-head">
+              <div>
+                <p className="panel-kicker">Roleta</p>
+                <h3>Livros</h3>
+                <p className="activity-wheel-copy">Clique no centro para sortear.</p>
+              </div>
+              <button
+                type="button"
+                className="secondary"
+                onClick={shuffleBookWheel}
+                disabled={bookWheelSpinning || bookWheelOrderedItems.length <= 1}
+              >
+                Embaralhar
+              </button>
+            </div>
+
+            <div className="activity-wheel-controls">
+              <span className="activity-wheel-meta">
+                {bookWheelEligibleItems.length} livros
+              </span>
+            </div>
+
+            <div className="activity-wheel-stage">
+              <div className={`activity-wheel-dial-wrap ${bookWheelSpinning ? "spinning" : ""}`}>
+                <span className="activity-wheel-pointer" aria-hidden="true" />
+                <div className="activity-wheel-dial-shell">
+                  <svg
+                    className="activity-wheel-dial"
+                    viewBox="0 0 260 260"
+                    role="img"
+                    aria-label="Roleta de livros não lidos"
+                  >
+                    <g
+                      className={`activity-wheel-rotor ${bookWheelSpinning ? "spinning" : ""}`}
+                      style={bookWheelRotorStyle}
+                    >
+                      {bookWheelSegments.map((segment) => {
+                        const labelPoint = polar(
+                          DESPERTAI_WHEEL_CENTER,
+                          DESPERTAI_WHEEL_CENTER,
+                          DESPERTAI_WHEEL_LABEL_RADIUS,
+                          segment.midAngle
+                        );
+                        const labelMaxLength =
+                          segment.span >= 72 ? 11 : segment.span >= 45 ? 9 : 8;
+                        const label = truncateWheelLabel(segment.video.title, labelMaxLength);
+                        const canRenderLabel = segment.span >= 24;
+
+                        return (
+                          <g key={segment.video.id}>
+                            <path
+                              d={describeWheelSlice(
+                                DESPERTAI_WHEEL_CENTER,
+                                DESPERTAI_WHEEL_CENTER,
+                                DESPERTAI_WHEEL_RADIUS,
+                                segment.startAngle,
+                                segment.endAngle
+                              )}
+                              className={`activity-wheel-slice ${
+                                !bookWheelSpinning && segment.video.id === bookWheelResultId
+                                  ? "is-result"
+                                  : ""
+                              }`}
+                              style={{ fill: segment.color }}
+                            >
+                              <title>{segment.video.title}</title>
+                            </path>
+                            {canRenderLabel ? (
+                              <text
+                                x={labelPoint.x}
+                                y={labelPoint.y}
+                                className="activity-wheel-slice-label"
+                                dominantBaseline="middle"
+                                textAnchor="middle"
+                              >
+                                {label}
+                              </text>
+                            ) : null}
+                          </g>
+                        );
+                      })}
+                      <circle
+                        cx={DESPERTAI_WHEEL_CENTER}
+                        cy={DESPERTAI_WHEEL_CENTER}
+                        r={DESPERTAI_WHEEL_RADIUS}
+                        className="activity-wheel-rim"
+                      />
+                    </g>
+                    <circle
+                      cx={DESPERTAI_WHEEL_CENTER}
+                      cy={DESPERTAI_WHEEL_CENTER}
+                      r="31"
+                      className="activity-wheel-hub"
+                    />
+                    <circle
+                      cx={DESPERTAI_WHEEL_CENTER}
+                      cy={DESPERTAI_WHEEL_CENTER}
+                      r="6"
+                      className="activity-wheel-hub-dot"
+                    />
+                  </svg>
+                  <button
+                    type="button"
+                    className="activity-wheel-hub-button"
+                    onClick={spinBookWheel}
+                    disabled={bookWheelSpinning || bookWheelEligibleItems.length === 0}
+                    aria-label={
+                      bookWheelSpinning
+                        ? "Roleta girando"
+                        : bookWheelEligibleItems.length === 0
+                          ? "Nenhum livro pendente"
+                          : "Sortear livro"
+                    }
+                  >
+                    {bookWheelSpinning ? "..." : "Girar"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="activity-wheel-result despertai-wheel-result">
+                {bookWheelEligibleItems.length === 0 ? (
+                  <p className="line-empty">Nenhum livro pendente.</p>
+                ) : bookWheelResult ? (
+                  <article className="activity-wheel-result-card despertai-wheel-result-card">
+                    <strong>{bookWheelResult.title}</strong>
+                    <p>{bookWheelResult.naturalKey || "Livro"}</p>
+                    <div className="activity-wheel-result-actions">
+                      <button type="button" className="secondary" onClick={() => revealBookFromWheel(bookWheelResult.id)}>
+                        Ver
+                      </button>
+                      <button
+                        type="button"
+                        className="page-link inline muted"
+                        onClick={spinBookWheel}
+                        disabled={bookWheelSpinning}
+                      >
+                        Sortear de novo
+                      </button>
+                    </div>
+                  </article>
+                ) : (
+                  <article className="activity-wheel-summary-card">
+                    <p className="activity-wheel-summary-title">Na roleta</p>
+                    <ul className="activity-wheel-task-list">
+                      {bookWheelOrderedItems.slice(0, 8).map((video) => (
+                        <li key={video.id} title={video.title}>
+                          <span>{truncateWheelLabel(video.title, 30)}</span>
+                          <small>{video.documentId || "Livro"}</small>
+                        </li>
+                      ))}
+                    </ul>
+                    {bookWheelOrderedItems.length > 8 ? (
+                      <p className="activity-wheel-more">+{bookWheelOrderedItems.length - 8} mais</p>
+                    ) : null}
+                    <p className="activity-wheel-tip">O nome completo aparece depois do sorteio.</p>
+                  </article>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <ReadingSearchField
+            value={bookSearch}
+            onChange={setBookSearch}
+            placeholder="Buscar livro"
+          />
+
+          {bookWheelResult ? (
+            <article className="reading-selected-callout">
+              <span>Sorteado</span>
+              <strong>{bookWheelResult.title}</strong>
+              <button type="button" className="page-link inline muted" onClick={() => revealBookFromWheel(bookWheelResult.id)}>
+                Ver na lista
+              </button>
+            </article>
+          ) : null}
+
+          <section className="despertai-list-section">
+            <div className="despertai-section-title">
+              <h3>Não lidos</h3>
+              <span>{filteredPendingBooks.length}</span>
+            </div>
+            {filteredPendingBooks.length ? (
+              <div className="reading-video-list">
+                {filteredPendingBooks.map((video) => (
+                  <VideoCard
+                    key={video.id}
+                    video={video}
+                    busy={patchMutation.isPending}
+                    onPatch={patch}
+                    selected={bookWheelResultId === video.id}
+                    elementId={readingBookElementId(video.id)}
+                    toggleType="toggle_reading_book"
+                  />
+                ))}
+              </div>
+            ) : bookSearchTerm ? (
+              <div className="line-empty">Nenhum livro encontrado.</div>
+            ) : (
+              <div className="line-empty">Todos os livros foram lidos.</div>
+            )}
+          </section>
+
+          <section className="despertai-list-section">
+            <div className="despertai-section-title">
+              <h3>Lidos</h3>
+              <span>{filteredFinishedBooks.length}</span>
+            </div>
+            {filteredFinishedBooks.length ? (
+              <div className="reading-video-list reading-video-finished-list">
+                {filteredFinishedBooks.map((video) => (
+                  <VideoCard
+                    key={video.id}
+                    video={video}
+                    busy={patchMutation.isPending}
+                    onPatch={patch}
+                    selected={bookWheelResultId === video.id}
+                    elementId={readingBookElementId(video.id)}
+                    toggleType="toggle_reading_book"
+                  />
+                ))}
+              </div>
+            ) : bookSearchTerm ? (
+              <div className="line-empty">Nenhum livro encontrado.</div>
+            ) : (
+              <div className="line-empty">Nenhum livro lido ainda.</div>
             )}
           </section>
         </section>

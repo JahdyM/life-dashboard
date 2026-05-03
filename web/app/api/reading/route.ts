@@ -11,6 +11,7 @@ import {
   setDespertaiIssueReadCount,
   setDespertaiTopicRead,
   setReadingVideoRead,
+  setReadingBookRead,
 } from "@/lib/server/reading";
 import { handleAuthError, jsonError, jsonOk, zodErrorMessage } from "@/lib/server/response";
 import { readingPatchSchema } from "@/lib/server/schemas";
@@ -71,6 +72,9 @@ export async function PATCH(request: NextRequest) {
     }
     if (payload.type === "toggle_article_series") {
       return jsonOk(await setArticleSeriesRead(userEmail, payload.video_id, payload.read));
+    }
+    if (payload.type === "toggle_reading_book") {
+      return jsonOk(await setReadingBookRead(userEmail, payload.video_id, payload.read));
     }
     return jsonOk(
       await setBibleChapterRead(userEmail, payload.book_key, payload.chapter, payload.read)

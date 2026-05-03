@@ -610,6 +610,7 @@ export type ReadingPageData = {
   videos: ReadingVideoSection;
   broadcasting: ReadingVideoSection;
   articleSeries: ReadingVideoSection;
+  books: ReadingVideoSection;
   bible: {
     totalChapters: number;
     readChapters: number;

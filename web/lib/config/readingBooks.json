@@ -1,0 +1,602 @@
+[
+  {
+    "id": "book-syr22",
+    "title": "Relatório Mundial do Ano de Serviço de 2022",
+    "duration_seconds": 0,
+    "natural_key": "Anuários · 2022 · syr22",
+    "document_id": "syr22",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/syr22"
+  },
+  {
+    "id": "book-syr21",
+    "title": "Relatório Mundial do Ano de Serviço de 2021",
+    "duration_seconds": 0,
+    "natural_key": "Anuários · 2021 · syr21",
+    "document_id": "syr21",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/syr21"
+  },
+  {
+    "id": "book-syr20",
+    "title": "Relatório Mundial das Testemunhas de Jeová do Ano de Serviço de 2020",
+    "duration_seconds": 0,
+    "natural_key": "Anuários · 2020 · syr20",
+    "document_id": "syr20",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/syr20"
+  },
+  {
+    "id": "book-syr19",
+    "title": "Relatório Mundial das Testemunhas de Jeová do Ano de Serviço de 2019",
+    "duration_seconds": 0,
+    "natural_key": "Anuários · 2019 · syr19",
+    "document_id": "syr19",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/syr19"
+  },
+  {
+    "id": "book-syr18",
+    "title": "Relatório Mundial das Testemunhas de Jeová do Ano de Serviço de 2018",
+    "duration_seconds": 0,
+    "natural_key": "Anuários · 2018 · syr18",
+    "document_id": "syr18",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/syr18"
+  },
+  {
+    "id": "book-yb17",
+    "title": "Anuário — 2017",
+    "duration_seconds": 0,
+    "natural_key": "Anuários · 2017 · yb17",
+    "document_id": "yb17",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/yb17"
+  },
+  {
+    "id": "book-syr17",
+    "title": "Relatório Mundial das Testemunhas de Jeová do Ano de Serviço de 2017",
+    "duration_seconds": 0,
+    "natural_key": "Anuários · 2017 · syr17",
+    "document_id": "syr17",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/syr17"
+  },
+  {
+    "id": "book-yb16",
+    "title": "Anuário — 2016",
+    "duration_seconds": 0,
+    "natural_key": "Anuários · 2016 · yb16",
+    "document_id": "yb16",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/yb16"
+  },
+  {
+    "id": "book-yb15",
+    "title": "Anuário — 2015",
+    "duration_seconds": 0,
+    "natural_key": "Anuários · 2015 · yb15",
+    "document_id": "yb15",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/yb15"
+  },
+  {
+    "id": "book-yb14",
+    "title": "Anuário — 2014",
+    "duration_seconds": 0,
+    "natural_key": "Anuários · 2014 · yb14",
+    "document_id": "yb14",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/yb14"
+  },
+  {
+    "id": "book-sjj",
+    "title": "Cante de Coração",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2026 · sjj",
+    "document_id": "sjj",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/sjj"
+  },
+  {
+    "id": "book-wcg",
+    "title": "Coragem",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2025 · wcg",
+    "document_id": "wcg",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/wcg"
+  },
+  {
+    "id": "book-scl",
+    "title": "Princípios Bíblicos para a Vida Cristã",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2023 · scl",
+    "document_id": "scl",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/scl"
+  },
+  {
+    "id": "book-bt",
+    "title": "Testemunho Cabal",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2023 · bt",
+    "document_id": "bt",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/bt"
+  },
+  {
+    "id": "book-cf",
+    "title": "‘Venha Ser Meu Seguidor’",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2023 · cf",
+    "document_id": "cf",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/cf"
+  },
+  {
+    "id": "book-cl",
+    "title": "Achegue-se a Jeová",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2022 · cl",
+    "document_id": "cl",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/cl"
+  },
+  {
+    "id": "book-lff",
+    "title": "Seja Feliz para Sempre!",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2021 · lff",
+    "document_id": "lff",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/lff"
+  },
+  {
+    "id": "book-od",
+    "title": "Organizados",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2019 · od",
+    "document_id": "od",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/od"
+  },
+  {
+    "id": "book-rr",
+    "title": "Adoração Pura",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2018 · rr",
+    "document_id": "rr",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/rr"
+  },
+  {
+    "id": "book-lvs",
+    "title": "Continue",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2018 · lvs",
+    "document_id": "lvs",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/lvs"
+  },
+  {
+    "id": "book-lfb",
+    "title": "Histórias da Bíblia",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2017 · lfb",
+    "document_id": "lfb",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/lfb"
+  },
+  {
+    "id": "book-snnw",
+    "title": "Cantemos a Jeová — Novos Cânticos",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2016 · snnw",
+    "document_id": "snnw",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/snnw"
+  },
+  {
+    "id": "book-bhs",
+    "title": "Entenda a Bíblia",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2016 · bhs",
+    "document_id": "bhs",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/bhs"
+  },
+  {
+    "id": "book-bh",
+    "title": "Bíblia Ensina",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2015 · bh",
+    "document_id": "bh",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/bh"
+  },
+  {
+    "id": "book-jy",
+    "title": "Jesus — o Caminho",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2015 · jy",
+    "document_id": "jy",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/jy"
+  },
+  {
+    "id": "book-lv",
+    "title": "‘Mantenha-se’",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2015 · lv",
+    "document_id": "lv",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/lv"
+  },
+  {
+    "id": "book-kr",
+    "title": "O Reino de Deus já Governa!",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2014 · kr",
+    "document_id": "kr",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/kr"
+  },
+  {
+    "id": "book-ia",
+    "title": "Imite",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2013 · ia",
+    "document_id": "ia",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/ia"
+  },
+  {
+    "id": "book-yp1",
+    "title": "Os Jovens Perguntam 1",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2011 · yp1",
+    "document_id": "yp1",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/yp1"
+  },
+  {
+    "id": "book-jr",
+    "title": "Jeremias",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2010 · jr",
+    "document_id": "jr",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/jr"
+  },
+  {
+    "id": "book-sn",
+    "title": "Cantemos a Jeová",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2009 · sn",
+    "document_id": "sn",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/sn"
+  },
+  {
+    "id": "book-yp2",
+    "title": "Os Jovens Perguntam 2",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2008 · yp2",
+    "document_id": "yp2",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/yp2"
+  },
+  {
+    "id": "book-jd",
+    "title": "Dia de Jeová",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2006 · jd",
+    "document_id": "jd",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/jd"
+  },
+  {
+    "id": "book-my",
+    "title": "Histórias Bíblicas",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2004 · my",
+    "document_id": "my",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/my"
+  },
+  {
+    "id": "book-lr",
+    "title": "Instrutor",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2003 · lr",
+    "document_id": "lr",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/lr"
+  },
+  {
+    "id": "book-wt",
+    "title": "Adore a Deus",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2002 · wt",
+    "document_id": "wt",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/wt"
+  },
+  {
+    "id": "book-be",
+    "title": "Beneficie-se",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2002 · be",
+    "document_id": "be",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/be"
+  },
+  {
+    "id": "book-ip-2",
+    "title": "Profecia de Isaías II",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2001 · ip-2",
+    "document_id": "ip-2",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/ip-2"
+  },
+  {
+    "id": "book-ip-1",
+    "title": "Profecia de Isaías I",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 2000 · ip-1",
+    "document_id": "ip-1",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/ip-1"
+  },
+  {
+    "id": "book-dp",
+    "title": "Profecia de Daniel",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1999 · dp",
+    "document_id": "dp",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/dp"
+  },
+  {
+    "id": "book-ct",
+    "title": "Criador",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1998 · ct",
+    "document_id": "ct",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/ct"
+  },
+  {
+    "id": "book-fy",
+    "title": "Família Feliz",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1996 · fy",
+    "document_id": "fy",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/fy"
+  },
+  {
+    "id": "book-kl",
+    "title": "Conhecimento",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1995 · kl",
+    "document_id": "kl",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/kl"
+  },
+  {
+    "id": "book-jv",
+    "title": "Proclamadores",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1993 · jv",
+    "document_id": "jv",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/jv"
+  },
+  {
+    "id": "book-sg",
+    "title": "Manual da Escola",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1992 · sg",
+    "document_id": "sg",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/sg"
+  },
+  {
+    "id": "book-gt",
+    "title": "O Maior Homem",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1991 · gt",
+    "document_id": "gt",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/gt"
+  },
+  {
+    "id": "book-sh",
+    "title": "Busca de Deus",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1990 · sh",
+    "document_id": "sh",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/sh"
+  },
+  {
+    "id": "book-re",
+    "title": "Clímax de Revelação",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1989 · re",
+    "document_id": "re",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/re"
+  },
+  {
+    "id": "book-yp",
+    "title": "Os Jovens Perguntam",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1989 · yp",
+    "document_id": "yp",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/yp"
+  },
+  {
+    "id": "book-gm",
+    "title": "Palavra de Deus",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1989 · gm",
+    "document_id": "gm",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/gm"
+  },
+  {
+    "id": "book-pe",
+    "title": "Viver Para Sempre",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1989 · pe",
+    "document_id": "pe",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/pe"
+  },
+  {
+    "id": "book-ws",
+    "title": "Segurança Mundial",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1986 · ws",
+    "document_id": "ws",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/ws"
+  },
+  {
+    "id": "book-tp",
+    "title": "Verdadeira Paz",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1986 · tp",
+    "document_id": "tp",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/tp"
+  },
+  {
+    "id": "book-ssb",
+    "title": "Cantemos Louvores",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1985 · Ssb",
+    "document_id": "Ssb",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/Ssb"
+  },
+  {
+    "id": "book-ce",
+    "title": "Criação",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1985 · ce",
+    "document_id": "ce",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/ce"
+  },
+  {
+    "id": "book-su",
+    "title": "Sobrevivência",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1984 · su",
+    "document_id": "su",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/su"
+  },
+  {
+    "id": "book-uw",
+    "title": "Unidos",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1983 · uw",
+    "document_id": "uw",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/uw"
+  },
+  {
+    "id": "book-ad",
+    "title": "Ajuda",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1982 · ad",
+    "document_id": "ad",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/ad"
+  },
+  {
+    "id": "book-hp",
+    "title": "Felicidade",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1981 · hp",
+    "document_id": "hp",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/hp"
+  },
+  {
+    "id": "book-kc",
+    "title": "“Venha o Teu Reino”",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1981 · kc",
+    "document_id": "kc",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/kc"
+  },
+  {
+    "id": "book-bw",
+    "title": "Melhor Modo de Vida",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1979 · bw",
+    "document_id": "bw",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/bw"
+  },
+  {
+    "id": "book-fl",
+    "title": "Vida Familiar",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1978 · fl",
+    "document_id": "fl",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/fl"
+  },
+  {
+    "id": "book-lp",
+    "title": "A Vida Tem Objetivo",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1977 · lp",
+    "document_id": "lp",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/lp"
+  },
+  {
+    "id": "book-gh",
+    "title": "Boas Novas",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1977 · gh",
+    "document_id": "gh",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/gh"
+  },
+  {
+    "id": "book-go",
+    "title": "Governo Mundial",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1977 · go",
+    "document_id": "go",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/go"
+  },
+  {
+    "id": "book-hs",
+    "title": "Espírito Santo",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1976 · hs",
+    "document_id": "hs",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/hs"
+  },
+  {
+    "id": "book-yy",
+    "title": "Juventude",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1976 · yy",
+    "document_id": "yy",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/yy"
+  },
+  {
+    "id": "book-sl",
+    "title": "Salvação do Homem",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1976 · sl",
+    "document_id": "sl",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/sl"
+  },
+  {
+    "id": "book-po",
+    "title": "“Propósito Eterno”",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1976 · po",
+    "document_id": "po",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/po"
+  },
+  {
+    "id": "book-ka",
+    "title": "O Reino de Deus de Mil Anos",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1975 · ka",
+    "document_id": "ka",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/ka"
+  },
+  {
+    "id": "book-ts",
+    "title": "É Esta Vida?",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1975 · ts",
+    "document_id": "ts",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/ts"
+  },
+  {
+    "id": "book-pm",
+    "title": "Paraíso Restabelecido",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1974 · pm",
+    "document_id": "pm",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/pm"
+  },
+  {
+    "id": "book-tp73",
+    "title": "Paz e Segurança",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1973 · tp73",
+    "document_id": "tp73",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/tp73"
+  },
+  {
+    "id": "book-kj",
+    "title": "“As Nações Terão de Saber”",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1973 · kj",
+    "document_id": "kj",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/kj"
+  },
+  {
+    "id": "book-te",
+    "title": "Grande Instrutor",
+    "duration_seconds": 0,
+    "natural_key": "Livros · 1972 · te",
+    "document_id": "te",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/te"
+  }
+]
