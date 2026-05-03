@@ -16,6 +16,7 @@ type ReadingPatchPayload =
   | { type: "toggle_broadcasting_video"; video_id: string; read: boolean }
   | { type: "toggle_article_series"; video_id: string; read: boolean }
   | { type: "toggle_reading_book"; video_id: string; read: boolean }
+  | { type: "toggle_tract"; video_id: string; read: boolean }
   | { type: "toggle_bible_chapter"; book_key: string; chapter: number; read: boolean };
 
 type DespertaiClientProps = {
@@ -179,6 +180,10 @@ function readingBookElementId(videoId: string) {
   return `reading-book-${videoId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 }
 
+function tractElementId(videoId: string) {
+  return `tract-${videoId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+}
+
 function formatDuration(seconds: number) {
   const total = Math.max(0, Math.round(seconds));
   const hours = Math.floor(total / 3600);
@@ -332,7 +337,12 @@ function VideoCard({
   busy: boolean;
   selected: boolean;
   elementId: string;
-  toggleType: "toggle_reading_video" | "toggle_broadcasting_video" | "toggle_article_series" | "toggle_reading_book";
+  toggleType:
+    | "toggle_reading_video"
+    | "toggle_broadcasting_video"
+    | "toggle_article_series"
+    | "toggle_reading_book"
+    | "toggle_tract";
 }) {
   return (
     <article
@@ -421,13 +431,14 @@ function WheelFilterField({
 
 export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"despertai" | "videos" | "broadcasting" | "articles" | "books" | "bible">("despertai");
+  const [activeTab, setActiveTab] = useState<"despertai" | "videos" | "broadcasting" | "articles" | "books" | "tracts" | "bible">("despertai");
   const [importText, setImportText] = useState("");
   const [despertaiSearch, setDespertaiSearch] = useState("");
   const [videoSearch, setVideoSearch] = useState("");
   const [broadcastingSearch, setBroadcastingSearch] = useState("");
   const [articleSearch, setArticleSearch] = useState("");
   const [bookSearch, setBookSearch] = useState("");
+  const [tractSearch, setTractSearch] = useState("");
   const [issueWheelMinYear, setIssueWheelMinYear] = useState("");
   const [issueWheelMaxYear, setIssueWheelMaxYear] = useState("");
   const [issueWheelMinTopics, setIssueWheelMinTopics] = useState("");
@@ -471,6 +482,13 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const [bookWheelShuffleNonce, setBookWheelShuffleNonce] = useState(0);
   const [pendingRevealBookId, setPendingRevealBookId] = useState<string | null>(null);
   const bookWheelSpinTimeoutRef = useRef<number | null>(null);
+  const [tractWheelSpinning, setTractWheelSpinning] = useState(false);
+  const [tractWheelRotation, setTractWheelRotation] = useState(0);
+  const [tractWheelResultId, setTractWheelResultId] = useState<string | null>(null);
+  const [tractWheelLastId, setTractWheelLastId] = useState<string | null>(null);
+  const [tractWheelShuffleNonce, setTractWheelShuffleNonce] = useState(0);
+  const [pendingRevealTractId, setPendingRevealTractId] = useState<string | null>(null);
+  const tractWheelSpinTimeoutRef = useRef<number | null>(null);
 
   const readingQuery = useQuery({
     queryKey,
@@ -512,6 +530,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const broadcastingSearchTerm = normalizeSearchText(broadcastingSearch);
   const articleSearchTerm = normalizeSearchText(articleSearch);
   const bookSearchTerm = normalizeSearchText(bookSearch);
+  const tractSearchTerm = normalizeSearchText(tractSearch);
   const filteredPendingIssues = useMemo(() => {
     if (!despertaiSearchTerm) return data.despertai.pendingIssues;
     return data.despertai.pendingIssues.filter((issue) =>
@@ -572,6 +591,18 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       matchesSearchText(`${video.title} ${video.naturalKey || ""}`, bookSearchTerm)
     );
   }, [data.books.finishedVideosList, bookSearchTerm]);
+  const filteredPendingTracts = useMemo(() => {
+    if (!tractSearchTerm) return data.tracts.pendingVideosList;
+    return data.tracts.pendingVideosList.filter((video) =>
+      matchesSearchText(`${video.title} ${video.naturalKey || ""}`, tractSearchTerm)
+    );
+  }, [data.tracts.pendingVideosList, tractSearchTerm]);
+  const filteredFinishedTracts = useMemo(() => {
+    if (!tractSearchTerm) return data.tracts.finishedVideosList;
+    return data.tracts.finishedVideosList.filter((video) =>
+      matchesSearchText(`${video.title} ${video.naturalKey || ""}`, tractSearchTerm)
+    );
+  }, [data.tracts.finishedVideosList, tractSearchTerm]);
   const issueWheelFilteredPool = useMemo(() => {
     const minYear = optionalPositiveNumber(issueWheelMinYear);
     const maxYear = optionalPositiveNumber(issueWheelMaxYear);
@@ -604,6 +635,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const broadcastingWheelFilteredPool = data.broadcasting.pendingVideosList;
   const articleWheelFilteredPool = data.articleSeries.pendingVideosList;
   const bookWheelFilteredPool = data.books.pendingVideosList;
+  const tractWheelFilteredPool = data.tracts.pendingVideosList;
   const issueWheelHasFilters = Boolean(
     issueWheelMinYear || issueWheelMaxYear || issueWheelMinTopics || issueWheelMaxTopics
   );
@@ -818,6 +850,48 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       }) as CSSProperties,
     [bookWheelRotation]
   );
+  const tractWheelEligibleItems = useMemo(() => {
+    const pending = tractWheelFilteredPool;
+    if (!tractWheelLastId || pending.length <= 1) return pending;
+    const filtered = pending.filter((video) => video.id !== tractWheelLastId);
+    return filtered.length ? filtered : pending;
+  }, [tractWheelFilteredPool, tractWheelLastId]);
+  const tractWheelOrderedItems = useMemo(() => {
+    const sorted = [...tractWheelEligibleItems].sort((a, b) => a.id.localeCompare(b.id));
+    if (sorted.length <= 1) return sorted;
+    const seed = hashWheelSeed(
+      `${tractWheelShuffleNonce}:${sorted.map((video) => video.id).join("|")}`
+    );
+    return shuffleWithSeed(sorted, seed);
+  }, [tractWheelEligibleItems, tractWheelShuffleNonce]);
+  const tractWheelSegments = useMemo<VideoWheelSegment[]>(() => {
+    if (!tractWheelOrderedItems.length) return [];
+    const span = 360 / tractWheelOrderedItems.length;
+    return tractWheelOrderedItems.map((video, index) => {
+      const startAngle = index * span;
+      const endAngle = startAngle + span;
+      return {
+        video,
+        startAngle,
+        endAngle,
+        midAngle: startAngle + span / 2,
+        span,
+        color: DESPERTAI_WHEEL_COLORS[index % DESPERTAI_WHEEL_COLORS.length],
+      };
+    });
+  }, [tractWheelOrderedItems]);
+  const tractWheelResult = useMemo(
+    () => data.tracts.pendingVideosList.find((video) => video.id === tractWheelResultId) || null,
+    [data.tracts.pendingVideosList, tractWheelResultId]
+  );
+  const tractWheelRotorStyle = useMemo(
+    () =>
+      ({
+        transform: `rotate(${tractWheelRotation}deg)`,
+        transition: `transform ${DESPERTAI_WHEEL_SPIN_DURATION_MS}ms cubic-bezier(0.12, 0.88, 0.16, 1)`,
+      }) as CSSProperties,
+    [tractWheelRotation]
+  );
 
   useEffect(() => {
     if (wheelResultIssueId && !issueWheelFilteredPool.some((issue) => issue.id === wheelResultIssueId)) {
@@ -859,6 +933,15 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   }, [bookWheelFilteredPool, bookWheelResultId]);
 
   useEffect(() => {
+    if (
+      tractWheelResultId &&
+      !tractWheelFilteredPool.some((video) => video.id === tractWheelResultId)
+    ) {
+      setTractWheelResultId(null);
+    }
+  }, [tractWheelFilteredPool, tractWheelResultId]);
+
+  useEffect(() => {
     return () => {
       if (wheelSpinTimeoutRef.current) {
         window.clearTimeout(wheelSpinTimeoutRef.current);
@@ -874,6 +957,9 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       }
       if (bookWheelSpinTimeoutRef.current) {
         window.clearTimeout(bookWheelSpinTimeoutRef.current);
+      }
+      if (tractWheelSpinTimeoutRef.current) {
+        window.clearTimeout(tractWheelSpinTimeoutRef.current);
       }
     };
   }, []);
@@ -987,6 +1073,28 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       window.cancelAnimationFrame(secondFrame);
     };
   }, [activeTab, pendingRevealBookId]);
+
+  useEffect(() => {
+    if (!pendingRevealTractId || activeTab !== "tracts") {
+      return;
+    }
+
+    let firstFrame = 0;
+    let secondFrame = 0;
+    firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        const target = document.getElementById(tractElementId(pendingRevealTractId));
+        if (!target) return;
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        setPendingRevealTractId(null);
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
+  }, [activeTab, pendingRevealTractId]);
 
   const patch = (payload: ReadingPatchPayload) => {
     patchMutation.mutate(payload);
@@ -1271,6 +1379,59 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
     setBookWheelRotation((current) => current + 45 + Math.floor(Math.random() * 150));
   };
 
+  const revealTractFromWheel = (videoId: string) => {
+    setActiveTab("tracts");
+    setTractSearch("");
+    setPendingRevealTractId(videoId);
+  };
+
+  const spinTractWheel = () => {
+    if (tractWheelSpinning || !tractWheelSegments.length) return;
+    if (tractWheelSegments.length === 1) {
+      const onlyVideo = tractWheelSegments[0].video;
+      setTractWheelResultId(onlyVideo.id);
+      setTractWheelLastId(onlyVideo.id);
+      revealTractFromWheel(onlyVideo.id);
+      return;
+    }
+
+    const selectedSegment = tractWheelSegments[Math.floor(Math.random() * tractWheelSegments.length)];
+    const safeMargin = Math.min(10, selectedSegment.span * 0.2);
+    const minStop = selectedSegment.startAngle + safeMargin;
+    const maxStop = selectedSegment.endAngle - safeMargin;
+    const stopAngle =
+      maxStop > minStop
+        ? minStop + Math.random() * (maxStop - minStop)
+        : selectedSegment.midAngle;
+    const currentRotation = ((tractWheelRotation % 360) + 360) % 360;
+    const targetRotationMod = (360 - stopAngle + 360) % 360;
+    let delta = targetRotationMod - currentRotation;
+    if (delta < 0) delta += 360;
+    const finalRotation = tractWheelRotation + 1800 + delta;
+
+    setTractWheelResultId(null);
+    setTractWheelSpinning(true);
+    setTractWheelRotation(finalRotation);
+    if (tractWheelSpinTimeoutRef.current) {
+      window.clearTimeout(tractWheelSpinTimeoutRef.current);
+    }
+    tractWheelSpinTimeoutRef.current = window.setTimeout(() => {
+      const resultSegment = findWheelSegmentAtPointer(tractWheelSegments, finalRotation);
+      const resultVideoId = resultSegment?.video.id || selectedSegment.video.id;
+      setTractWheelResultId(resultVideoId);
+      setTractWheelLastId(resultVideoId);
+      setTractWheelSpinning(false);
+      revealTractFromWheel(resultVideoId);
+    }, DESPERTAI_WHEEL_SPIN_DURATION_MS);
+  };
+
+  const shuffleTractWheel = () => {
+    if (tractWheelSpinning) return;
+    setTractWheelShuffleNonce((current) => current + 1);
+    setTractWheelResultId(null);
+    setTractWheelRotation((current) => current + 45 + Math.floor(Math.random() * 150));
+  };
+
   return (
     <div className="card despertai-shell">
       <div className="despertai-tabs" role="tablist" aria-label="Reading sections">
@@ -1308,6 +1469,13 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
           onClick={() => setActiveTab("books")}
         >
           Livros
+        </button>
+        <button
+          type="button"
+          className={activeTab === "tracts" ? "active" : ""}
+          onClick={() => setActiveTab("tracts")}
+        >
+          Folhetos
         </button>
         <button
           type="button"
@@ -2660,6 +2828,256 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
               <div className="line-empty">Nenhum livro encontrado.</div>
             ) : (
               <div className="line-empty">Nenhum livro lido ainda.</div>
+            )}
+          </section>
+        </section>
+      ) : activeTab === "tracts" ? (
+        <section className="despertai-tab-panel">
+          <div className="reading-summary-grid">
+            <article className="reading-summary-card main">
+              <ProgressDonut value={data.tracts.progressPercent} label="folhetos" />
+              <div>
+                <p className="panel-kicker">Folhetos</p>
+                <h3>{data.tracts.finishedVideos}/{data.tracts.totalVideos} lidos</h3>
+              </div>
+            </article>
+            <article className="reading-summary-card">
+              <span>Pendentes</span>
+              <strong>{data.tracts.pendingVideos}</strong>
+            </article>
+            <article className="reading-summary-card">
+              <span>Inclui</span>
+              <strong>Reino</strong>
+            </article>
+          </div>
+
+          <section className="despertai-wheel-card">
+            <div className="activity-wheel-head">
+              <div>
+                <p className="panel-kicker">Roleta</p>
+                <h3>Folhetos</h3>
+                <p className="activity-wheel-copy">Clique no centro para sortear.</p>
+              </div>
+              <button
+                type="button"
+                className="secondary"
+                onClick={shuffleTractWheel}
+                disabled={tractWheelSpinning || tractWheelOrderedItems.length <= 1}
+              >
+                Embaralhar
+              </button>
+            </div>
+
+            <div className="activity-wheel-controls">
+              <span className="activity-wheel-meta">
+                {tractWheelEligibleItems.length} itens
+              </span>
+            </div>
+
+            <div className="activity-wheel-stage">
+              <div className={`activity-wheel-dial-wrap ${tractWheelSpinning ? "spinning" : ""}`}>
+                <span className="activity-wheel-pointer" aria-hidden="true" />
+                <div className="activity-wheel-dial-shell">
+                  <svg
+                    className="activity-wheel-dial"
+                    viewBox="0 0 260 260"
+                    role="img"
+                    aria-label="Roleta de folhetos não lidos"
+                  >
+                    <g
+                      className={`activity-wheel-rotor ${tractWheelSpinning ? "spinning" : ""}`}
+                      style={tractWheelRotorStyle}
+                    >
+                      {tractWheelSegments.map((segment) => {
+                        const labelPoint = polar(
+                          DESPERTAI_WHEEL_CENTER,
+                          DESPERTAI_WHEEL_CENTER,
+                          DESPERTAI_WHEEL_LABEL_RADIUS,
+                          segment.midAngle
+                        );
+                        const labelMaxLength =
+                          segment.span >= 72 ? 11 : segment.span >= 45 ? 9 : 8;
+                        const label = truncateWheelLabel(segment.video.title, labelMaxLength);
+                        const canRenderLabel = segment.span >= 24;
+
+                        return (
+                          <g key={segment.video.id}>
+                            <path
+                              d={describeWheelSlice(
+                                DESPERTAI_WHEEL_CENTER,
+                                DESPERTAI_WHEEL_CENTER,
+                                DESPERTAI_WHEEL_RADIUS,
+                                segment.startAngle,
+                                segment.endAngle
+                              )}
+                              className={`activity-wheel-slice ${
+                                !tractWheelSpinning && segment.video.id === tractWheelResultId
+                                  ? "is-result"
+                                  : ""
+                              }`}
+                              style={{ fill: segment.color }}
+                            >
+                              <title>{segment.video.title}</title>
+                            </path>
+                            {canRenderLabel ? (
+                              <text
+                                x={labelPoint.x}
+                                y={labelPoint.y}
+                                className="activity-wheel-slice-label"
+                                dominantBaseline="middle"
+                                textAnchor="middle"
+                              >
+                                {label}
+                              </text>
+                            ) : null}
+                          </g>
+                        );
+                      })}
+                      <circle
+                        cx={DESPERTAI_WHEEL_CENTER}
+                        cy={DESPERTAI_WHEEL_CENTER}
+                        r={DESPERTAI_WHEEL_RADIUS}
+                        className="activity-wheel-rim"
+                      />
+                    </g>
+                    <circle
+                      cx={DESPERTAI_WHEEL_CENTER}
+                      cy={DESPERTAI_WHEEL_CENTER}
+                      r="31"
+                      className="activity-wheel-hub"
+                    />
+                    <circle
+                      cx={DESPERTAI_WHEEL_CENTER}
+                      cy={DESPERTAI_WHEEL_CENTER}
+                      r="6"
+                      className="activity-wheel-hub-dot"
+                    />
+                  </svg>
+                  <button
+                    type="button"
+                    className="activity-wheel-hub-button"
+                    onClick={spinTractWheel}
+                    disabled={tractWheelSpinning || tractWheelEligibleItems.length === 0}
+                    aria-label={
+                      tractWheelSpinning
+                        ? "Roleta girando"
+                        : tractWheelEligibleItems.length === 0
+                          ? "Nenhum folheto pendente"
+                          : "Sortear folheto"
+                    }
+                  >
+                    {tractWheelSpinning ? "..." : "Girar"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="activity-wheel-result despertai-wheel-result">
+                {tractWheelEligibleItems.length === 0 ? (
+                  <p className="line-empty">Nenhum folheto pendente.</p>
+                ) : tractWheelResult ? (
+                  <article className="activity-wheel-result-card despertai-wheel-result-card">
+                    <strong>{tractWheelResult.title}</strong>
+                    <p>{tractWheelResult.naturalKey || "Folheto"}</p>
+                    <div className="activity-wheel-result-actions">
+                      <button type="button" className="secondary" onClick={() => revealTractFromWheel(tractWheelResult.id)}>
+                        Ver
+                      </button>
+                      <button
+                        type="button"
+                        className="page-link inline muted"
+                        onClick={spinTractWheel}
+                        disabled={tractWheelSpinning}
+                      >
+                        Sortear de novo
+                      </button>
+                    </div>
+                  </article>
+                ) : (
+                  <article className="activity-wheel-summary-card">
+                    <p className="activity-wheel-summary-title">Na roleta</p>
+                    <ul className="activity-wheel-task-list">
+                      {tractWheelOrderedItems.slice(0, 8).map((video) => (
+                        <li key={video.id} title={video.title}>
+                          <span>{truncateWheelLabel(video.title, 30)}</span>
+                          <small>{video.documentId || "Folheto"}</small>
+                        </li>
+                      ))}
+                    </ul>
+                    {tractWheelOrderedItems.length > 8 ? (
+                      <p className="activity-wheel-more">+{tractWheelOrderedItems.length - 8} mais</p>
+                    ) : null}
+                    <p className="activity-wheel-tip">O nome completo aparece depois do sorteio.</p>
+                  </article>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <ReadingSearchField
+            value={tractSearch}
+            onChange={setTractSearch}
+            placeholder="Buscar folheto"
+          />
+
+          {tractWheelResult ? (
+            <article className="reading-selected-callout">
+              <span>Sorteado</span>
+              <strong>{tractWheelResult.title}</strong>
+              <button type="button" className="page-link inline muted" onClick={() => revealTractFromWheel(tractWheelResult.id)}>
+                Ver na lista
+              </button>
+            </article>
+          ) : null}
+
+          <section className="despertai-list-section">
+            <div className="despertai-section-title">
+              <h3>Não lidos</h3>
+              <span>{filteredPendingTracts.length}</span>
+            </div>
+            {filteredPendingTracts.length ? (
+              <div className="reading-video-list">
+                {filteredPendingTracts.map((video) => (
+                  <VideoCard
+                    key={video.id}
+                    video={video}
+                    busy={patchMutation.isPending}
+                    onPatch={patch}
+                    selected={tractWheelResultId === video.id}
+                    elementId={tractElementId(video.id)}
+                    toggleType="toggle_tract"
+                  />
+                ))}
+              </div>
+            ) : tractSearchTerm ? (
+              <div className="line-empty">Nenhum folheto encontrado.</div>
+            ) : (
+              <div className="line-empty">Todos os folhetos foram lidos.</div>
+            )}
+          </section>
+
+          <section className="despertai-list-section">
+            <div className="despertai-section-title">
+              <h3>Lidos</h3>
+              <span>{filteredFinishedTracts.length}</span>
+            </div>
+            {filteredFinishedTracts.length ? (
+              <div className="reading-video-list reading-video-finished-list">
+                {filteredFinishedTracts.map((video) => (
+                  <VideoCard
+                    key={video.id}
+                    video={video}
+                    busy={patchMutation.isPending}
+                    onPatch={patch}
+                    selected={tractWheelResultId === video.id}
+                    elementId={tractElementId(video.id)}
+                    toggleType="toggle_tract"
+                  />
+                ))}
+              </div>
+            ) : tractSearchTerm ? (
+              <div className="line-empty">Nenhum folheto encontrado.</div>
+            ) : (
+              <div className="line-empty">Nenhum folheto lido ainda.</div>
             )}
           </section>
         </section>

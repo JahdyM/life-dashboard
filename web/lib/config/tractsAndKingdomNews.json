@@ -1,0 +1,322 @@
+[
+  {
+    "id": "tract-t-god",
+    "title": "Deus",
+    "duration_seconds": 0,
+    "natural_key": "Folhetos · 2025 · T-god",
+    "document_id": "T-god",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/T-god"
+  },
+  {
+    "id": "tract-t-fam",
+    "title": "Família",
+    "duration_seconds": 0,
+    "natural_key": "Folhetos · 2025 · T-fam",
+    "document_id": "T-fam",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/T-fam"
+  },
+  {
+    "id": "tract-t-ftr",
+    "title": "Futuro",
+    "duration_seconds": 0,
+    "natural_key": "Folhetos · 2025 · T-ftr",
+    "document_id": "T-ftr",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/T-ftr"
+  },
+  {
+    "id": "tract-t-jss",
+    "title": "Jesus",
+    "duration_seconds": 0,
+    "natural_key": "Folhetos · 2025 · T-jss",
+    "document_id": "T-jss",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/T-jss"
+  },
+  {
+    "id": "tract-t-dth",
+    "title": "Morte",
+    "duration_seconds": 0,
+    "natural_key": "Folhetos · 2025 · T-dth",
+    "document_id": "T-dth",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/T-dth"
+  },
+  {
+    "id": "tract-t-pry",
+    "title": "Oração",
+    "duration_seconds": 0,
+    "natural_key": "Folhetos · 2025 · T-pry",
+    "document_id": "T-pry",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/T-pry"
+  },
+  {
+    "id": "tract-t-kng",
+    "title": "Reino de Deus",
+    "duration_seconds": 0,
+    "natural_key": "Folhetos · 2025 · T-kng",
+    "document_id": "T-kng",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/T-kng"
+  },
+  {
+    "id": "tract-t-rlg",
+    "title": "Religião",
+    "duration_seconds": 0,
+    "natural_key": "Folhetos · 2025 · T-rlg",
+    "document_id": "T-rlg",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/T-rlg"
+  },
+  {
+    "id": "tract-t-sfr",
+    "title": "Sofrimento",
+    "duration_seconds": 0,
+    "natural_key": "Folhetos · 2025 · T-sfr",
+    "document_id": "T-sfr",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/T-sfr"
+  },
+  {
+    "id": "tract-t-30",
+    "title": "O Que Acha da Bíblia?",
+    "duration_seconds": 0,
+    "natural_key": "Folhetos · 2015 · T-30",
+    "document_id": "T-30",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/T-30"
+  },
+  {
+    "id": "tract-t-31",
+    "title": "O Que Espera do Futuro?",
+    "duration_seconds": 0,
+    "natural_key": "Folhetos · 2015 · T-31",
+    "document_id": "T-31",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/T-31"
+  },
+  {
+    "id": "tract-t-34",
+    "title": "O Sofrimento Vai Acabar?",
+    "duration_seconds": 0,
+    "natural_key": "Folhetos · 2015 · T-34",
+    "document_id": "T-34",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/T-34"
+  },
+  {
+    "id": "tract-t-33",
+    "title": "Quem Controla o Mundo?",
+    "duration_seconds": 0,
+    "natural_key": "Folhetos · 2015 · T-33",
+    "document_id": "T-33",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/T-33"
+  },
+  {
+    "id": "tract-t-36",
+    "title": "Reino",
+    "duration_seconds": 0,
+    "natural_key": "Folhetos · 2015 · T-36",
+    "document_id": "T-36",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/T-36"
+  },
+  {
+    "id": "tract-t-37",
+    "title": "Respostas Importantes",
+    "duration_seconds": 0,
+    "natural_key": "Folhetos · 2015 · T-37",
+    "document_id": "T-37",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/T-37"
+  },
+  {
+    "id": "tract-t-32",
+    "title": "Segredo para uma Família Feliz",
+    "duration_seconds": 0,
+    "natural_key": "Folhetos · 2015 · T-32",
+    "document_id": "T-32",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/T-32"
+  },
+  {
+    "id": "tract-t-35",
+    "title": "Voltar a Viver",
+    "duration_seconds": 0,
+    "natural_key": "Folhetos · 2015 · T-35",
+    "document_id": "T-35",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/T-35"
+  },
+  {
+    "id": "tract-kt",
+    "title": "Conhecer a verdade",
+    "duration_seconds": 0,
+    "natural_key": "Folhetos · 2008 · kt",
+    "document_id": "kt",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/kt"
+  },
+  {
+    "id": "tract-religiao-falsa-kn37",
+    "title": "Religião Falsa",
+    "duration_seconds": 0,
+    "natural_key": "Notícias do Reino · 2006 · religião-falsa-kn37",
+    "document_id": "religião-falsa-kn37",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/folhetos/notícias-do-reino/religião-falsa-kn37"
+  },
+  {
+    "id": "tract-novo-milenio-kn36",
+    "title": "Novo Milênio",
+    "duration_seconds": 0,
+    "natural_key": "Notícias do Reino · 2000 · novo-milênio-kn36",
+    "document_id": "novo-milênio-kn36",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/folhetos/notícias-do-reino/novo-milênio-kn36"
+  },
+  {
+    "id": "tract-todas-as-pessoas-kn35",
+    "title": "Todas as Pessoas",
+    "duration_seconds": 0,
+    "natural_key": "Notícias do Reino · 1997 · todas-as-pessoas-kn35",
+    "document_id": "todas-as-pessoas-kn35",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/folhetos/notícias-do-reino/todas-as-pessoas-kn35"
+  },
+  {
+    "id": "tract-por-que-a-vida-e-tao-cheia-de-problemas-kn34",
+    "title": "Por Que a Vida é Tão Cheia de Problemas?",
+    "duration_seconds": 0,
+    "natural_key": "Notícias do Reino · 1995 · por-que-a-vida-é-tão-cheia-de-problemas-kn34",
+    "document_id": "por-que-a-vida-é-tão-cheia-de-problemas-kn34",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/folhetos/notícias-do-reino/por-que-a-vida-é-tão-cheia-de-problemas-kn34"
+  },
+  {
+    "id": "tract-a-vida-qual-a-sua-origem-kn33",
+    "title": "A Vida — Qual a Sua Origem?",
+    "duration_seconds": 0,
+    "natural_key": "Notícias do Reino · 1985 · a-vida-qual-a-sua-origem-kn33",
+    "document_id": "a-vida-qual-a-sua-origem-kn33",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/folhetos/notícias-do-reino/a-vida-qual-a-sua-origem-kn33"
+  },
+  {
+    "id": "tract-familia-unida-e-feliz-kn32",
+    "title": "Família Unida e Feliz",
+    "duration_seconds": 0,
+    "natural_key": "Notícias do Reino · 1983 · família-unida-e-feliz-kn32",
+    "document_id": "família-unida-e-feliz-kn32",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/folhetos/notícias-do-reino/família-unida-e-feliz-kn32"
+  },
+  {
+    "id": "tract-armagedom-kn31",
+    "title": "Armagedom",
+    "duration_seconds": 0,
+    "natural_key": "Notícias do Reino · 1982 · armagedom-kn31",
+    "document_id": "armagedom-kn31",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/folhetos/notícias-do-reino/armagedom-kn31"
+  },
+  {
+    "id": "tract-planeta-terra-kn30",
+    "title": "Planeta Terra",
+    "duration_seconds": 0,
+    "natural_key": "Notícias do Reino · 1981 · planeta-terra-kn30",
+    "document_id": "planeta-terra-kn30",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/folhetos/notícias-do-reino/planeta-terra-kn30"
+  },
+  {
+    "id": "tract-vida-feliz-kn29",
+    "title": "Vida Feliz",
+    "duration_seconds": 0,
+    "natural_key": "Notícias do Reino · 1981 · vida-feliz-kn29",
+    "document_id": "vida-feliz-kn29",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/folhetos/notícias-do-reino/vida-feliz-kn29"
+  },
+  {
+    "id": "tract-esperanca-kn28",
+    "title": "Esperança",
+    "duration_seconds": 0,
+    "natural_key": "Notícias do Reino · 1980 · esperança-kn28",
+    "document_id": "esperança-kn28",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/folhetos/notícias-do-reino/esperança-kn28"
+  },
+  {
+    "id": "tract-amor-kn27",
+    "title": "Amor",
+    "duration_seconds": 0,
+    "natural_key": "Notícias do Reino · 1979 · amor-kn27",
+    "document_id": "amor-kn27",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/folhetos/notícias-do-reino/amor-kn27"
+  },
+  {
+    "id": "tract-alivio-da-tensao-kn26",
+    "title": "Alívio da Tensão",
+    "duration_seconds": 0,
+    "natural_key": "Notícias do Reino · 1978 · alívio-da-tensão-kn26",
+    "document_id": "alívio-da-tensão-kn26",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/folhetos/notícias-do-reino/alívio-da-tensão-kn26"
+  },
+  {
+    "id": "tract-por-que-existimos-kn25",
+    "title": "Por Que Existimos?",
+    "duration_seconds": 0,
+    "natural_key": "Notícias do Reino · 1978 · por-que-existimos-kn25",
+    "document_id": "por-que-existimos-kn25",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/folhetos/notícias-do-reino/por-que-existimos-kn25"
+  },
+  {
+    "id": "tract-familia-pode-sobreviver-kn24",
+    "title": "Família — Pode Sobreviver?",
+    "duration_seconds": 0,
+    "natural_key": "Notícias do Reino · 1977 · família-pode-sobreviver-kn24",
+    "document_id": "família-pode-sobreviver-kn24",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/folhetos/notícias-do-reino/família-pode-sobreviver-kn24"
+  },
+  {
+    "id": "tract-crime-e-violencia-kn22",
+    "title": "Crime e Violência",
+    "duration_seconds": 0,
+    "natural_key": "Notícias do Reino · 1976 · crime-e-violência-kn22",
+    "document_id": "crime-e-violência-kn22",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/folhetos/notícias-do-reino/crime-e-violência-kn22"
+  },
+  {
+    "id": "tract-sofrimento-kn23",
+    "title": "Sofrimento",
+    "duration_seconds": 0,
+    "natural_key": "Notícias do Reino · 1976 · sofrimento-kn23",
+    "document_id": "sofrimento-kn23",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/folhetos/notícias-do-reino/sofrimento-kn23"
+  },
+  {
+    "id": "tract-boas-noticias-kn20",
+    "title": "Boas Notícias",
+    "duration_seconds": 0,
+    "natural_key": "Notícias do Reino · 1975 · boas-notícias-kn20",
+    "document_id": "boas-notícias-kn20",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/folhetos/notícias-do-reino/boas-notícias-kn20"
+  },
+  {
+    "id": "tract-seu-futuro-kn21",
+    "title": "Seu Futuro",
+    "duration_seconds": 0,
+    "natural_key": "Notícias do Reino · 1975 · seu-futuro-kn21",
+    "document_id": "seu-futuro-kn21",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/folhetos/notícias-do-reino/seu-futuro-kn21"
+  },
+  {
+    "id": "tract-governo-kn18",
+    "title": "Governo",
+    "duration_seconds": 0,
+    "natural_key": "Notícias do Reino · 1974 · governo-kn18",
+    "document_id": "governo-kn18",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/folhetos/notícias-do-reino/governo-kn18"
+  },
+  {
+    "id": "tract-vida-so-isso-kn19",
+    "title": "Vida Só Isso",
+    "duration_seconds": 0,
+    "natural_key": "Notícias do Reino · 1974 · vida-só-isso-kn19",
+    "document_id": "vida-só-isso-kn19",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/folhetos/notícias-do-reino/vida-só-isso-kn19"
+  },
+  {
+    "id": "tract-esgota-se-o-tempo-kn16",
+    "title": "Esgota-se o Tempo",
+    "duration_seconds": 0,
+    "natural_key": "Notícias do Reino · 1973 · esgota-se-o-tempo-kn16",
+    "document_id": "esgota-se-o-tempo-kn16",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/folhetos/notícias-do-reino/esgota-se-o-tempo-kn16"
+  },
+  {
+    "id": "tract-religiao-kn17",
+    "title": "Religião",
+    "duration_seconds": 0,
+    "natural_key": "Notícias do Reino · 1973 · religião-kn17",
+    "document_id": "religião-kn17",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/folhetos/notícias-do-reino/religião-kn17"
+  }
+]

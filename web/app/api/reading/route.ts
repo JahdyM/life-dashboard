@@ -12,6 +12,7 @@ import {
   setDespertaiTopicRead,
   setReadingVideoRead,
   setReadingBookRead,
+  setTractRead,
 } from "@/lib/server/reading";
 import { handleAuthError, jsonError, jsonOk, zodErrorMessage } from "@/lib/server/response";
 import { readingPatchSchema } from "@/lib/server/schemas";
@@ -75,6 +76,9 @@ export async function PATCH(request: NextRequest) {
     }
     if (payload.type === "toggle_reading_book") {
       return jsonOk(await setReadingBookRead(userEmail, payload.video_id, payload.read));
+    }
+    if (payload.type === "toggle_tract") {
+      return jsonOk(await setTractRead(userEmail, payload.video_id, payload.read));
     }
     return jsonOk(
       await setBibleChapterRead(userEmail, payload.book_key, payload.chapter, payload.read)
