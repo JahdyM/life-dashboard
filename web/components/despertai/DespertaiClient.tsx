@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 import InlineActionNotice from "@/components/common/InlineActionNotice";
 import { fetchJson } from "@/lib/client/api";
 import type { DespertaiIssue, ReadingPageData, ReadingVideo } from "@/lib/types";
@@ -231,30 +231,17 @@ function IssueCard({
   onToggleExpanded: (issueId: string) => void;
   selected: boolean;
 }) {
+  const hasTopics = issue.totalTopics > 0;
   return (
     <article
       id={issueElementId(issue.id)}
-      className={`despertai-issue-card ${issue.isFinished ? "finished" : ""} ${selected ? "wheel-selected" : ""}`}
+      className={`despertai-issue-card ${issue.isFinished ? "finished" : ""} ${selected ? "wheel-selected" : ""} ${expanded ? "expanded" : ""}`}
     >
-      <div className="despertai-issue-head">
-        <ProgressDonut value={issue.progressPercent} label="lido" />
-        <div className="despertai-issue-title-block">
-          <p className="panel-kicker">{issue.year}{issue.dateLabel ? ` · ${issue.dateLabel}` : ""}</p>
-          <button
-            type="button"
-            className="despertai-issue-title-button"
-            onClick={() => onToggleExpanded(issue.id)}
-            aria-expanded={expanded}
-          >
-            {issue.title}
-          </button>
-          <p>{issue.readCount}/{issue.totalTopics} tópicos</p>
-          {issue.url ? (
-            <a href={issue.url} target="_blank" rel="noreferrer" className="despertai-source-link">
-              Abrir publicação
-            </a>
-          ) : null}
-        </div>
+      {/* Top meta row: year/date on left, "Lida" toggle on right */}
+      <div className="despertai-issue-meta">
+        <p className="panel-kicker">
+          {issue.year}{issue.dateLabel ? ` · ${issue.dateLabel}` : ""}
+        </p>
         <label className="despertai-read-all">
           <input
             type="checkbox"
@@ -272,30 +259,73 @@ function IssueCard({
         </label>
       </div>
 
-      <label className="despertai-count-field">
-        <span>Tópicos lidos</span>
-        <input
-          type="number"
-          min="0"
-          max={issue.totalTopics}
-          defaultValue={issue.readCount}
-          disabled={busy || issue.totalTopics === 0}
-          onBlur={(event) => {
-            const value = Number(event.currentTarget.value || 0);
-            if (value === issue.readCount) return;
-            onPatch({ type: "set_despertai_read_count", issue_id: issue.id, read_count: value });
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              event.currentTarget.blur();
-            }
-          }}
+      {/* Title + chevron — full-width tap target, clearly toggleable */}
+      <button
+        type="button"
+        className="despertai-issue-toggle"
+        onClick={() => onToggleExpanded(issue.id)}
+        aria-expanded={expanded}
+        aria-controls={`${issueElementId(issue.id)}-topics`}
+      >
+        <span className="despertai-issue-toggle-title">{issue.title}</span>
+        <ChevronDown
+          size={20}
+          className="despertai-issue-toggle-chevron"
+          aria-hidden="true"
         />
-      </label>
+      </button>
+
+      {/* Progress + actions row */}
+      <div className="despertai-issue-progress-row">
+        <div className="despertai-issue-progress-track" aria-hidden="true">
+          <span style={{ width: `${Math.max(0, Math.min(100, issue.progressPercent))}%` }} />
+        </div>
+        <span className="despertai-issue-progress-label">
+          {issue.readCount}/{issue.totalTopics} tópicos
+        </span>
+      </div>
+
+      <div className="despertai-issue-actions">
+        {hasTopics ? (
+          <label className="despertai-count-field">
+            <span>Lidos</span>
+            <input
+              type="number"
+              min="0"
+              max={issue.totalTopics}
+              defaultValue={issue.readCount}
+              disabled={busy}
+              onBlur={(event) => {
+                const value = Number(event.currentTarget.value || 0);
+                if (value === issue.readCount) return;
+                onPatch({ type: "set_despertai_read_count", issue_id: issue.id, read_count: value });
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  event.currentTarget.blur();
+                }
+              }}
+            />
+          </label>
+        ) : null}
+        {issue.url ? (
+          <a
+            href={issue.url}
+            target="_blank"
+            rel="noreferrer"
+            className="despertai-source-link"
+          >
+            Abrir publicação ↗
+          </a>
+        ) : null}
+      </div>
 
       {expanded ? (
-        <div className="despertai-topic-grid">
+        <div
+          id={`${issueElementId(issue.id)}-topics`}
+          className="despertai-topic-grid"
+        >
           {issue.topics.length ? (
             issue.topics.map((topic) => (
               <label key={topic.id} className={`despertai-topic ${topic.read ? "read" : ""}`}>

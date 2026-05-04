@@ -7365,14 +7365,21 @@ textarea:hover {
 
 .despertai-issue-card {
   border: 1px solid rgba(226, 213, 191, 0.13);
-  border-radius: 24px;
+  border-radius: 22px;
   background:
     radial-gradient(circle at top right, rgba(120, 151, 176, 0.1), transparent 56%),
     rgba(255, 255, 255, 0.035);
-  padding: 16px;
-  display: grid;
-  gap: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   scroll-margin-top: 110px;
+}
+
+.despertai-issue-card.expanded {
+  background:
+    radial-gradient(circle at top right, rgba(120, 151, 176, 0.14), transparent 56%),
+    rgba(255, 255, 255, 0.05);
 }
 
 .despertai-issue-card.finished {
@@ -7391,6 +7398,103 @@ textarea:hover {
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 14px;
   align-items: center;
+}
+
+/* New mobile-first issue card structure */
+.despertai-issue-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.despertai-issue-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  margin: 0;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text);
+  text-align: left;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.3;
+  cursor: pointer;
+  /* prevents iOS Safari from interpreting tap as scroll, and removes 300ms tap delay */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(244, 215, 161, 0.18);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.despertai-issue-toggle:hover,
+.despertai-issue-toggle:focus-visible {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(244, 215, 161, 0.32);
+  color: #f3d9a2;
+  outline: none;
+}
+
+.despertai-issue-toggle-title {
+  flex: 1;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.despertai-issue-toggle-chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.2s ease, color 0.15s;
+}
+
+.despertai-issue-card.expanded .despertai-issue-toggle-chevron {
+  transform: rotate(180deg);
+  color: #f3d9a2;
+}
+
+.despertai-issue-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.despertai-issue-progress-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.despertai-issue-progress-track > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #c9a06a, #f3d9a2);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.despertai-issue-progress-label {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.despertai-issue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
 }
 
 .reading-video-list {
@@ -7593,17 +7697,27 @@ textarea:hover {
 
 .despertai-topic-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .despertai-topic {
-  min-height: 42px;
+  min-height: 48px;
   border: 1px solid rgba(226, 213, 191, 0.12);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.025);
-  padding: 9px 10px;
+  padding: 11px 12px;
   color: var(--text);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(143, 191, 122, 0.18);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.despertai-topic:active {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .despertai-topic.read {
@@ -7617,6 +7731,14 @@ textarea:hover {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  line-height: 1.35;
+}
+
+.despertai-topic input[type="checkbox"] {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
 }
 
 .bible-panel .reading-summary-grid {
@@ -7729,6 +7851,50 @@ textarea:hover {
 
   .reading-summary-card.main {
     display: grid;
+  }
+
+  /* --- Issue card mobile layout --- */
+  .despertai-issue-card {
+    padding: 12px 14px;
+    border-radius: 18px;
+  }
+
+  .despertai-issue-toggle {
+    font-size: 16px;
+    padding: 12px;
+    /* Bigger tap target for fingers */
+    min-height: 56px;
+  }
+
+  .despertai-issue-toggle-title {
+    -webkit-line-clamp: 4;
+  }
+
+  .despertai-issue-actions {
+    /* Stack count input and link on small screens */
+    gap: 8px;
+  }
+
+  .despertai-count-field {
+    flex: 1;
+    justify-content: space-between;
+  }
+
+  /* Topics: full-width single column, generous tap targets */
+  .despertai-topic-grid {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .despertai-topic {
+    min-height: 52px;
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+
+  .despertai-topic input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
   }
 
   /* Horizontally scrollable tabs with snap — swipe to navigate categories */
