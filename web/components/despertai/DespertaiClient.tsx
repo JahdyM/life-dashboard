@@ -1061,8 +1061,11 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
     firstFrame = window.requestAnimationFrame(() => {
       secondFrame = window.requestAnimationFrame(() => {
         const target = document.getElementById(videoElementId(pendingRevealVideoId));
-        if (!target) return;
-        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (!target) {
+          setPendingRevealVideoId(null);
+          return;
+        }
+        scrollReadingTargetIntoView(target);
         setPendingRevealVideoId(null);
       });
     });
@@ -1083,8 +1086,11 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
     firstFrame = window.requestAnimationFrame(() => {
       secondFrame = window.requestAnimationFrame(() => {
         const target = document.getElementById(broadcastingElementId(pendingRevealBroadcastingId));
-        if (!target) return;
-        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (!target) {
+          setPendingRevealBroadcastingId(null);
+          return;
+        }
+        scrollReadingTargetIntoView(target);
         setPendingRevealBroadcastingId(null);
       });
     });
@@ -1105,8 +1111,11 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
     firstFrame = window.requestAnimationFrame(() => {
       secondFrame = window.requestAnimationFrame(() => {
         const target = document.getElementById(articleSeriesElementId(pendingRevealArticleId));
-        if (!target) return;
-        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (!target) {
+          setPendingRevealArticleId(null);
+          return;
+        }
+        scrollReadingTargetIntoView(target);
         setPendingRevealArticleId(null);
       });
     });
@@ -1127,8 +1136,11 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
     firstFrame = window.requestAnimationFrame(() => {
       secondFrame = window.requestAnimationFrame(() => {
         const target = document.getElementById(readingBookElementId(pendingRevealBookId));
-        if (!target) return;
-        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (!target) {
+          setPendingRevealBookId(null);
+          return;
+        }
+        scrollReadingTargetIntoView(target);
         setPendingRevealBookId(null);
       });
     });
@@ -1149,8 +1161,11 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
     firstFrame = window.requestAnimationFrame(() => {
       secondFrame = window.requestAnimationFrame(() => {
         const target = document.getElementById(tractElementId(pendingRevealTractId));
-        if (!target) return;
-        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (!target) {
+          setPendingRevealTractId(null);
+          return;
+        }
+        scrollReadingTargetIntoView(target);
         setPendingRevealTractId(null);
       });
     });

@@ -2604,7 +2604,8 @@ button.link.danger {
 }
 
 .activity-wheel-result-actions {
-  display: inline-flex;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
 }
@@ -7313,6 +7314,25 @@ textarea:hover {
 
 .despertai-wheel-card .activity-wheel-dial-wrap {
   width: min(100%, 400px);
+}
+
+/* Force single column on mobile — specificity here is higher than the
+   media-query override on the base .activity-wheel-stage rule, so we
+   need to repeat it scoped to .despertai-wheel-card. */
+@media (max-width: 760px) {
+  .despertai-wheel-card .activity-wheel-stage {
+    grid-template-columns: 1fr;
+    justify-items: stretch;
+  }
+
+  .despertai-wheel-card .activity-wheel-dial-wrap {
+    width: min(100%, 320px);
+    margin-inline: auto;
+  }
+
+  .despertai-wheel-card .activity-wheel-result {
+    width: 100%;
+  }
 }
 
 .despertai-wheel-card .activity-wheel-meta {
