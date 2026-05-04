@@ -2,42 +2,58 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db/prisma";
 import {
+  type DissertationAction,
+  type DissertationDecision,
+  type DissertationDocument,
   type DissertationList,
   type DissertationMilestone,
   type DissertationProject,
+  type DissertationRaidItem,
+  type DissertationStakeholder,
   type DissertationTask,
+  type GovernanceItemStatus,
+  type ImpactLevel,
+  type ProjectStatus,
+  type RaidKind,
+  type TaskPriority,
   type TaskStatus,
   TASK_STATUSES,
 } from "@/lib/dissertation";
 import { dissertationActionSchema, dissertationProjectSchema } from "./schemas";
 
-const STORAGE_KEY_PREFIX = "dissertation_v1";
+const STORAGE_KEY_PREFIX = "dissertation_v2";
+const LEGACY_STORAGE_KEY_PREFIX = "dissertation_v1";
 
 function settingKey(userEmail: string) {
   return `${userEmail.toLowerCase()}::${STORAGE_KEY_PREFIX}`;
+}
+
+function legacySettingKey(userEmail: string) {
+  return `${userEmail.toLowerCase()}::${LEGACY_STORAGE_KEY_PREFIX}`;
 }
 
 function nowIso() {
   return new Date().toISOString();
 }
 
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function newId() {
   return randomUUID().replace(/-/g, "");
 }
 
-// ---- Defaults ---------------------------------------------------------------
-
 function buildDefaultLists(): DissertationList[] {
-  const created = nowIso();
   return [
     {
       id: newId(),
       title: "Artigo WSE",
-      emoji: "📝",
-      color: "#D2A869",
-      description: "Em revisão",
+      emoji: "WSE",
+      color: "#2F80ED",
+      description: "Manuscrito, revisões e submissão.",
       targetDate: null,
-      phasesSuggested: ["Revisão", "Resposta a revisores", "Re-submissão"],
+      phasesSuggested: ["Draft", "Figures", "Review", "Submission"],
       tasks: [],
       notes: "",
       collapsed: false,
@@ -46,19 +62,11 @@ function buildDefaultLists(): DissertationList[] {
     {
       id: newId(),
       title: "Artigo SWE",
-      emoji: "🧪",
-      color: "#9DCFB7",
-      description: "Início",
+      emoji: "SWE",
+      color: "#27AE60",
+      description: "Pipeline de análise, escrita e journal fit.",
       targetDate: null,
-      phasesSuggested: [
-        "Seleção de revista",
-        "Revisão de literatura",
-        "Metodologia",
-        "Coleta de dados",
-        "Análise",
-        "Escrita",
-        "Submissão",
-      ],
+      phasesSuggested: ["Literature", "Methods", "Analysis", "Writing"],
       tasks: [],
       notes: "",
       collapsed: false,
@@ -66,20 +74,12 @@ function buildDefaultLists(): DissertationList[] {
     },
     {
       id: newId(),
-      title: "Documento da Dissertação",
-      emoji: "📚",
-      color: "#9179C8",
-      description: "Texto integrador",
+      title: "Dissertação",
+      emoji: "DOC",
+      color: "#9B6BD3",
+      description: "Documento integrador e versão final.",
       targetDate: null,
-      phasesSuggested: [
-        "Introdução",
-        "Revisão de literatura",
-        "Metodologia",
-        "Resultados",
-        "Discussão",
-        "Conclusão",
-        "Revisão final",
-      ],
+      phasesSuggested: ["Intro", "Methods", "Results", "Discussion", "Final review"],
       tasks: [],
       notes: "",
       collapsed: false,
@@ -87,12 +87,12 @@ function buildDefaultLists(): DissertationList[] {
     },
     {
       id: newId(),
-      title: "Atividades extras",
-      emoji: "🎤",
-      color: "#E29A91",
-      description: "Eventos, apresentações, defesa",
+      title: "Defesa e banca",
+      emoji: "DEF",
+      color: "#D2A869",
+      description: "Qualificação, defesa, apresentações e burocracias.",
       targetDate: null,
-      phasesSuggested: ["Apresentação", "Evento", "Defesa", "Qualificação"],
+      phasesSuggested: ["Qualification", "Slides", "Committee", "Defense"],
       tasks: [],
       notes: "",
       collapsed: false,
@@ -101,27 +101,51 @@ function buildDefaultLists(): DissertationList[] {
   ];
 }
 
-function buildDefaultMilestones(): DissertationMilestone[] {
-  // Dates left null on purpose — user fills in. Order placeholders so they
-  // sort sensibly; the UI sorts by date, falling back to order.
-  return [];
-}
-
 function buildDefaultProject(): DissertationProject {
+  const created = nowIso();
   return {
     title: "Mestrado",
-    subtitle: "Dissertação",
+    subtitle: "Dissertation Project Control Center",
+    status: "on_track",
+    currentPhase: "Execution",
+    weeklyFocus: "Definir a próxima entrega crítica.",
     defenseDate: null,
     qualificationDate: null,
+    nextReviewDate: null,
     generalNotes: "",
+    charter: {
+      objective: "Concluir a dissertação e os manuscritos derivados com rastreabilidade de decisões, riscos e entregas.",
+      scope: "Artigos, documento da dissertação, análise, revisão, submissão e preparação para defesa.",
+      outOfScope: "Demandas acadêmicas não ligadas diretamente à conclusão do projeto.",
+      successCriteria: "Manuscritos submetidos, dissertação final revisada, defesa preparada e pendências críticas resolvidas.",
+    },
+    weeklyStatus: {
+      summary: "",
+      wins: "",
+      blockers: "",
+      nextFocus: "",
+      updatedAt: created,
+    },
     lists: buildDefaultLists(),
-    milestones: buildDefaultMilestones(),
-    updatedAt: nowIso(),
-    version: 1,
+    milestones: [],
+    raid: [],
+    decisions: [],
+    stakeholders: [
+      {
+        id: newId(),
+        name: "Orientador(a)",
+        role: "Sponsor / reviewer",
+        email: "",
+        notes: "",
+        createdAt: created,
+        updatedAt: created,
+      },
+    ],
+    documents: [],
+    updatedAt: created,
+    version: 2,
   };
 }
-
-// ---- Persistence ------------------------------------------------------------
 
 export async function loadDissertationProject(
   userEmail: string
@@ -129,32 +153,40 @@ export async function loadDissertationProject(
   const row = await prisma.setting.findUnique({
     where: { key: settingKey(userEmail) },
   });
-  if (!row?.value) {
-    const fresh = buildDefaultProject();
-    await saveDissertationProject(userEmail, fresh);
-    return fresh;
-  }
+  if (row?.value) return parseProject(row.value, userEmail);
+
+  const legacyRow = await prisma.setting.findUnique({
+    where: { key: legacySettingKey(userEmail) },
+  });
+  if (legacyRow?.value) return parseProject(legacyRow.value, userEmail);
+
+  const fresh = buildDefaultProject();
+  await saveDissertationProject(userEmail, fresh);
+  return fresh;
+}
+
+async function parseProject(rawValue: string, userEmail: string) {
   try {
-    const parsed = JSON.parse(row.value);
+    const parsed = JSON.parse(rawValue);
     const validated = dissertationProjectSchema.safeParse(parsed);
-    if (!validated.success) {
-      const fallback = buildDefaultProject();
-      await saveDissertationProject(userEmail, fallback);
-      return fallback;
+    if (validated.success) {
+      const normalized = normalizeProject(validated.data);
+      await saveDissertationProject(userEmail, normalized);
+      return normalized;
     }
-    return normalizeProject(validated.data);
   } catch {
-    const fallback = buildDefaultProject();
-    await saveDissertationProject(userEmail, fallback);
-    return fallback;
+    // Fall through to default below.
   }
+  const fallback = buildDefaultProject();
+  await saveDissertationProject(userEmail, fallback);
+  return fallback;
 }
 
 export async function saveDissertationProject(
   userEmail: string,
   project: DissertationProject
 ): Promise<DissertationProject> {
-  const next = normalizeProject({ ...project, updatedAt: nowIso(), version: 1 });
+  const next = normalizeProject({ ...project, updatedAt: nowIso(), version: 2 });
   await prisma.setting.upsert({
     where: { key: settingKey(userEmail) },
     create: { key: settingKey(userEmail), value: JSON.stringify(next) },
@@ -163,26 +195,30 @@ export async function saveDissertationProject(
   return next;
 }
 
-/** Trim strings, ensure ordering is deterministic, drop empty titles. */
 function normalizeProject(project: DissertationProject): DissertationProject {
-  const lists = project.lists
+  const base = buildDefaultProject();
+  const lists = (project.lists || base.lists)
     .map((list, index) => ({
       ...list,
-      title: list.title.trim() || "Sem título",
+      title: list.title.trim() || "Untitled workstream",
+      emoji: (list.emoji || "WS").trim().slice(0, 8),
       description: (list.description || "").trim(),
       notes: list.notes || "",
+      phasesSuggested: (list.phasesSuggested || []).map((p) => p.trim()).filter(Boolean),
       order: typeof list.order === "number" ? list.order : index * 10,
-      tasks: list.tasks
+      tasks: (list.tasks || [])
         .filter((t) => t.title.trim().length > 0)
         .map((t) => ({
           ...t,
           title: t.title.trim(),
           notes: t.notes || "",
+          priority: t.priority || "medium",
+          status: TASK_STATUSES.includes(t.status) ? t.status : "todo",
         })),
     }))
     .sort((a, b) => a.order - b.order);
 
-  const milestones = project.milestones
+  const milestones = (project.milestones || [])
     .filter((m) => m.title.trim().length > 0 && m.date)
     .map((m, index) => ({
       ...m,
@@ -193,26 +229,44 @@ function normalizeProject(project: DissertationProject): DissertationProject {
     .sort((a, b) => a.date.localeCompare(b.date));
 
   return {
+    ...base,
     ...project,
-    title: project.title.trim() || "Mestrado",
-    subtitle: (project.subtitle || "").trim(),
+    title: project.title?.trim() || base.title,
+    subtitle: (project.subtitle || base.subtitle).trim(),
+    status: project.status || base.status,
+    currentPhase: (project.currentPhase || base.currentPhase).trim(),
+    weeklyFocus: project.weeklyFocus || "",
+    nextReviewDate: project.nextReviewDate ?? null,
     generalNotes: project.generalNotes || "",
+    charter: { ...base.charter, ...(project.charter || {}) },
+    weeklyStatus: { ...base.weeklyStatus, ...(project.weeklyStatus || {}) },
     lists,
     milestones,
+    raid: normalizeTimedItems(project.raid || []),
+    decisions: normalizeTimedItems(project.decisions || []),
+    stakeholders: normalizeTimedItems(project.stakeholders || []),
+    documents: normalizeTimedItems(project.documents || []),
+    updatedAt: project.updatedAt || nowIso(),
+    version: 2,
   };
 }
 
-// ---- Action dispatch --------------------------------------------------------
+function normalizeTimedItems<T extends { id: string; createdAt: string; updatedAt: string }>(items: T[]): T[] {
+  return items.map((item) => ({
+    ...item,
+    id: item.id || newId(),
+    createdAt: item.createdAt || nowIso(),
+    updatedAt: item.updatedAt || nowIso(),
+  }));
+}
 
 export async function applyDissertationAction(
   userEmail: string,
   rawAction: unknown
 ): Promise<DissertationProject> {
   const parsed = dissertationActionSchema.safeParse(rawAction);
-  if (!parsed.success) {
-    throw new Error("INVALID_ACTION");
-  }
-  const action = parsed.data;
+  if (!parsed.success) throw new Error("INVALID_ACTION");
+  const action = parsed.data as DissertationAction;
   const project = await loadDissertationProject(userEmail);
   const next = mutateProject(project, action);
   return saveDissertationProject(userEmail, next);
@@ -220,7 +274,7 @@ export async function applyDissertationAction(
 
 function mutateProject(
   project: DissertationProject,
-  action: ReturnType<typeof dissertationActionSchema.parse>
+  action: DissertationAction
 ): DissertationProject {
   switch (action.type) {
     case "update_meta":
@@ -228,20 +282,29 @@ function mutateProject(
         ...project,
         title: action.title ?? project.title,
         subtitle: action.subtitle ?? project.subtitle,
+        status: action.status ?? project.status,
+        currentPhase: action.currentPhase ?? project.currentPhase,
+        weeklyFocus: action.weeklyFocus ?? project.weeklyFocus,
         defenseDate: action.defenseDate === undefined ? project.defenseDate : action.defenseDate,
         qualificationDate:
           action.qualificationDate === undefined
             ? project.qualificationDate
             : action.qualificationDate,
+        nextReviewDate:
+          action.nextReviewDate === undefined ? project.nextReviewDate : action.nextReviewDate,
         generalNotes: action.generalNotes ?? project.generalNotes,
+        charter: action.charter ? { ...project.charter, ...action.charter } : project.charter,
+        weeklyStatus: action.weeklyStatus
+          ? { ...project.weeklyStatus, ...action.weeklyStatus, updatedAt: nowIso() }
+          : project.weeklyStatus,
       };
 
     case "add_list": {
       const list: DissertationList = {
         id: newId(),
         title: action.title,
-        emoji: action.emoji || "📌",
-        color: action.color || "#D2A869",
+        emoji: action.emoji || "WS",
+        color: action.color || "#2F80ED",
         description: action.description || "",
         targetDate: null,
         phasesSuggested: action.phasesSuggested || [],
@@ -262,20 +325,14 @@ function mutateProject(
       };
 
     case "delete_list":
-      return {
-        ...project,
-        lists: project.lists.filter((l) => l.id !== action.listId),
-      };
+      return { ...project, lists: project.lists.filter((l) => l.id !== action.listId) };
 
     case "reorder_lists": {
       const idIndex = new Map(action.listIds.map((id, idx) => [id, idx]));
       return {
         ...project,
         lists: [...project.lists]
-          .map((list) => ({
-            ...list,
-            order: (idIndex.get(list.id) ?? list.order) * 10,
-          }))
+          .map((list) => ({ ...list, order: (idIndex.get(list.id) ?? list.order) * 10 }))
           .sort((a, b) => a.order - b.order),
       };
     }
@@ -298,9 +355,7 @@ function mutateProject(
       return {
         ...project,
         lists: project.lists.map((list) =>
-          list.id !== action.listId
-            ? list
-            : { ...list, tasks: [...list.tasks, task] }
+          list.id !== action.listId ? list : { ...list, tasks: [...list.tasks, task] }
         ),
       };
     }
@@ -315,9 +370,7 @@ function mutateProject(
             : {
                 ...list,
                 tasks: list.tasks.map((task) =>
-                  task.id !== action.taskId
-                    ? task
-                    : applyTaskUpdate(task, action, updatedAt)
+                  task.id !== action.taskId ? task : applyTaskUpdate(task, action, updatedAt)
                 ),
               }
         ),
@@ -337,15 +390,7 @@ function mutateProject(
                 tasks: list.tasks.map((task) =>
                   task.id !== action.taskId
                     ? task
-                    : {
-                        ...task,
-                        status,
-                        updatedAt,
-                        completedAt:
-                          status === "done"
-                            ? task.completedAt || updatedAt
-                            : null,
-                      }
+                    : { ...task, status, updatedAt, completedAt: status === "done" ? task.completedAt || updatedAt : null }
                 ),
               }
         ),
@@ -375,10 +420,7 @@ function mutateProject(
           }
           if (list.id === action.toListId) {
             const tasks = [...list.tasks];
-            const index =
-              typeof action.index === "number"
-                ? Math.max(0, Math.min(tasks.length, action.index))
-                : tasks.length;
+            const index = typeof action.index === "number" ? Math.max(0, Math.min(tasks.length, action.index)) : tasks.length;
             tasks.splice(index, 0, { ...moved, updatedAt: nowIso() });
             return { ...list, tasks };
           }
@@ -405,22 +447,165 @@ function mutateProject(
         milestones: project.milestones.map((ms) =>
           ms.id !== action.id
             ? ms
-            : {
-                ...ms,
-                title: action.title ?? ms.title,
-                date: action.date ?? ms.date,
-                done: action.done ?? ms.done,
-                notes: action.notes ?? ms.notes,
-              }
+            : { ...ms, title: action.title ?? ms.title, date: action.date ?? ms.date, done: action.done ?? ms.done, notes: action.notes ?? ms.notes }
         ),
       };
 
     case "delete_milestone":
+      return { ...project, milestones: project.milestones.filter((m) => m.id !== action.id) };
+
+    case "add_raid": {
+      const item: DissertationRaidItem = {
+        id: newId(),
+        kind: action.kind,
+        title: action.title,
+        owner: action.owner || "",
+        status: "open",
+        impact: action.impact || "medium",
+        dueDate: action.dueDate ?? null,
+        notes: action.notes || "",
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      };
+      return { ...project, raid: [item, ...project.raid] };
+    }
+
+    case "update_raid":
+      return { ...project, raid: project.raid.map((item) => item.id === action.id ? updateRaid(item, action) : item) };
+
+    case "delete_raid":
+      return { ...project, raid: project.raid.filter((item) => item.id !== action.id) };
+
+    case "add_decision": {
+      const item: DissertationDecision = {
+        id: newId(),
+        title: action.title,
+        rationale: action.rationale || "",
+        impact: action.impact || "",
+        owner: action.owner || "",
+        date: action.date || todayIso(),
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      };
+      return { ...project, decisions: [item, ...project.decisions] };
+    }
+
+    case "update_decision":
       return {
         ...project,
-        milestones: project.milestones.filter((m) => m.id !== action.id),
+        decisions: project.decisions.map((item) =>
+          item.id === action.id
+            ? {
+                ...item,
+                title: action.title ?? item.title,
+                rationale: action.rationale ?? item.rationale,
+                impact: action.impact ?? item.impact,
+                owner: action.owner ?? item.owner,
+                date: action.date ?? item.date,
+                updatedAt: nowIso(),
+              }
+            : item
+        ),
       };
+
+    case "delete_decision":
+      return { ...project, decisions: project.decisions.filter((item) => item.id !== action.id) };
+
+    case "add_stakeholder": {
+      const item: DissertationStakeholder = {
+        id: newId(),
+        name: action.name,
+        role: action.role || "",
+        email: action.email || "",
+        notes: action.notes || "",
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      };
+      return { ...project, stakeholders: [...project.stakeholders, item] };
+    }
+
+    case "update_stakeholder":
+      return {
+        ...project,
+        stakeholders: project.stakeholders.map((item) =>
+          item.id === action.id
+            ? {
+                ...item,
+                name: action.name ?? item.name,
+                role: action.role ?? item.role,
+                email: action.email ?? item.email,
+                notes: action.notes ?? item.notes,
+                updatedAt: nowIso(),
+              }
+            : item
+        ),
+      };
+
+    case "delete_stakeholder":
+      return { ...project, stakeholders: project.stakeholders.filter((item) => item.id !== action.id) };
+
+    case "add_document": {
+      const item: DissertationDocument = {
+        id: newId(),
+        title: action.title,
+        type: action.docType || "Document",
+        url: action.url || "",
+        version: action.version || "",
+        notes: action.notes || "",
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      };
+      return { ...project, documents: [item, ...project.documents] };
+    }
+
+    case "update_document":
+      return {
+        ...project,
+        documents: project.documents.map((item) =>
+          item.id === action.id
+            ? {
+                ...item,
+                title: action.title ?? item.title,
+                type: action.docType ?? item.type,
+                url: action.url ?? item.url,
+                version: action.version ?? item.version,
+                notes: action.notes ?? item.notes,
+                updatedAt: nowIso(),
+              }
+            : item
+        ),
+      };
+
+    case "delete_document":
+      return { ...project, documents: project.documents.filter((item) => item.id !== action.id) };
+    default:
+      return project;
   }
+}
+
+function updateRaid(
+  item: DissertationRaidItem,
+  action: Partial<{
+    kind: RaidKind;
+    title: string;
+    owner: string;
+    status: GovernanceItemStatus;
+    impact: ImpactLevel;
+    dueDate: string | null;
+    notes: string;
+  }>
+): DissertationRaidItem {
+  return {
+    ...item,
+    kind: action.kind ?? item.kind,
+    title: action.title ?? item.title,
+    owner: action.owner ?? item.owner,
+    status: action.status ?? item.status,
+    impact: action.impact ?? item.impact,
+    dueDate: action.dueDate === undefined ? item.dueDate : action.dueDate,
+    notes: action.notes ?? item.notes,
+    updatedAt: nowIso(),
+  };
 }
 
 function applyListUpdate(
@@ -444,15 +629,13 @@ function applyListUpdate(
 
 function applyTaskUpdate(
   task: DissertationTask,
-  action: { title?: string; status?: TaskStatus; priority?: "low" | "medium" | "high";
+  action: { title?: string; status?: TaskStatus; priority?: TaskPriority;
     phase?: string | null; dueDate?: string | null; notes?: string;
     estimatedHours?: number | null },
   updatedAt: string
 ): DissertationTask {
   const status = action.status ?? task.status;
-  if (action.status && !TASK_STATUSES.includes(action.status)) {
-    return task;
-  }
+  if (action.status && !TASK_STATUSES.includes(action.status)) return task;
   return {
     ...task,
     title: action.title ?? task.title,
@@ -461,10 +644,8 @@ function applyTaskUpdate(
     phase: action.phase === undefined ? task.phase : action.phase,
     dueDate: action.dueDate === undefined ? task.dueDate : action.dueDate,
     notes: action.notes ?? task.notes,
-    estimatedHours:
-      action.estimatedHours === undefined ? task.estimatedHours : action.estimatedHours,
-    completedAt:
-      status === "done" ? task.completedAt || updatedAt : null,
+    estimatedHours: action.estimatedHours === undefined ? task.estimatedHours : action.estimatedHours,
+    completedAt: status === "done" ? task.completedAt || updatedAt : null,
     updatedAt,
   };
 }

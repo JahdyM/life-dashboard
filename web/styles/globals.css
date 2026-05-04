@@ -8671,3 +8671,450 @@ input.no-spinner[type="number"] {
     grid-column: 2 / -1;
   }
 }
+
+/* Dissertation corporate control center override --------------------------- */
+.dissertation-control {
+  display: grid;
+  gap: 16px;
+}
+
+.dissertation-control-hero,
+.dissertation-exec-card,
+.dissertation-corporate-card {
+  border: 1px solid rgba(193, 205, 220, 0.18);
+  background:
+    linear-gradient(180deg, rgba(247, 250, 255, 0.055), rgba(247, 250, 255, 0.025)),
+    rgba(13, 18, 26, 0.86);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.055);
+}
+
+.dissertation-control-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  border-radius: 24px;
+  padding: 22px;
+}
+
+.dissertation-control-kicker {
+  margin: 0 0 8px;
+  color: #96b8e8;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.dissertation-control-hero h2 {
+  margin: 0;
+  color: #f5f8ff;
+  font-family: var(--font-body);
+  font-size: clamp(1.9rem, 3vw, 2.8rem);
+  letter-spacing: -0.03em;
+}
+
+.dissertation-control-hero p:not(.dissertation-control-kicker) {
+  margin: 7px 0 0;
+  color: rgba(218, 226, 238, 0.72);
+}
+
+.dissertation-exec-status {
+  min-width: 190px;
+  border-radius: 18px;
+  border: 1px solid rgba(193, 205, 220, 0.16);
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  display: grid;
+  gap: 7px;
+}
+
+.dissertation-exec-status span,
+.dissertation-exec-card span,
+.dissertation-exec-card small,
+.dissertation-section-head span,
+.dissertation-corporate-textarea span,
+.dissertation-meta-grid span {
+  color: rgba(210, 222, 238, 0.66);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.dissertation-exec-status select,
+.dissertation-control input,
+.dissertation-control select,
+.dissertation-control textarea {
+  border: 1px solid rgba(193, 205, 220, 0.16);
+  border-radius: 12px;
+  background: rgba(7, 10, 16, 0.58);
+  color: #f2f6ff;
+}
+
+.dissertation-control input,
+.dissertation-control select {
+  min-height: 38px;
+  padding: 0 10px;
+}
+
+.dissertation-control textarea {
+  min-height: 82px;
+  padding: 10px;
+  resize: vertical;
+}
+
+.dissertation-control-tabs {
+  display: flex;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 5px;
+  border-radius: 16px;
+  border: 1px solid rgba(193, 205, 220, 0.14);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.dissertation-control-tabs button {
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: rgba(218, 226, 238, 0.7);
+  padding: 9px 13px;
+  font-weight: 750;
+}
+
+.dissertation-control-tabs button.active {
+  color: #07101d;
+  background: linear-gradient(180deg, #dbe8fb, #a9c7ed);
+}
+
+.dissertation-exec-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dissertation-exec-card,
+.dissertation-corporate-card {
+  border-radius: 20px;
+  padding: 16px;
+}
+
+.dissertation-exec-card {
+  display: grid;
+  gap: 5px;
+}
+
+.dissertation-exec-card strong {
+  color: #f5f8ff;
+  font-size: 1.22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dissertation-board-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.dissertation-corporate-card.wide {
+  grid-column: 1 / -1;
+}
+
+.dissertation-section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.dissertation-section-head div {
+  display: grid;
+  gap: 4px;
+}
+
+.dissertation-section-head h3 {
+  margin: 0;
+  color: #f5f8ff;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.dissertation-meta-grid,
+.dissertation-inline-form,
+.dissertation-workstream-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.dissertation-meta-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.dissertation-meta-grid label,
+.dissertation-corporate-textarea {
+  display: grid;
+  gap: 6px;
+}
+
+.dissertation-corporate-textarea + .dissertation-corporate-textarea {
+  margin-top: 10px;
+}
+
+.dissertation-inline-form {
+  grid-template-columns: minmax(0, 1fr);
+  margin-bottom: 12px;
+}
+
+.dissertation-inline-form.two {
+  grid-template-columns: minmax(0, 1fr) 160px;
+}
+
+.dissertation-inline-form.raid {
+  grid-template-columns: 150px minmax(0, 1fr) 150px 130px;
+}
+
+.dissertation-inline-form.compact {
+  grid-template-columns: 58px minmax(180px, 260px);
+  margin: 0;
+}
+
+.dissertation-inline-form .code {
+  text-transform: uppercase;
+}
+
+.dissertation-timeline,
+.dissertation-deadline-table,
+.dissertation-data-table,
+.dissertation-task-table {
+  display: grid;
+  gap: 8px;
+}
+
+.dissertation-timeline-item,
+.dissertation-deadline-table div,
+.dissertation-data-row,
+.dissertation-task-line {
+  border: 1px solid rgba(193, 205, 220, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.dissertation-timeline-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 145px auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+}
+
+.dissertation-deadline-table div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px 100px;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+}
+
+.dissertation-deadline-table strong {
+  color: #f5f8ff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dissertation-deadline-table span,
+.dissertation-deadline-table em,
+.dissertation-empty {
+  color: rgba(218, 226, 238, 0.66);
+  font-size: 0.82rem;
+}
+
+.dissertation-workstream-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.dissertation-workstream-card {
+  border: 1px solid rgba(193, 205, 220, 0.13);
+  border-top: 4px solid #8db9f1;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.dissertation-workstream-card header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.dissertation-workstream-card header div {
+  min-width: 0;
+  display: flex;
+  gap: 9px;
+  align-items: center;
+}
+
+.dissertation-workstream-card h4 {
+  margin: 0;
+  color: #f5f8ff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dissertation-workstream-card header span {
+  color: rgba(218, 226, 238, 0.62);
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.dissertation-workstream-card header strong {
+  color: #dbe8fb;
+}
+
+.dissertation-workstream-meter {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(193, 205, 220, 0.13);
+  overflow: hidden;
+}
+
+.dissertation-workstream-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.dissertation-task-line {
+  display: grid;
+  grid-template-columns: auto minmax(160px, 1fr) 120px 100px 140px 76px 120px auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+}
+
+.dissertation-task-line.done {
+  opacity: 0.7;
+}
+
+.dissertation-task-line .title {
+  color: #f5f8ff;
+}
+
+.dissertation-task-line .hours {
+  text-align: right;
+}
+
+.dissertation-control .task-check {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(214, 226, 242, 0.45);
+  background: rgba(7, 10, 16, 0.72);
+  padding: 0;
+}
+
+.dissertation-control .task-check.checked {
+  border-color: rgba(125, 203, 155, 0.8);
+  background: radial-gradient(circle, #7dcb9b 0 44%, rgba(125, 203, 155, 0.2) 46% 100%);
+}
+
+.dissertation-control button:not(.task-check) {
+  border: 1px solid rgba(193, 205, 220, 0.16);
+  border-radius: 12px;
+  min-height: 34px;
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(242, 246, 255, 0.9);
+  padding: 6px 10px;
+}
+
+.dissertation-data-row {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) 130px 110px 130px auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+}
+
+.dissertation-data-row.high {
+  border-color: rgba(224, 112, 112, 0.38);
+}
+
+.dissertation-data-row.medium {
+  border-color: rgba(213, 177, 104, 0.3);
+}
+
+.dissertation-data-row.decision {
+  grid-template-columns: minmax(0, 1fr) 130px 140px minmax(0, 1fr) auto;
+}
+
+.dissertation-data-row.stakeholder {
+  grid-template-columns: minmax(0, 1fr) 150px minmax(0, 1fr) auto;
+}
+
+.dissertation-data-row.document {
+  grid-template-columns: minmax(0, 1fr) 120px 100px minmax(0, 1.2fr) auto;
+}
+
+.dissertation-data-row > span {
+  color: #96b8e8;
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.dissertation-sync-state {
+  min-height: 18px;
+  color: rgba(218, 226, 238, 0.62);
+  text-align: right;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 1060px) {
+  .dissertation-exec-grid,
+  .dissertation-meta-grid,
+  .dissertation-workstream-grid,
+  .dissertation-board-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dissertation-task-line,
+  .dissertation-data-row,
+  .dissertation-data-row.decision,
+  .dissertation-data-row.stakeholder,
+  .dissertation-data-row.document {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .dissertation-control-hero {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dissertation-exec-grid,
+  .dissertation-meta-grid,
+  .dissertation-workstream-grid,
+  .dissertation-board-grid,
+  .dissertation-inline-form.two,
+  .dissertation-inline-form.raid,
+  .dissertation-inline-form.compact,
+  .dissertation-timeline-item,
+  .dissertation-deadline-table div {
+    grid-template-columns: 1fr;
+  }
+}
