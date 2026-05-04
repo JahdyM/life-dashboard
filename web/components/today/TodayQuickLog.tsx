@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 
 export type TodayMoodOption = {
@@ -73,6 +73,20 @@ export default function TodayQuickLog({
   const [savingSleep, setSavingSleep] = useState(false);
   const [savedLabel, setSavedLabel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (savingMood) return;
+    setSelectedMood(initialMoodCategory || "");
+  }, [initialMoodCategory, savingMood]);
+
+  useEffect(() => {
+    if (savingSleep) return;
+    setSleepHours(
+      initialSleepHours === null || initialSleepHours === undefined
+        ? ""
+        : String(initialSleepHours)
+    );
+  }, [initialSleepHours, savingSleep]);
 
   const visibleMoods = useMemo(
     () => moodOptions.filter((mood) => mood.key && mood.emoji).slice(0, 18),

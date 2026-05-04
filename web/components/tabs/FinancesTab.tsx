@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/client/api";
 import type {
@@ -101,12 +101,24 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
       ),
   });
 
+  // Don't clobber local unsaved edits when a window-focus refetch arrives
+  // with the older server snapshot (would silently lose user input).
   useEffect(() => {
-    if (finQuery.data?.data) {
+    if (finQuery.data?.data && !dirty) {
       setFinance(finQuery.data.data);
-      setDirty(false);
     }
-  }, [finQuery.data]);
+  }, [finQuery.data, dirty]);
+
+  // Track latest finance/year/month in refs so the page-hide handler can
+  // flush whatever is current at the moment the app backgrounds.
+  const financeRef = useRef<MonthlyFinance | null>(null);
+  const dirtyRef = useRef(false);
+  const yearRef = useRef(year);
+  const monthRef = useRef(month);
+  useEffect(() => { financeRef.current = finance; }, [finance]);
+  useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
+  useEffect(() => { yearRef.current = year; }, [year]);
+  useEffect(() => { monthRef.current = month; }, [month]);
 
   const saveMut = useMutation({
     mutationFn: (data: MonthlyFinance) =>
@@ -126,6 +138,39 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
     const timer = setTimeout(() => saveMut.mutate(finance), 1500);
     return () => clearTimeout(timer);
   }, [finance, dirty]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Flush pending edits on page hide / visibility change — without this,
+  // backgrounding the PWA before the 1.5 s debounce fires loses the change.
+  // sendBeacon survives navigation/suspension; we use the same JSON shape.
+  useEffect(() => {
+    const flush = () => {
+      if (!dirtyRef.current || !financeRef.current) return;
+      const url = `/api/finances/expenses?year=${yearRef.current}&month=${monthRef.current}`;
+      const body = JSON.stringify(financeRef.current);
+      try {
+        if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+          const blob = new Blob([body], { type: "application/json" });
+          if (navigator.sendBeacon(url, blob)) return;
+        }
+      } catch { /* fall through to fetch */ }
+      // Fallback: keepalive fetch (works in modern browsers during pagehide)
+      void fetch(url, {
+        method: "PUT",
+        body,
+        headers: { "Content-Type": "application/json" },
+        keepalive: true,
+      }).catch(() => { /* best-effort */ });
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
 
   const update = useCallback((updater: (prev: MonthlyFinance) => MonthlyFinance) => {
     setFinance((prev) => {

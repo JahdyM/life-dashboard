@@ -379,6 +379,19 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
   );
 
   useEffect(() => {
+    // Skip the sync if the user is currently editing a metric input —
+    // otherwise a refetch (e.g. window-focus refresh) would overwrite
+    // their unsubmitted text mid-typing.
+    if (typeof document !== "undefined") {
+      const active = document.activeElement;
+      if (
+        active instanceof HTMLInputElement &&
+        typeof active.id === "string" &&
+        active.id.startsWith("metric-")
+      ) {
+        return;
+      }
+    }
     setMetricDrafts(buildMetricDrafts(dayEntry));
   }, [dayEntry]);
 

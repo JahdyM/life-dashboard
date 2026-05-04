@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import Link from "next/link";
 import { AppNav, LogoutButton } from "@/components/AppNav";
+import DashboardFreshness from "@/components/DashboardFreshness";
 import WordOfDayWidget from "@/components/WordOfDayWidget";
 import { Providers } from "@/app/providers";
 import { getDashboardShellData } from "@/lib/server/dashboard";
@@ -50,6 +51,7 @@ export default async function DashboardLayout({
 
   return (
     <Providers>
+      <DashboardFreshness />
       <div className="shell-layout">
         <div className="space-backdrop" aria-hidden="true">
           <span className="space-backdrop-stars" />

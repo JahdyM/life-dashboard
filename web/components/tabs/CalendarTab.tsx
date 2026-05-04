@@ -1189,8 +1189,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         return quickNoteDrafts[selectedDayIso] ?? "";
       }
       const serverText = quickNoteQuery.data?.text || "";
-      if (serverText) return serverText;
-      return current;
+      return current === serverText ? current : serverText;
     });
   }, [
     quickNoteDrafts,
@@ -1774,37 +1773,44 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   });
 
   const saveQuickNote = useMutation({
-    mutationFn: (text: string) =>
-      fetchJson<{ ok: boolean }>(`/api/settings/quick-notes/${selectedDayIso}`, {
+    mutationFn: ({ date, text }: { date: string; text: string }) =>
+      fetchJson<{ ok: boolean }>(`/api/settings/quick-notes/${date}`, {
         method: "PUT",
         body: JSON.stringify({ text }),
       }),
-    onMutate: async (text) => {
+    onMutate: async ({ date, text }) => {
       setTaskSaveError(null);
-      await queryClient.cancelQueries({ queryKey: ["quick-note", selectedDayIso] });
+      await queryClient.cancelQueries({ queryKey: ["quick-note", date] });
       const previous = queryClient.getQueryData<QuickNoteResponse>([
         "quick-note",
-        selectedDayIso,
+        date,
       ]);
-      queryClient.setQueryData(["quick-note", selectedDayIso], { text });
-      setQuickNoteDrafts((prev) => ({ ...prev, [selectedDayIso]: text }));
-      return { previous };
+      queryClient.setQueryData(["quick-note", date], { text });
+      setQuickNoteDrafts((prev) => ({ ...prev, [date]: text }));
+      return { previous, date, text };
     },
-    onError: (error, _text, context) => {
+    onError: (error, _variables, context) => {
       if (context?.previous) {
         queryClient.setQueryData(
-          ["quick-note", selectedDayIso],
+          ["quick-note", context.date],
           context.previous
         );
       }
       setTaskSaveError(readErrorMessage(error, "Couldn't save notes."));
       setQuickNoteSavedAt(null);
     },
-    onSuccess: () => {
+    onSuccess: (_data, _variables, context) => {
       setQuickNoteSavedAt(Date.now());
+      if (!context) return;
+      setQuickNoteDrafts((prev) => {
+        if (prev[context.date] !== context.text) return prev;
+        const next = { ...prev };
+        delete next[context.date];
+        return next;
+      });
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["quick-note", selectedDayIso] });
+    onSettled: (_data, _error, variables, context) => {
+      queryClient.invalidateQueries({ queryKey: ["quick-note", context?.date || variables?.date || selectedDayIso] });
     },
   });
   const saveQuickNoteMutation = saveQuickNote.mutate;
@@ -2807,7 +2813,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     const serverText = quickNoteQuery.data?.text || "";
     if (quickNoteText === serverText) return;
     const timeoutId = window.setTimeout(() => {
-      saveQuickNoteMutation(quickNoteText);
+      saveQuickNoteMutation({ date: selectedDayIso, text: quickNoteText });
     }, 700);
     return () => window.clearTimeout(timeoutId);
   }, [
@@ -2816,11 +2822,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     quickNoteQuery.isError,
     quickNoteQuery.isPending,
     saveQuickNoteMutation,
+    selectedDayIso,
   ]);
 
   const handleSaveQuickNoteNow = useCallback(() => {
-    saveQuickNoteMutation(quickNoteText);
-  }, [quickNoteText, saveQuickNoteMutation]);
+    saveQuickNoteMutation({ date: selectedDayIso, text: quickNoteText });
+  }, [quickNoteText, saveQuickNoteMutation, selectedDayIso]);
 
   const handleComposerSubmit = useCallback(() => {
     const title = newTitle.trim();

@@ -38,14 +38,21 @@ export default function GoalsTab({ userEmail }: { userEmail: string }) {
     queryFn: () => fetchJson<{ text: string }>(`/api/goals/checkin?week=${weekIso}`),
   });
   const [checkinText, setCheckinText] = useState("");
+  const [checkinDirty, setCheckinDirty] = useState(false);
   useEffect(() => {
-    if (checkinQuery.data?.text !== undefined) setCheckinText(checkinQuery.data.text);
-  }, [checkinQuery.data?.text]);
+    // Don't clobber unsaved local edits when a window-focus refetch arrives.
+    if (checkinQuery.data?.text !== undefined && !checkinDirty) {
+      setCheckinText(checkinQuery.data.text);
+    }
+  }, [checkinQuery.data?.text, checkinDirty]);
 
   const saveCheckinMut = useMutation({
     mutationFn: () =>
       fetchJson("/api/goals/checkin", { method: "POST", body: JSON.stringify({ week: weekIso, text: checkinText }) }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["goals-checkin"] }),
+    onSuccess: () => {
+      setCheckinDirty(false);
+      qc.invalidateQueries({ queryKey: ["goals-checkin"] });
+    },
   });
 
   // Goals
@@ -122,7 +129,7 @@ export default function GoalsTab({ userEmail }: { userEmail: string }) {
         </p>
         <textarea
           value={checkinText}
-          onChange={(e) => setCheckinText(e.target.value)}
+          onChange={(e) => { setCheckinText(e.target.value); setCheckinDirty(true); }}
           placeholder="Ex: Focar na dissertação, priorizar descanso, ter pelo menos uma date night..."
           rows={3}
           style={{ width: "100%", resize: "vertical" }}
