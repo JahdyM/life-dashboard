@@ -9,6 +9,7 @@ import {
   BookOpenText,
   CalendarDays,
   ChartNoAxesCombined,
+  GraduationCap,
   HeartHandshake,
   MoreHorizontal,
   MoonStar,
@@ -46,6 +47,7 @@ function NavLink({ item, active }: { item: DashboardModuleConfig; active: boolea
     heart: <HeartHandshake size={14} />,
     wallet: <Wallet size={14} />,
     target: <Target size={14} />,
+    graduation_cap: <GraduationCap size={14} />,
   };
 
   return (

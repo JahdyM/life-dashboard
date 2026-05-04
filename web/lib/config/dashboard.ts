@@ -12,6 +12,7 @@ export const DASHBOARD_MODULE_KEYS = [
   "couple",
   "finances",
   "goals",
+  "dissertation",
 ] as const;
 
 export type DashboardModuleKey = (typeof DASHBOARD_MODULE_KEYS)[number];
@@ -29,7 +30,8 @@ export type DashboardModuleIconKey =
   | "chart"
   | "heart"
   | "wallet"
-  | "target";
+  | "target"
+  | "graduation_cap";
 
 export type DashboardModuleConfig = {
   key: DashboardModuleKey;
@@ -107,6 +109,15 @@ export const DASHBOARD_MODULES: DashboardModuleConfig[] = [
     icon: "timer",
     defaultEnabled: true,
     order: 30,
+  },
+  {
+    key: "dissertation",
+    label: "Dissertação",
+    href: "/dissertation",
+    navGroup: "primary",
+    icon: "graduation_cap",
+    defaultEnabled: true,
+    order: 35,
   },
   {
     key: "ministry",

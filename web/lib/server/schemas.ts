@@ -358,6 +358,7 @@ export const bookCreateSchema = z
   })
   .strict();
 
+
 export const readingPatchSchema = z.discriminatedUnion("type", [
   z
     .object({
@@ -633,3 +634,190 @@ export const subtaskPatchSchema = z
     completed_at: nullableIsoDateTimeSchema.optional(),
   })
   .strict();
+
+// ---- Dissertation -----------------------------------------------------------
+
+const dissertationTaskStatusSchema = z.enum(["todo", "doing", "done", "blocked"]);
+const dissertationTaskPrioritySchema = z.enum(["low", "medium", "high"]);
+
+const dissertationTaskSchema = z
+  .object({
+    id: z.string().trim().min(1).max(60),
+    title: z.string().trim().min(1).max(240),
+    status: dissertationTaskStatusSchema,
+    priority: dissertationTaskPrioritySchema,
+    phase: z.union([z.string().trim().max(80), z.null()]),
+    dueDate: z.union([z.string().regex(isoDateRegex), z.null()]),
+    notes: z.string().max(8000),
+    estimatedHours: z.union([z.number().min(0).max(2000), z.null()]),
+    completedAt: nullableIsoDateTimeSchema,
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })
+  .strict();
+
+const dissertationListSchema = z
+  .object({
+    id: z.string().trim().min(1).max(60),
+    title: z.string().trim().min(1).max(120),
+    emoji: z.string().max(8),
+    color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+    description: z.string().max(240),
+    targetDate: z.union([z.string().regex(isoDateRegex), z.null()]),
+    phasesSuggested: z.array(z.string().trim().min(1).max(80)).max(20),
+    tasks: z.array(dissertationTaskSchema).max(500),
+    notes: z.string().max(20000),
+    collapsed: z.boolean(),
+    order: z.number().int().min(0).max(100000),
+  })
+  .strict();
+
+const dissertationMilestoneSchema = z
+  .object({
+    id: z.string().trim().min(1).max(60),
+    title: z.string().trim().min(1).max(160),
+    date: z.string().regex(isoDateRegex),
+    done: z.boolean(),
+    notes: z.string().max(4000),
+    order: z.number().int().min(0).max(100000),
+  })
+  .strict();
+
+export const dissertationProjectSchema = z
+  .object({
+    title: z.string().trim().min(1).max(120),
+    subtitle: z.string().max(160),
+    defenseDate: z.union([z.string().regex(isoDateRegex), z.null()]),
+    qualificationDate: z.union([z.string().regex(isoDateRegex), z.null()]),
+    generalNotes: z.string().max(40000),
+    lists: z.array(dissertationListSchema).max(20),
+    milestones: z.array(dissertationMilestoneSchema).max(50),
+    updatedAt: z.string(),
+    version: z.number().int().min(1).max(99),
+  })
+  .strict();
+
+const optionalDate = z.union([z.string().regex(isoDateRegex), z.null()]).optional();
+const optionalTextShort = z.string().trim().max(240).optional();
+
+export const dissertationActionSchema = z.discriminatedUnion("type", [
+  z
+    .object({
+      type: z.literal("update_meta"),
+      title: z.string().trim().min(1).max(120).optional(),
+      subtitle: z.string().max(160).optional(),
+      defenseDate: optionalDate,
+      qualificationDate: optionalDate,
+      generalNotes: z.string().max(40000).optional(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("add_list"),
+      title: z.string().trim().min(1).max(120),
+      emoji: z.string().max(8).optional(),
+      color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+      description: optionalTextShort,
+      phasesSuggested: z.array(z.string().trim().min(1).max(80)).max(20).optional(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("update_list"),
+      listId: z.string().trim().min(1).max(60),
+      title: z.string().trim().min(1).max(120).optional(),
+      emoji: z.string().max(8).optional(),
+      color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+      description: optionalTextShort,
+      targetDate: optionalDate,
+      phasesSuggested: z.array(z.string().trim().min(1).max(80)).max(20).optional(),
+      notes: z.string().max(20000).optional(),
+      collapsed: z.boolean().optional(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("delete_list"),
+      listId: z.string().trim().min(1).max(60),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("reorder_lists"),
+      listIds: z.array(z.string().trim().min(1).max(60)).max(20),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("add_task"),
+      listId: z.string().trim().min(1).max(60),
+      title: z.string().trim().min(1).max(240),
+      phase: z.string().trim().max(80).optional(),
+      dueDate: optionalDate,
+      priority: dissertationTaskPrioritySchema.optional(),
+      estimatedHours: z.number().min(0).max(2000).optional(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("update_task"),
+      listId: z.string().trim().min(1).max(60),
+      taskId: z.string().trim().min(1).max(60),
+      title: z.string().trim().min(1).max(240).optional(),
+      status: dissertationTaskStatusSchema.optional(),
+      priority: dissertationTaskPrioritySchema.optional(),
+      phase: z.union([z.string().trim().max(80), z.null()]).optional(),
+      dueDate: optionalDate,
+      notes: z.string().max(8000).optional(),
+      estimatedHours: z.union([z.number().min(0).max(2000), z.null()]).optional(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("toggle_task_status"),
+      listId: z.string().trim().min(1).max(60),
+      taskId: z.string().trim().min(1).max(60),
+      status: dissertationTaskStatusSchema,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("delete_task"),
+      listId: z.string().trim().min(1).max(60),
+      taskId: z.string().trim().min(1).max(60),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("move_task"),
+      fromListId: z.string().trim().min(1).max(60),
+      toListId: z.string().trim().min(1).max(60),
+      taskId: z.string().trim().min(1).max(60),
+      index: z.number().int().min(0).max(500).optional(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("add_milestone"),
+      title: z.string().trim().min(1).max(160),
+      date: z.string().regex(isoDateRegex),
+      notes: z.string().max(4000).optional(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("update_milestone"),
+      id: z.string().trim().min(1).max(60),
+      title: z.string().trim().min(1).max(160).optional(),
+      date: z.string().regex(isoDateRegex).optional(),
+      done: z.boolean().optional(),
+      notes: z.string().max(4000).optional(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("delete_milestone"),
+      id: z.string().trim().min(1).max(60),
+    })
+    .strict(),
+]);
