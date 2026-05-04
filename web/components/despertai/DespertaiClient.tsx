@@ -160,6 +160,20 @@ function findWheelSegmentAtPointer<T extends { startAngle: number; endAngle: num
   );
 }
 
+function scrollReadingTargetIntoView(target: HTMLElement) {
+  const isMobile = window.matchMedia("(max-width: 760px)").matches;
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const behavior: ScrollBehavior = reducedMotion ? "auto" : "smooth";
+
+  if (!isMobile) {
+    target.scrollIntoView({ behavior, block: "center" });
+    return;
+  }
+
+  const top = target.getBoundingClientRect().top + window.scrollY - 84;
+  window.scrollTo({ top: Math.max(0, top), behavior });
+}
+
 function issueElementId(issueId: string) {
   return `despertai-issue-${issueId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 }
@@ -1015,18 +1029,25 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
 
     let firstFrame = 0;
     let secondFrame = 0;
+    let settleTimer = 0;
     firstFrame = window.requestAnimationFrame(() => {
       secondFrame = window.requestAnimationFrame(() => {
-        const target = document.getElementById(issueElementId(pendingRevealIssueId));
-        if (!target) return;
-        target.scrollIntoView({ behavior: "smooth", block: "center" });
-        setPendingRevealIssueId(null);
+        settleTimer = window.setTimeout(() => {
+          const target = document.getElementById(issueElementId(pendingRevealIssueId));
+          if (!target) {
+            setPendingRevealIssueId(null);
+            return;
+          }
+          scrollReadingTargetIntoView(target);
+          setPendingRevealIssueId(null);
+        }, 80);
       });
     });
 
     return () => {
       window.cancelAnimationFrame(firstFrame);
       window.cancelAnimationFrame(secondFrame);
+      window.clearTimeout(settleTimer);
     };
   }, [activeTab, expandedIssues, pendingRevealIssueId]);
 
@@ -1155,6 +1176,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
 
   const revealIssueFromWheel = (issueId: string) => {
     setActiveTab("despertai");
+    setDespertaiSearch("");
     setExpandedIssues((current) => new Set(current).add(issueId));
     setPendingRevealIssueId(issueId);
   };
