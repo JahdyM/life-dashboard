@@ -19,7 +19,7 @@ export default async function DissertationPage() {
     <div className="route-stack">
       <PageSectionIntro
         title="Dissertação"
-        description="Mestrado · projeto inteiro num lugar só."
+        description="Pequenos passos, seis frentes."
       />
       <ErrorBoundary name="Dissertation">
         <DissertationClient initialProject={initialProject} />

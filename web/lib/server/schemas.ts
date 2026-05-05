@@ -637,238 +637,98 @@ export const subtaskPatchSchema = z
 
 // ---- Dissertation -----------------------------------------------------------
 
-const dissertationTaskStatusSchema = z.enum(["todo", "doing", "done", "blocked"]);
-const dissertationTaskPrioritySchema = z.enum(["low", "medium", "high"]);
-const dissertationProjectStatusSchema = z.enum(["on_track", "at_risk", "blocked", "complete"]);
-const dissertationRaidKindSchema = z.enum(["risk", "assumption", "issue", "dependency"]);
-const dissertationGovernanceStatusSchema = z.enum(["open", "monitoring", "resolved"]);
-const dissertationImpactSchema = z.enum(["low", "medium", "high"]);
-const dissertationIdSchema = z.string().trim().min(1).max(80);
-const optionalDate = z.union([z.string().regex(isoDateRegex), z.null()]).optional();
-const nullableDate = z.union([z.string().regex(isoDateRegex), z.null()]);
-const shortText = (max: number) => z.string().trim().max(max);
-const requiredText = (max: number) => z.string().trim().min(1).max(max);
-const optionalLongText = z.string().max(40000).optional();
-const isoStampSchema = z.string().default("");
+const dissertationFrontKeySchema = z.enum([
+  "wse_article",
+  "swe_article",
+  "integrative_text",
+  "wse_lakes",
+  "defense",
+  "library_formatting",
+]);
+const dissertationIdSchema = z.string().trim().min(1).max(100);
+const dissertationDateNullableSchema = z.union([z.string().regex(isoDateRegex), z.null()]);
 
-const dissertationTaskSchema = z
+const dissertationStepSchema = z
   .object({
     id: dissertationIdSchema,
-    title: requiredText(240),
-    status: dissertationTaskStatusSchema.default("todo"),
-    priority: dissertationTaskPrioritySchema.default("medium"),
-    phase: z.union([shortText(80), z.null()]).default(null),
-    dueDate: nullableDate.default(null),
-    notes: z.string().max(8000).default(""),
-    estimatedHours: z.union([z.number().min(0).max(2000), z.null()]).default(null),
-    completedAt: nullableIsoDateTimeSchema.default(null),
-    createdAt: isoStampSchema,
-    updatedAt: isoStampSchema,
+    title: z.string().trim().min(1).max(240),
+    done: z.boolean(),
+    dueDate: dissertationDateNullableSchema,
+    completedAt: nullableIsoDateTimeSchema,
+    createdAt: z.string(),
+    updatedAt: z.string(),
   })
   .strict();
 
-const dissertationListSchema = z
+const dissertationFrontSchema = z
   .object({
     id: dissertationIdSchema,
-    title: requiredText(120),
-    emoji: z.string().trim().min(1).max(8).default("WS"),
-    color: z.string().regex(/^#[0-9a-fA-F]{6}$/).default("#2F80ED"),
-    description: z.string().max(240).default(""),
-    targetDate: nullableDate.default(null),
-    phasesSuggested: z.array(shortText(80)).max(20).default([]),
-    tasks: z.array(dissertationTaskSchema).max(500).default([]),
-    notes: z.string().max(20000).default(""),
-    collapsed: z.boolean().default(false),
-    order: z.number().int().min(0).max(100000).default(0),
-  })
-  .strict();
-
-const dissertationMilestoneSchema = z
-  .object({
-    id: dissertationIdSchema,
-    title: requiredText(160),
-    date: z.string().regex(isoDateRegex),
-    done: z.boolean().default(false),
-    notes: z.string().max(4000).default(""),
-    order: z.number().int().min(0).max(100000).default(0),
-  })
-  .strict();
-
-const dissertationCharterBaseSchema = z
-  .object({
-    objective: z.string().max(8000).default(""),
-    scope: z.string().max(8000).default(""),
-    outOfScope: z.string().max(8000).default(""),
-    successCriteria: z.string().max(8000).default(""),
-  })
-  .strict();
-const dissertationCharterSchema = dissertationCharterBaseSchema.default({ objective: "", scope: "", outOfScope: "", successCriteria: "" });
-
-const dissertationWeeklyStatusBaseSchema = z
-  .object({
-    summary: z.string().max(8000).default(""),
-    wins: z.string().max(8000).default(""),
-    blockers: z.string().max(8000).default(""),
-    nextFocus: z.string().max(8000).default(""),
-    updatedAt: isoStampSchema,
-  })
-  .strict();
-const dissertationWeeklyStatusSchema = dissertationWeeklyStatusBaseSchema.default({ summary: "", wins: "", blockers: "", nextFocus: "", updatedAt: "" });
-
-const dissertationRaidItemSchema = z
-  .object({
-    id: dissertationIdSchema,
-    kind: dissertationRaidKindSchema,
-    title: requiredText(240),
-    owner: z.string().max(120).default(""),
-    status: dissertationGovernanceStatusSchema.default("open"),
-    impact: dissertationImpactSchema.default("medium"),
-    dueDate: nullableDate.default(null),
-    notes: z.string().max(8000).default(""),
-    createdAt: isoStampSchema,
-    updatedAt: isoStampSchema,
-  })
-  .strict();
-
-const dissertationDecisionSchema = z
-  .object({
-    id: dissertationIdSchema,
-    title: requiredText(240),
-    rationale: z.string().max(8000).default(""),
-    impact: z.string().max(8000).default(""),
-    owner: z.string().max(120).default(""),
-    date: z.string().regex(isoDateRegex),
-    createdAt: isoStampSchema,
-    updatedAt: isoStampSchema,
-  })
-  .strict();
-
-const dissertationStakeholderSchema = z
-  .object({
-    id: dissertationIdSchema,
-    name: requiredText(160),
-    role: z.string().max(160).default(""),
-    email: z.string().trim().max(254).default(""),
-    notes: z.string().max(4000).default(""),
-    createdAt: isoStampSchema,
-    updatedAt: isoStampSchema,
-  })
-  .strict();
-
-const dissertationDocumentSchema = z
-  .object({
-    id: dissertationIdSchema,
-    title: requiredText(220),
-    type: z.string().max(80).default("Document"),
-    url: z.string().max(1200).default(""),
-    version: z.string().max(80).default(""),
-    notes: z.string().max(4000).default(""),
-    createdAt: isoStampSchema,
-    updatedAt: isoStampSchema,
+    key: dissertationFrontKeySchema,
+    title: z.string().trim().min(1).max(120),
+    icon: z.string().trim().min(1).max(8),
+    color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+    status: z.string().trim().max(300),
+    targetDate: dissertationDateNullableSchema,
+    steps: z.array(dissertationStepSchema).max(120),
+    notes: z.string().max(30000),
+    order: z.number().int().min(0).max(100000),
   })
   .strict();
 
 export const dissertationProjectSchema = z
   .object({
-    title: requiredText(120),
-    subtitle: z.string().max(160).default(""),
-    status: dissertationProjectStatusSchema.default("on_track"),
-    currentPhase: z.string().max(120).default("Execution"),
-    weeklyFocus: z.string().max(4000).default(""),
-    defenseDate: nullableDate.default(null),
-    qualificationDate: nullableDate.default(null),
-    nextReviewDate: nullableDate.default(null),
-    generalNotes: z.string().max(40000).default(""),
-    charter: dissertationCharterSchema,
-    weeklyStatus: dissertationWeeklyStatusSchema,
-    lists: z.array(dissertationListSchema).max(20).default([]),
-    milestones: z.array(dissertationMilestoneSchema).max(80).default([]),
-    raid: z.array(dissertationRaidItemSchema).max(200).default([]),
-    decisions: z.array(dissertationDecisionSchema).max(200).default([]),
-    stakeholders: z.array(dissertationStakeholderSchema).max(100).default([]),
-    documents: z.array(dissertationDocumentSchema).max(200).default([]),
-    updatedAt: isoStampSchema,
-    version: z.number().int().min(1).max(99).default(2),
+    title: z.string().trim().min(1).max(120),
+    subtitle: z.string().trim().max(180),
+    defenseTargetDate: dissertationDateNullableSchema,
+    fronts: z.array(dissertationFrontSchema).max(12),
+    generalNotes: z.string().max(40000),
+    updatedAt: z.string(),
+    version: z.number().int().min(1).max(99),
   })
   .strict();
 
-const charterPatchSchema = dissertationCharterBaseSchema.partial();
-const weeklyStatusPatchSchema = dissertationWeeklyStatusBaseSchema.partial();
-
 export const dissertationActionSchema = z.discriminatedUnion("type", [
-  z.object({
-    type: z.literal("update_meta"),
-    title: requiredText(120).optional(),
-    subtitle: z.string().max(160).optional(),
-    status: dissertationProjectStatusSchema.optional(),
-    currentPhase: z.string().max(120).optional(),
-    weeklyFocus: z.string().max(4000).optional(),
-    defenseDate: optionalDate,
-    qualificationDate: optionalDate,
-    nextReviewDate: optionalDate,
-    generalNotes: optionalLongText,
-    charter: charterPatchSchema.optional(),
-    weeklyStatus: weeklyStatusPatchSchema.optional(),
-  }).strict(),
-  z.object({
-    type: z.literal("add_list"),
-    title: requiredText(120),
-    emoji: z.string().trim().min(1).max(8).optional(),
-    color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
-    description: z.string().max(240).optional(),
-    phasesSuggested: z.array(shortText(80)).max(20).optional(),
-  }).strict(),
-  z.object({
-    type: z.literal("update_list"),
-    listId: dissertationIdSchema,
-    title: requiredText(120).optional(),
-    emoji: z.string().trim().min(1).max(8).optional(),
-    color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
-    description: z.string().max(240).optional(),
-    targetDate: optionalDate,
-    phasesSuggested: z.array(shortText(80)).max(20).optional(),
-    notes: z.string().max(20000).optional(),
-    collapsed: z.boolean().optional(),
-  }).strict(),
-  z.object({ type: z.literal("delete_list"), listId: dissertationIdSchema }).strict(),
-  z.object({ type: z.literal("reorder_lists"), listIds: z.array(dissertationIdSchema).max(20) }).strict(),
-  z.object({
-    type: z.literal("add_task"),
-    listId: dissertationIdSchema,
-    title: requiredText(240),
-    phase: z.string().trim().max(80).optional(),
-    dueDate: optionalDate,
-    priority: dissertationTaskPrioritySchema.optional(),
-    estimatedHours: z.number().min(0).max(2000).optional(),
-  }).strict(),
-  z.object({
-    type: z.literal("update_task"),
-    listId: dissertationIdSchema,
-    taskId: dissertationIdSchema,
-    title: requiredText(240).optional(),
-    status: dissertationTaskStatusSchema.optional(),
-    priority: dissertationTaskPrioritySchema.optional(),
-    phase: z.union([z.string().trim().max(80), z.null()]).optional(),
-    dueDate: optionalDate,
-    notes: z.string().max(8000).optional(),
-    estimatedHours: z.union([z.number().min(0).max(2000), z.null()]).optional(),
-  }).strict(),
-  z.object({ type: z.literal("toggle_task_status"), listId: dissertationIdSchema, taskId: dissertationIdSchema, status: dissertationTaskStatusSchema }).strict(),
-  z.object({ type: z.literal("delete_task"), listId: dissertationIdSchema, taskId: dissertationIdSchema }).strict(),
-  z.object({ type: z.literal("move_task"), fromListId: dissertationIdSchema, toListId: dissertationIdSchema, taskId: dissertationIdSchema, index: z.number().int().min(0).max(500).optional() }).strict(),
-  z.object({ type: z.literal("add_milestone"), title: requiredText(160), date: z.string().regex(isoDateRegex), notes: z.string().max(4000).optional() }).strict(),
-  z.object({ type: z.literal("update_milestone"), id: dissertationIdSchema, title: requiredText(160).optional(), date: z.string().regex(isoDateRegex).optional(), done: z.boolean().optional(), notes: z.string().max(4000).optional() }).strict(),
-  z.object({ type: z.literal("delete_milestone"), id: dissertationIdSchema }).strict(),
-  z.object({ type: z.literal("add_raid"), kind: dissertationRaidKindSchema, title: requiredText(240), owner: z.string().max(120).optional(), impact: dissertationImpactSchema.optional(), dueDate: optionalDate, notes: z.string().max(8000).optional() }).strict(),
-  z.object({ type: z.literal("update_raid"), id: dissertationIdSchema, kind: dissertationRaidKindSchema.optional(), title: requiredText(240).optional(), owner: z.string().max(120).optional(), status: dissertationGovernanceStatusSchema.optional(), impact: dissertationImpactSchema.optional(), dueDate: optionalDate, notes: z.string().max(8000).optional() }).strict(),
-  z.object({ type: z.literal("delete_raid"), id: dissertationIdSchema }).strict(),
-  z.object({ type: z.literal("add_decision"), title: requiredText(240), rationale: z.string().max(8000).optional(), impact: z.string().max(8000).optional(), owner: z.string().max(120).optional(), date: z.string().regex(isoDateRegex).optional() }).strict(),
-  z.object({ type: z.literal("update_decision"), id: dissertationIdSchema, title: requiredText(240).optional(), rationale: z.string().max(8000).optional(), impact: z.string().max(8000).optional(), owner: z.string().max(120).optional(), date: z.string().regex(isoDateRegex).optional() }).strict(),
-  z.object({ type: z.literal("delete_decision"), id: dissertationIdSchema }).strict(),
-  z.object({ type: z.literal("add_stakeholder"), name: requiredText(160), role: z.string().max(160).optional(), email: z.string().trim().max(254).optional(), notes: z.string().max(4000).optional() }).strict(),
-  z.object({ type: z.literal("update_stakeholder"), id: dissertationIdSchema, name: requiredText(160).optional(), role: z.string().max(160).optional(), email: z.string().trim().max(254).optional(), notes: z.string().max(4000).optional() }).strict(),
-  z.object({ type: z.literal("delete_stakeholder"), id: dissertationIdSchema }).strict(),
-  z.object({ type: z.literal("add_document"), title: requiredText(220), docType: z.string().max(80).optional(), url: z.string().max(1200).optional(), version: z.string().max(80).optional(), notes: z.string().max(4000).optional() }).strict(),
-  z.object({ type: z.literal("update_document"), id: dissertationIdSchema, title: requiredText(220).optional(), docType: z.string().max(80).optional(), url: z.string().max(1200).optional(), version: z.string().max(80).optional(), notes: z.string().max(4000).optional() }).strict(),
-  z.object({ type: z.literal("delete_document"), id: dissertationIdSchema }).strict(),
+  z
+    .object({
+      type: z.literal("update_project"),
+      title: z.string().trim().min(1).max(120).optional(),
+      subtitle: z.string().trim().max(180).optional(),
+      defenseTargetDate: dissertationDateNullableSchema.optional(),
+      generalNotes: z.string().max(40000).optional(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("update_front"),
+      frontId: dissertationIdSchema,
+      status: z.string().trim().max(300).optional(),
+      notes: z.string().max(30000).optional(),
+      targetDate: dissertationDateNullableSchema.optional(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("add_step"),
+      frontId: dissertationIdSchema,
+      title: z.string().trim().min(1).max(240),
+      dueDate: dissertationDateNullableSchema.optional(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("update_step"),
+      frontId: dissertationIdSchema,
+      stepId: dissertationIdSchema,
+      title: z.string().trim().min(1).max(240).optional(),
+      dueDate: dissertationDateNullableSchema.optional(),
+      done: z.boolean().optional(),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("delete_step"),
+      frontId: dissertationIdSchema,
+      stepId: dissertationIdSchema,
+    })
+    .strict(),
 ]);

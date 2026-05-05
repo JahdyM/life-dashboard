@@ -9118,3 +9118,382 @@ input.no-spinner[type="number"] {
     grid-template-columns: 1fr;
   }
 }
+
+/* Dissertation academic workflow ------------------------------------------ */
+.dissertation-academic {
+  display: grid;
+  gap: 16px;
+}
+
+.dissertation-academic-hero,
+.dissertation-today-panel,
+.dissertation-front-card,
+.dissertation-deadlines-panel,
+.dissertation-general-notes,
+.dissertation-academic-stats article {
+  border: 1px solid rgba(226, 213, 191, 0.14);
+  background:
+    radial-gradient(circle at top right, rgba(143, 171, 200, 0.11), transparent 38%),
+    linear-gradient(180deg, rgba(255, 248, 238, 0.052), rgba(255, 248, 238, 0.025)),
+    rgba(16, 20, 28, 0.84);
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 245, 230, 0.055);
+}
+
+.dissertation-academic-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 18px;
+  align-items: center;
+  border-radius: 26px;
+  padding: 22px;
+}
+
+.dissertation-academic-hero p,
+.dissertation-section-title p,
+.dissertation-front-status span,
+.dissertation-front-date span,
+.dissertation-front-notes span,
+.dissertation-general-notes span,
+.dissertation-step-list > p,
+.dissertation-academic-stats span {
+  margin: 0;
+  color: #d8b977;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.dissertation-academic-hero h2 {
+  margin: 5px 0 4px;
+  color: #fff6e8;
+  font-size: clamp(2rem, 3vw, 3rem);
+}
+
+.dissertation-academic-hero span,
+.dissertation-front-card p,
+.dissertation-today-row span,
+.dissertation-deadline-list-simple p,
+.dissertation-deadline-list-simple em,
+.dissertation-empty,
+.dissertation-sync-state {
+  color: var(--text-muted);
+}
+
+.dissertation-academic-progress,
+.dissertation-academic-date {
+  min-width: 116px;
+  border: 1px solid rgba(226, 213, 191, 0.14);
+  border-radius: 20px;
+  padding: 13px 15px;
+  background: rgba(255, 255, 255, 0.04);
+  display: grid;
+  gap: 3px;
+  text-align: center;
+}
+
+.dissertation-academic-progress strong,
+.dissertation-academic-date strong,
+.dissertation-academic-stats strong {
+  color: #fff6e8;
+  font-size: 1.25rem;
+}
+
+.dissertation-academic-date span,
+.dissertation-academic-progress span {
+  font-size: 0.75rem;
+}
+
+.dissertation-academic-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dissertation-academic-stats article {
+  border-radius: 18px;
+  padding: 13px 14px;
+  display: grid;
+  gap: 5px;
+}
+
+.dissertation-today-panel,
+.dissertation-deadlines-panel,
+.dissertation-general-notes {
+  border-radius: 24px;
+  padding: 16px;
+}
+
+.dissertation-section-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.dissertation-section-title h3 {
+  margin: 3px 0 0;
+  color: #fff6e8;
+  font-size: 1.1rem;
+}
+
+.dissertation-today-grid {
+  display: grid;
+  gap: 9px;
+}
+
+.dissertation-today-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.28fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  border-left: 4px solid var(--accent);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.032);
+  padding: 10px 12px;
+}
+
+.dissertation-today-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.dissertation-today-label strong {
+  color: #fff6e8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dissertation-academic input,
+.dissertation-academic textarea,
+.dissertation-academic button:not(.task-check) {
+  border: 1px solid rgba(226, 213, 191, 0.14);
+  border-radius: 13px;
+  background: rgba(7, 10, 16, 0.45);
+  color: #fff6e8;
+}
+
+.dissertation-academic input {
+  min-height: 38px;
+  padding: 0 10px;
+}
+
+.dissertation-academic textarea {
+  width: 100%;
+  min-height: 118px;
+  padding: 11px;
+  resize: vertical;
+}
+
+.dissertation-academic button:not(.task-check) {
+  min-height: 34px;
+  padding: 6px 10px;
+  color: rgba(255, 246, 232, 0.9);
+}
+
+.dissertation-front-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.dissertation-front-card {
+  --front-color: var(--accent);
+  border-radius: 24px;
+  padding: 16px;
+  display: grid;
+  gap: 13px;
+  position: relative;
+  overflow: hidden;
+}
+
+.dissertation-front-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--front-color);
+  opacity: 0.85;
+}
+
+.dissertation-front-card header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.dissertation-front-card header > div {
+  min-width: 0;
+  display: flex;
+  gap: 11px;
+}
+
+.dissertation-front-card header span {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.dissertation-front-card h3 {
+  margin: 0;
+  color: #fff6e8;
+  font-size: 1.05rem;
+}
+
+.dissertation-front-card header strong {
+  color: var(--front-color);
+  font-size: 1rem;
+}
+
+.dissertation-front-meter {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(226, 213, 191, 0.12);
+}
+
+.dissertation-front-meter span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--front-color), rgba(255, 246, 232, 0.8));
+}
+
+.dissertation-front-status,
+.dissertation-front-date,
+.dissertation-front-notes,
+.dissertation-general-notes {
+  display: grid;
+  gap: 7px;
+}
+
+.dissertation-step-list {
+  display: grid;
+  gap: 8px;
+}
+
+.dissertation-step-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 138px auto;
+  gap: 8px;
+  align-items: center;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 8px;
+}
+
+.dissertation-step-row.compact {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.dissertation-step-row.done {
+  opacity: 0.65;
+}
+
+.dissertation-step-row.done input {
+  text-decoration: line-through;
+}
+
+.dissertation-academic .task-check {
+  width: 21px;
+  height: 21px;
+  border-radius: 999px;
+  border: 1px solid rgba(226, 213, 191, 0.48);
+  background: rgba(7, 10, 16, 0.62);
+  padding: 0;
+}
+
+.dissertation-academic .task-check.checked {
+  border-color: rgba(142, 199, 165, 0.72);
+  background: radial-gradient(circle, #8ec7a5 0 43%, rgba(142, 199, 165, 0.2) 45% 100%);
+}
+
+.dissertation-add-step input {
+  width: 100%;
+}
+
+.dissertation-done-steps {
+  border: 1px solid rgba(226, 213, 191, 0.1);
+  border-radius: 16px;
+  padding: 9px;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.dissertation-done-steps summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.dissertation-done-steps .dissertation-step-row {
+  margin-top: 8px;
+}
+
+.dissertation-deadline-list-simple {
+  display: grid;
+  gap: 8px;
+}
+
+.dissertation-deadline-list-simple article {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 11px;
+  align-items: center;
+  border: 1px solid rgba(226, 213, 191, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 10px;
+}
+
+.dissertation-deadline-list-simple article.overdue {
+  border-color: rgba(203, 136, 128, 0.32);
+}
+
+.dissertation-deadline-list-simple strong {
+  color: #fff6e8;
+}
+
+.dissertation-deadline-list-simple p {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+}
+
+.dissertation-deadline-list-simple em {
+  font-style: normal;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.dissertation-empty {
+  margin: 0;
+  font-size: 0.86rem;
+}
+
+.dissertation-sync-state {
+  min-height: 18px;
+  text-align: right;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 900px) {
+  .dissertation-academic-hero,
+  .dissertation-front-grid,
+  .dissertation-academic-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .dissertation-today-row,
+  .dissertation-step-row,
+  .dissertation-step-row.compact,
+  .dissertation-deadline-list-simple article {
+    grid-template-columns: 1fr;
+  }
+
+  .dissertation-today-label {
+    margin-bottom: 2px;
+  }
+}

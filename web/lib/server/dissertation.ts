@@ -2,170 +2,182 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db/prisma";
 import {
+  DISSERTATION_FRONT_KEYS,
   type DissertationAction,
-  type DissertationDecision,
-  type DissertationDocument,
-  type DissertationList,
-  type DissertationMilestone,
+  type DissertationFront,
+  type DissertationFrontKey,
   type DissertationProject,
-  type DissertationRaidItem,
-  type DissertationStakeholder,
-  type DissertationTask,
-  type GovernanceItemStatus,
-  type ImpactLevel,
-  type ProjectStatus,
-  type RaidKind,
-  type TaskPriority,
-  type TaskStatus,
-  TASK_STATUSES,
+  type DissertationStep,
 } from "@/lib/dissertation";
 import { dissertationActionSchema, dissertationProjectSchema } from "./schemas";
 
-const STORAGE_KEY_PREFIX = "dissertation_v2";
-const LEGACY_STORAGE_KEY_PREFIX = "dissertation_v1";
+const STORAGE_KEY_PREFIX = "dissertation_v3";
+const LEGACY_KEYS = ["dissertation_v2", "dissertation_v1"];
 
-function settingKey(userEmail: string) {
-  return `${userEmail.toLowerCase()}::${STORAGE_KEY_PREFIX}`;
-}
-
-function legacySettingKey(userEmail: string) {
-  return `${userEmail.toLowerCase()}::${LEGACY_STORAGE_KEY_PREFIX}`;
+function settingKey(userEmail: string, prefix = STORAGE_KEY_PREFIX) {
+  return `${userEmail.toLowerCase()}::${prefix}`;
 }
 
 function nowIso() {
   return new Date().toISOString();
 }
 
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function newId() {
   return randomUUID().replace(/-/g, "");
 }
 
-function buildDefaultLists(): DissertationList[] {
-  return [
-    {
-      id: newId(),
-      title: "Artigo WSE",
-      emoji: "WSE",
-      color: "#2F80ED",
-      description: "Manuscrito, revisões e submissão.",
-      targetDate: null,
-      phasesSuggested: ["Draft", "Figures", "Review", "Submission"],
-      tasks: [],
-      notes: "",
-      collapsed: false,
-      order: 10,
-    },
-    {
-      id: newId(),
-      title: "Artigo SWE",
-      emoji: "SWE",
-      color: "#27AE60",
-      description: "Pipeline de análise, escrita e journal fit.",
-      targetDate: null,
-      phasesSuggested: ["Literature", "Methods", "Analysis", "Writing"],
-      tasks: [],
-      notes: "",
-      collapsed: false,
-      order: 20,
-    },
-    {
-      id: newId(),
-      title: "Dissertação",
-      emoji: "DOC",
-      color: "#9B6BD3",
-      description: "Documento integrador e versão final.",
-      targetDate: null,
-      phasesSuggested: ["Intro", "Methods", "Results", "Discussion", "Final review"],
-      tasks: [],
-      notes: "",
-      collapsed: false,
-      order: 30,
-    },
-    {
-      id: newId(),
-      title: "Defesa e banca",
-      emoji: "DEF",
-      color: "#D2A869",
-      description: "Qualificação, defesa, apresentações e burocracias.",
-      targetDate: null,
-      phasesSuggested: ["Qualification", "Slides", "Committee", "Defense"],
-      tasks: [],
-      notes: "",
-      collapsed: false,
-      order: 40,
-    },
-  ];
-}
-
-function buildDefaultProject(): DissertationProject {
+function step(title: string, dueDate: string | null = null): DissertationStep {
   const created = nowIso();
   return {
-    title: "Mestrado",
-    subtitle: "Dissertation Project Control Center",
-    status: "on_track",
-    currentPhase: "Execution",
-    weeklyFocus: "Definir a próxima entrega crítica.",
-    defenseDate: null,
-    qualificationDate: null,
-    nextReviewDate: null,
-    generalNotes: "",
-    charter: {
-      objective: "Concluir a dissertação e os manuscritos derivados com rastreabilidade de decisões, riscos e entregas.",
-      scope: "Artigos, documento da dissertação, análise, revisão, submissão e preparação para defesa.",
-      outOfScope: "Demandas acadêmicas não ligadas diretamente à conclusão do projeto.",
-      successCriteria: "Manuscritos submetidos, dissertação final revisada, defesa preparada e pendências críticas resolvidas.",
-    },
-    weeklyStatus: {
-      summary: "",
-      wins: "",
-      blockers: "",
-      nextFocus: "",
-      updatedAt: created,
-    },
-    lists: buildDefaultLists(),
-    milestones: [],
-    raid: [],
-    decisions: [],
-    stakeholders: [
-      {
-        id: newId(),
-        name: "Orientador(a)",
-        role: "Sponsor / reviewer",
-        email: "",
-        notes: "",
-        createdAt: created,
-        updatedAt: created,
-      },
-    ],
-    documents: [],
+    id: newId(),
+    title,
+    done: false,
+    dueDate,
+    completedAt: null,
+    createdAt: created,
     updatedAt: created,
-    version: 2,
   };
 }
 
-export async function loadDissertationProject(
-  userEmail: string
-): Promise<DissertationProject> {
-  const row = await prisma.setting.findUnique({
-    where: { key: settingKey(userEmail) },
-  });
+function front(
+  key: DissertationFrontKey,
+  title: string,
+  icon: string,
+  color: string,
+  status: string,
+  targetDate: string | null,
+  steps: DissertationStep[],
+  notes = ""
+): DissertationFront {
+  return {
+    id: newId(),
+    key,
+    title,
+    icon,
+    color,
+    status,
+    targetDate,
+    steps,
+    notes,
+    order: DISSERTATION_FRONT_KEYS.indexOf(key) * 10 + 10,
+  };
+}
+
+function buildDefaultProject(): DissertationProject {
+  return {
+    title: "Mestrado",
+    subtitle: "6 frentes · pequenos passos por dia",
+    defenseTargetDate: "2026-08-15",
+    fronts: [
+      front(
+        "wse_article",
+        "Artigo WSE",
+        "📄",
+        "#7fb3ff",
+        "Em revisão das orientadoras.",
+        "2026-07-31",
+        [
+          step("Aplicar correções das orientadoras"),
+          step("Enviar para colaborador internacional"),
+          step("Aplicar feedback do colaborador"),
+          step("Enviar revisão final para orientadoras"),
+          step("Revisão minha + submissão", "2026-07-31"),
+        ]
+      ),
+      front(
+        "swe_article",
+        "Artigo SWE",
+        "📄",
+        "#8fd4a8",
+        "Metodologia ainda a iniciar.",
+        "2026-05-31",
+        [
+          step("Revisão de literatura SWE"),
+          step("Coletar SWOT e dados complementares"),
+          step("Definir metodologia"),
+          step("Rodar análise principal"),
+          step("Escrever resultados e discussão"),
+          step("Submissão", "2026-05-31"),
+        ]
+      ),
+      front(
+        "integrative_text",
+        "Dissertação",
+        "📚",
+        "#c4a3ff",
+        "Introdução e revisão em rascunho.",
+        "2026-08-15",
+        [
+          step("Escrever introdução geral"),
+          step("Mapear tópicos da revisão de literatura"),
+          step("Escrever seção de revisão SWOT"),
+          step("Integrar Artigo WSE como capítulo"),
+          step("Integrar Artigo SWE como capítulo"),
+          step("Revisão final do documento"),
+        ]
+      ),
+      front(
+        "wse_lakes",
+        "WSE Lagos",
+        "🌊",
+        "#64c7d9",
+        "Trabalho paralelo para eventos e apresentações.",
+        "2026-08-31",
+        [
+          step("Organizar recorte de eventos"),
+          step("Preparar figuras para apresentação"),
+          step("Escrever resumo/submissão de evento", "2026-08-31"),
+        ]
+      ),
+      front(
+        "defense",
+        "Defesa",
+        "🎤",
+        "#d8b46a",
+        "Sem data formal; alvo em meados de agosto.",
+        "2026-08-15",
+        [
+          step("Montar estrutura dos slides"),
+          step("Criar slides dos manuscritos"),
+          step("Criar slides gerais da dissertação"),
+          step("Ensaiar apresentação"),
+        ]
+      ),
+      front(
+        "library_formatting",
+        "Formatação biblioteca",
+        "📐",
+        "#e39d94",
+        "Passe final depois do texto pronto.",
+        null,
+        [
+          step("Conferir normas da biblioteca"),
+          step("Ajustar referências e elementos pré-textuais"),
+          step("Revisão final de formatação"),
+        ]
+      ),
+    ],
+    generalNotes: "",
+    updatedAt: nowIso(),
+    version: 3,
+  };
+}
+
+export async function loadDissertationProject(userEmail: string): Promise<DissertationProject> {
+  const row = await prisma.setting.findUnique({ where: { key: settingKey(userEmail) } });
   if (row?.value) return parseProject(row.value, userEmail);
 
-  const legacyRow = await prisma.setting.findUnique({
-    where: { key: legacySettingKey(userEmail) },
-  });
-  if (legacyRow?.value) return parseProject(legacyRow.value, userEmail);
+  for (const key of LEGACY_KEYS) {
+    const legacyRow = await prisma.setting.findUnique({ where: { key: settingKey(userEmail, key) } });
+    if (legacyRow?.value) return parseProject(legacyRow.value, userEmail);
+  }
 
   const fresh = buildDefaultProject();
   await saveDissertationProject(userEmail, fresh);
   return fresh;
 }
 
-async function parseProject(rawValue: string, userEmail: string) {
+async function parseProject(rawValue: string, userEmail: string): Promise<DissertationProject> {
   try {
     const parsed = JSON.parse(rawValue);
     const validated = dissertationProjectSchema.safeParse(parsed);
@@ -174,19 +186,90 @@ async function parseProject(rawValue: string, userEmail: string) {
       await saveDissertationProject(userEmail, normalized);
       return normalized;
     }
+    const migrated = migrateLegacyProject(parsed);
+    if (migrated) {
+      const normalized = normalizeProject(migrated);
+      await saveDissertationProject(userEmail, normalized);
+      return normalized;
+    }
   } catch {
-    // Fall through to default below.
+    // Use the workflow defaults below.
   }
+
   const fallback = buildDefaultProject();
   await saveDissertationProject(userEmail, fallback);
   return fallback;
+}
+
+
+function migrateLegacyProject(raw: unknown): DissertationProject | null {
+  if (!raw || typeof raw !== "object") return null;
+  const legacy = raw as {
+    title?: unknown;
+    subtitle?: unknown;
+    defenseDate?: unknown;
+    generalNotes?: unknown;
+    lists?: Array<{
+      title?: unknown;
+      description?: unknown;
+      targetDate?: unknown;
+      notes?: unknown;
+      tasks?: Array<{
+        id?: unknown;
+        title?: unknown;
+        status?: unknown;
+        dueDate?: unknown;
+        completedAt?: unknown;
+        createdAt?: unknown;
+        updatedAt?: unknown;
+      }>;
+    }>;
+  };
+  if (!Array.isArray(legacy.lists)) return null;
+
+  const next = buildDefaultProject();
+  next.title = typeof legacy.title === "string" && legacy.title.trim() ? legacy.title : next.title;
+  next.subtitle = "6 frentes · pequenos passos por dia";
+  next.defenseTargetDate = typeof legacy.defenseDate === "string" ? legacy.defenseDate : next.defenseTargetDate;
+  next.generalNotes = typeof legacy.generalNotes === "string" ? legacy.generalNotes : "";
+
+  for (const source of legacy.lists) {
+    const sourceTitle = typeof source.title === "string" ? source.title.toLowerCase() : "";
+    const frontItem = next.fronts.find((frontCandidate) => {
+      if (sourceTitle.includes("swe")) return frontCandidate.key === "swe_article";
+      if (sourceTitle.includes("wse")) return frontCandidate.key === "wse_article";
+      if (sourceTitle.includes("defesa") || sourceTitle.includes("banca")) return frontCandidate.key === "defense";
+      if (sourceTitle.includes("disser")) return frontCandidate.key === "integrative_text";
+      return false;
+    });
+    if (!frontItem) continue;
+
+    if (typeof source.description === "string" && source.description.trim()) frontItem.status = source.description;
+    if (typeof source.targetDate === "string") frontItem.targetDate = source.targetDate;
+    if (typeof source.notes === "string") frontItem.notes = source.notes;
+    if (Array.isArray(source.tasks) && source.tasks.length > 0) {
+      frontItem.steps = source.tasks
+        .filter((task) => typeof task.title === "string" && task.title.trim())
+        .map((task) => ({
+          id: typeof task.id === "string" ? task.id : newId(),
+          title: String(task.title).trim(),
+          done: task.status === "done",
+          dueDate: typeof task.dueDate === "string" ? task.dueDate : null,
+          completedAt: typeof task.completedAt === "string" ? task.completedAt : null,
+          createdAt: typeof task.createdAt === "string" ? task.createdAt : nowIso(),
+          updatedAt: typeof task.updatedAt === "string" ? task.updatedAt : nowIso(),
+        }));
+    }
+  }
+
+  return next;
 }
 
 export async function saveDissertationProject(
   userEmail: string,
   project: DissertationProject
 ): Promise<DissertationProject> {
-  const next = normalizeProject({ ...project, updatedAt: nowIso(), version: 2 });
+  const next = normalizeProject({ ...project, updatedAt: nowIso(), version: 3 });
   await prisma.setting.upsert({
     where: { key: settingKey(userEmail) },
     create: { key: settingKey(userEmail), value: JSON.stringify(next) },
@@ -196,68 +279,42 @@ export async function saveDissertationProject(
 }
 
 function normalizeProject(project: DissertationProject): DissertationProject {
-  const base = buildDefaultProject();
-  const lists = (project.lists || base.lists)
-    .map((list, index) => ({
-      ...list,
-      title: list.title.trim() || "Untitled workstream",
-      emoji: (list.emoji || "WS").trim().slice(0, 8),
-      description: (list.description || "").trim(),
-      notes: list.notes || "",
-      phasesSuggested: (list.phasesSuggested || []).map((p) => p.trim()).filter(Boolean),
-      order: typeof list.order === "number" ? list.order : index * 10,
-      tasks: (list.tasks || [])
-        .filter((t) => t.title.trim().length > 0)
-        .map((t) => ({
-          ...t,
-          title: t.title.trim(),
-          notes: t.notes || "",
-          priority: t.priority || "medium",
-          status: TASK_STATUSES.includes(t.status) ? t.status : "todo",
-        })),
-    }))
-    .sort((a, b) => a.order - b.order);
+  const defaults = buildDefaultProject();
+  const frontsByKey = new Map(project.fronts.map((item) => [item.key, item]));
 
-  const milestones = (project.milestones || [])
-    .filter((m) => m.title.trim().length > 0 && m.date)
-    .map((m, index) => ({
-      ...m,
-      title: m.title.trim(),
-      notes: m.notes || "",
-      order: typeof m.order === "number" ? m.order : index * 10,
-    }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const fronts = defaults.fronts.map((fallback) => {
+    const existing = frontsByKey.get(fallback.key);
+    const source = existing || fallback;
+    return {
+      ...fallback,
+      ...source,
+      title: source.title.trim() || fallback.title,
+      status: source.status.trim() || fallback.status,
+      notes: source.notes || "",
+      steps: source.steps
+        .filter((item) => item.title.trim().length > 0)
+        .map((item) => ({
+          ...item,
+          title: item.title.trim(),
+          dueDate: item.dueDate || null,
+          completedAt: item.done ? item.completedAt || nowIso() : null,
+          updatedAt: item.updatedAt || nowIso(),
+          createdAt: item.createdAt || nowIso(),
+        })),
+    };
+  });
 
   return {
-    ...base,
+    ...defaults,
     ...project,
-    title: project.title?.trim() || base.title,
-    subtitle: (project.subtitle || base.subtitle).trim(),
-    status: project.status || base.status,
-    currentPhase: (project.currentPhase || base.currentPhase).trim(),
-    weeklyFocus: project.weeklyFocus || "",
-    nextReviewDate: project.nextReviewDate ?? null,
+    title: project.title.trim() || defaults.title,
+    subtitle: project.subtitle.trim() || defaults.subtitle,
+    defenseTargetDate: project.defenseTargetDate || defaults.defenseTargetDate,
+    fronts,
     generalNotes: project.generalNotes || "",
-    charter: { ...base.charter, ...(project.charter || {}) },
-    weeklyStatus: { ...base.weeklyStatus, ...(project.weeklyStatus || {}) },
-    lists,
-    milestones,
-    raid: normalizeTimedItems(project.raid || []),
-    decisions: normalizeTimedItems(project.decisions || []),
-    stakeholders: normalizeTimedItems(project.stakeholders || []),
-    documents: normalizeTimedItems(project.documents || []),
     updatedAt: project.updatedAt || nowIso(),
-    version: 2,
+    version: 3,
   };
-}
-
-function normalizeTimedItems<T extends { id: string; createdAt: string; updatedAt: string }>(items: T[]): T[] {
-  return items.map((item) => ({
-    ...item,
-    id: item.id || newId(),
-    createdAt: item.createdAt || nowIso(),
-    updatedAt: item.updatedAt || nowIso(),
-  }));
 }
 
 export async function applyDissertationAction(
@@ -272,385 +329,84 @@ export async function applyDissertationAction(
   return saveDissertationProject(userEmail, next);
 }
 
-function mutateProject(
-  project: DissertationProject,
-  action: DissertationAction
-): DissertationProject {
+function mutateProject(project: DissertationProject, action: DissertationAction): DissertationProject {
   switch (action.type) {
-    case "update_meta":
+    case "update_project":
       return {
         ...project,
         title: action.title ?? project.title,
         subtitle: action.subtitle ?? project.subtitle,
-        status: action.status ?? project.status,
-        currentPhase: action.currentPhase ?? project.currentPhase,
-        weeklyFocus: action.weeklyFocus ?? project.weeklyFocus,
-        defenseDate: action.defenseDate === undefined ? project.defenseDate : action.defenseDate,
-        qualificationDate:
-          action.qualificationDate === undefined
-            ? project.qualificationDate
-            : action.qualificationDate,
-        nextReviewDate:
-          action.nextReviewDate === undefined ? project.nextReviewDate : action.nextReviewDate,
+        defenseTargetDate:
+          action.defenseTargetDate === undefined
+            ? project.defenseTargetDate
+            : action.defenseTargetDate,
         generalNotes: action.generalNotes ?? project.generalNotes,
-        charter: action.charter ? { ...project.charter, ...action.charter } : project.charter,
-        weeklyStatus: action.weeklyStatus
-          ? { ...project.weeklyStatus, ...action.weeklyStatus, updatedAt: nowIso() }
-          : project.weeklyStatus,
       };
 
-    case "add_list": {
-      const list: DissertationList = {
-        id: newId(),
-        title: action.title,
-        emoji: action.emoji || "WS",
-        color: action.color || "#2F80ED",
-        description: action.description || "",
-        targetDate: null,
-        phasesSuggested: action.phasesSuggested || [],
-        tasks: [],
-        notes: "",
-        collapsed: false,
-        order: nextOrder(project.lists),
-      };
-      return { ...project, lists: [...project.lists, list] };
-    }
-
-    case "update_list":
+    case "update_front":
       return {
         ...project,
-        lists: project.lists.map((list) =>
-          list.id !== action.listId ? list : applyListUpdate(list, action)
+        fronts: project.fronts.map((item) =>
+          item.id !== action.frontId
+            ? item
+            : {
+                ...item,
+                status: action.status ?? item.status,
+                notes: action.notes ?? item.notes,
+                targetDate: action.targetDate === undefined ? item.targetDate : action.targetDate,
+              }
         ),
       };
 
-    case "delete_list":
-      return { ...project, lists: project.lists.filter((l) => l.id !== action.listId) };
-
-    case "reorder_lists": {
-      const idIndex = new Map(action.listIds.map((id, idx) => [id, idx]));
+    case "add_step": {
+      const nextStep = step(action.title, action.dueDate ?? null);
       return {
         ...project,
-        lists: [...project.lists]
-          .map((list) => ({ ...list, order: (idIndex.get(list.id) ?? list.order) * 10 }))
-          .sort((a, b) => a.order - b.order),
-      };
-    }
-
-    case "add_task": {
-      const created = nowIso();
-      const task: DissertationTask = {
-        id: newId(),
-        title: action.title,
-        status: "todo",
-        priority: action.priority || "medium",
-        phase: action.phase ?? null,
-        dueDate: action.dueDate ?? null,
-        notes: "",
-        estimatedHours: action.estimatedHours ?? null,
-        completedAt: null,
-        createdAt: created,
-        updatedAt: created,
-      };
-      return {
-        ...project,
-        lists: project.lists.map((list) =>
-          list.id !== action.listId ? list : { ...list, tasks: [...list.tasks, task] }
+        fronts: project.fronts.map((item) =>
+          item.id !== action.frontId ? item : { ...item, steps: [...item.steps, nextStep] }
         ),
       };
     }
 
-    case "update_task": {
+    case "update_step": {
       const updatedAt = nowIso();
       return {
         ...project,
-        lists: project.lists.map((list) =>
-          list.id !== action.listId
-            ? list
+        fronts: project.fronts.map((frontItem) =>
+          frontItem.id !== action.frontId
+            ? frontItem
             : {
-                ...list,
-                tasks: list.tasks.map((task) =>
-                  task.id !== action.taskId ? task : applyTaskUpdate(task, action, updatedAt)
+                ...frontItem,
+                steps: frontItem.steps.map((item) =>
+                  item.id !== action.stepId
+                    ? item
+                    : {
+                        ...item,
+                        title: action.title ?? item.title,
+                        dueDate: action.dueDate === undefined ? item.dueDate : action.dueDate,
+                        done: action.done ?? item.done,
+                        completedAt:
+                          action.done === undefined
+                            ? item.completedAt
+                            : action.done
+                              ? item.completedAt || updatedAt
+                              : null,
+                        updatedAt,
+                      }
                 ),
               }
         ),
       };
     }
 
-    case "toggle_task_status": {
-      const updatedAt = nowIso();
-      const status = action.status as TaskStatus;
+    case "delete_step":
       return {
         ...project,
-        lists: project.lists.map((list) =>
-          list.id !== action.listId
-            ? list
-            : {
-                ...list,
-                tasks: list.tasks.map((task) =>
-                  task.id !== action.taskId
-                    ? task
-                    : { ...task, status, updatedAt, completedAt: status === "done" ? task.completedAt || updatedAt : null }
-                ),
-              }
+        fronts: project.fronts.map((frontItem) =>
+          frontItem.id !== action.frontId
+            ? frontItem
+            : { ...frontItem, steps: frontItem.steps.filter((item) => item.id !== action.stepId) }
         ),
       };
-    }
-
-    case "delete_task":
-      return {
-        ...project,
-        lists: project.lists.map((list) =>
-          list.id !== action.listId
-            ? list
-            : { ...list, tasks: list.tasks.filter((t) => t.id !== action.taskId) }
-        ),
-      };
-
-    case "move_task": {
-      const fromList = project.lists.find((l) => l.id === action.fromListId);
-      if (!fromList) return project;
-      const moved = fromList.tasks.find((t) => t.id === action.taskId);
-      if (!moved) return project;
-      return {
-        ...project,
-        lists: project.lists.map((list) => {
-          if (list.id === action.fromListId) {
-            return { ...list, tasks: list.tasks.filter((t) => t.id !== action.taskId) };
-          }
-          if (list.id === action.toListId) {
-            const tasks = [...list.tasks];
-            const index = typeof action.index === "number" ? Math.max(0, Math.min(tasks.length, action.index)) : tasks.length;
-            tasks.splice(index, 0, { ...moved, updatedAt: nowIso() });
-            return { ...list, tasks };
-          }
-          return list;
-        }),
-      };
-    }
-
-    case "add_milestone": {
-      const ms: DissertationMilestone = {
-        id: newId(),
-        title: action.title,
-        date: action.date,
-        done: false,
-        notes: action.notes || "",
-        order: nextOrder(project.milestones),
-      };
-      return { ...project, milestones: [...project.milestones, ms] };
-    }
-
-    case "update_milestone":
-      return {
-        ...project,
-        milestones: project.milestones.map((ms) =>
-          ms.id !== action.id
-            ? ms
-            : { ...ms, title: action.title ?? ms.title, date: action.date ?? ms.date, done: action.done ?? ms.done, notes: action.notes ?? ms.notes }
-        ),
-      };
-
-    case "delete_milestone":
-      return { ...project, milestones: project.milestones.filter((m) => m.id !== action.id) };
-
-    case "add_raid": {
-      const item: DissertationRaidItem = {
-        id: newId(),
-        kind: action.kind,
-        title: action.title,
-        owner: action.owner || "",
-        status: "open",
-        impact: action.impact || "medium",
-        dueDate: action.dueDate ?? null,
-        notes: action.notes || "",
-        createdAt: nowIso(),
-        updatedAt: nowIso(),
-      };
-      return { ...project, raid: [item, ...project.raid] };
-    }
-
-    case "update_raid":
-      return { ...project, raid: project.raid.map((item) => item.id === action.id ? updateRaid(item, action) : item) };
-
-    case "delete_raid":
-      return { ...project, raid: project.raid.filter((item) => item.id !== action.id) };
-
-    case "add_decision": {
-      const item: DissertationDecision = {
-        id: newId(),
-        title: action.title,
-        rationale: action.rationale || "",
-        impact: action.impact || "",
-        owner: action.owner || "",
-        date: action.date || todayIso(),
-        createdAt: nowIso(),
-        updatedAt: nowIso(),
-      };
-      return { ...project, decisions: [item, ...project.decisions] };
-    }
-
-    case "update_decision":
-      return {
-        ...project,
-        decisions: project.decisions.map((item) =>
-          item.id === action.id
-            ? {
-                ...item,
-                title: action.title ?? item.title,
-                rationale: action.rationale ?? item.rationale,
-                impact: action.impact ?? item.impact,
-                owner: action.owner ?? item.owner,
-                date: action.date ?? item.date,
-                updatedAt: nowIso(),
-              }
-            : item
-        ),
-      };
-
-    case "delete_decision":
-      return { ...project, decisions: project.decisions.filter((item) => item.id !== action.id) };
-
-    case "add_stakeholder": {
-      const item: DissertationStakeholder = {
-        id: newId(),
-        name: action.name,
-        role: action.role || "",
-        email: action.email || "",
-        notes: action.notes || "",
-        createdAt: nowIso(),
-        updatedAt: nowIso(),
-      };
-      return { ...project, stakeholders: [...project.stakeholders, item] };
-    }
-
-    case "update_stakeholder":
-      return {
-        ...project,
-        stakeholders: project.stakeholders.map((item) =>
-          item.id === action.id
-            ? {
-                ...item,
-                name: action.name ?? item.name,
-                role: action.role ?? item.role,
-                email: action.email ?? item.email,
-                notes: action.notes ?? item.notes,
-                updatedAt: nowIso(),
-              }
-            : item
-        ),
-      };
-
-    case "delete_stakeholder":
-      return { ...project, stakeholders: project.stakeholders.filter((item) => item.id !== action.id) };
-
-    case "add_document": {
-      const item: DissertationDocument = {
-        id: newId(),
-        title: action.title,
-        type: action.docType || "Document",
-        url: action.url || "",
-        version: action.version || "",
-        notes: action.notes || "",
-        createdAt: nowIso(),
-        updatedAt: nowIso(),
-      };
-      return { ...project, documents: [item, ...project.documents] };
-    }
-
-    case "update_document":
-      return {
-        ...project,
-        documents: project.documents.map((item) =>
-          item.id === action.id
-            ? {
-                ...item,
-                title: action.title ?? item.title,
-                type: action.docType ?? item.type,
-                url: action.url ?? item.url,
-                version: action.version ?? item.version,
-                notes: action.notes ?? item.notes,
-                updatedAt: nowIso(),
-              }
-            : item
-        ),
-      };
-
-    case "delete_document":
-      return { ...project, documents: project.documents.filter((item) => item.id !== action.id) };
-    default:
-      return project;
   }
-}
-
-function updateRaid(
-  item: DissertationRaidItem,
-  action: Partial<{
-    kind: RaidKind;
-    title: string;
-    owner: string;
-    status: GovernanceItemStatus;
-    impact: ImpactLevel;
-    dueDate: string | null;
-    notes: string;
-  }>
-): DissertationRaidItem {
-  return {
-    ...item,
-    kind: action.kind ?? item.kind,
-    title: action.title ?? item.title,
-    owner: action.owner ?? item.owner,
-    status: action.status ?? item.status,
-    impact: action.impact ?? item.impact,
-    dueDate: action.dueDate === undefined ? item.dueDate : action.dueDate,
-    notes: action.notes ?? item.notes,
-    updatedAt: nowIso(),
-  };
-}
-
-function applyListUpdate(
-  list: DissertationList,
-  action: { title?: string; emoji?: string; color?: string; description?: string;
-    targetDate?: string | null; phasesSuggested?: string[]; notes?: string;
-    collapsed?: boolean }
-): DissertationList {
-  return {
-    ...list,
-    title: action.title ?? list.title,
-    emoji: action.emoji ?? list.emoji,
-    color: action.color ?? list.color,
-    description: action.description ?? list.description,
-    targetDate: action.targetDate === undefined ? list.targetDate : action.targetDate,
-    phasesSuggested: action.phasesSuggested ?? list.phasesSuggested,
-    notes: action.notes ?? list.notes,
-    collapsed: action.collapsed ?? list.collapsed,
-  };
-}
-
-function applyTaskUpdate(
-  task: DissertationTask,
-  action: { title?: string; status?: TaskStatus; priority?: TaskPriority;
-    phase?: string | null; dueDate?: string | null; notes?: string;
-    estimatedHours?: number | null },
-  updatedAt: string
-): DissertationTask {
-  const status = action.status ?? task.status;
-  if (action.status && !TASK_STATUSES.includes(action.status)) return task;
-  return {
-    ...task,
-    title: action.title ?? task.title,
-    status,
-    priority: action.priority ?? task.priority,
-    phase: action.phase === undefined ? task.phase : action.phase,
-    dueDate: action.dueDate === undefined ? task.dueDate : action.dueDate,
-    notes: action.notes ?? task.notes,
-    estimatedHours: action.estimatedHours === undefined ? task.estimatedHours : action.estimatedHours,
-    completedAt: status === "done" ? task.completedAt || updatedAt : null,
-    updatedAt,
-  };
-}
-
-function nextOrder(items: { order: number }[]): number {
-  if (items.length === 0) return 10;
-  return Math.max(...items.map((i) => i.order)) + 10;
 }
