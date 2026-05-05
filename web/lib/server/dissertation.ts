@@ -75,13 +75,13 @@ function buildDefaultProject(): DissertationProject {
         "📄",
         "#7fb3ff",
         "Em revisão das orientadoras.",
-        "2026-07-31",
+        "2026-05-31",
         [
           step("Aplicar correções das orientadoras"),
           step("Enviar para colaborador internacional"),
           step("Aplicar feedback do colaborador"),
           step("Enviar revisão final para orientadoras"),
-          step("Revisão minha + submissão", "2026-07-31"),
+          step("Revisão minha + submissão", "2026-05-31"),
         ]
       ),
       front(
@@ -90,14 +90,14 @@ function buildDefaultProject(): DissertationProject {
         "📄",
         "#8fd4a8",
         "Metodologia ainda a iniciar.",
-        "2026-05-31",
+        "2026-07-31",
         [
           step("Revisão de literatura SWE"),
           step("Coletar SWOT e dados complementares"),
           step("Definir metodologia"),
           step("Rodar análise principal"),
           step("Escrever resultados e discussão"),
-          step("Submissão", "2026-05-31"),
+          step("Submissão", "2026-07-31"),
         ]
       ),
       front(
@@ -183,14 +183,16 @@ async function parseProject(rawValue: string, userEmail: string): Promise<Disser
     const validated = dissertationProjectSchema.safeParse(parsed);
     if (validated.success) {
       const normalized = normalizeProject(validated.data);
-      await saveDissertationProject(userEmail, normalized);
-      return normalized;
+      const corrected = fixSwappedSubmissionDates(normalized);
+      await saveDissertationProject(userEmail, corrected);
+      return corrected;
     }
     const migrated = migrateLegacyProject(parsed);
     if (migrated) {
       const normalized = normalizeProject(migrated);
-      await saveDissertationProject(userEmail, normalized);
-      return normalized;
+      const corrected = fixSwappedSubmissionDates(normalized);
+      await saveDissertationProject(userEmail, corrected);
+      return corrected;
     }
   } catch {
     // Use the workflow defaults below.
@@ -199,6 +201,47 @@ async function parseProject(rawValue: string, userEmail: string): Promise<Disser
   const fallback = buildDefaultProject();
   await saveDissertationProject(userEmail, fallback);
   return fallback;
+}
+
+/**
+ * One-shot correction for the brief window where the seed defaults had the
+ * Artigo WSE and Artigo SWE submission dates swapped.
+ *
+ * If the project still carries the buggy combination — WSE targetDate set to
+ * 2026-07-31 AND SWE targetDate set to 2026-05-31 — swap them (plus any
+ * matching step dueDates). Once corrected, the heuristic stops firing.
+ */
+function fixSwappedSubmissionDates(project: DissertationProject): DissertationProject {
+  const wse = project.fronts.find((f) => f.key === "wse_article");
+  const swe = project.fronts.find((f) => f.key === "swe_article");
+  if (!wse || !swe) return project;
+  if (wse.targetDate !== "2026-07-31" || swe.targetDate !== "2026-05-31") {
+    return project;
+  }
+  return {
+    ...project,
+    fronts: project.fronts.map((f) => {
+      if (f.id === wse.id) {
+        return {
+          ...f,
+          targetDate: "2026-05-31",
+          steps: f.steps.map((s) =>
+            s.dueDate === "2026-07-31" ? { ...s, dueDate: "2026-05-31", updatedAt: nowIso() } : s
+          ),
+        };
+      }
+      if (f.id === swe.id) {
+        return {
+          ...f,
+          targetDate: "2026-07-31",
+          steps: f.steps.map((s) =>
+            s.dueDate === "2026-05-31" ? { ...s, dueDate: "2026-07-31", updatedAt: nowIso() } : s
+          ),
+        };
+      }
+      return f;
+    }),
+  };
 }
 
 
