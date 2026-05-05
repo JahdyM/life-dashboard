@@ -23,6 +23,24 @@ function fmt(n: number) {
   return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function debtKeyFromName(name: string) {
+  const key = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return key || `divida_${Date.now()}`;
+}
+
+function uniqueDebtKey(name: string, debts: MonthlyFinance["debts"]) {
+  const base = debtKeyFromName(name);
+  if (!debts[base]) return base;
+  let index = 2;
+  while (debts[`${base}_${index}`]) index += 1;
+  return `${base}_${index}`;
+}
+
 function computeSummary(f: MonthlyFinance) {
   const totalIncome = (f.income.gui || 0) + (f.income.jahdy || 0) + (f.income.extras || 0);
   const totalBudget = f.fixedCosts.reduce((s, c) => s + c.budget, 0);
@@ -91,6 +109,7 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
   const [month, setMonth] = useState(ym.month);
   const [finance, setFinance] = useState<MonthlyFinance | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [newDebtName, setNewDebtName] = useState("");
 
   // Load monthly finance data
   const finQuery = useQuery({
@@ -180,6 +199,22 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
       return next;
     });
   }, []);
+
+  const addDebt = useCallback(() => {
+    const label = newDebtName.trim();
+    if (!label) return;
+    update((prev) => {
+      const key = uniqueDebtKey(label, prev.debts);
+      return {
+        ...prev,
+        debts: {
+          ...prev.debts,
+          [key]: { label, total: 0, monthly: 0, paid: 0 },
+        },
+      };
+    });
+    setNewDebtName("");
+  }, [newDebtName, update]);
 
   // Savings goals
   const sgQuery = useQuery({
@@ -411,55 +446,136 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
       {/* Debts */}
       <div className="card">
         <h2>💳 Debts</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto auto auto", gap: "6px 12px", alignItems: "center" }}>
-          <small style={{ color: "var(--text-soft)" }}>Debt</small>
-          <small style={{ color: "var(--text-soft)", textAlign: "right" }}>Total</small>
-          <small style={{ color: "var(--text-soft)", textAlign: "right" }}>Due this month</small>
-          <small style={{ color: "var(--text-soft)", textAlign: "right" }}>Paid</small>
-          <small style={{ color: "var(--text-soft)", textAlign: "right" }}>Remaining</small>
+        <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+          <input
+            aria-label="New debt name"
+            value={newDebtName}
+            placeholder="New debt + Enter"
+            style={{ minWidth: 220, flex: "1 1 220px" }}
+            onChange={(e) => setNewDebtName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addDebt();
+              }
+              if (e.key === "Escape") setNewDebtName("");
+            }}
+          />
+          <button
+            className="secondary"
+            type="button"
+            disabled={!newDebtName.trim()}
+            onClick={addDebt}
+          >
+            Add
+          </button>
+        </div>
 
-          {(["contador", "nacional", "cartao"] as const).map((key) => {
-            const labels = { contador: "Contador", nacional: "Nacional", cartao: "Credit card" };
-            const entry = finance.debts[key];
-            const remaining = entry.total - entry.paid;
-            return (
-              <>
-                <span key={`${key}-label`} style={{ fontSize: "0.88rem" }}>{labels[key]}</span>
-                {(["total", "monthly", "paid"] as const).map((field) => (
+        {Object.keys(finance.debts).length === 0 ? (
+          <p style={{ color: "var(--text-soft)", margin: 0 }}>No debts yet.</p>
+        ) : (
+          <div style={{ display: "grid", gap: 10 }}>
+            {Object.entries(finance.debts).map(([key, entry]) => {
+              const remaining = entry.total - entry.paid;
+              const remainingColor =
+                remaining <= 0
+                  ? "#9DCFB7"
+                  : remaining < entry.total * 0.25
+                    ? "#D9C979"
+                    : "var(--text-soft,#888)";
+              return (
+                <article
+                  key={key}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(104px, 1fr))",
+                    gap: "8px 10px",
+                    alignItems: "end",
+                    padding: "10px",
+                    border: "1px solid var(--border,#444)",
+                    borderRadius: 14,
+                    background: "rgba(255,255,255,0.025)",
+                  }}
+                >
                   <input
-                    key={`${key}-${field}`}
-                    type="number"
-                    min="0"
-                    className="no-spinner"
-                    value={entry[field]}
-                    style={{ width: 100, textAlign: "right" }}
+                    aria-label="Debt name"
+                    type="text"
+                    value={entry.label}
+                    placeholder="Debt name"
+                    style={{ minWidth: 0, width: "100%" }}
                     onChange={(e) =>
                       update((prev) => ({
                         ...prev,
                         debts: {
                           ...prev.debts,
-                          [key]: { ...prev.debts[key], [field]: Number(e.target.value) },
+                          [key]: { ...prev.debts[key], label: e.target.value },
                         },
                       }))
                     }
                   />
-                ))}
-                <span
-                  key={`${key}-remaining`}
-                  style={{
-                    width: 100,
-                    textAlign: "right",
-                    fontSize: "0.88rem",
-                    fontVariantNumeric: "tabular-nums",
-                    color: remaining <= 0 ? "#9DCFB7" : remaining < entry.total * 0.25 ? "#D9C979" : "var(--text-soft,#888)",
-                  }}
-                >
-                  {remaining <= 0 ? "✓ Quitada" : `R$ ${fmt(remaining)}`}
-                </span>
-              </>
-            );
+                  {(["total", "monthly", "paid"] as const).map((field) => {
+                    const labels = {
+                      total: "Total",
+                      monthly: "Due",
+                      paid: "Paid",
+                    };
+                    return (
+                      <label key={`${key}-${field}`} style={{ display: "grid", gap: 3, minWidth: 0 }}>
+                        <small style={{ color: "var(--text-soft)", fontSize: "0.68rem" }}>
+                          {labels[field]}
+                        </small>
+                        <input
+                          type="number"
+                          min="0"
+                          className="no-spinner"
+                          value={entry[field]}
+                          style={{ width: "100%", textAlign: "right" }}
+                          onChange={(e) =>
+                            update((prev) => ({
+                              ...prev,
+                              debts: {
+                                ...prev.debts,
+                                [key]: { ...prev.debts[key], [field]: Number(e.target.value) },
+                              },
+                            }))
+                          }
+                        />
+                      </label>
+                    );
+                  })}
+                  <div
+                    style={{
+                      textAlign: "right",
+                      fontSize: "0.88rem",
+                      fontVariantNumeric: "tabular-nums",
+                      color: remainingColor,
+                      minWidth: 0,
+                    }}
+                  >
+                    <small style={{ display: "block", color: "var(--text-soft)", fontSize: "0.68rem" }}>
+                      Remaining
+                    </small>
+                    {remaining <= 0 ? "✓ Paid off" : `R$ ${fmt(remaining)}`}
+                  </div>
+                  <button
+                    aria-label={`Delete debt ${entry.label || key}`}
+                    className="secondary"
+                    type="button"
+                    style={{ padding: "2px 8px", fontSize: "0.75rem", justifySelf: "end" }}
+                    onClick={() =>
+                      update((prev) => {
+                        const { [key]: _removed, ...nextDebts } = prev.debts;
+                        return { ...prev, debts: nextDebts };
+                      })
+                    }
+                  >
+                    ✕
+                  </button>
+                </article>
+              );
           })}
         </div>
+        )}
       </div>
 
       {/* Extra Expenses */}

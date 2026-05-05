@@ -48,16 +48,13 @@ export type MonthlyIncome = {
 };
 
 export type DebtEntry = {
+  label: string;
   total: number;    // total outstanding
   monthly: number;  // amount due / to pay this month
   paid: number;     // already paid this month
 };
 
-export type MonthlyDebts = {
-  contador: DebtEntry;
-  nacional: DebtEntry;
-  cartao: DebtEntry;
-};
+export type MonthlyDebts = Record<string, DebtEntry>;
 
 export type ExtraExpense = {
   id: string;
@@ -90,6 +87,24 @@ export const DEFAULT_FIXED_COSTS: Omit<FixedCostItem, "actual" | "paid">[] = [
   { id: "contador_fixo",label: "Contador",           budget: 300  },
 ];
 
+function debtLabelFromKey(key: string): string {
+  const knownLabels: Record<string, string> = {
+    contador: "Contador",
+    nacional: "Nacional",
+    cartao: "Cartão",
+  };
+  if (knownLabels[key]) return knownLabels[key];
+  return key
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase()) || "Dívida";
+}
+
+function makeDebt(label: string, total = 0, monthly = 0, paid = 0): DebtEntry {
+  return { label, total, monthly, paid };
+}
+
 function makeDefaultFinance(year?: number, month?: number): MonthlyFinance {
   const blankCosts = DEFAULT_FIXED_COSTS.map((c) => ({
     ...c,
@@ -116,9 +131,9 @@ function makeDefaultFinance(year?: number, month?: number): MonthlyFinance {
         contador_fixo:{ actual: 300,    paid: "pago" },
       }),
       debts: {
-        contador: { total: 1600,    monthly: 300,     paid: 300     },
-        nacional: { total: 7710,    monthly: 618,     paid: 0       },
-        cartao:   { total: 8324.82, monthly: 8617.09, paid: 8617.09 },
+        contador: makeDebt("Contador", 1600, 300, 300),
+        nacional: makeDebt("Nacional", 7710, 618, 0),
+        cartao:   makeDebt("Cartão", 8324.82, 8617.09, 8617.09),
       },
       extraExpenses: [],
     };
@@ -136,9 +151,9 @@ function makeDefaultFinance(year?: number, month?: number): MonthlyFinance {
         contador_fixo:{ actual: 300,    paid: "pago" },
       }),
       debts: {
-        contador: { total: 1900,    monthly: 0, paid: 0 },
-        nacional: { total: 7710,    monthly: 0, paid: 0 },
-        cartao:   { total: 5489.87, monthly: 0, paid: 0 },
+        contador: makeDebt("Contador", 1900, 0, 0),
+        nacional: makeDebt("Nacional", 7710, 0, 0),
+        cartao:   makeDebt("Cartão", 5489.87, 0, 0),
       },
       extraExpenses: [],
     };
@@ -156,9 +171,9 @@ function makeDefaultFinance(year?: number, month?: number): MonthlyFinance {
         contador_fixo:{ actual: 300,    paid: "pago" },
       }),
       debts: {
-        contador: { total: 1900,    monthly: 0, paid: 0 },
-        nacional: { total: 7710,    monthly: 0, paid: 0 },
-        cartao:   { total: 5489.87, monthly: 0, paid: 0 },
+        contador: makeDebt("Contador", 1900, 0, 0),
+        nacional: makeDebt("Nacional", 7710, 0, 0),
+        cartao:   makeDebt("Cartão", 5489.87, 0, 0),
       },
       extraExpenses: [],
     };
@@ -168,9 +183,9 @@ function makeDefaultFinance(year?: number, month?: number): MonthlyFinance {
     income: { gui: 9000, jahdy: null, extras: 220 },
     fixedCosts: blankCosts,
     debts: {
-      contador: { total: 0, monthly: 0, paid: 0 },
-      nacional: { total: 0, monthly: 0, paid: 0 },
-      cartao:   { total: 0, monthly: 0, paid: 0 },
+      contador: makeDebt("Contador"),
+      nacional: makeDebt("Nacional"),
+      cartao:   makeDebt("Cartão"),
     },
     extraExpenses: [],
   };
@@ -201,12 +216,24 @@ export async function getMonthlyFinance(
     savedCosts.forEach((c) => {
       if (!def.fixedCosts.find((d) => d.id === c.id)) fixedCosts.push(c);
     });
-    // Migrate old debt format (bare numbers) to DebtEntry objects
-    const rawDebts = (parsed.debts || {}) as Record<string, number | DebtEntry>;
+    // Migrate old debt format (bare numbers) and keep custom debt rows.
+    const rawDebts = (parsed.debts || {}) as Record<string, number | Partial<DebtEntry>>;
+    const debtKeys = Array.from(new Set([...Object.keys(def.debts), ...Object.keys(rawDebts)]));
     const migratedDebts = Object.fromEntries(
-      (["contador", "nacional", "cartao"] as const).map((k) => {
+      debtKeys.map((k) => {
         const v = rawDebts[k] ?? def.debts[k];
-        return [k, typeof v === "number" ? { total: v, monthly: 0, paid: 0 } : { ...def.debts[k], ...v }];
+        const fallback = def.debts[k] ?? makeDebt(debtLabelFromKey(k));
+        if (typeof v === "number") {
+          return [k, { ...fallback, total: v }];
+        }
+        return [
+          k,
+          {
+            ...fallback,
+            ...v,
+            label: typeof v?.label === "string" && v.label.trim() ? v.label.trim() : fallback.label,
+          },
+        ];
       })
     ) as MonthlyDebts;
     return {
