@@ -9497,3 +9497,270 @@ input.no-spinner[type="number"] {
     margin-bottom: 2px;
   }
 }
+
+/* ====================================================================
+   Dissertation polish layer
+   Visual delight pass: urgency colors, smooth animations, hero ambient,
+   completion glow, mobile-safe inputs, calmer save indicator.
+   ==================================================================== */
+
+/* Urgency-aware date pills — used on step dueDate badges and deadline list */
+.diss-date-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+}
+.diss-date-pill.urgency-overdue {
+  background: rgba(226, 154, 145, 0.18);
+  color: #f4a89e;
+  border-color: rgba(226, 154, 145, 0.32);
+}
+.diss-date-pill.urgency-soon {
+  background: rgba(241, 197, 122, 0.18);
+  color: #f5cd83;
+  border-color: rgba(241, 197, 122, 0.32);
+}
+.diss-date-pill.urgency-near {
+  background: rgba(157, 207, 183, 0.16);
+  color: #9ed5b8;
+  border-color: rgba(157, 207, 183, 0.28);
+}
+.diss-date-pill.urgency-later,
+.diss-date-pill.urgency-none {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+}
+
+/* Hero ambient glow + defense urgency tint */
+.dissertation-academic-hero {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 12% -20%, rgba(210, 168, 105, 0.16), transparent 55%),
+    radial-gradient(circle at 95% 110%, rgba(146, 121, 200, 0.14), transparent 55%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.02));
+}
+
+.dissertation-academic-date.urgency-overdue {
+  background: linear-gradient(180deg, rgba(226, 154, 145, 0.18), rgba(226, 154, 145, 0.08));
+  border-color: rgba(226, 154, 145, 0.4);
+}
+.dissertation-academic-date.urgency-overdue strong {
+  color: #f4a89e;
+}
+.dissertation-academic-date.urgency-soon strong {
+  color: #f5cd83;
+}
+.dissertation-academic-date.urgency-near strong {
+  color: #9ed5b8;
+}
+
+/* Today: celebration banner when all 6 fronts have a finished step today */
+.dissertation-today-celebration {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(157, 207, 183, 0.18), rgba(210, 168, 105, 0.12));
+  border: 1px solid rgba(157, 207, 183, 0.38);
+  color: #d8eede;
+  font-weight: 650;
+  font-size: 0.88rem;
+  margin-bottom: 12px;
+  animation: diss-celebrate 0.6s ease;
+}
+
+.dissertation-today-panel.all-done {
+  border-color: rgba(157, 207, 183, 0.32);
+}
+
+@keyframes diss-celebrate {
+  0% { transform: scale(0.96); opacity: 0; }
+  60% { transform: scale(1.02); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Step row: smooth check + strikethrough + hover-only delete */
+.dissertation-step-row {
+  transition: opacity 0.25s ease;
+}
+.dissertation-step-row .task-check {
+  transition: background 0.18s, border-color 0.18s, transform 0.12s;
+}
+.dissertation-step-row .task-check:active {
+  transform: scale(0.9);
+}
+.dissertation-step-row .task-check.checked {
+  animation: diss-check-pop 0.32s ease;
+}
+
+@keyframes diss-check-pop {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.22); }
+}
+
+.dissertation-step-row.done input,
+.dissertation-step-row.done span {
+  text-decoration: line-through;
+  text-decoration-color: rgba(246, 240, 231, 0.3);
+  opacity: 0.55;
+  transition: opacity 0.3s, text-decoration 0.3s;
+}
+
+/* Tint of step row when due-date is overdue/soon to draw the eye */
+.dissertation-step-row.urgency-overdue:not(.done) input {
+  border-bottom: 1px solid rgba(226, 154, 145, 0.4);
+}
+.dissertation-step-row.urgency-soon:not(.done) input {
+  border-bottom: 1px solid rgba(241, 197, 122, 0.32);
+}
+
+/* Hover-only delete (desktop). On touch devices keep visible. */
+.dissertation-step-delete {
+  opacity: 0.4;
+  transition: opacity 0.15s, color 0.15s;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 4px 8px !important;
+  min-width: 28px;
+}
+.dissertation-step-delete:hover,
+.dissertation-step-delete:focus-visible {
+  opacity: 1;
+  color: #f4a89e;
+}
+@media (hover: none) {
+  .dissertation-step-delete { opacity: 0.7; }
+}
+
+/* Front card complete state: gentle glow + accented stripe */
+.dissertation-front-card.complete {
+  box-shadow:
+    0 0 0 1px rgba(157, 207, 183, 0.36),
+    0 0 32px rgba(157, 207, 183, 0.14);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(157, 207, 183, 0.12), transparent 60%),
+    rgba(255, 255, 255, 0.035);
+}
+.dissertation-front-card.complete::before {
+  background: linear-gradient(180deg, var(--front-color), #9DCFB7);
+  width: 5px;
+}
+
+/* Deadline list rows: tint by urgency */
+.dissertation-deadline-list-simple article.urgency-overdue {
+  border-left: 3px solid rgba(226, 154, 145, 0.55);
+  background: rgba(226, 154, 145, 0.05);
+  padding-left: 10px;
+}
+.dissertation-deadline-list-simple article.urgency-soon {
+  border-left: 3px solid rgba(241, 197, 122, 0.5);
+  background: rgba(241, 197, 122, 0.04);
+  padding-left: 10px;
+}
+.dissertation-deadline-list-simple article.urgency-near {
+  border-left: 3px solid rgba(157, 207, 183, 0.4);
+  padding-left: 10px;
+}
+.dissertation-deadline-list-simple article.done strong {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+/* Save indicator — small floating pill bottom-right, fades in/out */
+.dissertation-academic .dissertation-sync-state {
+  position: fixed;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  right: 16px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: rgba(20, 18, 16, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #f0e9dc;
+  font-size: 0.76rem;
+  font-weight: 600;
+  z-index: 90;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.25s, transform 0.25s;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.dissertation-academic .dissertation-sync-state:not(:empty) {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Empty states with subtle icon affordance */
+.dissertation-academic .dissertation-empty {
+  color: var(--text-muted);
+  font-size: 0.83rem;
+  font-style: normal;
+  padding: 8px 0;
+}
+
+/* Mobile polish: prevent iOS zoom (16px), bigger touch targets, safe-area */
+@media (max-width: 760px) {
+  .dissertation-academic input,
+  .dissertation-academic textarea,
+  .dissertation-academic select {
+    font-size: 16px;
+  }
+
+  .dissertation-academic .task-check {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+
+  .dissertation-today-row {
+    min-height: 56px;
+    padding: 10px 12px;
+  }
+
+  .dissertation-today-row input {
+    min-height: 44px;
+  }
+
+  .dissertation-step-row input,
+  .dissertation-step-row .diss-date-pill {
+    min-height: 38px;
+  }
+
+  .dissertation-step-delete {
+    opacity: 0.85;
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  .dissertation-academic-hero h2 {
+    font-size: 1.45rem;
+  }
+
+  .dissertation-academic-progress strong,
+  .dissertation-academic-date strong {
+    font-size: 1.1rem;
+  }
+
+  /* On mobile, save pill moves above bottom nav-ish space */
+  .dissertation-academic .dissertation-sync-state {
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, 0);
+    bottom: max(20px, calc(env(safe-area-inset-bottom) + 12px));
+  }
+  .dissertation-academic .dissertation-sync-state:not(:empty) {
+    transform: translate(-50%, 0);
+  }
+}

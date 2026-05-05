@@ -1,6 +1,14 @@
 "use client";
 
-import { useMemo, useState, type CSSProperties, type Dispatch, type SetStateAction } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   collectDissertationDeadlines,
@@ -8,6 +16,7 @@ import {
   formatBrazilianDate,
   formatRelativeDeadline,
   frontProgressPercent,
+  isoDateDiffDays,
   projectProgressPercent,
   todayStepForFront,
   type DissertationAction,
@@ -16,6 +25,17 @@ import {
   type DissertationProject,
   type DissertationStep,
 } from "@/lib/dissertation";
+
+type DateUrgency = "overdue" | "soon" | "near" | "later" | "none";
+
+function dateUrgency(iso: string | null, todayIso: string): DateUrgency {
+  if (!iso) return "none";
+  const days = isoDateDiffDays(todayIso, iso);
+  if (days < 0) return "overdue";
+  if (days <= 3) return "soon";
+  if (days <= 14) return "near";
+  return "later";
+}
 
 type DissertationResponse = { project: DissertationProject };
 
@@ -75,7 +95,54 @@ export default function DissertationClient({ initialProject }: { initialProject:
   const stats = useMemo(() => projectStats(project), [project]);
   const deadlines = useMemo(() => collectDissertationDeadlines(project).slice(0, 12), [project]);
   const doneToday = countDoneToday(project, today);
-  const defenseCountdown = project.defenseTargetDate ? formatRelativeDeadline(project.defenseTargetDate, today) : "sem data";
+  const allTodayDone = doneToday > 0 && doneToday >= project.fronts.length;
+  const defenseUrgency = dateUrgency(project.defenseTargetDate, today);
+  const defenseCountdown = project.defenseTargetDate
+    ? formatRelativeDeadline(project.defenseTargetDate, today)
+    : "sem data";
+
+  // Cross-device sync: when the PWA is suspended (mobile background, tab hide,
+  // page navigated away), blur the active input/textarea so any pending onBlur
+  // saves fire, then send a keepalive PUT with the current project state as a
+  // safety net via sendBeacon. Mirrors the FinancesTab pattern that fixed the
+  // mobile-typing-then-switching-to-desktop data-loss class of bugs.
+  const projectRef = useRef<DissertationProject>(project);
+  useEffect(() => {
+    projectRef.current = project;
+  }, [project]);
+
+  useEffect(() => {
+    const flush = () => {
+      const root = document.querySelector(".dissertation-academic");
+      if (root && document.activeElement instanceof HTMLElement && root.contains(document.activeElement)) {
+        document.activeElement.blur();
+      }
+      const snapshot = projectRef.current;
+      if (!snapshot) return;
+      const body = JSON.stringify(snapshot);
+      try {
+        if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+          const blob = new Blob([body], { type: "application/json" });
+          if (navigator.sendBeacon("/api/dissertation", blob)) return;
+        }
+      } catch { /* fall through */ }
+      void fetch("/api/dissertation", {
+        method: "PUT",
+        body,
+        headers: { "Content-Type": "application/json" },
+        keepalive: true,
+      }).catch(() => { /* best-effort */ });
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
 
   function mutate(action: DissertationAction) {
     actionMutation.mutate(action);
@@ -107,7 +174,7 @@ export default function DissertationClient({ initialProject }: { initialProject:
           <strong>{projectProgressPercent(project)}%</strong>
           <span>geral</span>
         </div>
-        <div className="dissertation-academic-date">
+        <div className={`dissertation-academic-date urgency-${defenseUrgency}`}>
           <span>Defesa</span>
           <strong>{defenseCountdown}</strong>
         </div>
@@ -119,7 +186,7 @@ export default function DissertationClient({ initialProject }: { initialProject:
         <SmallStat label="Com prazo" value={String(stats.withDates)} />
       </div>
 
-      <section className="dissertation-today-panel">
+      <section className={`dissertation-today-panel ${allTodayDone ? "all-done" : ""}`}>
         <div className="dissertation-section-title">
           <div>
             <p>Hoje</p>
@@ -127,6 +194,11 @@ export default function DissertationClient({ initialProject }: { initialProject:
           </div>
           <span>{formatBrazilianDate(today)}</span>
         </div>
+        {allTodayDone ? (
+          <div className="dissertation-today-celebration" role="status">
+            🎉 Dia completo — passinho em todas as frentes
+          </div>
+        ) : null}
         <div className="dissertation-today-grid">
           {project.fronts.map((front) => (
             <TodayFrontRow
@@ -255,18 +327,32 @@ function FrontCard({
   onAddStep: () => void;
   mutate: (action: DissertationAction) => void;
 }) {
+  const today = new Date().toISOString().slice(0, 10);
   const progress = frontProgressPercent(front);
   const openSteps = front.steps.filter((step) => !step.done);
   const doneSteps = front.steps.filter((step) => step.done);
+  const isComplete = front.steps.length > 0 && progress === 100;
+  const targetUrgency = dateUrgency(front.targetDate, today);
 
   return (
-    <article className="dissertation-front-card" style={{ "--front-color": front.color } as CSSProperties}>
+    <article
+      className={`dissertation-front-card ${isComplete ? "complete" : ""}`}
+      style={{ "--front-color": front.color } as CSSProperties}
+    >
       <header>
         <div>
           <span>{front.icon}</span>
           <div>
             <h3>{front.title}</h3>
-            <p>{front.targetDate ? `${formatRelativeDeadline(front.targetDate)} · ${formatBrazilianDate(front.targetDate)}` : "sem prazo"}</p>
+            <p>
+              {front.targetDate ? (
+                <span className={`diss-date-pill urgency-${targetUrgency}`}>
+                  {formatRelativeDeadline(front.targetDate, today)} · {formatBrazilianDate(front.targetDate)}
+                </span>
+              ) : (
+                <span className="diss-date-pill urgency-none">sem prazo</span>
+              )}
+            </p>
           </div>
         </div>
         <strong>{progress}%</strong>
@@ -350,13 +436,18 @@ function StepCheckbox({
   compact?: boolean;
   mutate: (action: DissertationAction) => void;
 }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const urgency = step.done ? "none" : dateUrgency(step.dueDate, today);
+
   return (
-    <div className={`dissertation-step-row ${step.done ? "done" : ""} ${compact ? "compact" : ""}`}>
+    <div className={`dissertation-step-row ${step.done ? "done" : ""} ${compact ? "compact" : ""} urgency-${urgency}`}>
       <button
         type="button"
         className={`task-check ${step.done ? "checked" : ""}`}
         aria-label={step.done ? "Marcar como pendente" : "Marcar como feito"}
-        onClick={() => mutate({ type: "update_step", frontId: front.id, stepId: step.id, done: !step.done })}
+        onClick={() =>
+          mutate({ type: "update_step", frontId: front.id, stepId: step.id, done: !step.done })
+        }
       />
       <input
         defaultValue={step.title}
@@ -371,13 +462,31 @@ function StepCheckbox({
         <input
           type="date"
           defaultValue={step.dueDate || ""}
-          onBlur={(event) => mutate({ type: "update_step", frontId: front.id, stepId: step.id, dueDate: event.target.value || null })}
+          onBlur={(event) =>
+            mutate({
+              type: "update_step",
+              frontId: front.id,
+              stepId: step.id,
+              dueDate: event.target.value || null,
+            })
+          }
         />
       ) : step.dueDate ? (
-        <span>{formatRelativeDeadline(step.dueDate)}</span>
+        <span className={`diss-date-pill urgency-${urgency}`}>
+          {formatRelativeDeadline(step.dueDate, today)}
+        </span>
       ) : null}
       {!compact ? (
-        <button type="button" onClick={() => mutate({ type: "delete_step", frontId: front.id, stepId: step.id })}>Delete</button>
+        <button
+          type="button"
+          className="dissertation-step-delete"
+          aria-label="Remover passo"
+          onClick={() =>
+            mutate({ type: "delete_step", frontId: front.id, stepId: step.id })
+          }
+        >
+          ×
+        </button>
       ) : null}
     </div>
   );
@@ -385,21 +494,26 @@ function StepCheckbox({
 
 function DeadlineList({ deadlines, today }: { deadlines: DissertationDeadline[]; today: string }) {
   if (deadlines.length === 0) {
-    return <p className="dissertation-empty">Nenhum prazo próximo.</p>;
+    return <p className="dissertation-empty">✨ Nenhum prazo próximo.</p>;
   }
 
   return (
     <div className="dissertation-deadline-list-simple">
-      {deadlines.map((item) => (
-        <article key={item.id} className={item.date < today ? "overdue" : ""}>
-          <span>{item.frontIcon}</span>
-          <div>
-            <strong>{item.title}</strong>
-            <p>{item.frontTitle}</p>
-          </div>
-          <em>{formatRelativeDeadline(item.date, today)}</em>
-        </article>
-      ))}
+      {deadlines.map((item) => {
+        const urgency = item.done ? "none" : dateUrgency(item.date, today);
+        return (
+          <article key={item.id} className={`urgency-${urgency} ${item.done ? "done" : ""}`}>
+            <span>{item.frontIcon}</span>
+            <div>
+              <strong>{item.title}</strong>
+              <p>{item.frontTitle}</p>
+            </div>
+            <em className={`diss-date-pill urgency-${urgency}`}>
+              {formatRelativeDeadline(item.date, today)}
+            </em>
+          </article>
+        );
+      })}
     </div>
   );
 }
