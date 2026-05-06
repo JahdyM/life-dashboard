@@ -53,6 +53,7 @@ model TodoTask {
   actualMinutes    Int?    @map("actual_minutes")
   isDone           Int?    @map("is_done")
   completedAt      String? @map("completed_at")
+  missedAt         String? @map("missed_at")
   googleCalendarId String? @map("google_calendar_id")
   googleEventId    String? @map("google_event_id")
   createdAt        String  @map("created_at")
@@ -62,6 +63,7 @@ model TodoTask {
 
   @@index([userEmail, scheduledDate])
   @@index([userEmail, isDone])
+  @@index([userEmail, missedAt])
   @@index([googleEventId])
   @@map("todo_tasks")
 }

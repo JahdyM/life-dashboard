@@ -229,6 +229,8 @@ export const taskCreateSchema = z
     focus_order: nullableFocusOrder.optional(),
     is_done: boolishSchema.optional(),
     completed_at: nullableIsoDateTimeSchema.optional(),
+    is_missed: boolishSchema.optional(),
+    missed_at: nullableIsoDateTimeSchema.optional(),
     sync_google: z.boolean().optional(),
   })
   .strict();
@@ -248,6 +250,8 @@ export const taskPatchSchema = z
     focus_order: nullableFocusOrder.optional(),
     is_done: boolishSchema.optional(),
     completed_at: nullableIsoDateTimeSchema.optional(),
+    is_missed: boolishSchema.optional(),
+    missed_at: nullableIsoDateTimeSchema.optional(),
     sync_google: z.boolean().optional(),
   })
   .strict();

@@ -88,6 +88,7 @@ export type TodoTask = {
   actualMinutes?: number | null;
   isDone?: number | null;
   completedAt?: string | null;
+  missedAt?: string | null;
   googleCalendarId?: string | null;
   googleEventId?: string | null;
   createdAt: string;
