@@ -15,6 +15,12 @@ async function applyTaskCompletionColumnsMigration() {
     "ALTER TABLE todo_tasks ADD COLUMN IF NOT EXISTS completed_at TEXT"
   );
   await prisma.$executeRawUnsafe(
+    "ALTER TABLE todo_tasks ADD COLUMN IF NOT EXISTS missed_at TEXT"
+  );
+  await prisma.$executeRawUnsafe(
+    "CREATE INDEX IF NOT EXISTS todo_tasks_user_missed_idx ON todo_tasks(user_email, missed_at)"
+  );
+  await prisma.$executeRawUnsafe(
     "ALTER TABLE todo_subtasks ADD COLUMN IF NOT EXISTS completed_at TEXT"
   );
   await prisma.$executeRawUnsafe(

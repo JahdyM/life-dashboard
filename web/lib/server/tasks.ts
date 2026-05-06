@@ -25,6 +25,7 @@ export type TaskPayload = {
   actualMinutes?: number | null;
   isDone?: number | null;
   completedAt?: string | null;
+  missedAt?: string | null;
   googleCalendarId?: string | null;
   googleEventId?: string | null;
 };
@@ -331,7 +332,7 @@ export async function updateTask(
   const nowIso = new Date().toISOString();
   const existing = await prisma.todoTask.findFirst({
     where: { id: taskId, userEmail },
-    select: { id: true, isDone: true },
+    select: { id: true, isDone: true, missedAt: true },
   });
   if (!existing) {
     throw new Error("RESOURCE_NOT_FOUND");
@@ -348,6 +349,24 @@ export async function updateTask(
     completedAtPatch = payload.completedAt ?? null;
   }
 
+  // Done <-> missed mutual exclusion. Marking a task done clears any prior
+  // "missed" flag, and explicitly missing a task clears any prior completion
+  // — mirroring how the user thinks about these states.
+  let missedAtPatch: string | null | undefined = undefined;
+  let isDoneOverride: number | null | undefined = payload.isDone;
+  if ("missedAt" in payload) {
+    missedAtPatch = payload.missedAt ?? null;
+    if (missedAtPatch) {
+      // Tagged as missed: clear done state.
+      isDoneOverride = 0;
+      completedAtPatch = null;
+    }
+  }
+  if (typeof payload.isDone === "number" && payload.isDone > 0) {
+    // Marking done: clear any missed flag.
+    missedAtPatch = null;
+  }
+
   const updateResult = await prisma.todoTask.updateMany({
     where: { id: taskId, userEmail },
     data: {
@@ -359,8 +378,9 @@ export async function updateTask(
       priorityTag: payload.priorityTag,
       estimatedMinutes: payload.estimatedMinutes,
       actualMinutes: payload.actualMinutes,
-      isDone: payload.isDone,
+      isDone: isDoneOverride,
       completedAt: completedAtPatch,
+      missedAt: missedAtPatch,
       googleCalendarId: payload.googleCalendarId,
       googleEventId: payload.googleEventId,
       updatedAt: nowIso,

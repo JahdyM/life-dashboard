@@ -346,6 +346,7 @@ type EditableTaskRowProps = {
   saving: boolean;
   saved: boolean;
   onToggleDone: (task: TodoTask, checked: boolean) => void;
+  onToggleMissed: (task: TodoTask, missed: boolean) => void;
   onToggleExpanded: (taskId: string, currentlyExpanded: boolean) => void;
   onToggleSubtaskDone: (task: TodoTask, subtaskId: string, checked: boolean) => void;
   onOpenDetails: (taskId: string) => void;
@@ -386,6 +387,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
   saving,
   saved,
   onToggleDone,
+  onToggleMissed,
   onToggleExpanded,
   onToggleSubtaskDone,
   onOpenDetails,
@@ -445,6 +447,10 @@ const EditableTaskRow = memo(function EditableTaskRow({
       onToggleDone(task, event.target.checked),
     [onToggleDone, task]
   );
+  const isMissed = Boolean(task.missedAt);
+  const handleToggleMissed = useCallback(() => {
+    onToggleMissed(task, !isMissed);
+  }, [onToggleMissed, task, isMissed]);
   const handleOpen = useCallback(() => onOpenDetails(task.id), [onOpenDetails, task.id]);
   const handleToggleExpanded = useCallback(
     () => onToggleExpanded(task.id, expanded),
@@ -511,7 +517,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
 
   return (
     <article
-      className={`task-row task-row-editable ${active ? "active" : ""} ${progressState ? `task-row-${progressState}` : ""} ${allSubtasksDone && !draft.isDone ? "task-row-ready" : ""} ${shareLabel ? "task-row-shared" : ""} ${draggable ? "task-row-draggable" : ""} ${dragging ? "task-row-dragging" : ""} ${dropTarget ? "task-row-drop-target" : ""}`}
+      className={`task-row task-row-editable ${active ? "active" : ""} ${progressState ? `task-row-${progressState}` : ""} ${allSubtasksDone && !draft.isDone ? "task-row-ready" : ""} ${isMissed ? "task-row-missed" : ""} ${shareLabel ? "task-row-shared" : ""} ${draggable ? "task-row-draggable" : ""} ${dragging ? "task-row-dragging" : ""} ${dropTarget ? "task-row-drop-target" : ""}`}
       draggable={draggable}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
@@ -525,7 +531,21 @@ const EditableTaskRow = memo(function EditableTaskRow({
           checked={draft.isDone}
           onChange={handleToggle}
           onClick={(event) => event.stopPropagation()}
+          disabled={isMissed}
         />
+        <button
+          type="button"
+          className={`task-row-miss-button ${isMissed ? "active" : ""}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            handleToggleMissed();
+          }}
+          aria-pressed={isMissed}
+          aria-label={isMissed ? "Desfazer 'não feita'" : "Marcar como não feita"}
+          title={isMissed ? "Desfazer marcação de não feita" : "Marcar como não feita"}
+        >
+          ✗
+        </button>
         <button type="button" className="task-row-open" onClick={handleOpen}>
           <div className="task-row-main">
             <span className="task-title">{draft.title}</span>
@@ -2556,6 +2576,63 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     [toggleTaskDoneNow]
   );
 
+  const requestToggleTaskMissed = useCallback(
+    (task: TodoTask, missed: boolean) => {
+      const cacheSnapshot = queryClient.getQueryData<TaskListResponse>([
+        "tasks",
+        range.start,
+        range.end,
+      ]);
+      const nowIso = new Date().toISOString();
+      const patch: Record<string, string | number | null> = {
+        is_missed: missed ? 1 : 0,
+        missed_at: missed ? nowIso : null,
+      };
+      if (missed) {
+        // Server enforces mutual exclusion, but echo the change locally too so
+        // the optimistic UI doesn't show "done + missed" simultaneously.
+        patch.is_done = 0;
+        patch.completed_at = null;
+      }
+      setTaskDraft(task.id, missed ? { isDone: false } : {});
+      applyTaskPatchToCache(task.id, patch);
+      setSavingTaskId(task.id);
+      updateTask.mutate(
+        { id: task.id, data: patch, syncGoogle: false },
+        {
+          onSuccess: () => {
+            setTaskSaveError(null);
+            setSavingTaskId(null);
+            setSavedTaskId(task.id);
+            window.setTimeout(() => {
+              setSavedTaskId((prev) => (prev === task.id ? null : prev));
+            }, 900);
+          },
+          onError: (error) => {
+            if (cacheSnapshot) {
+              queryClient.setQueryData<TaskListResponse>(
+                ["tasks", range.start, range.end],
+                cacheSnapshot
+              );
+            }
+            setTaskSaveError(
+              readErrorMessage(error, "Couldn't mark task as missed.")
+            );
+            setSavingTaskId(null);
+          },
+        }
+      );
+    },
+    [
+      queryClient,
+      range.start,
+      range.end,
+      setTaskDraft,
+      updateTask,
+      applyTaskPatchToCache,
+    ]
+  );
+
   const handleDeleteTask = useCallback(
     (taskId: string) => {
       deleteTask.mutate(taskId);
@@ -3343,6 +3420,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     saving={savingTaskId === task.id}
                     saved={savedTaskId === task.id}
                     onToggleDone={requestToggleTaskDone}
+                    onToggleMissed={requestToggleTaskMissed}
                     onToggleExpanded={handleToggleTaskExpanded}
                     onToggleSubtaskDone={handleToggleSubtaskDone}
                     onOpenDetails={handleOpenTaskDetails}
@@ -3409,6 +3487,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     saving={savingTaskId === task.id}
                     saved={savedTaskId === task.id}
                     onToggleDone={requestToggleTaskDone}
+                    onToggleMissed={requestToggleTaskMissed}
                     onToggleExpanded={handleToggleTaskExpanded}
                     onToggleSubtaskDone={handleToggleSubtaskDone}
                     onOpenDetails={handleOpenTaskDetails}
@@ -3466,6 +3545,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   saving={savingTaskId === task.id}
                   saved={savedTaskId === task.id}
                   onToggleDone={requestToggleTaskDone}
+                  onToggleMissed={requestToggleTaskMissed}
                   onToggleExpanded={handleToggleTaskExpanded}
                   onToggleSubtaskDone={handleToggleSubtaskDone}
                   onOpenDetails={handleOpenTaskDetails}

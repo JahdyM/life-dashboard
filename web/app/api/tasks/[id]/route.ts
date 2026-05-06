@@ -72,6 +72,14 @@ export async function PATCH(
     }
     if (payload.is_done !== undefined) updatePayload.isDone = payload.is_done ? 1 : 0;
     if (payload.completed_at !== undefined) updatePayload.completedAt = payload.completed_at;
+    // Missed flag: is_missed is the convenience boolish; missed_at can also be
+    // set explicitly. Either path triggers the mutual-exclusion rules in
+    // updateTask (clears done + completedAt when missed becomes truthy).
+    if (payload.is_missed !== undefined) {
+      updatePayload.missedAt = payload.is_missed ? new Date().toISOString() : null;
+    } else if (payload.missed_at !== undefined) {
+      updatePayload.missedAt = payload.missed_at;
+    }
 
     const updated = await updateTask(userEmail, taskId, updatePayload);
 

@@ -9798,3 +9798,85 @@ input.no-spinner[type="number"] {
     transform: translate(-50%, 0);
   }
 }
+
+/* ====================================================================
+   Task: missed state
+   Lets the user mark a task as "didn't accomplish" without deleting it,
+   keeping the intent vs. reality record. Mutual-exclusive with done.
+   ==================================================================== */
+
+.task-row-miss-button {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
+  opacity: 0.55;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(226, 154, 145, 0.18);
+}
+
+.task-row-miss-button:hover,
+.task-row-miss-button:focus-visible {
+  opacity: 1;
+  border-color: rgba(226, 154, 145, 0.44);
+  color: #f4a89e;
+  outline: none;
+}
+
+.task-row-miss-button.active {
+  opacity: 1;
+  border-color: rgba(226, 154, 145, 0.6);
+  background: rgba(226, 154, 145, 0.18);
+  color: #f4a89e;
+}
+
+@media (hover: none) {
+  .task-row-miss-button { opacity: 0.85; }
+}
+
+.task-row-missed {
+  border-color: rgba(226, 154, 145, 0.32);
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgba(226, 154, 145, 0.04),
+      rgba(226, 154, 145, 0.04) 8px,
+      transparent 8px,
+      transparent 16px
+    ),
+    rgba(255, 255, 255, 0.02);
+}
+
+.task-row-missed .task-title {
+  text-decoration: line-through;
+  text-decoration-color: rgba(226, 154, 145, 0.5);
+  color: rgba(246, 240, 231, 0.55);
+}
+
+.task-row-missed .task-time,
+.task-row-missed .task-subtask-summary {
+  opacity: 0.6;
+}
+
+.task-row-missed input[type="checkbox"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media (max-width: 760px) {
+  .task-row-miss-button {
+    width: 32px;
+    height: 32px;
+    opacity: 0.85;
+  }
+}
