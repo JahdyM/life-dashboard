@@ -1937,6 +1937,28 @@ button.link.danger {
   background: rgba(238, 197, 126, 0.16);
 }
 
+.task-progress-badge {
+  width: fit-content;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  padding: 1px 6px;
+  border: 1px solid rgba(220, 200, 169, 0.24);
+}
+
+.task-progress-badge.started {
+  color: #f7dfb8;
+  border-color: rgba(235, 194, 116, 0.45);
+  background: rgba(221, 169, 82, 0.16);
+}
+
+.task-progress-badge.needs-finish {
+  color: #f4c3ad;
+  border-color: rgba(229, 158, 128, 0.42);
+  background: rgba(176, 118, 93, 0.16);
+}
+
 .task-ready-badge {
   width: fit-content;
   font-size: 10px;
@@ -2004,6 +2026,18 @@ button.link.danger {
       rgba(210, 168, 105, 0.08) 0%,
       rgba(255, 255, 255, 0.035) 100%
     );
+}
+
+.task-row-started {
+  border-color: rgba(235, 194, 116, 0.3);
+  background:
+    linear-gradient(90deg, rgba(221, 169, 82, 0.11), rgba(255, 255, 255, 0.035));
+}
+
+.task-row-needs-finish {
+  border-color: rgba(229, 158, 128, 0.32);
+  background:
+    linear-gradient(90deg, rgba(176, 118, 93, 0.13), rgba(255, 255, 255, 0.035));
 }
 
 .task-row.habit-row-inline {

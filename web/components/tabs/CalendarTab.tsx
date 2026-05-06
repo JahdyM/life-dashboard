@@ -20,6 +20,9 @@ import {
   ChevronDown,
   ChevronRight,
   GripVertical,
+  Pause,
+  Play,
+  RotateCcw,
   Share2,
   SquarePen,
   Trash2,
@@ -238,6 +241,21 @@ function summarizeTaskMetadata(draft: {
   return pieces.join(" · ");
 }
 
+function currentClockTime() {
+  return format(new Date(), "HH:mm");
+}
+
+function getTaskProgressState(draft: {
+  isDone: boolean;
+  startTime: string;
+  endTime: string;
+}) {
+  if (draft.isDone) return null;
+  if (draft.startTime && draft.endTime) return "needs-finish" as const;
+  if (draft.startTime) return "started" as const;
+  return null;
+}
+
 function taskPriorityWeight(priorityTag: string | null | undefined) {
   const normalized = String(priorityTag || "").trim().toLowerCase();
   if (!normalized || normalized === "low") return 1;
@@ -334,6 +352,9 @@ type EditableTaskRowProps = {
   onScheduleToday?: (taskId: string) => void;
   onUnscheduleToday?: (taskId: string) => void;
   onScheduleTomorrow?: (taskId: string) => void;
+  onMarkStarted: (task: TodoTask) => void;
+  onMarkNeedsFinish: (task: TodoTask) => void;
+  onResumeTask: (task: TodoTask) => void;
   onSetNext: (taskId: string) => void;
   onMoveFocus: (taskId: string, direction: "up" | "down") => void;
   onDelete: (taskId: string) => void;
@@ -371,6 +392,9 @@ const EditableTaskRow = memo(function EditableTaskRow({
   onScheduleToday,
   onUnscheduleToday,
   onScheduleTomorrow,
+  onMarkStarted,
+  onMarkNeedsFinish,
+  onResumeTask,
   onSetNext,
   onMoveFocus,
   onDelete,
@@ -407,6 +431,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
   );
   const hasSubtasks = subtasks.length > 0;
   const allSubtasksDone = hasSubtasks && completedSubtasks === subtasks.length;
+  const progressState = getTaskProgressState(draft);
   const metadataSummary = [
     draft.scheduledDate && draft.scheduledDate !== contextDate ? draft.scheduledDate : "",
     summarizeTaskMetadata(draft),
@@ -437,6 +462,12 @@ const EditableTaskRow = memo(function EditableTaskRow({
     if (!onScheduleTomorrow) return;
     onScheduleTomorrow(task.id);
   }, [onScheduleTomorrow, task.id]);
+  const handleMarkStarted = useCallback(() => onMarkStarted(task), [onMarkStarted, task]);
+  const handleMarkNeedsFinish = useCallback(
+    () => onMarkNeedsFinish(task),
+    [onMarkNeedsFinish, task]
+  );
+  const handleResumeTask = useCallback(() => onResumeTask(task), [onResumeTask, task]);
   const handleSetNext = useCallback(() => onSetNext(task.id), [onSetNext, task.id]);
   const handleMoveFocusUp = useCallback(
     () => onMoveFocus(task.id, "up"),
@@ -480,7 +511,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
 
   return (
     <article
-      className={`task-row task-row-editable ${active ? "active" : ""} ${allSubtasksDone && !draft.isDone ? "task-row-ready" : ""} ${shareLabel ? "task-row-shared" : ""} ${draggable ? "task-row-draggable" : ""} ${dragging ? "task-row-dragging" : ""} ${dropTarget ? "task-row-drop-target" : ""}`}
+      className={`task-row task-row-editable ${active ? "active" : ""} ${progressState ? `task-row-${progressState}` : ""} ${allSubtasksDone && !draft.isDone ? "task-row-ready" : ""} ${shareLabel ? "task-row-shared" : ""} ${draggable ? "task-row-draggable" : ""} ${dragging ? "task-row-dragging" : ""} ${dropTarget ? "task-row-drop-target" : ""}`}
       draggable={draggable}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
@@ -508,6 +539,12 @@ const EditableTaskRow = memo(function EditableTaskRow({
               <span className="task-focus-badge">
                 {focusPosition === 1 ? "Next" : `Focus #${focusPosition}`}
               </span>
+            ) : null}
+            {progressState === "started" ? (
+              <span className="task-progress-badge started">Started</span>
+            ) : null}
+            {progressState === "needs-finish" ? (
+              <span className="task-progress-badge needs-finish">Needs finish</span>
             ) : null}
             {allSubtasksDone && !draft.isDone ? (
               <span className="task-ready-badge">Ready</span>
@@ -608,6 +645,22 @@ const EditableTaskRow = memo(function EditableTaskRow({
               ) : null}
               {!draft.isDone ? (
                 <>
+                  {!draft.startTime ? (
+                    <button type="button" className="task-row-menu-action" onClick={handleMarkStarted}>
+                      <Play size={15} />
+                      Started
+                    </button>
+                  ) : draft.endTime ? (
+                    <button type="button" className="task-row-menu-action" onClick={handleResumeTask}>
+                      <RotateCcw size={15} />
+                      Resume
+                    </button>
+                  ) : (
+                    <button type="button" className="task-row-menu-action" onClick={handleMarkNeedsFinish}>
+                      <Pause size={15} />
+                      Finish later
+                    </button>
+                  )}
                   <button type="button" className="task-row-menu-action" onClick={handleSetNext}>
                     <ArrowUp size={15} />
                     Next
@@ -1499,24 +1552,27 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const events = tasksForDay
     .filter((task) => task.scheduledTime)
     .map((task) => {
+      const draft = readTaskDraft(task);
       const sentShare = activeSentShareByTaskId.get(task.id);
       const isSharedReceived =
         task.source === "shared" || task.source === "google_shared";
       const isSharedPending = sentShare?.status === "pending";
       const isSharedAccepted = sentShare?.status === "accepted";
+      const isStarted = !draft.isDone && Boolean(draft.startTime) && !draft.endTime;
+      const needsFinish = !draft.isDone && Boolean(draft.startTime) && Boolean(draft.endTime);
       const start = `${task.scheduledDate}T${task.scheduledTime}:00`;
       const startDate = new Date(start);
       const endDate = new Date(
         startDate.getTime() + (task.estimatedMinutes || 30) * 60000
       );
       const end = format(endDate, "yyyy-MM-dd'T'HH:mm:ss");
-      let backgroundColor = task.isDone
+      let backgroundColor = draft.isDone
         ? "rgba(127, 211, 165, 0.76)"
         : "rgba(143, 123, 179, 0.64)";
-      let borderColor = task.isDone
+      let borderColor = draft.isDone
         ? "rgba(127, 211, 165, 0.95)"
         : "rgba(143, 123, 179, 0.95)";
-      let textColor = task.isDone ? "#102418" : "#F5F1EA";
+      let textColor = draft.isDone ? "#102418" : "#F5F1EA";
       if (isSharedReceived) {
         backgroundColor = "rgba(76, 153, 226, 0.72)";
         borderColor = "rgba(76, 153, 226, 0.95)";
@@ -1529,6 +1585,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         backgroundColor = "rgba(76, 153, 226, 0.66)";
         borderColor = "rgba(76, 153, 226, 0.9)";
         textColor = "#f7fbff";
+      } else if (isStarted) {
+        backgroundColor = "rgba(221, 169, 82, 0.72)";
+        borderColor = "rgba(235, 194, 116, 0.98)";
+        textColor = "#211507";
+      } else if (needsFinish) {
+        backgroundColor = "rgba(176, 118, 93, 0.72)";
+        borderColor = "rgba(229, 158, 128, 0.96)";
+        textColor = "#fff5ec";
       }
       return {
         id: task.id,
@@ -1536,7 +1600,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         start,
         end,
         classNames: [
-          task.isDone ? "task-done" : "task-pending",
+          draft.isDone ? "task-done" : "task-pending",
+          isStarted ? "task-started" : "",
+          needsFinish ? "task-needs-finish" : "",
           isSharedReceived ? "task-shared-received" : "",
           isSharedPending ? "task-shared-pending" : "",
           isSharedAccepted ? "task-shared-accepted" : "",
@@ -1839,6 +1905,108 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       setTaskSaveError(readErrorMessage(error, "Couldn't update task."));
     },
   });
+
+  const saveTaskProgressPatch = useCallback(
+    (
+      task: TodoTask,
+      patch: Record<string, string | number | null>
+    ) => {
+      const cacheSnapshot = queryClient.getQueryData<TaskListResponse>([
+        "tasks",
+        range.start,
+        range.end,
+      ]);
+      applyTaskPatchToCache(task.id, patch);
+      setSavingTaskId(task.id);
+      updateTask.mutate(
+        { id: task.id, data: patch, syncGoogle: false },
+        {
+          onSuccess: () => {
+            setTaskSaveError(null);
+            clearTaskDraft(task.id);
+            setSavingTaskId(null);
+            setSavedTaskId(task.id);
+            window.setTimeout(() => {
+              setSavedTaskId((prev) => (prev === task.id ? null : prev));
+            }, 900);
+          },
+          onError: (error) => {
+            if (cacheSnapshot) {
+              queryClient.setQueryData<TaskListResponse>(
+                ["tasks", range.start, range.end],
+                cacheSnapshot
+              );
+            }
+            setTaskSaveError(readErrorMessage(error, "Couldn't update progress."));
+            setSavingTaskId(null);
+          },
+        }
+      );
+    },
+    [
+      applyTaskPatchToCache,
+      clearTaskDraft,
+      queryClient,
+      range.end,
+      range.start,
+      updateTask,
+    ]
+  );
+
+  const buildTodayPlacementPatch = useCallback(
+    (task: TodoTask): Record<string, string | number | null> => {
+      if (task.scheduledDate === selectedDayIso) return {};
+      return {
+        scheduled_date: selectedDayIso,
+        scheduled_time: null,
+        planned_time: null,
+      };
+    },
+    [selectedDayIso]
+  );
+
+  const handleMarkStarted = useCallback(
+    (task: TodoTask) => {
+      const draft = readTaskDraft(task);
+      saveTaskProgressPatch(task, {
+        ...buildTodayPlacementPatch(task),
+        start_time: draft.startTime || currentClockTime(),
+        end_time: null,
+        is_done: 0,
+        completed_at: null,
+      });
+    },
+    [buildTodayPlacementPatch, readTaskDraft, saveTaskProgressPatch]
+  );
+
+  const handleMarkNeedsFinish = useCallback(
+    (task: TodoTask) => {
+      const draft = readTaskDraft(task);
+      const now = currentClockTime();
+      saveTaskProgressPatch(task, {
+        ...buildTodayPlacementPatch(task),
+        start_time: draft.startTime || now,
+        end_time: now,
+        is_done: 0,
+        completed_at: null,
+      });
+    },
+    [buildTodayPlacementPatch, readTaskDraft, saveTaskProgressPatch]
+  );
+
+  const handleResumeTask = useCallback(
+    (task: TodoTask) => {
+      const draft = readTaskDraft(task);
+      saveTaskProgressPatch(task, {
+        ...buildTodayPlacementPatch(task),
+        start_time: draft.startTime || currentClockTime(),
+        end_time: null,
+        is_done: 0,
+        completed_at: null,
+      });
+    },
+    [buildTodayPlacementPatch, readTaskDraft, saveTaskProgressPatch]
+  );
 
 
   const updateEnergy = useMutation({
@@ -2319,6 +2487,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     checked: boolean,
     actualMinutes?: number | null
   ) => {
+    const draft = readTaskDraft(task);
     const cacheSnapshot = queryClient.getQueryData<TaskListResponse>([
       "tasks",
       range.start,
@@ -2330,6 +2499,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     };
     if (checked) {
       patch.focus_order = null;
+      if (draft.startTime && !draft.endTime) {
+        patch.end_time = currentClockTime();
+      }
     }
     if (typeof actualMinutes === "number" && checked) {
       patch.actual_minutes = actualMinutes;
@@ -2369,6 +2541,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     queryClient,
     range.start,
     range.end,
+    readTaskDraft,
     setTaskDraft,
     updateTask,
     applyTaskPatchToCache,
@@ -3175,6 +3348,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     onOpenDetails={handleOpenTaskDetails}
                     onUnscheduleToday={handleUnscheduleToday}
                     onScheduleTomorrow={handleScheduleTomorrow}
+                    onMarkStarted={handleMarkStarted}
+                    onMarkNeedsFinish={handleMarkNeedsFinish}
+                    onResumeTask={handleResumeTask}
                     onSetNext={handleSetTaskNext}
                     onMoveFocus={handleMoveFocusTask}
                     onDelete={handleDeleteTask}
@@ -3237,6 +3413,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     onToggleSubtaskDone={handleToggleSubtaskDone}
                     onOpenDetails={handleOpenTaskDetails}
                     onScheduleToday={handleScheduleToday}
+                    onMarkStarted={handleMarkStarted}
+                    onMarkNeedsFinish={handleMarkNeedsFinish}
+                    onResumeTask={handleResumeTask}
                     onSetNext={handleSetTaskNext}
                     onMoveFocus={handleMoveFocusTask}
                     onDelete={handleDeleteTask}
@@ -3292,6 +3471,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   onOpenDetails={handleOpenTaskDetails}
                   onUnscheduleToday={handleUnscheduleToday}
                   onScheduleTomorrow={handleScheduleTomorrow}
+                  onMarkStarted={handleMarkStarted}
+                  onMarkNeedsFinish={handleMarkNeedsFinish}
+                  onResumeTask={handleResumeTask}
                   onSetNext={handleSetTaskNext}
                   onMoveFocus={handleMoveFocusTask}
                   onDelete={handleDeleteTask}
