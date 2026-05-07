@@ -627,6 +627,19 @@ const EditableTaskRow = memo(function EditableTaskRow({
         {saving ? <span className="task-row-state">Saving…</span> : null}
         {!saving && saved ? <span className="task-row-state success">Saved</span> : null}
         <div className="task-row-menu">
+          <button
+            type="button"
+            className={`task-row-miss-toggle ${isMissed ? "active" : ""}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              handleToggleMissed();
+            }}
+            aria-pressed={isMissed}
+            aria-label={isMissed ? "Reabrir — desfazer não feita" : "Marcar como não feita"}
+            title={isMissed ? "Desfazer não feita" : "Marcar como não feita"}
+          >
+            <XCircle size={14} aria-hidden="true" />
+          </button>
           <OverflowMenu className="task-row-overflow" align="right">
             <div className="task-row-menu-list">
               <button type="button" className="task-row-menu-action" onClick={handleOpen}>
