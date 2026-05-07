@@ -1085,6 +1085,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const tasksForDay = tasks.filter((task) => task.scheduledDate === selectedDayIso);
   const unscheduledTasks = tasks
     .filter((task) => !task.scheduledDate)
+    // Done tasks belong on a date (backlog is for *pending* work). If one
+    // ever ends up here despite the auto-anchor in toggleTaskDoneNow, hide
+    // it from backlog so it doesn't read as "still to do".
+    .filter((task) => !readTaskDraft(task).isDone)
     .filter((task) => !lowEnergyMode || getTaskEffort(task) === "low")
     .sort(compareTasksForExecution);
 
@@ -2530,6 +2534,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       patch.focus_order = null;
       if (draft.startTime && !draft.endTime) {
         patch.end_time = currentClockTime();
+      }
+      // If a backlog task (no scheduledDate) is being marked done, anchor it
+      // to today so it shows up in today's "Done" section. Without this, the
+      // task stays in the unscheduled bucket — done but invisible — because
+      // every per-day completed list is filtered from tasksForDay.
+      if (!task.scheduledDate) {
+        patch.scheduled_date = format(new Date(), "yyyy-MM-dd");
       }
     }
     if (typeof actualMinutes === "number" && checked) {

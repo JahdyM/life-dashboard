@@ -14,14 +14,15 @@ function mirrorTitle(front: DissertationFront, step: DissertationStep) {
 }
 
 /**
- * Reconcile every dissertation step (whether or not it has a dueDate)
- * with a mirrored TodoTask (source = "dissertation", externalEventKey =
- * step.id). Steps with a dueDate become scheduled tasks on that date;
- * steps without a dueDate become unscheduled tasks that show up in the
- * calendar's "Sem data" inbox-style listing.
+ * Reconcile dissertation steps WHOSE dueDate is today with a mirrored
+ * TodoTask (source = "dissertation", externalEventKey = step.id). Other
+ * steps — undated, future-dated, past-dated — do NOT mirror; they live
+ * exclusively on the dissertation page and stay out of the calendar list
+ * to keep the calendar focused on what's actually planned for today.
  *
- * Idempotent: creates new mirrors, updates changed ones, removes orphans
- * whose underlying step was deleted.
+ * Idempotent: creates today's mirrors, updates changed ones, removes any
+ * orphans (steps that lost today's date, were deleted, or were finished
+ * on a different day).
  *
  * Failures are caught at the call site — mirror sync is a best-effort
  * enrichment, never a blocker for the main save.
@@ -48,19 +49,19 @@ export async function reconcileDissertationMirrors(
 
   const seenStepIds = new Set<string>();
   const nowIso = new Date().toISOString();
+  const todayIso = nowIso.slice(0, 10);
 
   for (const front of project.fronts) {
     for (const step of front.steps) {
-      // Mirror EVERY step — dated or undated. Undated steps land in the
-      // calendar's unscheduled bucket, where they're still visible in the
-      // task list and can be scheduled later (which the reverse sync hook
-      // can promote back to step.dueDate in a future iteration).
+      // Only mirror steps whose dueDate is today. Undated steps and steps
+      // dated for any other day are intentionally left off the calendar.
+      if (step.dueDate !== todayIso) continue;
       seenStepIds.add(step.id);
 
       const desiredTitle = mirrorTitle(front, step);
       const desiredIsDone = step.done ? 1 : 0;
       const desiredCompletedAt = step.done ? step.completedAt || nowIso : null;
-      const desiredScheduledDate = step.dueDate ?? null;
+      const desiredScheduledDate = step.dueDate;
       const current = existingByStepId.get(step.id);
 
       if (!current) {
