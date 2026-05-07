@@ -26,6 +26,7 @@ import {
   Share2,
   SquarePen,
   Trash2,
+  XCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import InlineActionNotice from "@/components/common/InlineActionNotice";
@@ -533,19 +534,6 @@ const EditableTaskRow = memo(function EditableTaskRow({
           onClick={(event) => event.stopPropagation()}
           disabled={isMissed}
         />
-        <button
-          type="button"
-          className={`task-row-miss-button ${isMissed ? "active" : ""}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            handleToggleMissed();
-          }}
-          aria-pressed={isMissed}
-          aria-label={isMissed ? "Desfazer 'não feita'" : "Marcar como não feita"}
-          title={isMissed ? "Desfazer marcação de não feita" : "Marcar como não feita"}
-        >
-          ✗
-        </button>
         <button type="button" className="task-row-open" onClick={handleOpen}>
           <div className="task-row-main">
             <span className="task-title">{draft.title}</span>
@@ -711,6 +699,14 @@ const EditableTaskRow = memo(function EditableTaskRow({
                   {sharing ? "Working..." : shareActionLabel}
                 </button>
               ) : null}
+              <button
+                type="button"
+                className={`task-row-menu-action ${isMissed ? "" : "subtle-danger"}`}
+                onClick={handleToggleMissed}
+              >
+                <XCircle size={15} />
+                {isMissed ? "Reabrir (não estava feita)" : "Marcar como não feita"}
+              </button>
               <button type="button" className="task-row-menu-action danger" onClick={handleDelete}>
                 <Trash2 size={15} />
                 Delete

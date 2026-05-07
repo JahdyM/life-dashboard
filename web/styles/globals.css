@@ -9802,47 +9802,10 @@ input.no-spinner[type="number"] {
 /* ====================================================================
    Task: missed state
    Lets the user mark a task as "didn't accomplish" without deleting it,
-   keeping the intent vs. reality record. Mutual-exclusive with done.
+   keeping the intent vs. reality record. The action lives in the row's
+   overflow menu (… button) — no extra control in the row head, so the
+   layout grid stays clean. The visual state below applies to the row.
    ==================================================================== */
-
-.task-row-miss-button {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
-  width: 28px;
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-muted);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
-  opacity: 0.55;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: rgba(226, 154, 145, 0.18);
-}
-
-.task-row-miss-button:hover,
-.task-row-miss-button:focus-visible {
-  opacity: 1;
-  border-color: rgba(226, 154, 145, 0.44);
-  color: #f4a89e;
-  outline: none;
-}
-
-.task-row-miss-button.active {
-  opacity: 1;
-  border-color: rgba(226, 154, 145, 0.6);
-  background: rgba(226, 154, 145, 0.18);
-  color: #f4a89e;
-}
-
-@media (hover: none) {
-  .task-row-miss-button { opacity: 0.85; }
-}
 
 .task-row-missed {
   border-color: rgba(226, 154, 145, 0.32);
@@ -9873,10 +9836,12 @@ input.no-spinner[type="number"] {
   cursor: not-allowed;
 }
 
-@media (max-width: 760px) {
-  .task-row-miss-button {
-    width: 32px;
-    height: 32px;
-    opacity: 0.85;
-  }
+/* Subtle red tint on the "Marcar como não feita" overflow-menu action so
+   it reads as warning-level (between neutral and destructive). */
+.task-row-menu-action.subtle-danger {
+  color: #e9b1a8;
+}
+.task-row-menu-action.subtle-danger:hover {
+  color: #f4a89e;
+  background: rgba(226, 154, 145, 0.1);
 }
