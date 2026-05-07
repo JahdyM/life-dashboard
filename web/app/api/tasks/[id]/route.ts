@@ -9,6 +9,7 @@ import {
 import { updateTask, deleteTask } from "@/lib/server/tasks";
 import { prisma } from "@/lib/db/prisma";
 import { addPointsOnce, POINTS } from "@/lib/server/rewards";
+import { syncDissertationStepFromMirrorTask } from "@/lib/server/dissertationMirror";
 import { updateGoogleEvent, deleteGoogleEvent } from "@/lib/server/googleCalendar";
 import { getUserTimeZone } from "@/lib/server/settings";
 import { rememberDeletedGoogleTask } from "@/lib/server/taskTombstones";
@@ -82,6 +83,25 @@ export async function PATCH(
     }
 
     const updated = await updateTask(userEmail, taskId, updatePayload);
+
+    // If this is a dissertation mirror task and its done state changed,
+    // sync the underlying dissertation step (best-effort, doesn't block).
+    if (
+      existing.source === "dissertation" &&
+      existing.externalEventKey &&
+      payload.is_done !== undefined
+    ) {
+      try {
+        await syncDissertationStepFromMirrorTask(userEmail, taskId);
+      } catch (error) {
+        logServerEvent("warn", {
+          endpoint: "PATCH /api/tasks/[id]",
+          message: "Reverse sync to dissertation step failed",
+          error,
+          meta: { taskId, externalEventKey: existing.externalEventKey },
+        });
+      }
+    }
 
     // Award points when a task is marked done for the first time
     if (payload.is_done && !existing.isDone) {

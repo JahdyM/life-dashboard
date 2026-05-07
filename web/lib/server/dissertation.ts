@@ -10,6 +10,20 @@ import {
   type DissertationStep,
 } from "@/lib/dissertation";
 import { dissertationActionSchema, dissertationProjectSchema } from "./schemas";
+import { reconcileDissertationMirrors } from "./dissertationMirror";
+import { logServerEvent } from "./logger";
+
+async function reconcileMirrorsSafely(userEmail: string, project: DissertationProject) {
+  try {
+    await reconcileDissertationMirrors(userEmail, project);
+  } catch (error) {
+    logServerEvent("warn", {
+      endpoint: "dissertationMirror",
+      message: "Failed to reconcile dissertation calendar mirrors",
+      error,
+    });
+  }
+}
 
 const STORAGE_KEY_PREFIX = "dissertation_v3";
 const LEGACY_KEYS = ["dissertation_v2", "dissertation_v1"];
@@ -174,6 +188,7 @@ export async function loadDissertationProject(userEmail: string): Promise<Disser
 
   const fresh = buildDefaultProject();
   await saveDissertationProject(userEmail, fresh);
+  await reconcileMirrorsSafely(userEmail, fresh);
   return fresh;
 }
 
@@ -369,7 +384,9 @@ export async function applyDissertationAction(
   const action = parsed.data as DissertationAction;
   const project = await loadDissertationProject(userEmail);
   const next = mutateProject(project, action);
-  return saveDissertationProject(userEmail, next);
+  const saved = await saveDissertationProject(userEmail, next);
+  await reconcileMirrorsSafely(userEmail, saved);
+  return saved;
 }
 
 function mutateProject(project: DissertationProject, action: DissertationAction): DissertationProject {

@@ -10,7 +10,8 @@ export type HabitFieldName =
   | "prepareMeeting"
   | "familyWorship"
   | "writing"
-  | "scientificWriting";
+  | "scientificWriting"
+  | "prayerOnWaking";
 
 export type HabitScheduleRule = "daily" | "meeting_days" | "family_worship_day";
 
@@ -118,6 +119,14 @@ export const HABIT_FIELD_CONFIGS: HabitFieldConfig[] = [
     key: "daily_text",
     label: "Daily text",
     field: "dailyText",
+    scope: "shared",
+    schedule: "daily",
+    defaultEnabled: true,
+  },
+  {
+    key: "prayer_on_waking",
+    label: "Prayer on waking",
+    field: "prayerOnWaking",
     scope: "shared",
     schedule: "daily",
     defaultEnabled: true,

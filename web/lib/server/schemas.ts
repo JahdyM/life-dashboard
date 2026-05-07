@@ -270,6 +270,7 @@ export const dayPatchSchema = z
     family_worship: boolishSchema.optional(),
     writing: boolishSchema.optional(),
     scientific_writing: boolishSchema.optional(),
+    prayer_on_waking: boolishSchema.optional(),
     sleep_hours: z.number().min(0).max(24).optional(),
     anxiety_level: z.number().int().min(1).max(10).optional(),
     work_hours: z.number().min(0).max(24).optional(),

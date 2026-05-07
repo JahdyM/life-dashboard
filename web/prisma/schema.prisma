@@ -24,6 +24,7 @@ model DailyEntryUser {
   familyWorship     Int?    @map("family_worship")
   writing           Int?    @map("writing")
   scientificWriting Int?    @map("scientific_writing")
+  prayerOnWaking    Int?    @map("prayer_on_waking")
   sleepHours        Float?  @map("sleep_hours")
   anxietyLevel      Int?    @map("anxiety_level")
   workHours         Float?  @map("work_hours")

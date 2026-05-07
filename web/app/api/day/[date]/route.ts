@@ -11,13 +11,31 @@ import { dateParamSchema, dayPatchSchema } from "@/lib/server/schemas";
 import { logServerEvent } from "@/lib/server/logger";
 import { addPointsOnce, POINTS } from "@/lib/server/rewards";
 import { getHabitField } from "@/lib/config/habits";
+import { updateSpiritualStreakEntry } from "@/lib/server/spiritualStreaks";
+import type { SpiritualStreakBoardKey } from "@/lib/types";
 
 // Shared habit keys that map to boolish DB fields (excludes metrics)
 const SHARED_HABIT_PATCH_KEYS = new Set([
   "bible_reading", "bible_study", "dissertation_work", "workout",
   "general_reading", "shower", "daily_text", "meeting_attended",
   "prepare_meeting", "family_worship", "writing", "scientific_writing",
+  "prayer_on_waking",
 ]);
+
+// Map daily-habit keys to spiritual streak boards. When the habit is toggled,
+// the matching streak board entry is mirrored automatically — so checking
+// "Bible reading" on the daily Habits screen also lights up that day's
+// success on the Spiritual Streaks page (and vice-versa cleanup on untoggle).
+const HABIT_TO_STREAK_BOARD: Record<string, SpiritualStreakBoardKey> = {
+  bible_reading: "bible_reading",
+  bible_study: "bible_reading",
+  daily_text: "daily_text",
+  prayer_on_waking: "prayer_on_waking",
+};
+
+function isoMonthKey(dateIso: string) {
+  return dateIso.slice(0, 7);
+}
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +109,39 @@ export async function PATCH(
           )
       );
     }
+
+    // Mirror habit toggles into the matching spiritual-streak board for the
+    // same day, so the streak page never falls out of sync with the habit
+    // page. Best-effort: a streak failure should never block the habit save.
+    const monthKey = isoMonthKey(dateIso);
+    await Promise.all(
+      Object.entries(payload)
+        .filter(([key]) => key in HABIT_TO_STREAK_BOARD)
+        .map(async ([key, value]) => {
+          const boardKey = HABIT_TO_STREAK_BOARD[key];
+          const truthy = value === 1 || value === true;
+          const falsy = value === 0 || value === false;
+          // value !== undefined when present in payload; if neither truthy nor
+          // falsy (e.g. an unexpected string), skip rather than guess.
+          if (!truthy && !falsy) return;
+          try {
+            await updateSpiritualStreakEntry({
+              userEmail,
+              boardKey,
+              monthKey,
+              date: dateIso,
+              success: truthy ? true : null,
+            });
+          } catch (error) {
+            logServerEvent("warn", {
+              endpoint: "PATCH /api/day/[date]",
+              message: "Failed to mirror habit into spiritual streak board",
+              error,
+              meta: { habitKey: key, boardKey, dateIso },
+            });
+          }
+        })
+    );
 
     return jsonOk({ entry });
   } catch (err) {

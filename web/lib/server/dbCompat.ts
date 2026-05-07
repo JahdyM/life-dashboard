@@ -12,6 +12,9 @@ const globalForCompat = globalThis as unknown as {
 
 async function applyTaskCompletionColumnsMigration() {
   await prisma.$executeRawUnsafe(
+    "ALTER TABLE daily_entries_user ADD COLUMN IF NOT EXISTS prayer_on_waking INTEGER"
+  );
+  await prisma.$executeRawUnsafe(
     "ALTER TABLE todo_tasks ADD COLUMN IF NOT EXISTS completed_at TEXT"
   );
   await prisma.$executeRawUnsafe(
