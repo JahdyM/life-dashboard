@@ -38,13 +38,15 @@ export async function GET(request: NextRequest) {
       start: searchParams.get("start"),
       end: searchParams.get("end"),
       include_unscheduled: searchParams.get("include_unscheduled") || undefined,
+      include_missed: searchParams.get("include_missed") || undefined,
     });
     if (!queryParsed.success) {
       return jsonError(zodErrorMessage(queryParsed.error), 400);
     }
-    const { start, end, include_unscheduled } = queryParsed.data;
+    const { start, end, include_unscheduled, include_missed } = queryParsed.data;
     const includeUnscheduled = include_unscheduled === "1";
-    const tasks = await listTasks(userEmail, start, end, includeUnscheduled);
+    const includeMissed = include_missed === "1";
+    const tasks = await listTasks(userEmail, start, end, includeUnscheduled, includeMissed);
     return jsonOk({ items: tasks, warning: null });
   } catch (err) {
     logServerEvent("error", {

@@ -85,6 +85,11 @@ export default function DissertationClient({ initialProject }: { initialProject:
     mutationFn: patchProject,
     onSuccess: (project) => {
       queryClient.setQueryData(["dissertation-project"], project);
+      // Every dissertation step change reconciles the calendar mirror on the
+      // server. Invalidate the calendar's tasks query so the new mirrored
+      // task (or its title/dueDate update) shows up the moment the user
+      // navigates to /calendar — no stale-cache surprises.
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
       setNotice("Saved");
       window.setTimeout(() => setNotice(null), 1400);
     },

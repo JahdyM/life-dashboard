@@ -207,6 +207,7 @@ export const taskListQuerySchema = z
     start: isoDateSchema,
     end: isoDateSchema,
     include_unscheduled: z.enum(["0", "1"]).optional(),
+    include_missed: z.enum(["0", "1"]).optional(),
   })
   .refine((value) => validRange(value.start, value.end), {
     message: "start must be before or equal to end",

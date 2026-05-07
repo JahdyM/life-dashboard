@@ -183,14 +183,15 @@ export async function listTasks(
   userEmail: string,
   startIso: string,
   endIso: string,
-  includeUnscheduled = false
+  includeUnscheduled = false,
+  includeMissed = false
 ) {
   await ensureTaskCompletionColumns();
   const todayIso = await getTodayIsoForUser(userEmail);
   if (startIso <= todayIso && endIso >= todayIso) {
     await rollPendingTasksFromYesterday(userEmail, todayIso);
   }
-  const whereClause = includeUnscheduled
+  const dateClause = includeUnscheduled
     ? {
         userEmail,
         OR: [
@@ -210,6 +211,12 @@ export async function listTasks(
           lte: endIso,
         },
       };
+  // Tasks the user explicitly marked as "não feita" leave the main calendar
+  // listings — they're closed-out, no longer pending, and not done either.
+  // Pass includeMissed=true (e.g. from a future "missed" tab) to recover them.
+  const whereClause = includeMissed
+    ? dateClause
+    : { ...dateClause, missedAt: null };
   const tasks = await prisma.todoTask.findMany({
     where: whereClause,
     orderBy: [
