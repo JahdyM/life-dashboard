@@ -15,6 +15,7 @@ export type DayEntry = {
   familyWorship?: number | null;
   writing?: number | null;
   scientificWriting?: number | null;
+  prayerOnWaking?: number | null;
   sleepHours?: number | null;
   anxietyLevel?: number | null;
   workHours?: number | null;
@@ -613,6 +614,7 @@ export type ReadingPageData = {
   articleSeries: ReadingVideoSection;
   books: ReadingVideoSection;
   tracts: ReadingVideoSection;
+  apostilas: ReadingVideoSection;
   bible: {
     totalChapters: number;
     readChapters: number;

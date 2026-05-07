@@ -14,13 +14,17 @@ function mirrorTitle(front: DissertationFront, step: DissertationStep) {
 }
 
 /**
- * Reconcile every dissertation step that has a `dueDate` with a mirrored
- * TodoTask (source = "dissertation", externalEventKey = step.id). Idempotent:
- * creates new mirrors, updates changed ones, and removes orphans whose
- * underlying step was deleted or had its date cleared.
+ * Reconcile every dissertation step (whether or not it has a dueDate)
+ * with a mirrored TodoTask (source = "dissertation", externalEventKey =
+ * step.id). Steps with a dueDate become scheduled tasks on that date;
+ * steps without a dueDate become unscheduled tasks that show up in the
+ * calendar's "Sem data" inbox-style listing.
  *
- * Failures are caught and logged at the call site — mirror sync is a
- * best-effort enrichment, never a blocker for the main save.
+ * Idempotent: creates new mirrors, updates changed ones, removes orphans
+ * whose underlying step was deleted.
+ *
+ * Failures are caught at the call site — mirror sync is a best-effort
+ * enrichment, never a blocker for the main save.
  */
 export async function reconcileDissertationMirrors(
   userEmail: string,
@@ -47,12 +51,16 @@ export async function reconcileDissertationMirrors(
 
   for (const front of project.fronts) {
     for (const step of front.steps) {
-      if (!step.dueDate) continue;
+      // Mirror EVERY step — dated or undated. Undated steps land in the
+      // calendar's unscheduled bucket, where they're still visible in the
+      // task list and can be scheduled later (which the reverse sync hook
+      // can promote back to step.dueDate in a future iteration).
       seenStepIds.add(step.id);
 
       const desiredTitle = mirrorTitle(front, step);
       const desiredIsDone = step.done ? 1 : 0;
       const desiredCompletedAt = step.done ? step.completedAt || nowIso : null;
+      const desiredScheduledDate = step.dueDate ?? null;
       const current = existingByStepId.get(step.id);
 
       if (!current) {
@@ -63,7 +71,7 @@ export async function reconcileDissertationMirrors(
             title: desiredTitle,
             source: MIRROR_SOURCE,
             externalEventKey: step.id,
-            scheduledDate: step.dueDate,
+            scheduledDate: desiredScheduledDate,
             isDone: desiredIsDone,
             completedAt: desiredCompletedAt,
             createdAt: nowIso,
@@ -75,7 +83,7 @@ export async function reconcileDissertationMirrors(
 
       const needsUpdate =
         current.title !== desiredTitle ||
-        current.scheduledDate !== step.dueDate ||
+        current.scheduledDate !== desiredScheduledDate ||
         current.isDone !== desiredIsDone ||
         (desiredIsDone === 1 && !current.completedAt) ||
         (desiredIsDone === 0 && current.completedAt);
@@ -85,7 +93,7 @@ export async function reconcileDissertationMirrors(
           where: { id: current.id },
           data: {
             title: desiredTitle,
-            scheduledDate: step.dueDate,
+            scheduledDate: desiredScheduledDate,
             isDone: desiredIsDone,
             completedAt: desiredCompletedAt,
             updatedAt: nowIso,
