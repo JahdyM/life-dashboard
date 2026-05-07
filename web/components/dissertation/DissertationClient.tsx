@@ -169,6 +169,22 @@ export default function DissertationClient({ initialProject }: { initialProject:
     mutate({ type: "add_step", frontId: front.id, title, dueDate: today });
   }
 
+  const syncMutation = useMutation({
+    mutationFn: () =>
+      fetch("/api/dissertation/sync", { method: "POST" }).then(async (response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return (await response.json()) as {
+          ok: boolean;
+          mirrorCount: number;
+          stepCount: number;
+          reconcileError: string | null;
+        };
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+
   function addStep(front: DissertationFront) {
     const title = (stepDrafts[front.id] || "").trim();
     if (!title) return;
@@ -198,6 +214,31 @@ export default function DissertationClient({ initialProject }: { initialProject:
         <SmallStat label="Passos" value={`${stats.done}/${stats.total}`} />
         <SmallStat label="Hoje" value={`${doneToday}/${project.fronts.length}`} />
         <SmallStat label="Com prazo" value={String(stats.withDates)} />
+      </div>
+
+      <div className="dissertation-sync-chip" role="status">
+        <button
+          type="button"
+          className="dissertation-sync-chip-button"
+          onClick={() => syncMutation.mutate()}
+          disabled={syncMutation.isPending}
+        >
+          {syncMutation.isPending ? "Sincronizando…" : "Sincronizar com calendar"}
+        </button>
+        {syncMutation.data ? (
+          syncMutation.data.reconcileError ? (
+            <span className="error">
+              ⚠ Falhou: {syncMutation.data.reconcileError}
+            </span>
+          ) : (
+            <span className="success">
+              ✓ {syncMutation.data.mirrorCount} task(s) no calendar · {syncMutation.data.stepCount} passo(s) na dissertação
+            </span>
+          )
+        ) : null}
+        {syncMutation.isError ? (
+          <span className="error">⚠ Erro de rede</span>
+        ) : null}
       </div>
 
       <section className={`dissertation-today-panel ${allTodayDone ? "all-done" : ""}`}>
