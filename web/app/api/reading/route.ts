@@ -4,6 +4,7 @@ import { logServerEvent } from "@/lib/server/logger";
 import {
   getReadingPageData,
   importDespertaiIssues,
+  setApostilaRead,
   setArticleSeriesRead,
   setBroadcastingVideoRead,
   setBibleChapterRead,
@@ -79,6 +80,9 @@ export async function PATCH(request: NextRequest) {
     }
     if (payload.type === "toggle_tract") {
       return jsonOk(await setTractRead(userEmail, payload.video_id, payload.read));
+    }
+    if (payload.type === "toggle_apostila") {
+      return jsonOk(await setApostilaRead(userEmail, payload.video_id, payload.read));
     }
     return jsonOk(
       await setBibleChapterRead(userEmail, payload.book_key, payload.chapter, payload.read)

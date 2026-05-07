@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import apostilasCatalog from "@/lib/config/apostilas.json";
 import articleSeriesCatalog from "@/lib/config/articleSeries.json";
 import despertaiCatalog from "@/lib/config/despertaiPublications.json";
 import broadcastingCatalog from "@/lib/config/broadcastingVideos.json";
@@ -33,6 +34,7 @@ type StoredReadingState = {
   article_series: StoredReadingVideo[];
   books: StoredReadingVideo[];
   tracts: StoredReadingVideo[];
+  apostilas: StoredReadingVideo[];
   bible_read_chapters: Record<string, number[]>;
 };
 
@@ -150,6 +152,19 @@ const DEFAULT_TRACTS: StoredReadingVideo[] = (tractsCatalog as CatalogReadingVid
     updated_at: CATALOG_CREATED_AT,
   }));
 
+const DEFAULT_APOSTILAS: StoredReadingVideo[] = (apostilasCatalog as CatalogReadingVideo[])
+  .map((item) => ({
+    id: item.id,
+    title: item.title,
+    duration_seconds: Math.max(0, Math.trunc(Number(item.duration_seconds) || 0)),
+    natural_key: item.natural_key || null,
+    document_id: item.document_id || null,
+    url: item.url || null,
+    read: false,
+    created_at: CATALOG_CREATED_AT,
+    updated_at: CATALOG_CREATED_AT,
+  }));
+
 function defaultState(): StoredReadingState {
   return {
     despertai_issues: DEFAULT_DESPERTAI_ISSUES,
@@ -158,6 +173,7 @@ function defaultState(): StoredReadingState {
     article_series: DEFAULT_ARTICLE_SERIES,
     books: DEFAULT_READING_BOOKS,
     tracts: DEFAULT_TRACTS,
+    apostilas: DEFAULT_APOSTILAS,
     bible_read_chapters: {},
   };
 }
@@ -307,6 +323,14 @@ function normalizeState(raw: unknown): StoredReadingState {
           DEFAULT_TRACTS
         )
       : DEFAULT_TRACTS,
+    apostilas: Array.isArray(state.apostilas)
+      ? mergeWithDefaultVideos(
+          state.apostilas
+            .map((video) => normalizeVideo(video, nowIso))
+            .filter((video): video is StoredReadingVideo => Boolean(video)),
+          DEFAULT_APOSTILAS
+        )
+      : DEFAULT_APOSTILAS,
     bible_read_chapters: normalizeBibleReadChapters(state.bible_read_chapters),
   };
 }
@@ -412,6 +436,7 @@ function toPageData(state: StoredReadingState): ReadingPageData {
   const articleSeries = videoSectionProgress(state.article_series);
   const books = videoSectionProgress(state.books);
   const tracts = videoSectionProgress(state.tracts);
+  const apostilas = videoSectionProgress(state.apostilas);
 
   const sections = BIBLE_SECTIONS.map((section) => ({
     title: section.title,
@@ -447,6 +472,7 @@ function toPageData(state: StoredReadingState): ReadingPageData {
     articleSeries,
     books,
     tracts,
+    apostilas,
     bible: {
       totalChapters: BIBLE_TOTAL_CHAPTERS,
       readChapters: readBibleChapters,
@@ -725,6 +751,17 @@ export async function setTractRead(userEmail: string, itemId: string, read: bool
     item.id === itemId ? { ...item, read, updated_at: nowIso } : item
   );
   const nextState = { ...state, tracts: nextItems };
+  await saveState(userEmail, nextState);
+  return toPageData(nextState);
+}
+
+export async function setApostilaRead(userEmail: string, itemId: string, read: boolean) {
+  const state = await getState(userEmail);
+  const nowIso = new Date().toISOString();
+  const nextItems = state.apostilas.map((item) =>
+    item.id === itemId ? { ...item, read, updated_at: nowIso } : item
+  );
+  const nextState = { ...state, apostilas: nextItems };
   await saveState(userEmail, nextState);
   return toPageData(nextState);
 }

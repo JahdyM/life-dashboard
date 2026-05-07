@@ -1,0 +1,762 @@
+[
+  {
+    "id": "apostila-2026-janeiro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, janeiro-fevereiro de 2026",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2026 · janeiro",
+    "document_id": "2026-janeiro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/apostila-vida-e-ministério-2026/janeiro"
+  },
+  {
+    "id": "apostila-2026-marco",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, março-abril de 2026",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2026 · março",
+    "document_id": "2026-marco",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/apostila-vida-e-ministério-2026/março"
+  },
+  {
+    "id": "apostila-2026-maio",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, maio-junho de 2026",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2026 · maio",
+    "document_id": "2026-maio",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/apostila-vida-e-ministério-2026/maio"
+  },
+  {
+    "id": "apostila-2026-julho",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, julho-agosto de 2026",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2026 · julho",
+    "document_id": "2026-julho",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/apostila-vida-e-ministério-2026/julho"
+  },
+  {
+    "id": "apostila-2026-setembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, setembro-outubro de 2026",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2026 · setembro",
+    "document_id": "2026-setembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/apostila-vida-e-ministério-2026/setembro"
+  },
+  {
+    "id": "apostila-2025-janeiro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, janeiro-fevereiro de 2025",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2025 · janeiro",
+    "document_id": "2025-janeiro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/apostila-vida-e-ministério-2025/janeiro"
+  },
+  {
+    "id": "apostila-2025-marco",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, março-abril de 2025",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2025 · março",
+    "document_id": "2025-marco",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/apostila-vida-e-ministério-2025/março"
+  },
+  {
+    "id": "apostila-2025-maio",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, maio-junho de 2025",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2025 · maio",
+    "document_id": "2025-maio",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/apostila-vida-e-ministério-2025/maio"
+  },
+  {
+    "id": "apostila-2025-julho",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, julho-agosto de 2025",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2025 · julho",
+    "document_id": "2025-julho",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/apostila-vida-e-ministério-2025/julho"
+  },
+  {
+    "id": "apostila-2025-setembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, setembro-outubro de 2025",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2025 · setembro",
+    "document_id": "2025-setembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/apostila-vida-e-ministério-2025/setembro"
+  },
+  {
+    "id": "apostila-2025-novembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, novembro-dezembro de 2025",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2025 · novembro",
+    "document_id": "2025-novembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/apostila-vida-e-ministério-2025/novembro"
+  },
+  {
+    "id": "apostila-2024-janeiro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, janeiro-fevereiro de 2024",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2024 · janeiro",
+    "document_id": "2024-janeiro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/apostila-vida-e-ministério-2024/janeiro"
+  },
+  {
+    "id": "apostila-2024-marco",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, março-abril de 2024",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2024 · março",
+    "document_id": "2024-marco",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/apostila-vida-e-ministério-2024/março"
+  },
+  {
+    "id": "apostila-2024-maio",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, maio-junho de 2024",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2024 · maio",
+    "document_id": "2024-maio",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/apostila-vida-e-ministério-2024/maio"
+  },
+  {
+    "id": "apostila-2024-julho",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, julho-agosto de 2024",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2024 · julho",
+    "document_id": "2024-julho",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/apostila-vida-e-ministério-2024/julho"
+  },
+  {
+    "id": "apostila-2024-setembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, setembro-outubro de 2024",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2024 · setembro",
+    "document_id": "2024-setembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/apostila-vida-e-ministério-2024/setembro"
+  },
+  {
+    "id": "apostila-2024-novembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, novembro-dezembro de 2024",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2024 · novembro",
+    "document_id": "2024-novembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/apostila-vida-e-ministério-2024/novembro"
+  },
+  {
+    "id": "apostila-2023-janeiro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, janeiro-fevereiro de 2023",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2023 · janeiro",
+    "document_id": "2023-janeiro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2023/janeiro"
+  },
+  {
+    "id": "apostila-2023-marco",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, março-abril de 2023",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2023 · março",
+    "document_id": "2023-marco",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2023/março"
+  },
+  {
+    "id": "apostila-2023-maio",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, maio-junho de 2023",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2023 · maio",
+    "document_id": "2023-maio",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2023/maio"
+  },
+  {
+    "id": "apostila-2023-julho",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, julho-agosto de 2023",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2023 · julho",
+    "document_id": "2023-julho",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2023/julho"
+  },
+  {
+    "id": "apostila-2023-setembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, setembro-outubro de 2023",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2023 · setembro",
+    "document_id": "2023-setembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2023/setembro"
+  },
+  {
+    "id": "apostila-2023-novembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, novembro-dezembro de 2023",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2023 · novembro",
+    "document_id": "2023-novembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2023/novembro"
+  },
+  {
+    "id": "apostila-2022-janeiro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, janeiro-fevereiro de 2022",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2022 · janeiro",
+    "document_id": "2022-janeiro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2022/janeiro"
+  },
+  {
+    "id": "apostila-2022-marco",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, março-abril de 2022",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2022 · março",
+    "document_id": "2022-marco",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2022/março"
+  },
+  {
+    "id": "apostila-2022-maio",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, maio-junho de 2022",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2022 · maio",
+    "document_id": "2022-maio",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2022/maio"
+  },
+  {
+    "id": "apostila-2022-julho",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, julho-agosto de 2022",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2022 · julho",
+    "document_id": "2022-julho",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2022/julho"
+  },
+  {
+    "id": "apostila-2022-setembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, setembro-outubro de 2022",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2022 · setembro",
+    "document_id": "2022-setembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2022/setembro"
+  },
+  {
+    "id": "apostila-2022-novembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, novembro-dezembro de 2022",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2022 · novembro",
+    "document_id": "2022-novembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2022/novembro"
+  },
+  {
+    "id": "apostila-2021-janeiro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, janeiro-fevereiro de 2021",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2021 · janeiro",
+    "document_id": "2021-janeiro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2021/janeiro"
+  },
+  {
+    "id": "apostila-2021-marco",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, março-abril de 2021",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2021 · março",
+    "document_id": "2021-marco",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2021/março"
+  },
+  {
+    "id": "apostila-2021-maio",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, maio-junho de 2021",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2021 · maio",
+    "document_id": "2021-maio",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2021/maio"
+  },
+  {
+    "id": "apostila-2021-julho",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, julho-agosto de 2021",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2021 · julho",
+    "document_id": "2021-julho",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2021/julho"
+  },
+  {
+    "id": "apostila-2021-setembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, setembro-outubro de 2021",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2021 · setembro",
+    "document_id": "2021-setembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2021/setembro"
+  },
+  {
+    "id": "apostila-2021-novembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila da Reunião, novembro-dezembro de 2021",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2021 · novembro",
+    "document_id": "2021-novembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2021/novembro"
+  },
+  {
+    "id": "apostila-2020-janeiro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, janeiro de 2020",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2020 · janeiro",
+    "document_id": "2020-janeiro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2020/janeiro"
+  },
+  {
+    "id": "apostila-2020-fevereiro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, fevereiro de 2020",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2020 · fevereiro",
+    "document_id": "2020-fevereiro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2020/fevereiro"
+  },
+  {
+    "id": "apostila-2020-marco",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, março de 2020",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2020 · março",
+    "document_id": "2020-marco",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2020/março"
+  },
+  {
+    "id": "apostila-2020-abril",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, abril de 2020",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2020 · abril",
+    "document_id": "2020-abril",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2020/abril"
+  },
+  {
+    "id": "apostila-2020-maio",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, maio de 2020",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2020 · maio",
+    "document_id": "2020-maio",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2020/maio"
+  },
+  {
+    "id": "apostila-2020-junho",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, junho de 2020",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2020 · junho",
+    "document_id": "2020-junho",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2020/junho"
+  },
+  {
+    "id": "apostila-2020-julho",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, julho de 2020",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2020 · julho",
+    "document_id": "2020-julho",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2020/julho"
+  },
+  {
+    "id": "apostila-2020-agosto",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, agosto de 2020",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2020 · agosto",
+    "document_id": "2020-agosto",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2020/agosto"
+  },
+  {
+    "id": "apostila-2020-setembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, setembro de 2020",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2020 · setembro",
+    "document_id": "2020-setembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2020/setembro"
+  },
+  {
+    "id": "apostila-2020-outubro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, outubro de 2020",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2020 · outubro",
+    "document_id": "2020-outubro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2020/outubro"
+  },
+  {
+    "id": "apostila-2020-novembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, novembro de 2020",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2020 · novembro",
+    "document_id": "2020-novembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2020/novembro"
+  },
+  {
+    "id": "apostila-2020-dezembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, dezembro de 2020",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2020 · dezembro",
+    "document_id": "2020-dezembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2020/dezembro"
+  },
+  {
+    "id": "apostila-2019-janeiro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, janeiro de 2019",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2019 · janeiro",
+    "document_id": "2019-janeiro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2019/janeiro"
+  },
+  {
+    "id": "apostila-2019-fevereiro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, fevereiro de 2019",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2019 · fevereiro",
+    "document_id": "2019-fevereiro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2019/fevereiro"
+  },
+  {
+    "id": "apostila-2019-marco",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, março de 2019",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2019 · março",
+    "document_id": "2019-marco",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2019/março"
+  },
+  {
+    "id": "apostila-2019-abril",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, abril de 2019",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2019 · abril",
+    "document_id": "2019-abril",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2019/abril"
+  },
+  {
+    "id": "apostila-2019-maio",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, maio de 2019",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2019 · maio",
+    "document_id": "2019-maio",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2019/maio"
+  },
+  {
+    "id": "apostila-2019-junho",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, junho de 2019",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2019 · junho",
+    "document_id": "2019-junho",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2019/junho"
+  },
+  {
+    "id": "apostila-2019-julho",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, julho de 2019",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2019 · julho",
+    "document_id": "2019-julho",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2019/julho"
+  },
+  {
+    "id": "apostila-2019-agosto",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, agosto de 2019",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2019 · agosto",
+    "document_id": "2019-agosto",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2019/agosto"
+  },
+  {
+    "id": "apostila-2019-setembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, setembro de 2019",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2019 · setembro",
+    "document_id": "2019-setembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2019/setembro"
+  },
+  {
+    "id": "apostila-2019-outubro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, outubro de 2019",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2019 · outubro",
+    "document_id": "2019-outubro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2019/outubro"
+  },
+  {
+    "id": "apostila-2019-novembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, novembro de 2019",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2019 · novembro",
+    "document_id": "2019-novembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2019/novembro"
+  },
+  {
+    "id": "apostila-2019-dezembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, dezembro de 2019",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2019 · dezembro",
+    "document_id": "2019-dezembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2019/dezembro"
+  },
+  {
+    "id": "apostila-2018-janeiro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, janeiro de 2018",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2018 · janeiro",
+    "document_id": "2018-janeiro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2018/janeiro"
+  },
+  {
+    "id": "apostila-2018-fevereiro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, fevereiro de 2018",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2018 · fevereiro",
+    "document_id": "2018-fevereiro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2018/fevereiro"
+  },
+  {
+    "id": "apostila-2018-marco",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, março de 2018",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2018 · março",
+    "document_id": "2018-marco",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2018/março"
+  },
+  {
+    "id": "apostila-2018-abril",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, abril de 2018",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2018 · abril",
+    "document_id": "2018-abril",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2018/abril"
+  },
+  {
+    "id": "apostila-2018-maio",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, maio de 2018",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2018 · maio",
+    "document_id": "2018-maio",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2018/maio"
+  },
+  {
+    "id": "apostila-2018-junho",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, junho de 2018",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2018 · junho",
+    "document_id": "2018-junho",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2018/junho"
+  },
+  {
+    "id": "apostila-2018-julho",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, julho de 2018",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2018 · julho",
+    "document_id": "2018-julho",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2018/julho"
+  },
+  {
+    "id": "apostila-2018-agosto",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, agosto de 2018",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2018 · agosto",
+    "document_id": "2018-agosto",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2018/agosto"
+  },
+  {
+    "id": "apostila-2018-setembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, setembro de 2018",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2018 · setembro",
+    "document_id": "2018-setembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2018/setembro"
+  },
+  {
+    "id": "apostila-2018-outubro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, outubro de 2018",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2018 · outubro",
+    "document_id": "2018-outubro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2018/outubro"
+  },
+  {
+    "id": "apostila-2018-novembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, novembro de 2018",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2018 · novembro",
+    "document_id": "2018-novembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2018/novembro"
+  },
+  {
+    "id": "apostila-2018-dezembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, dezembro de 2018",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2018 · dezembro",
+    "document_id": "2018-dezembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2018/dezembro"
+  },
+  {
+    "id": "apostila-2017-janeiro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do Mês, janeiro de 2017",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2017 · janeiro",
+    "document_id": "2017-janeiro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2017/janeiro"
+  },
+  {
+    "id": "apostila-2017-fevereiro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do Mês, fevereiro de 2017",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2017 · fevereiro",
+    "document_id": "2017-fevereiro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2017/fevereiro"
+  },
+  {
+    "id": "apostila-2017-marco",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do Mês, março de 2017",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2017 · março",
+    "document_id": "2017-marco",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2017/março"
+  },
+  {
+    "id": "apostila-2017-abril",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do Mês, abril de 2017",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2017 · abril",
+    "document_id": "2017-abril",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2017/abril"
+  },
+  {
+    "id": "apostila-2017-maio",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, maio de 2017",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2017 · maio",
+    "document_id": "2017-maio",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2017/maio"
+  },
+  {
+    "id": "apostila-2017-junho",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, junho de 2017",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2017 · junho",
+    "document_id": "2017-junho",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2017/junho"
+  },
+  {
+    "id": "apostila-2017-julho",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, julho de 2017",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2017 · julho",
+    "document_id": "2017-julho",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2017/julho"
+  },
+  {
+    "id": "apostila-2017-agosto",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, agosto de 2017",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2017 · agosto",
+    "document_id": "2017-agosto",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2017/agosto"
+  },
+  {
+    "id": "apostila-2017-setembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, setembro de 2017",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2017 · setembro",
+    "document_id": "2017-setembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2017/setembro"
+  },
+  {
+    "id": "apostila-2017-outubro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, outubro de 2017",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2017 · outubro",
+    "document_id": "2017-outubro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2017/outubro"
+  },
+  {
+    "id": "apostila-2017-novembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, novembro de 2017",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2017 · novembro",
+    "document_id": "2017-novembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2017/novembro"
+  },
+  {
+    "id": "apostila-2017-dezembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, dezembro de 2017",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2017 · dezembro",
+    "document_id": "2017-dezembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2017/dezembro"
+  },
+  {
+    "id": "apostila-2016-janeiro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, janeiro de 2016",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2016 · janeiro",
+    "document_id": "2016-janeiro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2016/janeiro"
+  },
+  {
+    "id": "apostila-2016-fevereiro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do Mês, fevereiro de 2016",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2016 · fevereiro",
+    "document_id": "2016-fevereiro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2016/fevereiro"
+  },
+  {
+    "id": "apostila-2016-marco",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do Mês, março de 2016",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2016 · março",
+    "document_id": "2016-marco",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2016/março"
+  },
+  {
+    "id": "apostila-2016-abril",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do Mês, abril de 2016",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2016 · abril",
+    "document_id": "2016-abril",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2016/abril"
+  },
+  {
+    "id": "apostila-2016-maio",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do Mês, maio de 2016",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2016 · maio",
+    "document_id": "2016-maio",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2016/maio"
+  },
+  {
+    "id": "apostila-2016-junho",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do Mês, junho de 2016",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2016 · junho",
+    "document_id": "2016-junho",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2016/junho"
+  },
+  {
+    "id": "apostila-2016-julho",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do Mês, julho de 2016",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2016 · julho",
+    "document_id": "2016-julho",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2016/julho"
+  },
+  {
+    "id": "apostila-2016-agosto",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do Mês, agosto de 2016",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2016 · agosto",
+    "document_id": "2016-agosto",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2016/agosto"
+  },
+  {
+    "id": "apostila-2016-setembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, setembro de 2016",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2016 · setembro",
+    "document_id": "2016-setembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2016/setembro"
+  },
+  {
+    "id": "apostila-2016-outubro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do mês, outubro de 2016",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2016 · outubro",
+    "document_id": "2016-outubro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2016/outubro"
+  },
+  {
+    "id": "apostila-2016-novembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do Mês, novembro de 2016",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2016 · novembro",
+    "document_id": "2016-novembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2016/novembro"
+  },
+  {
+    "id": "apostila-2016-dezembro",
+    "title": "Nossa Vida e Ministério Cristão — Apostila do Mês, dezembro de 2016",
+    "duration_seconds": 0,
+    "natural_key": "Apostilas · 2016 · dezembro",
+    "document_id": "2016-dezembro",
+    "url": "https://wol.jw.org/pt/wol/library/r5/lp-t/todas-as-publicações/apostilas/nossa-vida-e-ministério-cristão-apostila-do-mês-2016/dezembro"
+  }
+]

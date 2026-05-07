@@ -17,6 +17,7 @@ type ReadingPatchPayload =
   | { type: "toggle_article_series"; video_id: string; read: boolean }
   | { type: "toggle_reading_book"; video_id: string; read: boolean }
   | { type: "toggle_tract"; video_id: string; read: boolean }
+  | { type: "toggle_apostila"; video_id: string; read: boolean }
   | { type: "toggle_bible_chapter"; book_key: string; chapter: number; read: boolean };
 
 type DespertaiClientProps = {
@@ -198,6 +199,10 @@ function tractElementId(videoId: string) {
   return `tract-${videoId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 }
 
+function apostilaElementId(videoId: string) {
+  return `apostila-${videoId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+}
+
 function formatDuration(seconds: number) {
   const total = Math.max(0, Math.round(seconds));
   const hours = Math.floor(total / 3600);
@@ -375,18 +380,23 @@ function VideoCard({
   selected,
   elementId,
   toggleType,
+  metaFallback = "Vídeo",
+  readLabel = "Visto",
 }: {
   video: ReadingVideo;
   onPatch: (payload: ReadingPatchPayload) => void;
   busy: boolean;
   selected: boolean;
   elementId: string;
+  metaFallback?: string;
+  readLabel?: string;
   toggleType:
     | "toggle_reading_video"
     | "toggle_broadcasting_video"
     | "toggle_article_series"
     | "toggle_reading_book"
-    | "toggle_tract";
+    | "toggle_tract"
+    | "toggle_apostila";
 }) {
   return (
     <article
@@ -395,7 +405,7 @@ function VideoCard({
     >
       <div className="reading-video-main">
         <div>
-          <p className="panel-kicker">{videoMetaLabel(video)}</p>
+          <p className="panel-kicker">{videoMetaLabel(video, metaFallback)}</p>
           <h4>{video.title}</h4>
           {video.naturalKey ? <p>{video.naturalKey}</p> : null}
         </div>
@@ -413,7 +423,7 @@ function VideoCard({
               })
             }
           />
-          <span>Visto</span>
+          <span>{readLabel}</span>
         </label>
       </div>
     </article>
@@ -475,7 +485,7 @@ function WheelFilterField({
 
 export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"despertai" | "videos" | "broadcasting" | "articles" | "books" | "tracts" | "bible">("despertai");
+  const [activeTab, setActiveTab] = useState<"despertai" | "videos" | "broadcasting" | "articles" | "books" | "tracts" | "apostilas" | "bible">("despertai");
   const [importText, setImportText] = useState("");
   const [despertaiSearch, setDespertaiSearch] = useState("");
   const [videoSearch, setVideoSearch] = useState("");
@@ -483,6 +493,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const [articleSearch, setArticleSearch] = useState("");
   const [bookSearch, setBookSearch] = useState("");
   const [tractSearch, setTractSearch] = useState("");
+  const [apostilaSearch, setApostilaSearch] = useState("");
   const [issueWheelMinYear, setIssueWheelMinYear] = useState("");
   const [issueWheelMaxYear, setIssueWheelMaxYear] = useState("");
   const [issueWheelMinTopics, setIssueWheelMinTopics] = useState("");
@@ -534,6 +545,13 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const [tractWheelShuffleNonce, setTractWheelShuffleNonce] = useState(0);
   const [pendingRevealTractId, setPendingRevealTractId] = useState<string | null>(null);
   const tractWheelSpinTimeoutRef = useRef<number | null>(null);
+  const [apostilaWheelSpinning, setApostilaWheelSpinning] = useState(false);
+  const [apostilaWheelRotation, setApostilaWheelRotation] = useState(0);
+  const [apostilaWheelResultId, setApostilaWheelResultId] = useState<string | null>(null);
+  const [apostilaWheelLastId, setApostilaWheelLastId] = useState<string | null>(null);
+  const [apostilaWheelShuffleNonce, setApostilaWheelShuffleNonce] = useState(0);
+  const [pendingRevealApostilaId, setPendingRevealApostilaId] = useState<string | null>(null);
+  const apostilaWheelSpinTimeoutRef = useRef<number | null>(null);
 
   const readingQuery = useQuery({
     queryKey,
@@ -576,6 +594,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const articleSearchTerm = normalizeSearchText(articleSearch);
   const bookSearchTerm = normalizeSearchText(bookSearch);
   const tractSearchTerm = normalizeSearchText(tractSearch);
+  const apostilaSearchTerm = normalizeSearchText(apostilaSearch);
   const filteredPendingIssues = useMemo(() => {
     if (!despertaiSearchTerm) return data.despertai.pendingIssues;
     return data.despertai.pendingIssues.filter((issue) =>
@@ -648,6 +667,18 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       matchesSearchText(`${video.title} ${video.naturalKey || ""}`, tractSearchTerm)
     );
   }, [data.tracts.finishedVideosList, tractSearchTerm]);
+  const filteredPendingApostilas = useMemo(() => {
+    if (!apostilaSearchTerm) return data.apostilas.pendingVideosList;
+    return data.apostilas.pendingVideosList.filter((video) =>
+      matchesSearchText(`${video.title} ${video.naturalKey || ""}`, apostilaSearchTerm)
+    );
+  }, [data.apostilas.pendingVideosList, apostilaSearchTerm]);
+  const filteredFinishedApostilas = useMemo(() => {
+    if (!apostilaSearchTerm) return data.apostilas.finishedVideosList;
+    return data.apostilas.finishedVideosList.filter((video) =>
+      matchesSearchText(`${video.title} ${video.naturalKey || ""}`, apostilaSearchTerm)
+    );
+  }, [data.apostilas.finishedVideosList, apostilaSearchTerm]);
   const issueWheelFilteredPool = useMemo(() => {
     const minYear = optionalPositiveNumber(issueWheelMinYear);
     const maxYear = optionalPositiveNumber(issueWheelMaxYear);
@@ -681,6 +712,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const articleWheelFilteredPool = data.articleSeries.pendingVideosList;
   const bookWheelFilteredPool = data.books.pendingVideosList;
   const tractWheelFilteredPool = data.tracts.pendingVideosList;
+  const apostilaWheelFilteredPool = data.apostilas.pendingVideosList;
   const issueWheelHasFilters = Boolean(
     issueWheelMinYear || issueWheelMaxYear || issueWheelMinTopics || issueWheelMaxTopics
   );
@@ -937,6 +969,48 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       }) as CSSProperties,
     [tractWheelRotation]
   );
+  const apostilaWheelEligibleItems = useMemo(() => {
+    const pending = apostilaWheelFilteredPool;
+    if (!apostilaWheelLastId || pending.length <= 1) return pending;
+    const filtered = pending.filter((video) => video.id !== apostilaWheelLastId);
+    return filtered.length ? filtered : pending;
+  }, [apostilaWheelFilteredPool, apostilaWheelLastId]);
+  const apostilaWheelOrderedItems = useMemo(() => {
+    const sorted = [...apostilaWheelEligibleItems].sort((a, b) => a.id.localeCompare(b.id));
+    if (sorted.length <= 1) return sorted;
+    const seed = hashWheelSeed(
+      `${apostilaWheelShuffleNonce}:${sorted.map((video) => video.id).join("|")}`
+    );
+    return shuffleWithSeed(sorted, seed);
+  }, [apostilaWheelEligibleItems, apostilaWheelShuffleNonce]);
+  const apostilaWheelSegments = useMemo<VideoWheelSegment[]>(() => {
+    if (!apostilaWheelOrderedItems.length) return [];
+    const span = 360 / apostilaWheelOrderedItems.length;
+    return apostilaWheelOrderedItems.map((video, index) => {
+      const startAngle = index * span;
+      const endAngle = startAngle + span;
+      return {
+        video,
+        startAngle,
+        endAngle,
+        midAngle: startAngle + span / 2,
+        span,
+        color: DESPERTAI_WHEEL_COLORS[index % DESPERTAI_WHEEL_COLORS.length],
+      };
+    });
+  }, [apostilaWheelOrderedItems]);
+  const apostilaWheelResult = useMemo(
+    () => data.apostilas.pendingVideosList.find((video) => video.id === apostilaWheelResultId) || null,
+    [data.apostilas.pendingVideosList, apostilaWheelResultId]
+  );
+  const apostilaWheelRotorStyle = useMemo(
+    () =>
+      ({
+        transform: `rotate(${apostilaWheelRotation}deg)`,
+        transition: `transform ${DESPERTAI_WHEEL_SPIN_DURATION_MS}ms cubic-bezier(0.12, 0.88, 0.16, 1)`,
+      }) as CSSProperties,
+    [apostilaWheelRotation]
+  );
 
   useEffect(() => {
     if (wheelResultIssueId && !issueWheelFilteredPool.some((issue) => issue.id === wheelResultIssueId)) {
@@ -1000,6 +1074,15 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   }, [tractWheelFilteredPool, tractWheelResultId]);
 
   useEffect(() => {
+    if (
+      apostilaWheelResultId &&
+      !apostilaWheelFilteredPool.some((video) => video.id === apostilaWheelResultId)
+    ) {
+      setApostilaWheelResultId(null);
+    }
+  }, [apostilaWheelFilteredPool, apostilaWheelResultId]);
+
+  useEffect(() => {
     return () => {
       if (wheelSpinTimeoutRef.current) {
         window.clearTimeout(wheelSpinTimeoutRef.current);
@@ -1018,6 +1101,9 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       }
       if (tractWheelSpinTimeoutRef.current) {
         window.clearTimeout(tractWheelSpinTimeoutRef.current);
+      }
+      if (apostilaWheelSpinTimeoutRef.current) {
+        window.clearTimeout(apostilaWheelSpinTimeoutRef.current);
       }
     };
   }, []);
@@ -1175,6 +1261,31 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       window.cancelAnimationFrame(secondFrame);
     };
   }, [activeTab, pendingRevealTractId]);
+
+  useEffect(() => {
+    if (!pendingRevealApostilaId || activeTab !== "apostilas") {
+      return;
+    }
+
+    let firstFrame = 0;
+    let secondFrame = 0;
+    firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        const target = document.getElementById(apostilaElementId(pendingRevealApostilaId));
+        if (!target) {
+          setPendingRevealApostilaId(null);
+          return;
+        }
+        scrollReadingTargetIntoView(target);
+        setPendingRevealApostilaId(null);
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
+  }, [activeTab, pendingRevealApostilaId]);
 
   const patch = (payload: ReadingPatchPayload) => {
     patchMutation.mutate(payload);
@@ -1501,6 +1612,57 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
     setTractWheelRotation((current) => current + 45 + Math.floor(Math.random() * 150));
   };
 
+  const revealApostilaFromWheel = (videoId: string) => {
+    setActiveTab("apostilas");
+    setApostilaSearch("");
+    setPendingRevealApostilaId(videoId);
+  };
+
+  const spinApostilaWheel = () => {
+    if (apostilaWheelSpinning || !apostilaWheelSegments.length) return;
+    if (apostilaWheelSegments.length === 1) {
+      const onlyVideo = apostilaWheelSegments[0].video;
+      setApostilaWheelResultId(onlyVideo.id);
+      setApostilaWheelLastId(onlyVideo.id);
+      return;
+    }
+
+    const selectedSegment = apostilaWheelSegments[Math.floor(Math.random() * apostilaWheelSegments.length)];
+    const safeMargin = Math.min(10, selectedSegment.span * 0.2);
+    const minStop = selectedSegment.startAngle + safeMargin;
+    const maxStop = selectedSegment.endAngle - safeMargin;
+    const stopAngle =
+      maxStop > minStop
+        ? minStop + Math.random() * (maxStop - minStop)
+        : selectedSegment.midAngle;
+    const currentRotation = ((apostilaWheelRotation % 360) + 360) % 360;
+    const targetRotationMod = (360 - stopAngle + 360) % 360;
+    let delta = targetRotationMod - currentRotation;
+    if (delta < 0) delta += 360;
+    const finalRotation = apostilaWheelRotation + 1800 + delta;
+
+    setApostilaWheelResultId(null);
+    setApostilaWheelSpinning(true);
+    setApostilaWheelRotation(finalRotation);
+    if (apostilaWheelSpinTimeoutRef.current) {
+      window.clearTimeout(apostilaWheelSpinTimeoutRef.current);
+    }
+    apostilaWheelSpinTimeoutRef.current = window.setTimeout(() => {
+      const resultSegment = findWheelSegmentAtPointer(apostilaWheelSegments, finalRotation);
+      const resultVideoId = resultSegment?.video.id || selectedSegment.video.id;
+      setApostilaWheelResultId(resultVideoId);
+      setApostilaWheelLastId(resultVideoId);
+      setApostilaWheelSpinning(false);
+    }, DESPERTAI_WHEEL_SPIN_DURATION_MS);
+  };
+
+  const shuffleApostilaWheel = () => {
+    if (apostilaWheelSpinning) return;
+    setApostilaWheelShuffleNonce((current) => current + 1);
+    setApostilaWheelResultId(null);
+    setApostilaWheelRotation((current) => current + 45 + Math.floor(Math.random() * 150));
+  };
+
   return (
     <div className="card despertai-shell">
       <div ref={tabsRef} className="despertai-tabs" role="tablist" aria-label="Reading sections">
@@ -1545,6 +1707,13 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
           onClick={() => setActiveTab("tracts")}
         >
           Folhetos
+        </button>
+        <button
+          type="button"
+          className={activeTab === "apostilas" ? "active" : ""}
+          onClick={() => setActiveTab("apostilas")}
+        >
+          Apostilas
         </button>
         <button
           type="button"
@@ -3147,6 +3316,260 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
               <div className="line-empty">Nenhum folheto encontrado.</div>
             ) : (
               <div className="line-empty">Nenhum folheto lido ainda.</div>
+            )}
+          </section>
+        </section>
+      ) : activeTab === "apostilas" ? (
+        <section className="despertai-tab-panel">
+          <div className="reading-summary-grid">
+            <article className="reading-summary-card main">
+              <ProgressDonut value={data.apostilas.progressPercent} label="apostilas" />
+              <div>
+                <p className="panel-kicker">Apostilas</p>
+                <h3>{data.apostilas.finishedVideos}/{data.apostilas.totalVideos} lidas</h3>
+              </div>
+            </article>
+            <article className="reading-summary-card">
+              <span>Pendentes</span>
+              <strong>{data.apostilas.pendingVideos}</strong>
+            </article>
+            <article className="reading-summary-card">
+              <span>Catálogo</span>
+              <strong>WOL</strong>
+            </article>
+          </div>
+
+          <section className="despertai-wheel-card">
+            <div className="activity-wheel-head">
+              <div>
+                <p className="panel-kicker">Roleta</p>
+                <h3>Apostilas</h3>
+                <p className="activity-wheel-copy">Clique no centro para sortear.</p>
+              </div>
+              <button
+                type="button"
+                className="secondary"
+                onClick={shuffleApostilaWheel}
+                disabled={apostilaWheelSpinning || apostilaWheelOrderedItems.length <= 1}
+              >
+                Embaralhar
+              </button>
+            </div>
+
+            <div className="activity-wheel-controls">
+              <span className="activity-wheel-meta">
+                {apostilaWheelEligibleItems.length} apostilas
+              </span>
+            </div>
+
+            <div className="activity-wheel-stage">
+              <div className={`activity-wheel-dial-wrap ${apostilaWheelSpinning ? "spinning" : ""}`}>
+                <span className="activity-wheel-pointer" aria-hidden="true" />
+                <div className="activity-wheel-dial-shell">
+                  <svg
+                    className="activity-wheel-dial"
+                    viewBox="0 0 260 260"
+                    role="img"
+                    aria-label="Roleta de apostilas não lidas"
+                  >
+                    <g
+                      className={`activity-wheel-rotor ${apostilaWheelSpinning ? "spinning" : ""}`}
+                      style={apostilaWheelRotorStyle}
+                    >
+                      {apostilaWheelSegments.map((segment) => {
+                        const labelPoint = polar(
+                          DESPERTAI_WHEEL_CENTER,
+                          DESPERTAI_WHEEL_CENTER,
+                          DESPERTAI_WHEEL_LABEL_RADIUS,
+                          segment.midAngle
+                        );
+                        const labelMaxLength =
+                          segment.span >= 72 ? 11 : segment.span >= 45 ? 9 : 8;
+                        const label = truncateWheelLabel(segment.video.title, labelMaxLength);
+                        const canRenderLabel = segment.span >= 24;
+
+                        return (
+                          <g key={segment.video.id}>
+                            <path
+                              d={describeWheelSlice(
+                                DESPERTAI_WHEEL_CENTER,
+                                DESPERTAI_WHEEL_CENTER,
+                                DESPERTAI_WHEEL_RADIUS,
+                                segment.startAngle,
+                                segment.endAngle
+                              )}
+                              className={`activity-wheel-slice ${
+                                !apostilaWheelSpinning && segment.video.id === apostilaWheelResultId
+                                  ? "is-result"
+                                  : ""
+                              }`}
+                              style={{ fill: segment.color }}
+                            >
+                              <title>{segment.video.title}</title>
+                            </path>
+                            {canRenderLabel ? (
+                              <text
+                                x={labelPoint.x}
+                                y={labelPoint.y}
+                                className="activity-wheel-slice-label"
+                                dominantBaseline="middle"
+                                textAnchor="middle"
+                              >
+                                {label}
+                              </text>
+                            ) : null}
+                          </g>
+                        );
+                      })}
+                      <circle
+                        cx={DESPERTAI_WHEEL_CENTER}
+                        cy={DESPERTAI_WHEEL_CENTER}
+                        r={DESPERTAI_WHEEL_RADIUS}
+                        className="activity-wheel-rim"
+                      />
+                    </g>
+                    <circle
+                      cx={DESPERTAI_WHEEL_CENTER}
+                      cy={DESPERTAI_WHEEL_CENTER}
+                      r="31"
+                      className="activity-wheel-hub"
+                    />
+                    <circle
+                      cx={DESPERTAI_WHEEL_CENTER}
+                      cy={DESPERTAI_WHEEL_CENTER}
+                      r="6"
+                      className="activity-wheel-hub-dot"
+                    />
+                  </svg>
+                  <button
+                    type="button"
+                    className="activity-wheel-hub-button"
+                    onClick={spinApostilaWheel}
+                    disabled={apostilaWheelSpinning || apostilaWheelEligibleItems.length === 0}
+                    aria-label={
+                      apostilaWheelSpinning
+                        ? "Roleta girando"
+                        : apostilaWheelEligibleItems.length === 0
+                          ? "Nenhuma apostila pendente"
+                          : "Sortear apostila"
+                    }
+                  >
+                    {apostilaWheelSpinning ? "..." : "Girar"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="activity-wheel-result despertai-wheel-result">
+                {apostilaWheelEligibleItems.length === 0 ? (
+                  <p className="line-empty">Nenhuma apostila pendente.</p>
+                ) : apostilaWheelResult ? (
+                  <article className="activity-wheel-result-card despertai-wheel-result-card">
+                    <strong>{apostilaWheelResult.title}</strong>
+                    <p>{apostilaWheelResult.naturalKey || "Apostila"}</p>
+                    <div className="activity-wheel-result-actions">
+                      <button type="button" className="secondary" onClick={() => revealApostilaFromWheel(apostilaWheelResult.id)}>
+                        Ver
+                      </button>
+                      <button
+                        type="button"
+                        className="page-link inline muted"
+                        onClick={spinApostilaWheel}
+                        disabled={apostilaWheelSpinning}
+                      >
+                        Sortear de novo
+                      </button>
+                    </div>
+                  </article>
+                ) : (
+                  <article className="activity-wheel-summary-card">
+                    <p className="activity-wheel-summary-title">Na roleta</p>
+                    <ul className="activity-wheel-task-list">
+                      {apostilaWheelOrderedItems.slice(0, 8).map((video) => (
+                        <li key={video.id} title={video.title}>
+                          <span>{truncateWheelLabel(video.title, 30)}</span>
+                          <small>{video.documentId || "Apostila"}</small>
+                        </li>
+                      ))}
+                    </ul>
+                    {apostilaWheelOrderedItems.length > 8 ? (
+                      <p className="activity-wheel-more">+{apostilaWheelOrderedItems.length - 8} mais</p>
+                    ) : null}
+                    <p className="activity-wheel-tip">O nome completo aparece depois do sorteio.</p>
+                  </article>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <ReadingSearchField
+            value={apostilaSearch}
+            onChange={setApostilaSearch}
+            placeholder="Buscar apostila"
+          />
+
+          {apostilaWheelResult ? (
+            <article className="reading-selected-callout">
+              <span>Sorteada</span>
+              <strong>{apostilaWheelResult.title}</strong>
+              <button type="button" className="page-link inline muted" onClick={() => revealApostilaFromWheel(apostilaWheelResult.id)}>
+                Ver na lista
+              </button>
+            </article>
+          ) : null}
+
+          <section className="despertai-list-section">
+            <div className="despertai-section-title">
+              <h3>Não lidas</h3>
+              <span>{filteredPendingApostilas.length}</span>
+            </div>
+            {filteredPendingApostilas.length ? (
+              <div className="reading-video-list">
+                {filteredPendingApostilas.map((video) => (
+                  <VideoCard
+                    key={video.id}
+                    video={video}
+                    busy={patchMutation.isPending}
+                    onPatch={patch}
+                    selected={apostilaWheelResultId === video.id}
+                    elementId={apostilaElementId(video.id)}
+                    toggleType="toggle_apostila"
+                    metaFallback="Apostila"
+                    readLabel="Lida"
+                  />
+                ))}
+              </div>
+            ) : apostilaSearchTerm ? (
+              <div className="line-empty">Nenhuma apostila encontrada.</div>
+            ) : (
+              <div className="line-empty">Todas as apostilas foram lidas.</div>
+            )}
+          </section>
+
+          <section className="despertai-list-section">
+            <div className="despertai-section-title">
+              <h3>Lidas</h3>
+              <span>{filteredFinishedApostilas.length}</span>
+            </div>
+            {filteredFinishedApostilas.length ? (
+              <div className="reading-video-list reading-video-finished-list">
+                {filteredFinishedApostilas.map((video) => (
+                  <VideoCard
+                    key={video.id}
+                    video={video}
+                    busy={patchMutation.isPending}
+                    onPatch={patch}
+                    selected={apostilaWheelResultId === video.id}
+                    elementId={apostilaElementId(video.id)}
+                    toggleType="toggle_apostila"
+                    metaFallback="Apostila"
+                    readLabel="Lida"
+                  />
+                ))}
+              </div>
+            ) : apostilaSearchTerm ? (
+              <div className="line-empty">Nenhuma apostila encontrada.</div>
+            ) : (
+              <div className="line-empty">Nenhuma apostila lida ainda.</div>
             )}
           </section>
         </section>
