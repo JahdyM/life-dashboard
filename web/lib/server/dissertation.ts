@@ -177,7 +177,15 @@ function buildDefaultProject(): DissertationProject {
   };
 }
 
-export async function loadDissertationProject(userEmail: string): Promise<DissertationProject> {
+/**
+ * Internal load — does NOT reconcile mirrors. Use this from code paths that
+ * already trigger a reconcile after their own write (e.g. applyDissertationAction
+ * reconciles after saveDissertationProject) so we don't run reconcile twice
+ * per request.
+ */
+async function loadDissertationProjectRaw(
+  userEmail: string
+): Promise<DissertationProject> {
   const row = await prisma.setting.findUnique({ where: { key: settingKey(userEmail) } });
   if (row?.value) return parseProject(row.value, userEmail);
 
@@ -188,8 +196,22 @@ export async function loadDissertationProject(userEmail: string): Promise<Disser
 
   const fresh = buildDefaultProject();
   await saveDissertationProject(userEmail, fresh);
-  await reconcileMirrorsSafely(userEmail, fresh);
   return fresh;
+}
+
+/**
+ * Public load — always reconciles dissertation mirrors against the calendar
+ * task list before returning. This covers users with pre-existing data who
+ * never triggered a write since the mirror feature shipped: their steps
+ * with dueDate / undated steps now appear in the calendar after a single
+ * page load, no manual action needed.
+ */
+export async function loadDissertationProject(
+  userEmail: string
+): Promise<DissertationProject> {
+  const project = await loadDissertationProjectRaw(userEmail);
+  await reconcileMirrorsSafely(userEmail, project);
+  return project;
 }
 
 async function parseProject(rawValue: string, userEmail: string): Promise<DissertationProject> {
@@ -382,7 +404,9 @@ export async function applyDissertationAction(
   const parsed = dissertationActionSchema.safeParse(rawAction);
   if (!parsed.success) throw new Error("INVALID_ACTION");
   const action = parsed.data as DissertationAction;
-  const project = await loadDissertationProject(userEmail);
+  // Use the raw loader to skip the load-time reconcile — we'll reconcile
+  // explicitly after the mutation save below.
+  const project = await loadDissertationProjectRaw(userEmail);
   const next = mutateProject(project, action);
   const saved = await saveDissertationProject(userEmail, next);
   await reconcileMirrorsSafely(userEmail, saved);

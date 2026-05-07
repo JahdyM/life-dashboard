@@ -12,6 +12,7 @@ import {
   loadDissertationProject,
   saveDissertationProject,
 } from "@/lib/server/dissertation";
+import { reconcileDissertationMirrors } from "@/lib/server/dissertationMirror";
 import { logServerEvent } from "@/lib/server/logger";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +48,15 @@ export async function PUT(request: NextRequest) {
       return jsonError(zodErrorMessage(parsed.error), 400);
     }
     const project = await saveDissertationProject(userEmail, parsed.data);
+    try {
+      await reconcileDissertationMirrors(userEmail, project);
+    } catch (err) {
+      logServerEvent("warn", {
+        endpoint: "PUT /api/dissertation",
+        message: "Mirror reconcile failed after PUT (best-effort)",
+        error: err,
+      });
+    }
     return jsonOk({ project });
   } catch (err) {
     logServerEvent("error", {

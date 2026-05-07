@@ -81,6 +81,15 @@ export default function DissertationClient({ initialProject }: { initialProject:
     initialData: initialProject,
   });
 
+  // The server reconciles dissertation→calendar mirrors on every load, so by
+  // the time this client renders the calendar's task list may have new mirror
+  // rows the user hasn't seen yet. Invalidate the calendar's tasks cache once
+  // on mount so the next /calendar visit refetches from scratch.
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const actionMutation = useMutation({
     mutationFn: patchProject,
     onSuccess: (project) => {
