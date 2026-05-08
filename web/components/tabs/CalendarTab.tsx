@@ -1088,7 +1088,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     // Done tasks belong on a date (backlog is for *pending* work). If one
     // ever ends up here despite the auto-anchor in toggleTaskDoneNow, hide
     // it from backlog so it doesn't read as "still to do".
-    .filter((task) => !readTaskDraft(task).isDone)
+    // Use task.isDone directly — readTaskDraft is declared further down,
+    // referencing it here would trip the TDZ ("Cannot access X before
+    // initialization") when this block runs on first render.
+    .filter((task) => !task.isDone)
     .filter((task) => !lowEnergyMode || getTaskEffort(task) === "low")
     .sort(compareTasksForExecution);
 
