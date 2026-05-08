@@ -200,18 +200,57 @@ async function loadDissertationProjectRaw(
 }
 
 /**
+ * If any step has a `dueDate` strictly before today and isn't done, roll its
+ * date forward to today. Mirrors the calendar's rollPendingTasksFromYesterday
+ * behavior — work that didn't get done yesterday becomes today's plan, so the
+ * "Hoje" panel surfaces it naturally and the calendar mirror picks it up for
+ * the current day. Steps with future or null dueDates are untouched; done
+ * steps keep their historical date.
+ */
+function rollOverdueStepsToToday(
+  project: DissertationProject,
+  todayIso: string
+): { project: DissertationProject; changed: boolean } {
+  let changed = false;
+  const updatedAt = nowIso();
+  const next: DissertationProject = {
+    ...project,
+    fronts: project.fronts.map((front) => ({
+      ...front,
+      steps: front.steps.map((step) => {
+        if (!step.dueDate) return step;
+        if (step.done) return step;
+        if (step.dueDate >= todayIso) return step;
+        changed = true;
+        return { ...step, dueDate: todayIso, updatedAt };
+      }),
+    })),
+  };
+  return { project: changed ? next : project, changed };
+}
+
+/**
  * Public load — always reconciles dissertation mirrors against the calendar
  * task list before returning. This covers users with pre-existing data who
  * never triggered a write since the mirror feature shipped: their steps
  * with dueDate / undated steps now appear in the calendar after a single
  * page load, no manual action needed.
+ *
+ * Also rolls overdue undone steps forward to today, mirroring the calendar
+ * behavior — yesterday's incomplete passinho becomes today's plan instead
+ * of going stale.
  */
 export async function loadDissertationProject(
   userEmail: string
 ): Promise<DissertationProject> {
-  const project = await loadDissertationProjectRaw(userEmail);
-  await reconcileMirrorsSafely(userEmail, project);
-  return project;
+  const raw = await loadDissertationProjectRaw(userEmail);
+  const todayIso = nowIso().slice(0, 10);
+  const { project: rolled, changed } = rollOverdueStepsToToday(raw, todayIso);
+  if (changed) {
+    await saveDissertationProject(userEmail, rolled);
+  }
+  await reconcileMirrorsSafely(userEmail, rolled);
+  return rolled;
 }
 
 async function parseProject(rawValue: string, userEmail: string): Promise<DissertationProject> {
