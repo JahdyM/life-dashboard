@@ -381,6 +381,12 @@ function issueProgress(issue: StoredDespertaiIssue): DespertaiIssue {
 }
 
 function sortIssues(left: DespertaiIssue, right: DespertaiIssue) {
+  const leftHasProgress = left.readCount > 0;
+  const rightHasProgress = right.readCount > 0;
+  if (leftHasProgress !== rightHasProgress) return leftHasProgress ? -1 : 1;
+  if (left.progressPercent !== right.progressPercent) {
+    return right.progressPercent - left.progressPercent;
+  }
   if (left.year !== right.year) return right.year - left.year;
   const leftDate = left.dateLabel || "";
   const rightDate = right.dateLabel || "";

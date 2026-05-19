@@ -140,6 +140,15 @@ function matchesSearchText(value: string, searchTerm: string) {
     .every((term) => normalizedValue.includes(term));
 }
 
+function issueSearchText(issue: DespertaiIssue) {
+  return [
+    issue.title,
+    issue.year,
+    issue.dateLabel || "",
+    issue.topics.map((topic) => topic.title).join(" "),
+  ].join(" ");
+}
+
 function optionalPositiveNumber(value: string) {
   const clean = value.trim();
   if (!clean) return null;
@@ -598,13 +607,13 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const filteredPendingIssues = useMemo(() => {
     if (!despertaiSearchTerm) return data.despertai.pendingIssues;
     return data.despertai.pendingIssues.filter((issue) =>
-      matchesSearchText(`${issue.title} ${issue.year} ${issue.dateLabel || ""}`, despertaiSearchTerm)
+      matchesSearchText(issueSearchText(issue), despertaiSearchTerm)
     );
   }, [data.despertai.pendingIssues, despertaiSearchTerm]);
   const filteredFinishedIssues = useMemo(() => {
     if (!despertaiSearchTerm) return data.despertai.finishedIssuesList;
     return data.despertai.finishedIssuesList.filter((issue) =>
-      matchesSearchText(`${issue.title} ${issue.year} ${issue.dateLabel || ""}`, despertaiSearchTerm)
+      matchesSearchText(issueSearchText(issue), despertaiSearchTerm)
     );
   }, [data.despertai.finishedIssuesList, despertaiSearchTerm]);
   const filteredPendingVideos = useMemo(() => {
@@ -1984,13 +1993,13 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
           <ReadingSearchField
             value={despertaiSearch}
             onChange={setDespertaiSearch}
-            placeholder="Buscar revista"
+            placeholder="Buscar revista ou tópico"
           />
 
           <section className="despertai-list-section">
             <div className="despertai-section-title">
               <h3>Não lidas</h3>
-              <span>{despertaiSearchTerm ? filteredPendingIssues.length : "recentes primeiro"}</span>
+              <span>{despertaiSearchTerm ? filteredPendingIssues.length : "em progresso primeiro"}</span>
             </div>
             {filteredPendingIssues.length ? (
               <div className="despertai-issue-list">
