@@ -1782,7 +1782,13 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
 
             <div className="activity-wheel-controls">
               <span className="activity-wheel-meta">
-                {wheelEligibleIssues.length} revistas
+                {wheelEligibleIssues.length} na roleta
+              </span>
+              <span className="activity-wheel-meta">
+                {summary.pending} não lidas
+              </span>
+              <span className="activity-wheel-meta">
+                {summary.finished} lidas
               </span>
             </div>
 
