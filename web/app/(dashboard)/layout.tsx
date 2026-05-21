@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AppNav, LogoutButton } from "@/components/AppNav";
 import DashboardFreshness from "@/components/DashboardFreshness";
 import WordOfDayWidget from "@/components/WordOfDayWidget";
+import YesterdayCatchupModal from "@/components/YesterdayCatchupModal";
 import { Providers } from "@/app/providers";
 import { getDashboardShellData } from "@/lib/server/dashboard";
 import { getMoodMeta } from "@/lib/moods";
@@ -120,6 +121,8 @@ export default async function DashboardLayout({
         </section>
 
         <main className="shell-main">{children}</main>
+
+        <YesterdayCatchupModal todayIso={shell.todayIso} sharedHabits={preferences.sharedHabits} />
 
         <section className="shell-streak-panel shell-streak-panel-tail" aria-label="Shared streak overview">
           <div className="shell-streak-head">

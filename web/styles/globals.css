@@ -9935,3 +9935,215 @@ input.no-spinner[type="number"] {
   color: #f4a89e;
   font-weight: 600;
 }
+
+/* First-open daily catch-up modal */
+.yesterday-catchup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+}
+
+.yesterday-catchup-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background:
+    radial-gradient(circle at 25% 20%, rgba(210, 168, 105, 0.16), transparent 28%),
+    rgba(7, 6, 6, 0.72);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+}
+
+.yesterday-catchup-panel {
+  position: relative;
+  z-index: 1;
+  width: min(760px, 100%);
+  max-height: min(86vh, 780px);
+  overflow: auto;
+  padding: clamp(18px, 3vw, 28px);
+  border-color: rgba(210, 168, 105, 0.22);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.48), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+}
+
+.yesterday-catchup-head,
+.yesterday-catchup-actions,
+.yesterday-catchup-section-head,
+.yesterday-streak-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.yesterday-catchup-head h2 {
+  margin: 6px 0 0;
+  font-family: var(--font-heading), Georgia, serif;
+  font-size: clamp(1.45rem, 4vw, 2.15rem);
+  color: var(--text);
+}
+
+.yesterday-catchup-copy {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.yesterday-catchup-sections {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.yesterday-catchup-section {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.yesterday-catchup-section-head h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.yesterday-catchup-section-head span {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.yesterday-catchup-list,
+.yesterday-streak-list {
+  display: grid;
+  gap: 8px;
+}
+
+.yesterday-check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 9px 10px;
+  border-radius: 14px;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+
+.yesterday-check-row:hover,
+.yesterday-check-row:focus-within {
+  background: rgba(210, 168, 105, 0.075);
+  border-color: rgba(210, 168, 105, 0.2);
+}
+
+.yesterday-check-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.yesterday-streak-row {
+  align-items: flex-start;
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+.yesterday-streak-row strong {
+  display: block;
+  color: var(--text);
+  font-size: 0.94rem;
+}
+
+.yesterday-streak-row span {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.yesterday-streak-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.yesterday-choice {
+  min-height: 34px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.yesterday-choice:hover,
+.yesterday-choice:focus-visible {
+  border-color: rgba(210, 168, 105, 0.32);
+  color: var(--text);
+}
+
+.yesterday-choice.active.positive {
+  border-color: rgba(134, 200, 162, 0.48);
+  background: rgba(134, 200, 162, 0.16);
+  color: #d8f4e3;
+}
+
+.yesterday-choice.active.negative {
+  border-color: rgba(226, 154, 145, 0.48);
+  background: rgba(226, 154, 145, 0.14);
+  color: #ffd6d0;
+}
+
+.yesterday-choice.active.neutral {
+  border-color: rgba(210, 168, 105, 0.38);
+  background: rgba(210, 168, 105, 0.12);
+  color: #f3ddbb;
+}
+
+.yesterday-catchup-loading {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 18px;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.yesterday-catchup-actions {
+  margin-top: 18px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+  .yesterday-catchup-overlay {
+    align-items: end;
+    padding: 12px;
+  }
+
+  .yesterday-catchup-panel {
+    max-height: 88vh;
+    border-radius: 24px 24px 18px 18px;
+  }
+
+  .yesterday-streak-row {
+    display: grid;
+  }
+
+  .yesterday-streak-actions {
+    justify-content: flex-start;
+  }
+}
