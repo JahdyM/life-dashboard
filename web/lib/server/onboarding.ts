@@ -17,7 +17,7 @@ import {
 import { SPIRITUAL_STREAK_BOARD_CONFIGS } from "@/lib/config/spiritual";
 import {
   canonicalHabitKey,
-  getCustomHabits,
+  getAllCustomHabits,
   getSetting,
   saveCustomHabits,
   setSetting,
@@ -59,6 +59,11 @@ function normalizeLabel(value: string | undefined, fallback: string) {
   return clean || fallback;
 }
 
+function normalizeHabitName(value: string | undefined, fallback: string) {
+  const clean = String(value || "").trim().slice(0, 60);
+  return clean || fallback;
+}
+
 function normalizePartnerEmail(value: string | null | undefined) {
   const clean = String(value || "").trim().toLowerCase();
   return clean || null;
@@ -87,15 +92,35 @@ function normalizeNamedPreferences<Key extends string>(
 function normalizeStarterPreferences(
   stored: Array<{ id?: string; name?: string; enabled?: boolean }> | undefined
 ): OnboardingHabitStarterPreference[] {
-  const byId = new Map((stored || []).map((item) => [item.id, item]));
-  return DEFAULT_CUSTOM_HABIT_TEMPLATES.map((template) => {
+  const storedItems = stored || [];
+  const byId = new Map(storedItems.map((item) => [item.id, item]));
+  const defaultIds = new Set(DEFAULT_CUSTOM_HABIT_TEMPLATES.map((template) => template.id));
+  const result = DEFAULT_CUSTOM_HABIT_TEMPLATES.map((template) => {
     const storedItem = byId.get(template.id);
     return {
       id: template.id,
-      name: normalizeLabel(storedItem?.name, template.name),
+      name: normalizeHabitName(storedItem?.name, template.name),
       enabled: storedItem?.enabled ?? template.active,
     };
   });
+
+  const seenIds = new Set(result.map((item) => item.id));
+  const seenNames = new Set(result.map((item) => canonicalHabitKey(item.name)));
+  storedItems.forEach((item) => {
+    const id = String(item?.id || "").trim().slice(0, 120);
+    const name = normalizeHabitName(item?.name, "");
+    const key = canonicalHabitKey(name);
+    if (!id || !name || defaultIds.has(id) || seenIds.has(id) || seenNames.has(key)) return;
+    seenIds.add(id);
+    seenNames.add(key);
+    result.push({
+      id,
+      name,
+      enabled: item.enabled ?? true,
+    });
+  });
+
+  return result;
 }
 
 function normalizeSharedHabitPreferences(
@@ -171,31 +196,61 @@ function toStoredPreferences(preferences: DashboardOnboardingPreferences): Store
   };
 }
 
-async function applyStarterHabits(
+async function syncStarterHabits(
   userEmail: string,
   starters: OnboardingHabitStarterPreference[]
 ) {
-  const enabled = starters.filter((habit) => habit.enabled && habit.name.trim());
-  if (!enabled.length) return;
+  const current = await getAllCustomHabits(userEmail);
+  const starterIds = new Set(starters.map((starter) => starter.id));
+  const byId = new Map(current.map((habit) => [habit.id, habit]));
+  const starterByCanonical = new Map(
+    starters
+      .filter((starter) => starter.enabled && starter.name.trim())
+      .map((starter) => [canonicalHabitKey(starter.name), starter])
+  );
+  const seenCanonical = new Set<string>();
+  let changed = false;
 
-  const current = await getCustomHabits(userEmail);
-  const seen = new Set(current.map((habit) => canonicalHabitKey(habit.name)));
-  const seenIds = new Set(current.map((habit) => habit.id));
-  const next = [...current];
+  const next = current.map((habit) => {
+    const starter = byId.has(habit.id) && starterIds.has(habit.id)
+      ? starters.find((item) => item.id === habit.id) || null
+      : null;
+    const canonical = canonicalHabitKey(habit.name);
+    const renamedStarter = starterByCanonical.get(canonical);
+    const effectiveStarter = starter || renamedStarter || null;
 
-  enabled.forEach((starter) => {
-    const key = canonicalHabitKey(starter.name);
-    if (!key || seen.has(key) || seenIds.has(starter.id)) return;
-    seen.add(key);
-    seenIds.add(starter.id);
-    next.push({
-      id: starter.id,
-      name: starter.name.trim(),
-      active: true,
-    });
+    if (!effectiveStarter) {
+      seenCanonical.add(canonical);
+      return habit;
+    }
+
+    const nextHabit = {
+      ...habit,
+      id: effectiveStarter.id,
+      name: effectiveStarter.name.trim(),
+      active: effectiveStarter.enabled,
+    };
+    seenCanonical.add(canonicalHabitKey(nextHabit.name));
+    if (
+      nextHabit.id !== habit.id ||
+      nextHabit.name !== habit.name ||
+      nextHabit.active !== habit.active
+    ) {
+      changed = true;
+    }
+    return nextHabit;
   });
 
-  if (next.length !== current.length) {
+  starters.forEach((starter) => {
+    const name = starter.name.trim();
+    const canonical = canonicalHabitKey(name);
+    if (!name || !canonical || byId.has(starter.id) || seenCanonical.has(canonical)) return;
+    next.push({ id: starter.id, name, active: starter.enabled });
+    seenCanonical.add(canonical);
+    changed = true;
+  });
+
+  if (changed) {
     await saveCustomHabits(userEmail, next);
   }
 }
@@ -258,9 +313,7 @@ export async function saveDashboardOnboardingPreferences(
     moods,
   };
 
-  if (completed) {
-    await applyStarterHabits(userEmail, customHabitStarters);
-  }
+  await syncStarterHabits(userEmail, customHabitStarters);
 
   await setSetting(userEmail, ONBOARDING_SETTINGS_KEY, JSON.stringify(toStoredPreferences(next)));
   return next;

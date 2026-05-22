@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useMemo, useState, type Dispatch, type KeyboardEvent, type SetStateAction } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Check, Sparkles } from "lucide-react";
 import InlineActionNotice from "@/components/common/InlineActionNotice";
 import { fetchJson } from "@/lib/client/api";
@@ -36,11 +37,28 @@ function namedPayload(items: OnboardingNamedPreference<string>[]) {
 }
 
 function starterPayload(items: OnboardingHabitStarterPreference[]) {
-  return items.map((item) => ({
-    id: item.id,
-    name: item.name,
-    enabled: item.enabled,
-  }));
+  return items
+    .filter((item) => item.name.trim())
+    .map((item) => ({
+      id: item.id,
+      name: item.name.trim(),
+      enabled: item.enabled,
+    }));
+}
+
+function newStarterId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return `custom-${crypto.randomUUID()}`;
+  }
+  return `custom-${Date.now()}`;
+}
+
+function habitNameKey(value: string) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/\s*\(books\)/g, "");
 }
 
 function sortModules(modules: DashboardModuleView[]) {
@@ -53,6 +71,8 @@ export default function OnboardingClient({
   initialPreferences: DashboardOnboardingPreferences;
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const [completed, setCompleted] = useState(initialPreferences.completed);
   const [modules, setModules] = useState(() => sortModules(initialPreferences.modules));
   const [sharedHabits, setSharedHabits] = useState(initialPreferences.sharedHabits);
   const [customHabitStarters, setCustomHabitStarters] = useState(
@@ -62,6 +82,7 @@ export default function OnboardingClient({
   const [moods, setMoods] = useState(initialPreferences.moods);
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(initialPreferences.workspaceMode);
   const [partnerEmail, setPartnerEmail] = useState(initialPreferences.partnerEmail || "");
+  const [newHabitName, setNewHabitName] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -104,6 +125,29 @@ export default function OnboardingClient({
     );
   };
 
+  const addStarterHabit = () => {
+    const name = newHabitName.trim();
+    if (!name) return;
+    const key = habitNameKey(name);
+    if (customHabitStarters.some((habit) => habitNameKey(habit.name) === key)) {
+      setError("Esse hábito já existe na lista.");
+      return;
+    }
+    setCustomHabitStarters((current) => [
+      ...current,
+      { id: newStarterId(), name, enabled: true },
+    ]);
+    setNewHabitName("");
+    setError(null);
+  };
+
+  const handleNewHabitKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      addStarterHabit();
+    }
+  };
+
   const moveModule = (index: number, direction: -1 | 1) => {
     setModules((current) => {
       const next = [...current];
@@ -123,7 +167,7 @@ export default function OnboardingClient({
       const response = await fetchJson<OnboardingResponse>("/api/onboarding", {
         method: "PUT",
         body: JSON.stringify({
-          completed: complete,
+          completed: complete ? true : completed,
           workspace_mode: workspaceMode,
           partner_email: workspaceMode === "shared" ? partnerEmail.trim() : null,
           modules: modulePayload(modules),
@@ -133,12 +177,24 @@ export default function OnboardingClient({
           moods: namedPayload(moods),
         }),
       });
+      setCompleted(response.preferences.completed);
       setModules(sortModules(response.preferences.modules));
       setSharedHabits(response.preferences.sharedHabits);
       setCustomHabitStarters(response.preferences.customHabitStarters);
       setSpiritualStreaks(response.preferences.spiritualStreaks);
       setMoods(response.preferences.moods);
       setMessage(complete ? "Workspace ready." : "Saved.");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["onboarding-preferences"] }),
+        queryClient.invalidateQueries({ queryKey: ["custom-habits"] }),
+        queryClient.invalidateQueries({ queryKey: ["custom-habits-done"] }),
+        queryClient.invalidateQueries({ queryKey: ["day"] }),
+        queryClient.invalidateQueries({ queryKey: ["tasks"] }),
+        queryClient.invalidateQueries({ queryKey: ["init"] }),
+        queryClient.invalidateQueries({ queryKey: ["couple-streaks"] }),
+        queryClient.invalidateQueries({ queryKey: ["spiritual-streaks"] }),
+        queryClient.invalidateQueries({ queryKey: ["mood-history"] }),
+      ]);
       router.refresh();
       if (complete) {
         router.push("/today");
@@ -318,6 +374,20 @@ export default function OnboardingClient({
           <span>{customHabitStarters.filter((habit) => habit.enabled).length} selected</span>
         </div>
 
+        <div className="onboarding-add-row">
+          <input
+            type="text"
+            value={newHabitName}
+            onChange={(event) => setNewHabitName(event.target.value)}
+            onKeyDown={handleNewHabitKeyDown}
+            placeholder="New habit"
+            aria-label="New personal habit"
+          />
+          <button type="button" className="secondary subtle" onClick={addStarterHabit}>
+            Add
+          </button>
+        </div>
+
         <div className="onboarding-module-list compact">
           {customHabitStarters.map((habit) => (
             <article key={habit.id} className={`onboarding-module-card ${habit.enabled ? "enabled" : ""}`}>
@@ -328,7 +398,7 @@ export default function OnboardingClient({
                     checked={habit.enabled}
                     onChange={(event) => updateStarterHabit(habit.id, { enabled: event.target.checked })}
                   />
-                  <span>Starter</span>
+                  <span>{habit.enabled ? "Shown" : "Hidden"}</span>
                 </label>
                 <input
                   type="text"

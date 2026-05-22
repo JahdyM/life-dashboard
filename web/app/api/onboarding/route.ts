@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { NextRequest } from "next/server";
 import { requireUserEmail } from "@/lib/server/auth";
 import {
@@ -61,6 +62,13 @@ export async function PUT(request: NextRequest) {
       spiritualStreaks: parsed.data.spiritual_streaks,
       moods: parsed.data.moods,
     });
+
+    revalidatePath("/", "layout");
+    revalidatePath("/habits");
+    revalidatePath("/calendar");
+    revalidatePath("/today");
+    revalidatePath("/spiritual-streaks");
+    revalidatePath("/mood");
 
     return jsonOk({ preferences });
   } catch (err) {

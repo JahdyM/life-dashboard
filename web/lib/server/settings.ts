@@ -125,15 +125,13 @@ export async function getTodayIsoForUser(userEmail: string): Promise<string> {
   }
 }
 
-export async function getCustomHabits(userEmail: string) {
+export async function getAllCustomHabits(userEmail: string) {
   const raw = await getSetting(userEmail, "custom_habits");
   if (!raw) return [] as Array<{ id: string; name: string; active?: boolean }>;
   try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
-      const filtered = parsed.filter(
-        (item) => typeof item === "object" && item?.active !== false
-      );
+      const filtered = parsed.filter((item) => typeof item === "object");
       const normalized = normalizeCustomHabits(filtered);
       if (normalized.length !== filtered.length) {
         await saveCustomHabits(userEmail, normalized);
@@ -144,6 +142,11 @@ export async function getCustomHabits(userEmail: string) {
     return [];
   }
   return [];
+}
+
+export async function getCustomHabits(userEmail: string) {
+  const all = await getAllCustomHabits(userEmail);
+  return all.filter((habit) => habit.active !== false);
 }
 
 export async function saveCustomHabits(
@@ -157,8 +160,8 @@ export async function saveCustomHabits(
 const DEFAULT_CUSTOM_HABITS = DEFAULT_CUSTOM_HABIT_TEMPLATES;
 
 export async function ensureDefaultCustomHabits(userEmail: string) {
-  const current = await getCustomHabits(userEmail);
-  if (current.length > 0) return current;
+  const stored = await getAllCustomHabits(userEmail);
+  if (stored.length > 0) return stored.filter((habit) => habit.active !== false);
   await saveCustomHabits(userEmail, DEFAULT_CUSTOM_HABITS);
   return DEFAULT_CUSTOM_HABITS;
 }

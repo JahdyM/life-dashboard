@@ -6995,6 +6995,18 @@ textarea:hover {
   text-transform: uppercase;
 }
 
+
+.onboarding-add-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.65rem;
+  margin-bottom: 0.75rem;
+}
+
+.onboarding-add-row input {
+  min-width: 0;
+}
+
 .onboarding-module-list {
   display: grid;
   gap: 0.75rem;
@@ -7094,6 +7106,7 @@ textarea:hover {
   }
 
   .onboarding-mode-grid,
+  .onboarding-add-row,
   .onboarding-module-card,
   .onboarding-module-main {
     grid-template-columns: 1fr;
