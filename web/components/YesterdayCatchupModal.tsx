@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { fetchJson } from "@/lib/client/api";
 import {
   getHabitDisplayLabel,
@@ -116,6 +117,8 @@ export default function YesterdayCatchupModal({
   sharedHabits: SharedHabitPreference[];
 }) {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const dashboardRefreshNeededRef = useRef(false);
   const [open, setOpen] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const yesterdayIso = useMemo(() => addDaysIso(todayIso, -1), [todayIso]);
@@ -131,6 +134,32 @@ export default function YesterdayCatchupModal({
     }
   }, [todayIso]);
 
+  const refreshIntegratedViews = useCallback(
+    ({ habits = false, shared = false, streaks = false }: { habits?: boolean; shared?: boolean; streaks?: boolean }) => {
+      dashboardRefreshNeededRef.current = true;
+      void queryClient.invalidateQueries({ queryKey: ["init"] });
+      void queryClient.invalidateQueries({ queryKey: ["rewards"] });
+      void queryClient.invalidateQueries({ queryKey: ["entries"] });
+      void queryClient.invalidateQueries({ queryKey: ["stats-heatmap"] });
+      void queryClient.invalidateQueries({ queryKey: ["stats-life-balance"] });
+
+      if (habits) {
+        void queryClient.invalidateQueries({ queryKey: ["day", yesterdayIso] });
+        void queryClient.invalidateQueries({ queryKey: ["custom-habits-done", yesterdayIso] });
+        void queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      }
+
+      if (shared) {
+        void queryClient.invalidateQueries({ queryKey: ["couple-streaks"] });
+      }
+
+      if (streaks) {
+        void queryClient.invalidateQueries({ queryKey: ["spiritual-streaks"] });
+      }
+    },
+    [queryClient, yesterdayIso]
+  );
+
   const closeForToday = useCallback(() => {
     try {
       window.localStorage.setItem(STORAGE_KEY, todayIso);
@@ -138,7 +167,11 @@ export default function YesterdayCatchupModal({
       // If storage is blocked, still avoid trapping the user in the modal.
     }
     setOpen(false);
-  }, [todayIso]);
+    if (dashboardRefreshNeededRef.current) {
+      dashboardRefreshNeededRef.current = false;
+      router.refresh();
+    }
+  }, [router, todayIso]);
 
   useEffect(() => {
     if (!open) return;
@@ -206,8 +239,13 @@ export default function YesterdayCatchupModal({
       }
       return { previous };
     },
-    onSuccess: (payload) => {
+    onSuccess: (payload, variables) => {
       queryClient.setQueryData(["day", yesterdayIso], payload);
+      refreshIntegratedViews({
+        habits: true,
+        shared: true,
+        streaks: Boolean(MIRRORED_STREAK_BY_HABIT[variables.habitKey]),
+      });
       void queryClient.invalidateQueries({ queryKey: ["spiritual-streaks", yesterdayMonth] });
     },
     onError: (error, _variables, context) => {
@@ -231,6 +269,9 @@ export default function YesterdayCatchupModal({
       ]);
       queryClient.setQueryData<CustomDoneResponse>(["custom-habits-done", yesterdayIso], { done });
       return { previous };
+    },
+    onSuccess: () => {
+      refreshIntegratedViews({ habits: true });
     },
     onError: (error, _variables, context) => {
       if (context?.previous) {
@@ -257,6 +298,7 @@ export default function YesterdayCatchupModal({
         ["spiritual-streaks", yesterdayMonth],
         (current) => patchStreakBoard(current, item)
       );
+      refreshIntegratedViews({ streaks: true });
     },
     onError: (error) => {
       setFeedback(mutationMessage(error, "Não consegui salvar o streak"));

@@ -1733,7 +1733,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["day", selectedDayIso] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["couple-streaks"] });
+      queryClient.invalidateQueries({ queryKey: ["spiritual-streaks"] });
+      queryClient.invalidateQueries({ queryKey: ["rewards"] });
       queryClient.invalidateQueries({ queryKey: ["init"] });
     },
   });
@@ -1765,7 +1768,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["custom-habits-done", selectedDayIso] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["couple-streaks"] });
+      queryClient.invalidateQueries({ queryKey: ["rewards"] });
       queryClient.invalidateQueries({ queryKey: ["init"] });
     },
   });

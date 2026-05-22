@@ -6,10 +6,11 @@ import {
   jsonOk,
   zodErrorMessage,
 } from "@/lib/server/response";
-import { getCustomHabitDone, setCustomHabitDone } from "@/lib/server/settings";
+import { getCustomHabitDone, getCustomHabits, setCustomHabitDone } from "@/lib/server/settings";
 import { customHabitDoneSchema, dateParamSchema } from "@/lib/server/schemas";
 import { logServerEvent } from "@/lib/server/logger";
 import { addPointsOnce, POINTS } from "@/lib/server/rewards";
+import { syncHabitAgendaTasks } from "@/lib/server/habitTaskSync";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,29 @@ export async function PUT(
         )
       );
     }
+
+    const customHabits = await getCustomHabits(userEmail);
+    await Promise.all(
+      customHabits
+        .filter((habit) => Boolean(oldDone[habit.id]) !== Boolean(newDone[habit.id]))
+        .map(async (habit) => {
+          try {
+            await syncHabitAgendaTasks({
+              userEmail,
+              dateIso,
+              titles: [habit.name],
+              done: Boolean(newDone[habit.id]),
+            });
+          } catch (error) {
+            logServerEvent("warn", {
+              endpoint: "PUT /api/habits/custom/done/[date]",
+              message: "Failed to sync custom habit agenda tasks",
+              error,
+              meta: { habitId: habit.id, dateIso },
+            });
+          }
+        })
+    );
 
     return jsonOk({ ok: true });
   } catch (err) {

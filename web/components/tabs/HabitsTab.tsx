@@ -465,6 +465,14 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
       }));
       return { previous };
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["day", selectedDate] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["couple-streaks"] });
+      queryClient.invalidateQueries({ queryKey: ["spiritual-streaks"] });
+      queryClient.invalidateQueries({ queryKey: ["rewards"] });
+      queryClient.invalidateQueries({ queryKey: ["init"] });
+    },
     onError: (error, _variables, context) => {
       if (context?.previous) {
         queryClient.setQueryData(["day", selectedDate], context.previous);
@@ -488,6 +496,13 @@ export default function HabitsTab({ userEmail: _userEmail }: { userEmail: string
       ]);
       queryClient.setQueryData(["custom-habits-done", selectedDate], { done: payload });
       return { previous };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["custom-habits-done", selectedDate] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["couple-streaks"] });
+      queryClient.invalidateQueries({ queryKey: ["rewards"] });
+      queryClient.invalidateQueries({ queryKey: ["init"] });
     },
     onError: (error, _variables, context) => {
       if (context?.previous) {

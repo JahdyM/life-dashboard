@@ -12,6 +12,7 @@ import { logServerEvent } from "@/lib/server/logger";
 import { addPointsOnce, POINTS } from "@/lib/server/rewards";
 import { getHabitField } from "@/lib/config/habits";
 import { updateSpiritualStreakEntry } from "@/lib/server/spiritualStreaks";
+import { getFixedHabitTaskTitles, syncHabitAgendaTasks } from "@/lib/server/habitTaskSync";
 import type { SpiritualStreakBoardKey } from "@/lib/types";
 
 // Shared habit keys that map to boolish DB fields (excludes metrics)
@@ -138,6 +139,35 @@ export async function PATCH(
               message: "Failed to mirror habit into spiritual streak board",
               error,
               meta: { habitKey: key, boardKey, dateIso },
+            });
+          }
+        })
+    );
+
+    // Keep habit agenda tasks in the same state as the habit itself. This is
+    // what makes catch-up, Habits, Calendar, and completed lists agree.
+    await Promise.all(
+      Object.entries(payload)
+        .filter(([key]) => SHARED_HABIT_PATCH_KEYS.has(key))
+        .map(async ([key, value]) => {
+          const truthy = value === 1 || value === true;
+          const falsy = value === 0 || value === false;
+          if (!truthy && !falsy) return;
+          const titles = getFixedHabitTaskTitles(key);
+          if (!titles.length) return;
+          try {
+            await syncHabitAgendaTasks({
+              userEmail,
+              dateIso,
+              titles,
+              done: truthy,
+            });
+          } catch (error) {
+            logServerEvent("warn", {
+              endpoint: "PATCH /api/day/[date]",
+              message: "Failed to sync fixed habit agenda tasks",
+              error,
+              meta: { habitKey: key, dateIso },
             });
           }
         })
