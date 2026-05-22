@@ -46,6 +46,11 @@ import {
   isHabitScheduledForWeekday,
   isMergedBibleHabitName,
 } from "@/lib/config/habits";
+import {
+  DEFAULT_TASK_AREAS,
+  getTaskAreaMeta,
+  type TaskAreaTag,
+} from "@/lib/taskAreas";
 import type { DashboardOnboardingPreferences } from "@/lib/config/dashboard";
 import type {
   CustomHabit,
@@ -59,6 +64,7 @@ type TaskDraft = {
   title?: string;
   isDone?: boolean;
   priorityTag?: string;
+  areaTag?: string;
   scheduledDate?: string;
   scheduledTime?: string;
   plannedTime?: string;
@@ -83,6 +89,7 @@ type OnboardingResponse = { preferences: DashboardOnboardingPreferences };
 type TaskSharesResponse = { items: TaskShareInvite[]; sent?: TaskShareInvite[] };
 type QuickNoteResponse = { text: string };
 type EnergyResponse = EnergySettings;
+type TaskAreasResponse = { items: TaskAreaTag[] };
 
 type DailyHabitItem = {
   id: string;
@@ -332,6 +339,7 @@ type EditableTaskRowProps = {
     title: string;
     isDone: boolean;
     priorityTag: string;
+    areaTag: string;
     scheduledDate: string;
     scheduledTime: string;
     plannedTime: string;
@@ -346,6 +354,7 @@ type EditableTaskRowProps = {
   active?: boolean;
   saving: boolean;
   saved: boolean;
+  area: TaskAreaTag | null;
   onToggleDone: (task: TodoTask, checked: boolean) => void;
   onToggleMissed: (task: TodoTask, missed: boolean) => void;
   onToggleExpanded: (taskId: string, currentlyExpanded: boolean) => void;
@@ -380,6 +389,19 @@ type EditableTaskRowProps = {
   onDragEndTask?: () => void;
 };
 
+function TaskAreaBadge({ area }: { area: TaskAreaTag | null }) {
+  if (!area) return null;
+  return (
+    <span
+      className="task-area-badge"
+      style={{ "--task-area-color": area.color } as CSSProperties}
+      title={area.label}
+    >
+      {area.label}
+    </span>
+  );
+}
+
 const EditableTaskRow = memo(function EditableTaskRow({
   task,
   draft,
@@ -387,6 +409,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
   active = false,
   saving,
   saved,
+  area,
   onToggleDone,
   onToggleMissed,
   onToggleExpanded,
@@ -582,6 +605,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
             <GripVertical size={15} />
           </span>
         ) : null}
+        <TaskAreaBadge area={area} />
         {showOrderControls && !draft.isDone ? (
           <div
             className="task-row-order-controls"
@@ -1055,6 +1079,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     queryFn: () => fetchJson<TaskSharesResponse>("/api/task-shares"),
     staleTime: 10_000,
   });
+  const taskAreasQuery = useQuery({
+    queryKey: ["task-areas"],
+    queryFn: () => fetchJson<TaskAreasResponse>("/api/task-areas"),
+    staleTime: 60_000,
+  });
   const quickNoteQuery = useQuery({
     queryKey: ["quick-note", selectedDayIso],
     queryFn: () =>
@@ -1064,6 +1093,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const tasks = useMemo(
     () => tasksQuery.data?.items || [],
     [tasksQuery.data?.items]
+  );
+  const taskAreas = useMemo(
+    () =>
+      taskAreasQuery.data?.items?.length
+        ? taskAreasQuery.data.items
+        : DEFAULT_TASK_AREAS,
+    [taskAreasQuery.data?.items]
   );
   const syncWarning = tasksQuery.data?.warning;
   const reconnectRequired = useMemo(
@@ -1120,6 +1156,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       title: draft.title ?? task.title,
       isDone: draft.isDone ?? Boolean(task.isDone),
       priorityTag: draft.priorityTag ?? (task.priorityTag || "Medium"),
+      areaTag: draft.areaTag ?? (task.areaTag || ""),
       scheduledDate: draft.scheduledDate ?? (task.scheduledDate || ""),
       scheduledTime: draft.scheduledTime ?? (task.scheduledTime || ""),
       plannedTime:
@@ -1430,6 +1467,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       patch.priority_tag = draft.priorityTag;
     }
     if (
+      typeof draft.areaTag === "string" &&
+      draft.areaTag !== (task.areaTag || "")
+    ) {
+      patch.area_tag = draft.areaTag || null;
+    }
+    if (
       typeof draft.scheduledDate === "string" &&
       draft.scheduledDate !== (task.scheduledDate || "")
     ) {
@@ -1503,6 +1546,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 typeof patch.priority_tag === "string" || patch.priority_tag === null
                   ? patch.priority_tag
                   : item.priorityTag;
+              const nextAreaTag =
+                typeof patch.area_tag === "string" || patch.area_tag === null
+                  ? patch.area_tag
+                  : item.areaTag ?? null;
               const nextScheduledTime =
                 typeof patch.scheduled_time === "string" || patch.scheduled_time === null
                   ? patch.scheduled_time
@@ -1550,6 +1597,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 title: nextTitle,
                 isDone: "is_done" in patch ? (patch.is_done ? 1 : 0) : item.isDone,
                 priorityTag: nextPriorityTag,
+                areaTag: nextAreaTag,
                 scheduledTime: nextScheduledTime,
                 scheduledDate: nextScheduledDate,
                 plannedTime: nextPlannedTime,
@@ -1947,6 +1995,35 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     },
   });
 
+  const createTaskArea = useMutation({
+    mutationFn: (label: string) =>
+      fetchJson<{ area: TaskAreaTag; items: TaskAreaTag[] }>("/api/task-areas", {
+        method: "POST",
+        body: JSON.stringify({ label }),
+      }),
+    onSuccess: (payload) => {
+      queryClient.setQueryData<TaskAreasResponse>(["task-areas"], {
+        items: payload.items,
+      });
+      setTaskSaveError(null);
+    },
+    onError: (error) => {
+      setTaskSaveError(readErrorMessage(error, "Couldn't add area."));
+    },
+  });
+
+  const handleCreateTaskArea = useCallback(
+    async (label: string) => {
+      try {
+        const payload = await createTaskArea.mutateAsync(label);
+        return payload.area;
+      } catch {
+        return null;
+      }
+    },
+    [createTaskArea]
+  );
+
   const saveTaskProgressPatch = useCallback(
     (
       task: TodoTask,
@@ -1992,6 +2069,31 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       range.start,
       updateTask,
     ]
+  );
+
+  const handleTaskAreaChange = useCallback(
+    (task: TodoTask, areaKey: string) => {
+      const patch = { area_tag: areaKey || null };
+      applyTaskPatchToCache(task.id, patch);
+      setSavingTaskId(task.id);
+      updateTask.mutate(
+        { id: task.id, data: patch, syncGoogle: false },
+        {
+          onSuccess: () => {
+            setTaskSaveError(null);
+            setSavingTaskId(null);
+            setSavedTaskId(task.id);
+            window.setTimeout(() => {
+              setSavedTaskId((prev) => (prev === task.id ? null : prev));
+            }, 900);
+          },
+          onError: () => {
+            setSavingTaskId(null);
+          },
+        }
+      );
+    },
+    [applyTaskPatchToCache, updateTask]
   );
 
   const buildTodayPlacementPatch = useCallback(
@@ -3404,15 +3506,19 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           shareActionLabel={detailShareUi?.actionLabel || "Share"}
           sharing={Boolean(detailTask && sharingTaskId === detailTask.id)}
           canShare={Boolean(detailShareUi?.canToggle)}
+          taskAreas={taskAreas}
+          creatingArea={createTaskArea.isPending}
           effort={detailTask ? getTaskEffort(detailTask) : "medium"}
           onClose={handleCloseTaskDetails}
           onSetDraft={setTaskDraft}
           onSave={confirmTaskUpdate}
+          onAreaChange={handleTaskAreaChange}
           onReset={resetTaskDraft}
           onDelete={handleDeleteTaskFromDetails}
           onToggleDone={(task, checked) => requestToggleTaskDone(task, checked)}
           onShare={handleShareTask}
           onEffortChange={setTaskEffort}
+          onCreateArea={handleCreateTaskArea}
           onCreateSubtask={handleCreateSubtask}
           onRenameSubtask={handleRenameSubtask}
           onToggleSubtask={(task, subtaskId, checked) =>
@@ -3443,6 +3549,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     task={task}
                     draft={draft}
                     effort={getTaskEffort(task)}
+                    area={getTaskAreaMeta(draft.areaTag, taskAreas)}
                     expanded={isTaskExpanded(task)}
                     active={detailTaskId === task.id}
                     saving={savingTaskId === task.id}
@@ -3510,6 +3617,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     task={task}
                     draft={draft}
                     effort={getTaskEffort(task)}
+                    area={getTaskAreaMeta(draft.areaTag, taskAreas)}
                     expanded={isTaskExpanded(task)}
                     active={detailTaskId === task.id}
                     saving={savingTaskId === task.id}
@@ -3568,6 +3676,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   task={task}
                   draft={draft}
                   effort={getTaskEffort(task)}
+                  area={getTaskAreaMeta(draft.areaTag, taskAreas)}
                   expanded={isTaskExpanded(task)}
                   active={detailTaskId === task.id}
                   saving={savingTaskId === task.id}

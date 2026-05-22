@@ -65,6 +65,7 @@ export async function PATCH(
     if (payload.notes !== undefined) updatePayload.notes = payload.notes ?? null;
     if (payload.focus_order !== undefined) updatePayload.focusOrder = payload.focus_order ?? null;
     if (payload.priority_tag !== undefined) updatePayload.priorityTag = payload.priority_tag;
+    if (payload.area_tag !== undefined) updatePayload.areaTag = payload.area_tag;
     if (payload.estimated_minutes !== undefined) {
       updatePayload.estimatedMinutes = payload.estimated_minutes;
     }

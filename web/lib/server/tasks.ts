@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { format, parseISO, subDays } from "date-fns";
 import { ensureTaskCompletionColumns } from "./dbCompat";
 import { getTodayIsoForUser } from "./settings";
+import { deleteTaskAreaAssignment, getTaskAreaMap, setTaskAreaAssignment } from "./taskAreas";
 import type {
   TodoSubtask as PrismaTodoSubtask,
   TodoTask as PrismaTodoTask,
@@ -21,6 +22,7 @@ export type TaskPayload = {
   notes?: string | null;
   focusOrder?: number | null;
   priorityTag?: string | null;
+  areaTag?: string | null;
   estimatedMinutes?: number | null;
   actualMinutes?: number | null;
   isDone?: number | null;
@@ -71,11 +73,13 @@ function normalizeSubtasks(subtasks: PrismaTodoSubtask[] | undefined) {
 
 function mergeTaskWithDetail(
   task: TaskWithSubtasks,
-  detail: PrismaTodoTaskDetail | null | undefined
+  detail: PrismaTodoTaskDetail | null | undefined,
+  areaTag: string | null = null
 ) {
   return {
     ...task,
     ...normalizeTaskDetailRow(task, detail),
+    areaTag,
     subtasks: normalizeSubtasks(task.subtasks),
   };
 }
@@ -230,12 +234,13 @@ export async function listTasks(
       },
     },
   });
-  const detailMap = await loadTaskDetailMap(
-    userEmail,
-    tasks.map((task) => task.id)
-  );
+  const taskIds = tasks.map((task) => task.id);
+  const [detailMap, areaMap] = await Promise.all([
+    loadTaskDetailMap(userEmail, taskIds),
+    getTaskAreaMap(userEmail, taskIds),
+  ]);
   return tasks
-    .map((task) => mergeTaskWithDetail(task, detailMap.get(task.id)))
+    .map((task) => mergeTaskWithDetail(task, detailMap.get(task.id), areaMap.get(task.id) ?? null))
     .sort(compareTasksForFocus);
 }
 
@@ -292,6 +297,10 @@ export async function createTask(userEmail: string, payload: TaskPayload) {
     notes: normalizedNotes,
     focusOrder: payload.focusOrder ?? null,
   };
+  if (payload.areaTag !== undefined) {
+    await setTaskAreaAssignment(userEmail, task.id, payload.areaTag);
+  }
+
   if (shouldPersistTaskDetail(task, detail)) {
     await prisma.todoTaskDetail.upsert({
       where: { taskId: task.id },
@@ -315,19 +324,23 @@ export async function createTask(userEmail: string, payload: TaskPayload) {
         updatedAt: nowIso,
       },
     });
-    return mergeTaskWithDetail(task, {
-      taskId: task.id,
-      userEmail,
-      plannedTime: detail.plannedTime,
-      startTime: detail.startTime,
-      endTime: detail.endTime,
-      notes: detail.notes,
-      focusOrder: detail.focusOrder,
-      createdAt: nowIso,
-      updatedAt: nowIso,
-    });
+    return mergeTaskWithDetail(
+      task,
+      {
+        taskId: task.id,
+        userEmail,
+        plannedTime: detail.plannedTime,
+        startTime: detail.startTime,
+        endTime: detail.endTime,
+        notes: detail.notes,
+        focusOrder: detail.focusOrder,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      payload.areaTag ?? null
+    );
   }
-  return mergeTaskWithDetail(task, null);
+  return mergeTaskWithDetail(task, null, payload.areaTag ?? null);
 }
 
 export async function updateTask(
@@ -343,6 +356,9 @@ export async function updateTask(
   });
   if (!existing) {
     throw new Error("RESOURCE_NOT_FOUND");
+  }
+  if (payload.areaTag !== undefined) {
+    await setTaskAreaAssignment(userEmail, taskId, payload.areaTag);
   }
 
   let completedAtPatch: string | null | undefined = undefined;
@@ -466,7 +482,8 @@ export async function updateTask(
     }
   }
 
-  return mergeTaskWithDetail(task, detail);
+  const areaMap = await getTaskAreaMap(userEmail, [taskId]);
+  return mergeTaskWithDetail(task, detail, areaMap.get(taskId) ?? null);
 }
 
 export async function deleteTask(userEmail: string, taskId: string) {
@@ -480,6 +497,7 @@ export async function deleteTask(userEmail: string, taskId: string) {
   }
   const nowIso = new Date().toISOString();
   await cleanupTaskShareSettingsAfterDelete(userEmail, taskId);
+  await deleteTaskAreaAssignment(userEmail, taskId).catch(() => undefined);
   await prisma.syncOutbox
     .deleteMany({
       where: { userEmail, entityId: taskId },

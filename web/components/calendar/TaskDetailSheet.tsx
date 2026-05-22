@@ -9,12 +9,14 @@ import {
 } from "react";
 import { ArrowDown, ArrowUp, Share2, Trash2, X } from "lucide-react";
 import { EFFORT_LABELS, type EffortLevel } from "@/lib/energy";
+import type { TaskAreaTag } from "@/lib/taskAreas";
 import type { TodoTask } from "@/lib/types";
 
 type TaskDetailDraft = {
   title: string;
   isDone: boolean;
   priorityTag: string;
+  areaTag: string;
   scheduledDate: string;
   scheduledTime: string;
   plannedTime: string;
@@ -36,9 +38,13 @@ type TaskDetailSheetProps = {
   sharing?: boolean;
   canShare?: boolean;
   effort: EffortLevel;
+  taskAreas: TaskAreaTag[];
+  creatingArea?: boolean;
+  onCreateArea: (label: string) => Promise<TaskAreaTag | null>;
   onClose: () => void;
   onSetDraft: (taskId: string, patch: Partial<TaskDetailDraft>) => void;
   onSave: (task: TodoTask) => void;
+  onAreaChange: (task: TodoTask, areaKey: string) => void;
   onReset: (taskId: string) => void;
   onDelete: (taskId: string) => void;
   onToggleDone: (task: TodoTask, checked: boolean) => void;
@@ -62,9 +68,13 @@ export default function TaskDetailSheet({
   sharing = false,
   canShare = false,
   effort,
+  taskAreas,
+  creatingArea = false,
+  onCreateArea,
   onClose,
   onSetDraft,
   onSave,
+  onAreaChange,
   onReset,
   onDelete,
   onToggleDone,
@@ -77,6 +87,7 @@ export default function TaskDetailSheet({
   onMoveSubtask,
 }: TaskDetailSheetProps) {
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [newAreaLabel, setNewAreaLabel] = useState("");
   const [subtaskTitleDrafts, setSubtaskTitleDrafts] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -105,6 +116,7 @@ export default function TaskDetailSheet({
   useEffect(() => {
     if (!open) {
       setNewSubtaskTitle("");
+      setNewAreaLabel("");
     }
   }, [open]);
 
@@ -120,6 +132,17 @@ export default function TaskDetailSheet({
     if (!task) return;
     onSave(task);
   }, [onSave, task]);
+
+  const createArea = useCallback(async () => {
+    if (!task) return;
+    const label = newAreaLabel.trim();
+    if (!label) return;
+    const area = await onCreateArea(label);
+    if (!area) return;
+    onSetDraft(task.id, { areaTag: area.key });
+    onAreaChange(task, area.key);
+    setNewAreaLabel("");
+  }, [newAreaLabel, onAreaChange, onCreateArea, onSetDraft, task]);
 
   const handleFieldKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -199,6 +222,49 @@ export default function TaskDetailSheet({
               </select>
             </label>
 
+            <label>
+              Area
+              <select
+                value={draft.areaTag}
+                onChange={(event) => {
+                  onSetDraft(task.id, { areaTag: event.target.value });
+                  onAreaChange(task, event.target.value);
+                }}
+                onKeyDown={handleFieldKeyDown}
+              >
+                <option value="">No area</option>
+                {taskAreas.map((area) => (
+                  <option key={area.key} value={area.key}>
+                    {area.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              New area
+              <span className="task-area-create-row">
+                <input
+                  type="text"
+                  value={newAreaLabel}
+                  onChange={(event) => setNewAreaLabel(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter") return;
+                    event.preventDefault();
+                    void createArea();
+                  }}
+                  placeholder="Ex.: Projeto"
+                />
+                <button
+                  type="button"
+                  className="secondary subtle"
+                  onClick={() => void createArea()}
+                  disabled={creatingArea || !newAreaLabel.trim()}
+                >
+                  Add
+                </button>
+              </span>
+            </label>
 
             <label>
               Effort

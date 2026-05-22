@@ -1855,6 +1855,31 @@ button.link.danger {
   opacity: 0.5;
 }
 
+.task-area-badge {
+  --task-area-color: #d7b56d;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  max-width: 98px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--task-area-color) 56%, transparent);
+  background: color-mix(in srgb, var(--task-area-color) 22%, transparent);
+  color: #fff5df;
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: 0.055em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 16px rgba(0, 0, 0, 0.12);
+}
+
 .task-row-order-controls {
   display: inline-flex;
   align-items: center;
@@ -2256,6 +2281,17 @@ button.link.danger {
   gap: 4px;
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.task-area-create-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
+.task-area-create-row button {
+  min-height: 36px;
+  padding-inline: 11px;
 }
 
 .task-detail-section textarea {
@@ -4551,6 +4587,7 @@ button.link.danger {
   }
 
   .task-row-next-button,
+  .task-area-badge,
   .task-row-order-controls {
     grid-column: 2 / 3;
     justify-self: start;
@@ -6376,6 +6413,7 @@ body {
 .page-link,
 button.secondary,
 .chip,
+.task-area-badge,
 .task-row-order-button,
 .task-row-next-button {
   transition:

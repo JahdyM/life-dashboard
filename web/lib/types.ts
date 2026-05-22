@@ -1,4 +1,5 @@
 export type PriorityTag = "Low" | "Medium" | "High" | "Critical";
+export type TaskAreaKey = string;
 
 export type DayEntry = {
   userEmail?: string;
@@ -85,6 +86,7 @@ export type TodoTask = {
   notes?: string | null;
   focusOrder?: number | null;
   priorityTag?: PriorityTag | string | null;
+  areaTag?: TaskAreaKey | null;
   estimatedMinutes?: number | null;
   actualMinutes?: number | null;
   isDone?: number | null;
