@@ -35,6 +35,28 @@ import InlineActionNotice from "@/components/common/InlineActionNotice";
 import OverflowMenu from "@/components/common/OverflowMenu";
 import TaskComposer from "@/components/calendar/TaskComposer";
 import TaskDetailSheet from "@/components/calendar/TaskDetailSheet";
+import {
+  buildScheduleTodayPayload,
+  buildScheduleTomorrowPayload,
+  buildUnschedulePayload,
+} from "@/components/tabs/calendar/CalendarActions";
+import {
+  formatAutoPlanNotice,
+  formatMoveBlockedByLockNotice,
+  formatMoveNotice,
+} from "@/components/tabs/calendar/CalendarFeedback";
+import {
+  buildAutoPlanUpdates,
+  normalizeAreaTagForPlanning,
+  priorityRank,
+  taskPriorityWeight,
+  type AutoPlanMode,
+  type PlanningTaskCandidate,
+} from "@/components/tabs/calendar/PlanningEngine";
+import {
+  buildMoveToBacklogPatch,
+  buildMoveToDayPatch,
+} from "@/components/tabs/calendar/TaskBoardDnD";
 import { fetchJson } from "@/lib/client/api";
 import { EFFORT_LABELS, type EffortLevel, type EnergySettings } from "@/lib/energy";
 import FullCalendar from "@fullcalendar/react";
@@ -271,29 +293,6 @@ function getTaskProgressState(draft: {
   return null;
 }
 
-function taskPriorityWeight(priorityTag: string | null | undefined) {
-  const normalized = String(priorityTag || "").trim().toLowerCase();
-  if (!normalized || normalized === "low" || normalized === "baixa") return 1;
-  if (
-    normalized === "medium" ||
-    normalized === "med" ||
-    normalized === "média" ||
-    normalized === "media"
-  ) {
-    return 2;
-  }
-  if (
-    normalized === "high" ||
-    normalized === "critical" ||
-    normalized === "alta" ||
-    normalized === "crítica" ||
-    normalized === "critica"
-  ) {
-    return 3;
-  }
-  return 1;
-}
-
 function polar(cx: number, cy: number, radius: number, angleDegFromTop: number) {
   const radians = (Math.PI / 180) * angleDegFromTop;
   return {
@@ -368,128 +367,12 @@ function normalizeTaskTitleKey(value: string) {
     .replace(/[^\p{L}\p{N}\s]/gu, "");
 }
 
-function priorityRank(priorityTag: string | null | undefined) {
-  const normalized = String(priorityTag || "Medium").trim().toLowerCase();
-  if (normalized === "critical" || normalized === "crítica" || normalized === "critica") {
-    return 4;
-  }
-  if (normalized === "high" || normalized === "alta") return 3;
-  if (
-    normalized === "medium" ||
-    normalized === "med" ||
-    normalized === "média" ||
-    normalized === "media"
-  ) {
-    return 2;
-  }
-  if (normalized === "low" || normalized === "baixa") return 1;
-  return 2;
-}
-
 function toMinutes(time: string) {
   const [hourText, minuteText] = String(time || "00:00").split(":");
   const hour = Number(hourText || 0);
   const minute = Number(minuteText || 0);
   if (!Number.isFinite(hour) || !Number.isFinite(minute)) return 0;
   return hour * 60 + minute;
-}
-
-function toTime(minutes: number) {
-  const clean = Math.max(0, Math.min(24 * 60 - 1, Math.round(minutes)));
-  const hour = Math.floor(clean / 60);
-  const minute = clean % 60;
-  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
-}
-
-type PlanningTaskCandidate = {
-  task: TodoTask;
-  rank: number;
-  tagKey: string;
-  isLocked: boolean;
-  baseIndex: number;
-};
-
-function normalizeAreaTagForPlanning(value: string | null | undefined) {
-  const normalized = String(value || "").trim().toLowerCase();
-  return normalized || "__none__";
-}
-
-function comparePlanningCandidates(left: PlanningTaskCandidate, right: PlanningTaskCandidate) {
-  const rankDiff = right.rank - left.rank;
-  if (rankDiff !== 0) return rankDiff;
-
-  const leftFocus = getTaskFocusOrder(left.task) ?? Number.MAX_SAFE_INTEGER;
-  const rightFocus = getTaskFocusOrder(right.task) ?? Number.MAX_SAFE_INTEGER;
-  if (leftFocus !== rightFocus) return leftFocus - rightFocus;
-
-  return String(left.task.createdAt).localeCompare(String(right.task.createdAt));
-}
-
-function pickBalancedCandidate(
-  pool: PlanningTaskCandidate[],
-  previousTag: string | null,
-  previousRank: number,
-  heavyStreak: number
-) {
-  if (!pool.length) return undefined;
-
-  const ranked = [...pool].sort(comparePlanningCandidates);
-  const topRank = ranked[0].rank;
-  const nearTopByPriority = ranked.filter((candidate) => candidate.rank >= topRank - 1);
-  const alternativesByTag = previousTag
-    ? nearTopByPriority.filter((candidate) => candidate.tagKey !== previousTag)
-    : nearTopByPriority;
-
-  let selectedPool = nearTopByPriority;
-  if (previousTag && alternativesByTag.length) {
-    selectedPool = alternativesByTag;
-  }
-
-  if (previousRank >= 3 && heavyStreak >= 2) {
-    const lighter = selectedPool.filter((candidate) => candidate.rank < 3);
-    if (lighter.length) return lighter[0];
-  }
-
-  return selectedPool[0];
-}
-
-function buildBalancedOrderWithLockedAnchors(candidates: PlanningTaskCandidate[]) {
-  if (candidates.length <= 1) return candidates;
-
-  const lockedByIndex = new Map<number, PlanningTaskCandidate>();
-  const unlocked = candidates.filter((item) => !item.isLocked);
-  candidates.forEach((item) => {
-    if (item.isLocked) lockedByIndex.set(item.baseIndex, item);
-  });
-
-  const placed: PlanningTaskCandidate[] = [];
-  let previousRank = 0;
-  let heavyStreak = 0;
-  let previousTag: string | null = null;
-
-  for (let index = 0; index < candidates.length; index += 1) {
-    const lockedCandidate = lockedByIndex.get(index);
-    let next: PlanningTaskCandidate | undefined;
-    if (lockedCandidate) {
-      next = lockedCandidate;
-    } else {
-      next = pickBalancedCandidate(unlocked, previousTag, previousRank, heavyStreak);
-      if (!next) break;
-      const removeIndex = unlocked.findIndex((item) => item.task.id === next?.task.id);
-      if (removeIndex >= 0) unlocked.splice(removeIndex, 1);
-    }
-
-    placed.push(next);
-    if (next.rank >= 3) {
-      heavyStreak = previousRank >= 3 ? heavyStreak + 1 : 1;
-    } else {
-      heavyStreak = 0;
-    }
-    previousRank = next.rank;
-    previousTag = next.tagKey;
-  }
-
-  return placed;
 }
 
 type EditableTaskRowProps = {
@@ -530,6 +413,10 @@ type EditableTaskRowProps = {
   onScheduleToday?: (taskId: string) => void;
   onUnscheduleToday?: (taskId: string) => void;
   onScheduleTomorrow?: (taskId: string) => void;
+  onMoveToTop?: (taskId: string) => void;
+  onMoveToEnd?: (taskId: string) => void;
+  onMoveToBacklog?: (taskId: string) => void;
+  onMoveToToday?: (taskId: string) => void;
   onMarkStarted: (task: TodoTask) => void;
   onMarkNeedsFinish: (task: TodoTask) => void;
   onResumeTask: (task: TodoTask) => void;
@@ -554,6 +441,7 @@ type EditableTaskRowProps = {
   onDragOverTask?: (taskId: string) => void;
   onDropTask?: (taskId: string) => void;
   onDragEndTask?: () => void;
+  showMobileMoveActions?: boolean;
 };
 
 function TaskAreaBadge({ area }: { area: TaskAreaTag | null }) {
@@ -592,6 +480,10 @@ const EditableTaskRow = memo(function EditableTaskRow({
   onScheduleToday,
   onUnscheduleToday,
   onScheduleTomorrow,
+  onMoveToTop,
+  onMoveToEnd,
+  onMoveToBacklog,
+  onMoveToToday,
   onMarkStarted,
   onMarkNeedsFinish,
   onResumeTask,
@@ -617,6 +509,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
   onDragOverTask,
   onDropTask,
   onDragEndTask,
+  showMobileMoveActions = false,
 }: EditableTaskRowProps) {
   const [quickAreaLabel, setQuickAreaLabel] = useState("");
   const [showQuickAreaInput, setShowQuickAreaInput] = useState(false);
@@ -675,6 +568,22 @@ const EditableTaskRow = memo(function EditableTaskRow({
   );
   const handleResumeTask = useCallback(() => onResumeTask(task), [onResumeTask, task]);
   const handleSetNext = useCallback(() => onSetNext(task.id), [onSetNext, task.id]);
+  const handleMoveToTop = useCallback(() => {
+    if (!onMoveToTop) return;
+    onMoveToTop(task.id);
+  }, [onMoveToTop, task.id]);
+  const handleMoveToEnd = useCallback(() => {
+    if (!onMoveToEnd) return;
+    onMoveToEnd(task.id);
+  }, [onMoveToEnd, task.id]);
+  const handleMoveToBacklog = useCallback(() => {
+    if (!onMoveToBacklog) return;
+    onMoveToBacklog(task.id);
+  }, [onMoveToBacklog, task.id]);
+  const handleMoveToToday = useCallback(() => {
+    if (!onMoveToToday) return;
+    onMoveToToday(task.id);
+  }, [onMoveToToday, task.id]);
   const handleMoveFocusUp = useCallback(
     () => onMoveFocus(task.id, "up"),
     [onMoveFocus, task.id]
@@ -1018,6 +927,30 @@ const EditableTaskRow = memo(function EditableTaskRow({
           </button>
         )}
       </div>
+      {showMobileMoveActions ? (
+        <div className="task-row-mobile-actions">
+          {onMoveToToday ? (
+            <button type="button" className="task-row-mobile-action" onClick={handleMoveToToday}>
+              Today
+            </button>
+          ) : null}
+          {onMoveToBacklog ? (
+            <button type="button" className="task-row-mobile-action" onClick={handleMoveToBacklog}>
+              Backlog
+            </button>
+          ) : null}
+          {onMoveToTop ? (
+            <button type="button" className="task-row-mobile-action" onClick={handleMoveToTop}>
+              Top
+            </button>
+          ) : null}
+          {onMoveToEnd ? (
+            <button type="button" className="task-row-mobile-action" onClick={handleMoveToEnd}>
+              End
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {expanded && hasSubtasks ? (
         <div className="task-subtasks">
           {subtasks.map((subtask) => (
@@ -1224,6 +1157,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [sharingTaskId, setSharingTaskId] = useState<string | null>(null);
   const [respondingShareId, setRespondingShareId] = useState<string | null>(null);
   const [taskShareNotice, setTaskShareNotice] = useState<string | null>(null);
+  const [boardActionNotice, setBoardActionNotice] = useState<{
+    tone: "success" | "warning";
+    body: string;
+  } | null>(null);
   const [reconnectingGoogle, setReconnectingGoogle] = useState(false);
   const [habitTimeDrafts, setHabitTimeDrafts] = useState<Record<string, string>>({});
   const [habitDurationDrafts, setHabitDurationDrafts] = useState<Record<string, number>>({});
@@ -1316,6 +1253,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   useEffect(() => {
     setAutoPlanNotice(null);
   }, [selectedDayIso]);
+
+  useEffect(() => {
+    if (!boardActionNotice) return;
+    const timeoutId = window.setTimeout(() => {
+      setBoardActionNotice(null);
+    }, 2600);
+    return () => window.clearTimeout(timeoutId);
+  }, [boardActionNotice]);
 
   const overdueRange = useMemo(() => {
     const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
@@ -1553,6 +1498,22 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     .sort(compareTasksForExecution);
   const pendingTasks = allPendingTasks.filter(
     (task) => !lowEnergyMode || getTaskEffort(task) === "low"
+  );
+  const timedPendingTasks = useMemo(
+    () =>
+      pendingTasks.filter((task) => {
+        const draft = readTaskDraft(task);
+        return Boolean(draft.scheduledTime || draft.plannedTime);
+      }),
+    [pendingTasks, readTaskDraft]
+  );
+  const noTimePendingTasks = useMemo(
+    () =>
+      pendingTasks.filter((task) => {
+        const draft = readTaskDraft(task);
+        return !draft.scheduledTime && !draft.plannedTime;
+      }),
+    [pendingTasks, readTaskDraft]
   );
   const completedTaskRows = tasksForDay
     .filter((task) => readTaskDraft(task).isDone)
@@ -3261,53 +3222,94 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     [handleDeleteTask]
   );
 
+  const findTaskById = useCallback(
+    (taskId: string) =>
+      tasks.find((task) => task.id === taskId) ||
+      overdueTasks.find((task) => task.id === taskId),
+    [overdueTasks, tasks]
+  );
+
+  const isTaskLockedForBoardMove = useCallback(
+    (taskId: string) => {
+      const task = findTaskById(taskId);
+      if (!task) return false;
+      return Boolean(readTaskDraft(task).scheduleLocked);
+    },
+    [findTaskById, readTaskDraft]
+  );
+
+  const notifyLockedBoardMove = useCallback(() => {
+    setBoardActionNotice({
+      tone: "warning",
+      body: formatMoveBlockedByLockNotice(),
+    });
+  }, []);
+
+  const notifyBoardMoveSuccess = useCallback((kind: "toToday" | "toBacklog" | "toTop" | "toEnd") => {
+    setBoardActionNotice({
+      tone: "success",
+      body: formatMoveNotice(kind),
+    });
+  }, []);
+
   const handleScheduleToday = useCallback(
     (taskId: string) => {
+      if (isTaskLockedForBoardMove(taskId)) {
+        notifyLockedBoardMove();
+        return;
+      }
+      const payload = buildScheduleTodayPayload(selectedDayIso);
+      applyTaskPatchToCache(taskId, payload);
       updateTask.mutate(
         {
           id: taskId,
-          data: {
-            scheduled_date: selectedDayIso,
-            scheduled_time: null,
-            planned_time: null,
-            schedule_locked: 0,
-          },
+          data: payload,
           syncGoogle: false,
         }
       );
+      notifyBoardMoveSuccess("toToday");
     },
-    [updateTask, selectedDayIso]
+    [
+      applyTaskPatchToCache,
+      isTaskLockedForBoardMove,
+      notifyBoardMoveSuccess,
+      notifyLockedBoardMove,
+      selectedDayIso,
+      updateTask,
+    ]
   );
 
   const handleUnscheduleToday = useCallback(
     (taskId: string) => {
-      const patch = {
-        scheduled_date: null,
-        scheduled_time: null,
-        planned_time: null,
-        focus_order: null,
-        schedule_locked: 0,
-      };
+      if (isTaskLockedForBoardMove(taskId)) {
+        notifyLockedBoardMove();
+        return;
+      }
+      const patch = buildUnschedulePayload();
       applyTaskPatchToCache(taskId, patch);
       updateTask.mutate({
         id: taskId,
         data: patch,
         syncGoogle: false,
       });
+      notifyBoardMoveSuccess("toBacklog");
     },
-    [applyTaskPatchToCache, updateTask]
+    [
+      applyTaskPatchToCache,
+      isTaskLockedForBoardMove,
+      notifyBoardMoveSuccess,
+      notifyLockedBoardMove,
+      updateTask,
+    ]
   );
 
   const handleScheduleTomorrow = useCallback(
     (taskId: string) => {
-      const tomorrowIso = format(addDays(new Date(`${selectedDayIso}T12:00:00`), 1), "yyyy-MM-dd");
-      const patch = {
-        scheduled_date: tomorrowIso,
-        scheduled_time: null,
-        planned_time: null,
-        focus_order: null,
-        schedule_locked: 0,
-      };
+      if (isTaskLockedForBoardMove(taskId)) {
+        notifyLockedBoardMove();
+        return;
+      }
+      const patch = buildScheduleTomorrowPayload(selectedDayIso);
       applyTaskPatchToCache(taskId, patch);
       updateTask.mutate({
         id: taskId,
@@ -3315,36 +3317,69 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         syncGoogle: false,
       });
     },
-    [applyTaskPatchToCache, selectedDayIso, updateTask]
+    [
+      applyTaskPatchToCache,
+      isTaskLockedForBoardMove,
+      notifyLockedBoardMove,
+      selectedDayIso,
+      updateTask,
+    ]
   );
 
   const handleSetTaskNext = useCallback(
     (taskId: string) => {
       const target = tasks.find((task) => task.id === taskId);
       if (!target || readTaskDraft(target).isDone) return;
+      if (isTaskLockedForBoardMove(taskId)) {
+        notifyLockedBoardMove();
+        return;
+      }
       const ordered = [
         target,
         ...pendingTasks.filter((task) => task.id !== taskId),
       ];
+      if (target.scheduledDate !== selectedDayIso) {
+        const shiftsLockedSlots = pendingTasks.some((task) => isTaskLockedForBoardMove(task.id));
+        if (shiftsLockedSlots) {
+          notifyLockedBoardMove();
+          return;
+        }
+      }
       const updates = ordered.map<FocusOrderUpdate>((task, index) => {
         const base: FocusOrderUpdate = {
           id: task.id,
           focusOrder: index + 1,
         };
         if (task.id === taskId && task.scheduledDate !== selectedDayIso) {
-          base.scheduledDate = selectedDayIso;
-          base.scheduledTime = null;
-          base.plannedTime = null;
+          const dayPatch = buildMoveToDayPatch(selectedDayIso, index + 1);
+          base.scheduledDate = dayPatch.scheduled_date;
+          base.scheduledTime = dayPatch.scheduled_time;
+          base.plannedTime = dayPatch.planned_time;
+          base.scheduleLocked = false;
         }
         return base;
       });
       reorderFocusTasks.mutate(updates);
+      notifyBoardMoveSuccess("toTop");
     },
-    [pendingTasks, readTaskDraft, reorderFocusTasks, selectedDayIso, tasks]
+    [
+      isTaskLockedForBoardMove,
+      notifyBoardMoveSuccess,
+      notifyLockedBoardMove,
+      pendingTasks,
+      readTaskDraft,
+      reorderFocusTasks,
+      selectedDayIso,
+      tasks,
+    ]
   );
 
   const handleMoveFocusTask = useCallback(
     (taskId: string, direction: "up" | "down") => {
+      if (isTaskLockedForBoardMove(taskId)) {
+        notifyLockedBoardMove();
+        return;
+      }
       const currentIndex = pendingTasks.findIndex((task) => task.id === taskId);
       if (currentIndex < 0) {
         handleSetTaskNext(taskId);
@@ -3352,6 +3387,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       }
       const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
       if (targetIndex < 0 || targetIndex >= pendingTasks.length) return;
+      const targetTask = pendingTasks[targetIndex];
+      if (targetTask && isTaskLockedForBoardMove(targetTask.id)) {
+        notifyLockedBoardMove();
+        return;
+      }
       const ordered = [...pendingTasks];
       [ordered[currentIndex], ordered[targetIndex]] = [
         ordered[targetIndex],
@@ -3364,13 +3404,23 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         }))
       );
     },
-    [handleSetTaskNext, pendingTasks, reorderFocusTasks]
+    [
+      handleSetTaskNext,
+      isTaskLockedForBoardMove,
+      notifyLockedBoardMove,
+      pendingTasks,
+      reorderFocusTasks,
+    ]
   );
 
   const handleDragTaskStart = useCallback((taskId: string) => {
+    if (isTaskLockedForBoardMove(taskId)) {
+      notifyLockedBoardMove();
+      return;
+    }
     setDraggingTaskId(taskId);
     setDragOverTaskId(null);
-  }, []);
+  }, [isTaskLockedForBoardMove, notifyLockedBoardMove]);
 
   const handleDragTaskOver = useCallback((taskId: string) => {
     setDragOverTaskId((current) => (current === taskId ? current : taskId));
@@ -3381,19 +3431,16 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     setDragOverTaskId(null);
   }, []);
 
-  const findTaskById = useCallback(
-    (taskId: string) =>
-      tasks.find((task) => task.id === taskId) ||
-      overdueTasks.find((task) => task.id === taskId),
-    [overdueTasks, tasks]
-  );
-
   const handleDropTask = useCallback(
     (targetTaskId: string) => {
       const sourceTaskId = draggingTaskId;
       setDraggingTaskId(null);
       setDragOverTaskId(null);
       if (!sourceTaskId || sourceTaskId === targetTaskId) return;
+      if (isTaskLockedForBoardMove(sourceTaskId) || isTaskLockedForBoardMove(targetTaskId)) {
+        notifyLockedBoardMove();
+        return;
+      }
 
       const targetIndex = pendingTasks.findIndex((task) => task.id === targetTaskId);
       if (targetIndex < 0) return;
@@ -3402,17 +3449,38 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       const sourceTask = findTaskById(sourceTaskId);
       if (!sourceTask) return;
 
+      if (sourceIndex >= 0) {
+        const minIndex = Math.min(sourceIndex, targetIndex);
+        const maxIndex = Math.max(sourceIndex, targetIndex);
+        const crossesLocked = pendingTasks
+          .slice(minIndex, maxIndex + 1)
+          .some((task) => task.id !== sourceTaskId && isTaskLockedForBoardMove(task.id));
+        if (crossesLocked) {
+          notifyLockedBoardMove();
+          return;
+        }
+      } else {
+        const shiftsLockedSlots = pendingTasks
+          .slice(targetIndex)
+          .some((task) => isTaskLockedForBoardMove(task.id));
+        if (shiftsLockedSlots) {
+          notifyLockedBoardMove();
+          return;
+        }
+      }
+
       if (sourceIndex < 0) {
         const updates: FocusOrderUpdate[] = [];
         let insertCursor = 0;
         for (let index = 0; index <= pendingTasks.length; index += 1) {
           if (index === targetIndex) {
+            const dayPatch = buildMoveToDayPatch(selectedDayIso, index + 1);
             updates.push({
               id: sourceTaskId,
               focusOrder: index + 1,
-              scheduledDate: selectedDayIso,
-              scheduledTime: null,
-              plannedTime: null,
+              scheduledDate: dayPatch.scheduled_date,
+              scheduledTime: dayPatch.scheduled_time,
+              plannedTime: dayPatch.planned_time,
               scheduleLocked: false,
             });
             insertCursor += 1;
@@ -3426,6 +3494,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         }
 
         reorderFocusTasks.mutate(updates);
+        notifyBoardMoveSuccess("toToday");
         return;
       }
 
@@ -3441,7 +3510,16 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         }))
       );
     },
-    [draggingTaskId, findTaskById, pendingTasks, reorderFocusTasks, selectedDayIso]
+    [
+      draggingTaskId,
+      findTaskById,
+      isTaskLockedForBoardMove,
+      notifyBoardMoveSuccess,
+      notifyLockedBoardMove,
+      pendingTasks,
+      reorderFocusTasks,
+      selectedDayIso,
+    ]
   );
 
   const handleDropTaskToBacklog = useCallback(() => {
@@ -3449,6 +3527,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     setDraggingTaskId(null);
     setDragOverTaskId(null);
     if (!sourceTaskId) return;
+    if (isTaskLockedForBoardMove(sourceTaskId)) {
+      notifyLockedBoardMove();
+      return;
+    }
 
     const sourceTask = findTaskById(sourceTaskId);
     if (!sourceTask) return;
@@ -3461,20 +3543,23 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       !sourceTask.scheduleLocked;
     if (alreadyBacklog) return;
 
-    const patch = {
-      scheduled_date: null,
-      scheduled_time: null,
-      planned_time: null,
-      focus_order: null,
-      schedule_locked: 0,
-    };
+    const patch = buildMoveToBacklogPatch();
     applyTaskPatchToCache(sourceTaskId, patch);
     updateTask.mutate({
       id: sourceTaskId,
       data: patch,
       syncGoogle: false,
     });
-  }, [applyTaskPatchToCache, draggingTaskId, findTaskById, updateTask]);
+    notifyBoardMoveSuccess("toBacklog");
+  }, [
+    applyTaskPatchToCache,
+    draggingTaskId,
+    findTaskById,
+    isTaskLockedForBoardMove,
+    notifyBoardMoveSuccess,
+    notifyLockedBoardMove,
+    updateTask,
+  ]);
 
   const handleDropTaskToBacklogFromRow = useCallback(
     (_targetTaskId: string) => {
@@ -3488,9 +3573,20 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     setDraggingTaskId(null);
     setDragOverTaskId(null);
     if (!sourceTaskId) return;
+    if (isTaskLockedForBoardMove(sourceTaskId)) {
+      notifyLockedBoardMove();
+      return;
+    }
 
     const sourceIndex = pendingTasks.findIndex((task) => task.id === sourceTaskId);
     if (sourceIndex >= 0) {
+      const crossesLocked = pendingTasks
+        .slice(sourceIndex + 1)
+        .some((task) => isTaskLockedForBoardMove(task.id));
+      if (crossesLocked) {
+        notifyLockedBoardMove();
+        return;
+      }
       const ordered = [...pendingTasks];
       const [moved] = ordered.splice(sourceIndex, 1);
       ordered.push(moved);
@@ -3500,12 +3596,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           focusOrder: index + 1,
         }))
       );
+      notifyBoardMoveSuccess("toEnd");
       return;
     }
 
     const sourceTask = findTaskById(sourceTaskId);
     if (!sourceTask) return;
 
+    const dayPatch = buildMoveToDayPatch(selectedDayIso, pendingTasks.length + 1);
     const updates: FocusOrderUpdate[] = [
       ...pendingTasks.map((task, index) => ({
         id: task.id,
@@ -3514,23 +3612,44 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       {
         id: sourceTaskId,
         focusOrder: pendingTasks.length + 1,
-        scheduledDate: selectedDayIso,
-        scheduledTime: null,
-        plannedTime: null,
+        scheduledDate: dayPatch.scheduled_date,
+        scheduledTime: dayPatch.scheduled_time,
+        plannedTime: dayPatch.planned_time,
         scheduleLocked: false,
       },
     ];
     reorderFocusTasks.mutate(updates);
-  }, [draggingTaskId, findTaskById, pendingTasks, reorderFocusTasks, selectedDayIso]);
+    notifyBoardMoveSuccess("toToday");
+  }, [
+    draggingTaskId,
+    findTaskById,
+    isTaskLockedForBoardMove,
+    notifyBoardMoveSuccess,
+    notifyLockedBoardMove,
+    pendingTasks,
+    reorderFocusTasks,
+    selectedDayIso,
+  ]);
 
   const handleDropTaskAtStart = useCallback(() => {
     const sourceTaskId = draggingTaskId;
     setDraggingTaskId(null);
     setDragOverTaskId(null);
     if (!sourceTaskId) return;
+    if (isTaskLockedForBoardMove(sourceTaskId)) {
+      notifyLockedBoardMove();
+      return;
+    }
 
     const sourceIndex = pendingTasks.findIndex((task) => task.id === sourceTaskId);
     if (sourceIndex >= 0) {
+      const crossesLocked = pendingTasks
+        .slice(0, sourceIndex)
+        .some((task) => isTaskLockedForBoardMove(task.id));
+      if (crossesLocked) {
+        notifyLockedBoardMove();
+        return;
+      }
       const ordered = [...pendingTasks];
       const [moved] = ordered.splice(sourceIndex, 1);
       ordered.unshift(moved);
@@ -3540,19 +3659,26 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           focusOrder: index + 1,
         }))
       );
+      notifyBoardMoveSuccess("toTop");
       return;
     }
 
     const sourceTask = findTaskById(sourceTaskId);
     if (!sourceTask) return;
+    const shiftsLockedSlots = pendingTasks.some((task) => isTaskLockedForBoardMove(task.id));
+    if (shiftsLockedSlots) {
+      notifyLockedBoardMove();
+      return;
+    }
 
+    const dayPatch = buildMoveToDayPatch(selectedDayIso, 1);
     const updates: FocusOrderUpdate[] = [
       {
         id: sourceTaskId,
         focusOrder: 1,
-        scheduledDate: selectedDayIso,
-        scheduledTime: null,
-        plannedTime: null,
+        scheduledDate: dayPatch.scheduled_date,
+        scheduledTime: dayPatch.scheduled_time,
+        plannedTime: dayPatch.planned_time,
         scheduleLocked: false,
       },
       ...pendingTasks.map((task, index) => ({
@@ -3561,7 +3687,76 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       })),
     ];
     reorderFocusTasks.mutate(updates);
-  }, [draggingTaskId, findTaskById, pendingTasks, reorderFocusTasks, selectedDayIso]);
+    notifyBoardMoveSuccess("toToday");
+  }, [
+    draggingTaskId,
+    findTaskById,
+    isTaskLockedForBoardMove,
+    notifyBoardMoveSuccess,
+    notifyLockedBoardMove,
+    pendingTasks,
+    reorderFocusTasks,
+    selectedDayIso,
+  ]);
+
+  const handleMoveTaskToEnd = useCallback(
+    (taskId: string) => {
+      if (isTaskLockedForBoardMove(taskId)) {
+        notifyLockedBoardMove();
+        return;
+      }
+      const sourceIndex = pendingTasks.findIndex((task) => task.id === taskId);
+      if (sourceIndex >= 0) {
+        const crossesLocked = pendingTasks
+          .slice(sourceIndex + 1)
+          .some((task) => isTaskLockedForBoardMove(task.id));
+        if (crossesLocked) {
+          notifyLockedBoardMove();
+          return;
+        }
+        const ordered = [...pendingTasks];
+        const [moved] = ordered.splice(sourceIndex, 1);
+        ordered.push(moved);
+        reorderFocusTasks.mutate(
+          ordered.map((task, index) => ({
+            id: task.id,
+            focusOrder: index + 1,
+          }))
+        );
+        notifyBoardMoveSuccess("toEnd");
+        return;
+      }
+
+      const sourceTask = findTaskById(taskId);
+      if (!sourceTask) return;
+      const dayPatch = buildMoveToDayPatch(selectedDayIso, pendingTasks.length + 1);
+      const updates: FocusOrderUpdate[] = [
+        ...pendingTasks.map((task, index) => ({
+          id: task.id,
+          focusOrder: index + 1,
+        })),
+        {
+          id: taskId,
+          focusOrder: pendingTasks.length + 1,
+          scheduledDate: dayPatch.scheduled_date,
+          scheduledTime: dayPatch.scheduled_time,
+          plannedTime: dayPatch.planned_time,
+          scheduleLocked: false,
+        },
+      ];
+      reorderFocusTasks.mutate(updates);
+      notifyBoardMoveSuccess("toToday");
+    },
+    [
+      findTaskById,
+      isTaskLockedForBoardMove,
+      notifyBoardMoveSuccess,
+      notifyLockedBoardMove,
+      pendingTasks,
+      reorderFocusTasks,
+      selectedDayIso,
+    ]
+  );
 
   const handleOpenTaskDetails = useCallback((taskId: string) => {
     setDetailTaskId(taskId);
@@ -4095,8 +4290,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     setPendingAutoPlanReason(reason);
   }, []);
 
-  type AutoPlanMode = "full" | "order" | "time";
-
   const runAutoPlanning = useCallback(
     (reason: string, mode: AutoPlanMode = "full") => {
       if (autoPlanningRef.current) return false;
@@ -4115,13 +4308,19 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         if (inProgressTask) return true;
       }
 
-      const shouldReorder = mode !== "time";
-      const shouldReschedule = mode !== "order";
-
       const planningCandidates = allTodayPending.map<PlanningTaskCandidate>((task, baseIndex) => {
         const draft = readTaskDraft(task);
         return {
           task,
+          draft: {
+            priorityTag: draft.priorityTag,
+            areaTag: draft.areaTag,
+            scheduleLocked: Boolean(draft.scheduleLocked),
+            scheduledDate: draft.scheduledDate || "",
+            scheduledTime: draft.scheduledTime || "",
+            plannedTime: draft.plannedTime || "",
+            estimatedMinutes: Number(draft.estimatedMinutes || 0),
+          },
           rank: priorityRank(draft.priorityTag),
           tagKey: normalizeAreaTagForPlanning(draft.areaTag),
           isLocked: Boolean(draft.scheduleLocked),
@@ -4129,163 +4328,31 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         };
       });
 
-      const orderedCandidates = shouldReorder
-        ? buildBalancedOrderWithLockedAnchors(planningCandidates)
-        : planningCandidates;
-
       const now = new Date();
       const startMinutes =
         now.getHours() * 60 +
         now.getMinutes() +
         Math.max(0, Math.round(planStartOffsetMinutes));
       const endMinutes = toMinutes(DAY_END_TIME);
-      let cursor = Math.max(0, Math.min(endMinutes, startMinutes));
-      let reachedDayEnd = false;
-      let reorderedCount = 0;
-      let scheduledCount = 0;
-      let unscheduledOverflowCount = 0;
-      let lockedPreservedCount = 0;
-
-      const updateById = new Map<string, FocusOrderUpdate>();
-      const stageUpdate = (next: FocusOrderUpdate) => {
-        const current = updateById.get(next.id);
-        if (!current) {
-          updateById.set(next.id, next);
-          return;
-        }
-        updateById.set(next.id, { ...current, ...next });
-      };
-
-      orderedCandidates.forEach((candidate, index) => {
-        const task = candidate.task;
-        const draft = readTaskDraft(task);
-        const currentFocus = getTaskFocusOrder(task);
-        const nextFocus = index + 1;
-        const estimate = Math.max(5, Number(draft.estimatedMinutes || 30));
-        const areaKey = String(draft.areaTag || "").trim().toLowerCase();
-        const factor = areaBufferFactor.byArea.get(areaKey) || areaBufferFactor.fallback;
-        const bufferMinutes = Math.min(
-          60,
-          Math.max(0, Math.round(estimate * Math.max(0, factor - 1)))
-        );
-
-        if (candidate.isLocked) {
-          lockedPreservedCount += 1;
-          if (shouldReschedule && !reachedDayEnd) {
-            if (draft.scheduledTime) {
-              cursor = Math.max(cursor, toMinutes(draft.scheduledTime));
-            }
-            cursor += estimate + bufferMinutes;
-            if (cursor >= endMinutes) {
-              reachedDayEnd = true;
-            }
-          }
-          return;
-        }
-
-        if (shouldReorder && currentFocus !== nextFocus) {
-          stageUpdate({
-            id: task.id,
-            focusOrder: nextFocus,
-          });
-          reorderedCount += 1;
-        }
-
-        if (!shouldReschedule) return;
-
-        if (reachedDayEnd) {
-          const currentDate = draft.scheduledDate || "";
-          const currentTime = draft.scheduledTime || "";
-          const currentPlanned = draft.plannedTime || draft.scheduledTime || "";
-          if (
-            currentDate !== selectedDayIso ||
-            currentTime ||
-            currentPlanned
-          ) {
-            stageUpdate({
-              id: task.id,
-              focusOrder: shouldReorder ? nextFocus : currentFocus,
-              scheduledDate: selectedDayIso,
-              scheduledTime: null,
-              plannedTime: null,
-            });
-            unscheduledOverflowCount += 1;
-          }
-          return;
-        }
-
-        const nextStart = cursor;
-        const nextEnd = nextStart + estimate + bufferMinutes;
-        if (nextStart >= endMinutes) {
-          reachedDayEnd = true;
-          const currentDate = draft.scheduledDate || "";
-          const currentTime = draft.scheduledTime || "";
-          const currentPlanned = draft.plannedTime || draft.scheduledTime || "";
-          if (
-            currentDate !== selectedDayIso ||
-            currentTime ||
-            currentPlanned
-          ) {
-            stageUpdate({
-              id: task.id,
-              focusOrder: shouldReorder ? nextFocus : currentFocus,
-              scheduledDate: selectedDayIso,
-              scheduledTime: null,
-              plannedTime: null,
-            });
-            unscheduledOverflowCount += 1;
-          }
-          return;
-        }
-
-        const nextTime = toTime(nextStart);
-        const currentDate = draft.scheduledDate || "";
-        const currentTime = draft.scheduledTime || "";
-        const currentPlanned = draft.plannedTime || draft.scheduledTime || "";
-        if (
-          currentDate !== selectedDayIso ||
-          currentTime !== nextTime ||
-          currentPlanned !== nextTime
-        ) {
-          stageUpdate({
-            id: task.id,
-            focusOrder: shouldReorder ? nextFocus : currentFocus,
-            scheduledDate: selectedDayIso,
-            scheduledTime: nextTime,
-            plannedTime: nextTime,
-          });
-          scheduledCount += 1;
-        }
-        cursor = nextEnd;
-        if (cursor >= endMinutes) {
-          reachedDayEnd = true;
-        }
+      const { updates, stats } = buildAutoPlanUpdates({
+        mode,
+        candidates: planningCandidates,
+        selectedDayIso,
+        startMinutes,
+        endMinutes,
+        areaBufferByKey: areaBufferFactor.byArea,
+        areaBufferFallback: areaBufferFactor.fallback,
       });
-
-      const updates = Array.from(updateById.values());
 
       const shouldReport = reason.startsWith("manual-") || reason === "new-task";
       if (shouldReport) {
-        const modeLabel =
-          mode === "order" ? "Auto reordenar" : mode === "time" ? "Auto horários" : "Auto planejamento";
-        const detail: string[] = [];
-        if (shouldReorder) detail.push(`${reorderedCount} reordenadas`);
-        if (shouldReschedule) detail.push(`${scheduledCount} com horário`);
-        if (shouldReschedule && unscheduledOverflowCount > 0) {
-          detail.push(`${unscheduledOverflowCount} sem horário (após ${DAY_END_TIME})`);
-        }
-        if (lockedPreservedCount > 0) {
-          detail.push(`${lockedPreservedCount} travadas preservadas`);
-        }
-        setAutoPlanNotice(
-          detail.length ? `${modeLabel}: ${detail.join(" · ")}` : `${modeLabel}: sem mudanças necessárias.`
-        );
+        setAutoPlanNotice(formatAutoPlanNotice(mode, stats, DAY_END_TIME));
       }
 
       if (!updates.length) return true;
 
       autoPlanningRef.current = true;
-      reorderFocusTasks.mutate(updates, {
+      reorderFocusTasks.mutate(updates as FocusOrderUpdate[], {
         onSettled: () => {
           autoPlanningRef.current = false;
         },
@@ -4295,6 +4362,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     [
       areaBufferFactor.byArea,
       areaBufferFactor.fallback,
+      buildAutoPlanUpdates,
+      formatAutoPlanNotice,
       planStartOffsetMinutes,
       readTaskDraft,
       reorderFocusTasks,
@@ -4343,6 +4412,107 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const handleAutoRescheduleNow = useCallback(() => {
     runAutoPlanning("manual-time", "time");
   }, [runAutoPlanning]);
+
+  const renderTodayTaskRow = useCallback(
+    (task: TodoTask) => {
+      const draft = readTaskDraft(task);
+      const shareUi = getTaskSharePresentation(task);
+      return (
+        <EditableTaskRow
+          key={task.id}
+          task={task}
+          draft={draft}
+          effort={getTaskEffort(task)}
+          area={getTaskAreaMeta(draft.areaTag, taskAreas)}
+          expanded={isTaskExpanded(task)}
+          active={detailTaskId === task.id}
+          saving={savingTaskId === task.id}
+          saved={savedTaskId === task.id}
+          scheduleLocked={Boolean(draft.scheduleLocked)}
+          taskAreas={taskAreas}
+          creatingArea={createTaskArea.isPending}
+          onToggleDone={requestToggleTaskDone}
+          onToggleMissed={requestToggleTaskMissed}
+          onToggleExpanded={handleToggleTaskExpanded}
+          onToggleSubtaskDone={handleToggleSubtaskDone}
+          onOpenDetails={handleOpenTaskDetails}
+          onPriorityTagChange={handleTaskPriorityChange}
+          onAreaTagChange={handleTaskAreaChange}
+          onToggleScheduleLock={handleTaskScheduleLockToggle}
+          onCreateAreaTag={handleCreateTaskAreaForTask}
+          onUnscheduleToday={handleUnscheduleToday}
+          onScheduleTomorrow={handleScheduleTomorrow}
+          onMoveToTop={handleSetTaskNext}
+          onMoveToEnd={handleMoveTaskToEnd}
+          onMoveToBacklog={handleUnscheduleToday}
+          onMarkStarted={handleMarkStarted}
+          onMarkNeedsFinish={handleMarkNeedsFinish}
+          onResumeTask={handleResumeTask}
+          onSetNext={handleSetTaskNext}
+          onMoveFocus={handleMoveFocusTask}
+          onDelete={handleDeleteTask}
+          onShare={shareUi.canToggle ? handleShareTask : undefined}
+          sharing={sharingTaskId === task.id}
+          contextDate={selectedDayIso}
+          focusPosition={executionPositionByTaskId.get(task.id) || null}
+          canMoveFocusUp={(executionPositionByTaskId.get(task.id) || 0) > 1}
+          canMoveFocusDown={(executionPositionByTaskId.get(task.id) || 0) < pendingTasks.length}
+          showOrderControls={pendingTasks.length > 1}
+          showInlineNext={pendingTasks[0]?.id !== task.id}
+          subtaskSavingId={savingSubtaskId}
+          shareLabel={shareUi.label}
+          shareActionLabel={shareUi.actionLabel}
+          draggable={!draft.scheduleLocked && pendingTasks.length > 0}
+          dragging={draggingTaskId === task.id}
+          dropTarget={Boolean(draggingTaskId && dragOverTaskId === task.id && draggingTaskId !== task.id)}
+          onDragStartTask={handleDragTaskStart}
+          onDragOverTask={handleDragTaskOver}
+          onDropTask={handleDropTask}
+          onDragEndTask={handleDragTaskEnd}
+          showMobileMoveActions={!draft.isDone}
+        />
+      );
+    },
+    [
+      createTaskArea.isPending,
+      detailTaskId,
+      dragOverTaskId,
+      draggingTaskId,
+      executionPositionByTaskId,
+      getTaskEffort,
+      handleCreateTaskAreaForTask,
+      handleDeleteTask,
+      handleDragTaskEnd,
+      handleDragTaskOver,
+      handleDragTaskStart,
+      handleMarkNeedsFinish,
+      handleMarkStarted,
+      handleMoveFocusTask,
+      handleMoveTaskToEnd,
+      handleOpenTaskDetails,
+      handleResumeTask,
+      handleScheduleTomorrow,
+      handleSetTaskNext,
+      handleShareTask,
+      handleTaskAreaChange,
+      handleTaskPriorityChange,
+      handleTaskScheduleLockToggle,
+      handleToggleSubtaskDone,
+      handleToggleTaskExpanded,
+      isTaskExpanded,
+      pendingTasks,
+      readTaskDraft,
+      requestToggleTaskDone,
+      requestToggleTaskMissed,
+      savingSubtaskId,
+      savingTaskId,
+      savedTaskId,
+      selectedDayIso,
+      sharingTaskId,
+      taskAreas,
+      handleUnscheduleToday,
+    ]
+  );
 
   const readEstimationDraft = useCallback(
     (taskId: string, estimatedMinutes: number, actualMinutes: number) => {
@@ -4545,6 +4715,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             />
           ) : null}
           {taskSaveError ? <InlineActionNotice tone="warning" body={taskSaveError} /> : null}
+          {boardActionNotice ? (
+            <InlineActionNotice tone={boardActionNotice.tone} body={boardActionNotice.body} />
+          ) : null}
           {taskShareNotice ? <InlineActionNotice tone="success" body={taskShareNotice} /> : null}
         </div>
 
@@ -4603,63 +4776,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 handleDropTaskAtEnd();
               }}
             >
-              {pendingTasks.map((task) => {
-                const draft = readTaskDraft(task);
-                const shareUi = getTaskSharePresentation(task);
-                return (
-                  <EditableTaskRow
-                    key={task.id}
-                    task={task}
-                    draft={draft}
-                    effort={getTaskEffort(task)}
-                    area={getTaskAreaMeta(draft.areaTag, taskAreas)}
-                    expanded={isTaskExpanded(task)}
-                    active={detailTaskId === task.id}
-                    saving={savingTaskId === task.id}
-                    saved={savedTaskId === task.id}
-                    scheduleLocked={Boolean(draft.scheduleLocked)}
-                    taskAreas={taskAreas}
-                    creatingArea={createTaskArea.isPending}
-                    onToggleDone={requestToggleTaskDone}
-                    onToggleMissed={requestToggleTaskMissed}
-                    onToggleExpanded={handleToggleTaskExpanded}
-                    onToggleSubtaskDone={handleToggleSubtaskDone}
-                    onOpenDetails={handleOpenTaskDetails}
-                    onPriorityTagChange={handleTaskPriorityChange}
-                    onAreaTagChange={handleTaskAreaChange}
-                    onToggleScheduleLock={handleTaskScheduleLockToggle}
-                    onCreateAreaTag={handleCreateTaskAreaForTask}
-                    onUnscheduleToday={handleUnscheduleToday}
-                    onScheduleTomorrow={handleScheduleTomorrow}
-                    onMarkStarted={handleMarkStarted}
-                    onMarkNeedsFinish={handleMarkNeedsFinish}
-                    onResumeTask={handleResumeTask}
-                    onSetNext={handleSetTaskNext}
-                    onMoveFocus={handleMoveFocusTask}
-                    onDelete={handleDeleteTask}
-                    onShare={shareUi.canToggle ? handleShareTask : undefined}
-                    sharing={sharingTaskId === task.id}
-                    contextDate={selectedDayIso}
-                    focusPosition={executionPositionByTaskId.get(task.id) || null}
-                    canMoveFocusUp={(executionPositionByTaskId.get(task.id) || 0) > 1}
-                    canMoveFocusDown={
-                      (executionPositionByTaskId.get(task.id) || 0) < pendingTasks.length
-                    }
-                    showOrderControls={pendingTasks.length > 1}
-                    showInlineNext={pendingTasks[0]?.id !== task.id}
-                    subtaskSavingId={savingSubtaskId}
-                    shareLabel={shareUi.label}
-                    shareActionLabel={shareUi.actionLabel}
-                    draggable={pendingTasks.length > 0}
-                    dragging={draggingTaskId === task.id}
-                    dropTarget={Boolean(draggingTaskId && dragOverTaskId === task.id && draggingTaskId !== task.id)}
-                    onDragStartTask={handleDragTaskStart}
-                    onDragOverTask={handleDragTaskOver}
-                    onDropTask={handleDropTask}
-                    onDragEndTask={handleDragTaskEnd}
-                  />
-                );
-              })}
+              {timedPendingTasks.length ? (
+                <p className="calendar-day-subtitle">Planned with time ({timedPendingTasks.length})</p>
+              ) : null}
+              {timedPendingTasks.map((task) => renderTodayTaskRow(task))}
+              {noTimePendingTasks.length ? (
+                <p className="calendar-day-subtitle">Today without time ({noTimePendingTasks.length})</p>
+              ) : null}
+              {noTimePendingTasks.map((task) => renderTodayTaskRow(task))}
               {draggingTaskId ? (
                 <div
                   className="task-drop-slot active"
@@ -4753,6 +4877,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     onToggleScheduleLock={handleTaskScheduleLockToggle}
                     onCreateAreaTag={handleCreateTaskAreaForTask}
                     onScheduleToday={handleScheduleToday}
+                    onMoveToToday={handleScheduleToday}
                     onMarkStarted={handleMarkStarted}
                     onMarkNeedsFinish={handleMarkNeedsFinish}
                     onResumeTask={handleResumeTask}
@@ -4766,13 +4891,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     subtaskSavingId={savingSubtaskId}
                     shareLabel={shareUi.label}
                     shareActionLabel={shareUi.actionLabel}
-                    draggable
+                    draggable={!draft.scheduleLocked}
                     dragging={draggingTaskId === task.id}
                     dropTarget={Boolean(draggingTaskId && dragOverTaskId === task.id && draggingTaskId !== task.id)}
                     onDragStartTask={handleDragTaskStart}
                     onDragOverTask={handleDragTaskOver}
                     onDropTask={handleDropTaskToBacklogFromRow}
                     onDragEndTask={handleDragTaskEnd}
+                    showMobileMoveActions={!draft.isDone}
                   />
                 );
               })}
@@ -4808,6 +4934,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     onToggleScheduleLock={handleTaskScheduleLockToggle}
                     onCreateAreaTag={handleCreateTaskAreaForTask}
                     onScheduleToday={handleScheduleToday}
+                    onMoveToToday={handleScheduleToday}
                     onMarkStarted={handleMarkStarted}
                     onMarkNeedsFinish={handleMarkNeedsFinish}
                     onResumeTask={handleResumeTask}
@@ -4826,13 +4953,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     subtaskSavingId={savingSubtaskId}
                     shareLabel={shareUi.label}
                     shareActionLabel={shareUi.actionLabel}
-                    draggable
+                    draggable={!draft.scheduleLocked}
                     dragging={draggingTaskId === task.id}
                     dropTarget={Boolean(draggingTaskId && dragOverTaskId === task.id && draggingTaskId !== task.id)}
                     onDragStartTask={handleDragTaskStart}
                     onDragOverTask={handleDragTaskOver}
                     onDropTask={handleDropTaskToBacklogFromRow}
                     onDragEndTask={handleDragTaskEnd}
+                    showMobileMoveActions={!draft.isDone}
                   />
                 );
               })}

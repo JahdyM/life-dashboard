@@ -2270,6 +2270,23 @@ button.link.danger {
   margin-left: 25px;
 }
 
+.task-row-mobile-actions {
+  display: none;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-left: 25px;
+}
+
+.task-row-mobile-action {
+  min-height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  color: #e7dccb;
+  font-size: 11px;
+  padding: 0 10px;
+}
+
 .task-row-quick-field {
   display: inline-flex;
   align-items: center;
@@ -2712,6 +2729,14 @@ button.link.danger {
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.calendar-day-subtitle {
+  margin: 2px 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .activity-wheel-head {
@@ -4866,6 +4891,17 @@ button.link.danger {
   }
 
   .task-row-quick-tags {
+    margin-left: 0;
+    padding-left: 25px;
+  }
+
+  .task-row-order-controls,
+  .task-row-next-button {
+    display: none;
+  }
+
+  .task-row-mobile-actions {
+    display: flex;
     margin-left: 0;
     padding-left: 25px;
   }
