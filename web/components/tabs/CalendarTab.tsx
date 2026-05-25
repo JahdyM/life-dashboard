@@ -355,11 +355,16 @@ type EditableTaskRowProps = {
   saving: boolean;
   saved: boolean;
   area: TaskAreaTag | null;
+  taskAreas: TaskAreaTag[];
+  creatingArea: boolean;
   onToggleDone: (task: TodoTask, checked: boolean) => void;
   onToggleMissed: (task: TodoTask, missed: boolean) => void;
   onToggleExpanded: (taskId: string, currentlyExpanded: boolean) => void;
   onToggleSubtaskDone: (task: TodoTask, subtaskId: string, checked: boolean) => void;
   onOpenDetails: (taskId: string) => void;
+  onPriorityTagChange: (task: TodoTask, priorityTag: string) => void;
+  onAreaTagChange: (task: TodoTask, areaKey: string) => void;
+  onCreateAreaTag: (task: TodoTask, label: string) => Promise<TaskAreaTag | null>;
   onScheduleToday?: (taskId: string) => void;
   onUnscheduleToday?: (taskId: string) => void;
   onScheduleTomorrow?: (taskId: string) => void;
@@ -410,11 +415,16 @@ const EditableTaskRow = memo(function EditableTaskRow({
   saving,
   saved,
   area,
+  taskAreas,
+  creatingArea,
   onToggleDone,
   onToggleMissed,
   onToggleExpanded,
   onToggleSubtaskDone,
   onOpenDetails,
+  onPriorityTagChange,
+  onAreaTagChange,
+  onCreateAreaTag,
   onScheduleToday,
   onUnscheduleToday,
   onScheduleTomorrow,
@@ -444,6 +454,8 @@ const EditableTaskRow = memo(function EditableTaskRow({
   onDropTask,
   onDragEndTask,
 }: EditableTaskRowProps) {
+  const [quickAreaLabel, setQuickAreaLabel] = useState("");
+  const [showQuickAreaInput, setShowQuickAreaInput] = useState(false);
   const subtasks = useMemo(
     () =>
       [...(task.subtasks || [])].sort(
@@ -512,6 +524,26 @@ const EditableTaskRow = memo(function EditableTaskRow({
     if (!onShare) return;
     onShare(task.id);
   }, [onShare, task.id]);
+  const handlePriorityTagChange = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      onPriorityTagChange(task, event.target.value);
+    },
+    [onPriorityTagChange, task]
+  );
+  const handleAreaTagChange = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      onAreaTagChange(task, event.target.value);
+    },
+    [onAreaTagChange, task]
+  );
+  const handleCreateQuickArea = useCallback(async () => {
+    const label = quickAreaLabel.trim();
+    if (!label) return;
+    const area = await onCreateAreaTag(task, label);
+    if (!area) return;
+    setQuickAreaLabel("");
+    setShowQuickAreaInput(false);
+  }, [onCreateAreaTag, quickAreaLabel, task]);
   const handleDragStart = useCallback(
     (event: DragEvent<HTMLElement>) => {
       if (!draggable) return;
@@ -751,6 +783,64 @@ const EditableTaskRow = memo(function EditableTaskRow({
             </div>
           </OverflowMenu>
         </div>
+      </div>
+      <div className="task-row-quick-tags">
+        <label className="task-row-quick-field">
+          <span>Priority</span>
+          <select value={draft.priorityTag} onChange={handlePriorityTagChange}>
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+            <option value="Critical">Critical</option>
+          </select>
+        </label>
+        <label className="task-row-quick-field">
+          <span>Tag</span>
+          <select value={draft.areaTag} onChange={handleAreaTagChange}>
+            <option value="">No area</option>
+            {taskAreas.map((taskArea) => (
+              <option key={taskArea.key} value={taskArea.key}>
+                {taskArea.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {showQuickAreaInput ? (
+          <span className="task-row-quick-create">
+            <input
+              type="text"
+              value={quickAreaLabel}
+              onChange={(event) => setQuickAreaLabel(event.target.value)}
+              placeholder="Nova tag"
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void handleCreateQuickArea();
+                } else if (event.key === "Escape") {
+                  event.preventDefault();
+                  setQuickAreaLabel("");
+                  setShowQuickAreaInput(false);
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="task-row-quick-create-btn"
+              onClick={() => void handleCreateQuickArea()}
+              disabled={creatingArea || !quickAreaLabel.trim()}
+            >
+              {creatingArea ? "…" : "Add"}
+            </button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            className="task-row-quick-new-tag"
+            onClick={() => setShowQuickAreaInput(true)}
+          >
+            + Tag
+          </button>
+        )}
       </div>
       {expanded && hasSubtasks ? (
         <div className="task-subtasks">
@@ -2073,7 +2163,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   const handleTaskAreaChange = useCallback(
     (task: TodoTask, areaKey: string) => {
-      const patch = { area_tag: areaKey || null };
+      const nextAreaTag = areaKey || "";
+      setTaskDraft(task.id, { areaTag: nextAreaTag });
+      if ((task.areaTag || "") === nextAreaTag) return;
+      const patch = { area_tag: nextAreaTag || null };
       applyTaskPatchToCache(task.id, patch);
       setSavingTaskId(task.id);
       updateTask.mutate(
@@ -2093,7 +2186,45 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         }
       );
     },
-    [applyTaskPatchToCache, updateTask]
+    [applyTaskPatchToCache, setTaskDraft, updateTask]
+  );
+
+  const handleTaskPriorityChange = useCallback(
+    (task: TodoTask, priorityTag: string) => {
+      const nextPriorityTag = priorityTag || "Medium";
+      setTaskDraft(task.id, { priorityTag: nextPriorityTag });
+      if ((task.priorityTag || "Medium") === nextPriorityTag) return;
+      const patch = { priority_tag: nextPriorityTag };
+      applyTaskPatchToCache(task.id, patch);
+      setSavingTaskId(task.id);
+      updateTask.mutate(
+        { id: task.id, data: patch, syncGoogle: false },
+        {
+          onSuccess: () => {
+            setTaskSaveError(null);
+            setSavingTaskId(null);
+            setSavedTaskId(task.id);
+            window.setTimeout(() => {
+              setSavedTaskId((prev) => (prev === task.id ? null : prev));
+            }, 900);
+          },
+          onError: () => {
+            setSavingTaskId(null);
+          },
+        }
+      );
+    },
+    [applyTaskPatchToCache, setTaskDraft, updateTask]
+  );
+
+  const handleCreateTaskAreaForTask = useCallback(
+    async (task: TodoTask, label: string) => {
+      const area = await handleCreateTaskArea(label);
+      if (!area) return null;
+      handleTaskAreaChange(task, area.key);
+      return area;
+    },
+    [handleCreateTaskArea, handleTaskAreaChange]
   );
 
   const buildTodayPlacementPatch = useCallback(
@@ -3554,11 +3685,16 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     active={detailTaskId === task.id}
                     saving={savingTaskId === task.id}
                     saved={savedTaskId === task.id}
+                    taskAreas={taskAreas}
+                    creatingArea={createTaskArea.isPending}
                     onToggleDone={requestToggleTaskDone}
                     onToggleMissed={requestToggleTaskMissed}
                     onToggleExpanded={handleToggleTaskExpanded}
                     onToggleSubtaskDone={handleToggleSubtaskDone}
                     onOpenDetails={handleOpenTaskDetails}
+                    onPriorityTagChange={handleTaskPriorityChange}
+                    onAreaTagChange={handleTaskAreaChange}
+                    onCreateAreaTag={handleCreateTaskAreaForTask}
                     onUnscheduleToday={handleUnscheduleToday}
                     onScheduleTomorrow={handleScheduleTomorrow}
                     onMarkStarted={handleMarkStarted}
@@ -3622,11 +3758,16 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     active={detailTaskId === task.id}
                     saving={savingTaskId === task.id}
                     saved={savedTaskId === task.id}
+                    taskAreas={taskAreas}
+                    creatingArea={createTaskArea.isPending}
                     onToggleDone={requestToggleTaskDone}
                     onToggleMissed={requestToggleTaskMissed}
                     onToggleExpanded={handleToggleTaskExpanded}
                     onToggleSubtaskDone={handleToggleSubtaskDone}
                     onOpenDetails={handleOpenTaskDetails}
+                    onPriorityTagChange={handleTaskPriorityChange}
+                    onAreaTagChange={handleTaskAreaChange}
+                    onCreateAreaTag={handleCreateTaskAreaForTask}
                     onScheduleToday={handleScheduleToday}
                     onMarkStarted={handleMarkStarted}
                     onMarkNeedsFinish={handleMarkNeedsFinish}
@@ -3681,11 +3822,16 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   active={detailTaskId === task.id}
                   saving={savingTaskId === task.id}
                   saved={savedTaskId === task.id}
+                  taskAreas={taskAreas}
+                  creatingArea={createTaskArea.isPending}
                   onToggleDone={requestToggleTaskDone}
                   onToggleMissed={requestToggleTaskMissed}
                   onToggleExpanded={handleToggleTaskExpanded}
                   onToggleSubtaskDone={handleToggleSubtaskDone}
                   onOpenDetails={handleOpenTaskDetails}
+                  onPriorityTagChange={handleTaskPriorityChange}
+                  onAreaTagChange={handleTaskAreaChange}
+                  onCreateAreaTag={handleCreateTaskAreaForTask}
                   onUnscheduleToday={handleUnscheduleToday}
                   onScheduleTomorrow={handleScheduleTomorrow}
                   onMarkStarted={handleMarkStarted}

@@ -2171,6 +2171,73 @@ button.link.danger {
   display: inline-flex;
 }
 
+.task-row-quick-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: 25px;
+}
+
+.task-row-quick-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.task-row-quick-field select {
+  min-height: 30px;
+  min-width: 100px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(11, 15, 24, 0.72);
+  color: var(--text);
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.task-row-quick-field select:focus-visible,
+.task-row-quick-create input:focus-visible {
+  outline: 2px solid rgba(210, 168, 105, 0.5);
+  outline-offset: 1px;
+}
+
+.task-row-quick-create {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.task-row-quick-create input {
+  min-height: 30px;
+  width: 120px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(11, 15, 24, 0.72);
+  color: var(--text);
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.task-row-quick-create-btn,
+.task-row-quick-new-tag {
+  min-height: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 0 9px;
+}
+
+.task-row-quick-create-btn:disabled {
+  opacity: 0.5;
+}
+
 .task-row-overflow .overflow-menu-trigger {
   min-width: 30px;
   min-height: 30px;
@@ -4600,6 +4667,11 @@ button.link.danger {
 
   .task-row-menu {
     grid-column: 3 / 4;
+  }
+
+  .task-row-quick-tags {
+    margin-left: 0;
+    padding-left: 25px;
   }
 
   .task-detail-footer {
