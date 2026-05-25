@@ -1789,6 +1789,22 @@ button.link.danger {
   gap: 8px;
 }
 
+.task-drop-slot {
+  border: 1px dashed rgba(211, 173, 112, 0.38);
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: 11px;
+  color: #d7cdbf;
+  text-align: center;
+  background: rgba(211, 173, 112, 0.06);
+}
+
+.task-drop-slot.active {
+  border-color: rgba(211, 173, 112, 0.7);
+  background: rgba(211, 173, 112, 0.16);
+  color: #fff2d8;
+}
+
 .task-row {
   border: 1px solid var(--border-soft);
   border-radius: 14px;
@@ -2721,6 +2737,12 @@ button.link.danger {
   margin: 6px 0 0;
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.activity-wheel-plan-feedback {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: #d8ccb7;
 }
 
 .activity-wheel-controls {

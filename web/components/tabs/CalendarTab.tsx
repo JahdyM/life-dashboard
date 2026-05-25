@@ -433,18 +433,15 @@ function pickBalancedCandidate(
   if (!pool.length) return undefined;
 
   const ranked = [...pool].sort(comparePlanningCandidates);
-  const bestOverall = ranked[0];
+  const topRank = ranked[0].rank;
+  const nearTopByPriority = ranked.filter((candidate) => candidate.rank >= topRank - 1);
   const alternativesByTag = previousTag
-    ? ranked.filter((candidate) => candidate.tagKey !== previousTag)
-    : ranked;
+    ? nearTopByPriority.filter((candidate) => candidate.tagKey !== previousTag)
+    : nearTopByPriority;
 
-  let selectedPool = ranked;
+  let selectedPool = nearTopByPriority;
   if (previousTag && alternativesByTag.length) {
-    const bestAlternative = alternativesByTag[0];
-    // Keep priority first, but alternate tag when the drop is only one level.
-    if (bestAlternative.rank >= bestOverall.rank - 1) {
-      selectedPool = alternativesByTag;
-    }
+    selectedPool = alternativesByTag;
   }
 
   if (previousRank >= 3 && heavyStreak >= 2) {
@@ -1234,6 +1231,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [quickNoteSavedAt, setQuickNoteSavedAt] = useState<number | null>(null);
   const [quickNoteDrafts, setQuickNoteDrafts] = useState<Record<string, string>>({});
   const [pendingAutoPlanReason, setPendingAutoPlanReason] = useState<string | null>(null);
+  const [autoPlanNotice, setAutoPlanNotice] = useState<string | null>(null);
   const autoPlanningRef = useRef(false);
 
   useEffect(() => {
@@ -1314,6 +1312,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     () => format(selectedDate, "yyyy-MM-dd"),
     [selectedDate]
   );
+  useEffect(() => {
+    setAutoPlanNotice(null);
+  }, [selectedDayIso]);
+
   const overdueRange = useMemo(() => {
     const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
     const start = format(subDays(weekStart, 7), "yyyy-MM-dd");
@@ -3403,7 +3405,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
       const ordered = [...pendingTasks];
       const [moved] = ordered.splice(sourceIndex, 1);
-      const insertIndex = targetIndex;
+      const insertIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
       ordered.splice(Math.max(0, insertIndex), 0, moved);
 
       reorderFocusTasks.mutate(
@@ -3415,6 +3417,47 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     },
     [draggingTaskId, overdueTasks, pendingTasks, reorderFocusTasks, selectedDayIso, tasks]
   );
+
+  const handleDropTaskAtEnd = useCallback(() => {
+    const sourceTaskId = draggingTaskId;
+    setDraggingTaskId(null);
+    setDragOverTaskId(null);
+    if (!sourceTaskId) return;
+
+    const sourceIndex = pendingTasks.findIndex((task) => task.id === sourceTaskId);
+    if (sourceIndex >= 0) {
+      const ordered = [...pendingTasks];
+      const [moved] = ordered.splice(sourceIndex, 1);
+      ordered.push(moved);
+      reorderFocusTasks.mutate(
+        ordered.map((task, index) => ({
+          id: task.id,
+          focusOrder: index + 1,
+        }))
+      );
+      return;
+    }
+
+    const sourceTask =
+      tasks.find((task) => task.id === sourceTaskId) ||
+      overdueTasks.find((task) => task.id === sourceTaskId);
+    if (!sourceTask) return;
+
+    const updates: FocusOrderUpdate[] = [
+      ...pendingTasks.map((task, index) => ({
+        id: task.id,
+        focusOrder: index + 1,
+      })),
+      {
+        id: sourceTaskId,
+        focusOrder: pendingTasks.length + 1,
+        scheduledDate: selectedDayIso,
+        scheduledTime: null,
+        plannedTime: null,
+      },
+    ];
+    reorderFocusTasks.mutate(updates);
+  }, [draggingTaskId, overdueTasks, pendingTasks, reorderFocusTasks, selectedDayIso, tasks]);
 
   const handleDropTaskAtStart = useCallback(() => {
     const sourceTaskId = draggingTaskId;
@@ -3992,7 +4035,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   type AutoPlanMode = "full" | "order" | "time";
 
   const runAutoPlanning = useCallback(
-    (_reason: string, mode: AutoPlanMode = "full") => {
+    (reason: string, mode: AutoPlanMode = "full") => {
       if (autoPlanningRef.current) return false;
       if (reorderFocusTasks.isPending || tasksQuery.isPending) return false;
 
@@ -4035,6 +4078,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       const endMinutes = toMinutes(DAY_END_TIME);
       let cursor = Math.max(0, Math.min(endMinutes, startMinutes));
       let reachedDayEnd = false;
+      let reorderedCount = 0;
+      let scheduledCount = 0;
+      let unscheduledOverflowCount = 0;
+      let lockedPreservedCount = 0;
 
       const updateById = new Map<string, FocusOrderUpdate>();
       const stageUpdate = (next: FocusOrderUpdate) => {
@@ -4060,6 +4107,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         );
 
         if (candidate.isLocked) {
+          lockedPreservedCount += 1;
           if (shouldReschedule && !reachedDayEnd) {
             if (draft.scheduledTime) {
               cursor = Math.max(cursor, toMinutes(draft.scheduledTime));
@@ -4077,14 +4125,53 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             id: task.id,
             focusOrder: nextFocus,
           });
+          reorderedCount += 1;
         }
 
-        if (!shouldReschedule || reachedDayEnd) return;
+        if (!shouldReschedule) return;
+
+        if (reachedDayEnd) {
+          const currentDate = draft.scheduledDate || "";
+          const currentTime = draft.scheduledTime || "";
+          const currentPlanned = draft.plannedTime || draft.scheduledTime || "";
+          if (
+            currentDate !== selectedDayIso ||
+            currentTime ||
+            currentPlanned
+          ) {
+            stageUpdate({
+              id: task.id,
+              focusOrder: shouldReorder ? nextFocus : currentFocus,
+              scheduledDate: selectedDayIso,
+              scheduledTime: null,
+              plannedTime: null,
+            });
+            unscheduledOverflowCount += 1;
+          }
+          return;
+        }
 
         const nextStart = cursor;
         const nextEnd = nextStart + estimate + bufferMinutes;
         if (nextStart >= endMinutes) {
           reachedDayEnd = true;
+          const currentDate = draft.scheduledDate || "";
+          const currentTime = draft.scheduledTime || "";
+          const currentPlanned = draft.plannedTime || draft.scheduledTime || "";
+          if (
+            currentDate !== selectedDayIso ||
+            currentTime ||
+            currentPlanned
+          ) {
+            stageUpdate({
+              id: task.id,
+              focusOrder: shouldReorder ? nextFocus : currentFocus,
+              scheduledDate: selectedDayIso,
+              scheduledTime: null,
+              plannedTime: null,
+            });
+            unscheduledOverflowCount += 1;
+          }
           return;
         }
 
@@ -4104,6 +4191,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             scheduledTime: nextTime,
             plannedTime: nextTime,
           });
+          scheduledCount += 1;
         }
         cursor = nextEnd;
         if (cursor >= endMinutes) {
@@ -4112,6 +4200,25 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       });
 
       const updates = Array.from(updateById.values());
+
+      const shouldReport = reason.startsWith("manual-") || reason === "new-task";
+      if (shouldReport) {
+        const modeLabel =
+          mode === "order" ? "Auto reordenar" : mode === "time" ? "Auto horários" : "Auto planejamento";
+        const detail: string[] = [];
+        if (shouldReorder) detail.push(`${reorderedCount} reordenadas`);
+        if (shouldReschedule) detail.push(`${scheduledCount} com horário`);
+        if (shouldReschedule && unscheduledOverflowCount > 0) {
+          detail.push(`${unscheduledOverflowCount} sem horário (após ${DAY_END_TIME})`);
+        }
+        if (lockedPreservedCount > 0) {
+          detail.push(`${lockedPreservedCount} travadas preservadas`);
+        }
+        setAutoPlanNotice(
+          detail.length ? `${modeLabel}: ${detail.join(" · ")}` : `${modeLabel}: sem mudanças necessárias.`
+        );
+      }
+
       if (!updates.length) return true;
 
       autoPlanningRef.current = true;
@@ -4129,6 +4236,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       readTaskDraft,
       reorderFocusTasks,
       selectedDayIso,
+      setAutoPlanNotice,
       tasksForDay,
       tasksQuery.isPending,
     ]
@@ -4478,6 +4586,20 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   />
                 );
               })}
+              {draggingTaskId ? (
+                <div
+                  className="task-drop-slot active"
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    handleDropTaskAtEnd();
+                  }}
+                >
+                  Solte aqui para enviar para o fim da lista
+                </div>
+              ) : null}
             </div>
           ) : (
             <div
@@ -5061,6 +5183,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               </button>
             </div>
           </div>
+          {autoPlanNotice ? (
+            <p className="activity-wheel-plan-feedback">{autoPlanNotice}</p>
+          ) : null}
 
           <div className="activity-wheel-controls">
             <label className="activity-wheel-toggle">
