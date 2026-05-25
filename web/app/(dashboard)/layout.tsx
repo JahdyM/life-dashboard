@@ -2,8 +2,8 @@ import { ReactNode } from "react";
 import Link from "next/link";
 import { AppNav, LogoutButton } from "@/components/AppNav";
 import DashboardFreshness from "@/components/DashboardFreshness";
-import WordOfDayWidget from "@/components/WordOfDayWidget";
 import YesterdayCatchupModal from "@/components/YesterdayCatchupModal";
+import DissertationDeadlinesWidget from "@/components/DissertationDeadlinesWidget";
 import { Providers } from "@/app/providers";
 import { getDashboardShellData } from "@/lib/server/dashboard";
 import { getMoodMeta } from "@/lib/moods";
@@ -116,8 +116,8 @@ export default async function DashboardLayout({
           </article>
         </section>
 
-        <section className="shell-study-strip" aria-label="Daily study widgets">
-          <WordOfDayWidget dateIso={shell.todayIso} />
+        <section className="shell-study-strip" aria-label="Prazos da dissertação">
+          <DissertationDeadlinesWidget userEmail={userEmail} todayIso={shell.todayIso} />
         </section>
 
         <main className="shell-main">{children}</main>
