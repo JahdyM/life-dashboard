@@ -123,6 +123,7 @@ type FocusOrderUpdate = {
   scheduledDate?: string | null;
   scheduledTime?: string | null;
   plannedTime?: string | null;
+  scheduleLocked?: boolean | null;
 };
 
 type CalendarViewMode = "timeGridDay" | "timeGridWeek";
@@ -2681,6 +2682,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           if ("scheduledDate" in item) body.scheduled_date = item.scheduledDate ?? null;
           if ("scheduledTime" in item) body.scheduled_time = item.scheduledTime ?? null;
           if ("plannedTime" in item) body.planned_time = item.plannedTime ?? null;
+          if ("scheduleLocked" in item) {
+            body.schedule_locked =
+              item.scheduleLocked === null
+                ? null
+                : item.scheduleLocked
+                  ? 1
+                  : 0;
+          }
           body.sync_google = false;
           return fetchJson(`/api/tasks/${item.id}`, {
             method: "PATCH",
@@ -2715,6 +2724,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 scheduledTime:
                   "scheduledTime" in update ? update.scheduledTime : item.scheduledTime,
                 plannedTime: "plannedTime" in update ? update.plannedTime : item.plannedTime,
+                scheduleLocked:
+                  "scheduleLocked" in update
+                    ? Boolean(update.scheduleLocked)
+                    : item.scheduleLocked,
               };
             }),
           };
@@ -3253,7 +3266,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       updateTask.mutate(
         {
           id: taskId,
-          data: { scheduled_date: selectedDayIso, scheduled_time: null, planned_time: null },
+          data: {
+            scheduled_date: selectedDayIso,
+            scheduled_time: null,
+            planned_time: null,
+            schedule_locked: 0,
+          },
           syncGoogle: false,
         }
       );
@@ -3268,6 +3286,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         scheduled_time: null,
         planned_time: null,
         focus_order: null,
+        schedule_locked: 0,
       };
       applyTaskPatchToCache(taskId, patch);
       updateTask.mutate({
@@ -3287,6 +3306,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         scheduled_time: null,
         planned_time: null,
         focus_order: null,
+        schedule_locked: 0,
       };
       applyTaskPatchToCache(taskId, patch);
       updateTask.mutate({
@@ -3361,6 +3381,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     setDragOverTaskId(null);
   }, []);
 
+  const findTaskById = useCallback(
+    (taskId: string) =>
+      tasks.find((task) => task.id === taskId) ||
+      overdueTasks.find((task) => task.id === taskId),
+    [overdueTasks, tasks]
+  );
+
   const handleDropTask = useCallback(
     (targetTaskId: string) => {
       const sourceTaskId = draggingTaskId;
@@ -3372,9 +3399,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       if (targetIndex < 0) return;
 
       const sourceIndex = pendingTasks.findIndex((task) => task.id === sourceTaskId);
-      const sourceTask =
-        tasks.find((task) => task.id === sourceTaskId) ||
-        overdueTasks.find((task) => task.id === sourceTaskId);
+      const sourceTask = findTaskById(sourceTaskId);
       if (!sourceTask) return;
 
       if (sourceIndex < 0) {
@@ -3388,6 +3413,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               scheduledDate: selectedDayIso,
               scheduledTime: null,
               plannedTime: null,
+              scheduleLocked: false,
             });
             insertCursor += 1;
           }
@@ -3415,7 +3441,46 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         }))
       );
     },
-    [draggingTaskId, overdueTasks, pendingTasks, reorderFocusTasks, selectedDayIso, tasks]
+    [draggingTaskId, findTaskById, pendingTasks, reorderFocusTasks, selectedDayIso]
+  );
+
+  const handleDropTaskToBacklog = useCallback(() => {
+    const sourceTaskId = draggingTaskId;
+    setDraggingTaskId(null);
+    setDragOverTaskId(null);
+    if (!sourceTaskId) return;
+
+    const sourceTask = findTaskById(sourceTaskId);
+    if (!sourceTask) return;
+
+    const alreadyBacklog =
+      !sourceTask.scheduledDate &&
+      !sourceTask.scheduledTime &&
+      !sourceTask.plannedTime &&
+      sourceTask.focusOrder == null &&
+      !sourceTask.scheduleLocked;
+    if (alreadyBacklog) return;
+
+    const patch = {
+      scheduled_date: null,
+      scheduled_time: null,
+      planned_time: null,
+      focus_order: null,
+      schedule_locked: 0,
+    };
+    applyTaskPatchToCache(sourceTaskId, patch);
+    updateTask.mutate({
+      id: sourceTaskId,
+      data: patch,
+      syncGoogle: false,
+    });
+  }, [applyTaskPatchToCache, draggingTaskId, findTaskById, updateTask]);
+
+  const handleDropTaskToBacklogFromRow = useCallback(
+    (_targetTaskId: string) => {
+      handleDropTaskToBacklog();
+    },
+    [handleDropTaskToBacklog]
   );
 
   const handleDropTaskAtEnd = useCallback(() => {
@@ -3438,9 +3503,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       return;
     }
 
-    const sourceTask =
-      tasks.find((task) => task.id === sourceTaskId) ||
-      overdueTasks.find((task) => task.id === sourceTaskId);
+    const sourceTask = findTaskById(sourceTaskId);
     if (!sourceTask) return;
 
     const updates: FocusOrderUpdate[] = [
@@ -3454,10 +3517,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         scheduledDate: selectedDayIso,
         scheduledTime: null,
         plannedTime: null,
+        scheduleLocked: false,
       },
     ];
     reorderFocusTasks.mutate(updates);
-  }, [draggingTaskId, overdueTasks, pendingTasks, reorderFocusTasks, selectedDayIso, tasks]);
+  }, [draggingTaskId, findTaskById, pendingTasks, reorderFocusTasks, selectedDayIso]);
 
   const handleDropTaskAtStart = useCallback(() => {
     const sourceTaskId = draggingTaskId;
@@ -3479,9 +3543,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       return;
     }
 
-    const sourceTask =
-      tasks.find((task) => task.id === sourceTaskId) ||
-      overdueTasks.find((task) => task.id === sourceTaskId);
+    const sourceTask = findTaskById(sourceTaskId);
     if (!sourceTask) return;
 
     const updates: FocusOrderUpdate[] = [
@@ -3491,6 +3553,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         scheduledDate: selectedDayIso,
         scheduledTime: null,
         plannedTime: null,
+        scheduleLocked: false,
       },
       ...pendingTasks.map((task, index) => ({
         id: task.id,
@@ -3498,7 +3561,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       })),
     ];
     reorderFocusTasks.mutate(updates);
-  }, [draggingTaskId, overdueTasks, pendingTasks, reorderFocusTasks, selectedDayIso, tasks]);
+  }, [draggingTaskId, findTaskById, pendingTasks, reorderFocusTasks, selectedDayIso]);
 
   const handleOpenTaskDetails = useCallback((taskId: string) => {
     setDetailTaskId(taskId);
@@ -4528,7 +4591,18 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             </span>
           </div>
           {pendingTasks.length ? (
-            <div className="task-items">
+            <div
+              className="task-items"
+              onDragOver={(event) => {
+                if (!draggingTaskId) return;
+                event.preventDefault();
+              }}
+              onDrop={(event) => {
+                if (!draggingTaskId) return;
+                event.preventDefault();
+                handleDropTaskAtEnd();
+              }}
+            >
               {pendingTasks.map((task) => {
                 const draft = readTaskDraft(task);
                 const shareUi = getTaskSharePresentation(task);
@@ -4630,11 +4704,27 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             </span>
           </div>
           {unscheduledTasks.length || overdueBacklogTasks.length ? (
-            <div className="task-items">
+            <div
+              className="task-items"
+              onDragOver={(event) => {
+                if (!draggingTaskId) return;
+                event.preventDefault();
+              }}
+              onDrop={(event) => {
+                if (!draggingTaskId) return;
+                event.preventDefault();
+                handleDropTaskToBacklog();
+              }}
+            >
               {overdueBacklogTasks.length ? (
                 <p className="calendar-backlog-subtitle">
                   Overdue from last 7 days ({overdueBacklogTasks.length})
                 </p>
+              ) : null}
+              {draggingTaskId ? (
+                <div className="task-drop-slot active">
+                  Solte aqui para mover para Backlog (sem horário)
+                </div>
               ) : null}
               {overdueBacklogTasks.map((task) => {
                 const draft = readTaskDraft(task);
@@ -4681,7 +4771,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     dropTarget={Boolean(draggingTaskId && dragOverTaskId === task.id && draggingTaskId !== task.id)}
                     onDragStartTask={handleDragTaskStart}
                     onDragOverTask={handleDragTaskOver}
-                    onDropTask={handleDropTask}
+                    onDropTask={handleDropTaskToBacklogFromRow}
                     onDragEndTask={handleDragTaskEnd}
                   />
                 );
@@ -4741,7 +4831,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     dropTarget={Boolean(draggingTaskId && dragOverTaskId === task.id && draggingTaskId !== task.id)}
                     onDragStartTask={handleDragTaskStart}
                     onDragOverTask={handleDragTaskOver}
-                    onDropTask={handleDropTask}
+                    onDropTask={handleDropTaskToBacklogFromRow}
                     onDragEndTask={handleDragTaskEnd}
                   />
                 );
