@@ -20,6 +20,8 @@ import {
   ChevronDown,
   ChevronRight,
   GripVertical,
+  Lock,
+  LockOpen,
   Pause,
   Play,
   RotateCcw,
@@ -38,7 +40,7 @@ import { EFFORT_LABELS, type EffortLevel, type EnergySettings } from "@/lib/ener
 import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import { format, addDays, startOfWeek, endOfWeek } from "date-fns";
+import { format, addDays, endOfWeek, startOfWeek, subDays } from "date-fns";
 import { FIXED_SHARED_HABITS } from "@/lib/constants";
 import {
   getHabitDisplayLabel,
@@ -65,6 +67,7 @@ type TaskDraft = {
   isDone?: boolean;
   priorityTag?: string;
   areaTag?: string;
+  scheduleLocked?: boolean;
   scheduledDate?: string;
   scheduledTime?: string;
   plannedTime?: string;
@@ -107,6 +110,9 @@ type CreateTaskInput = {
   title: string;
   scheduledDate: string;
   scheduledTime: string | null;
+  priorityTag: string;
+  areaTag: string;
+  scheduleLocked: boolean;
   estimatedMinutes: number;
   shareWithPartner: boolean;
 };
@@ -333,6 +339,84 @@ function compareTasksForExecution(left: TodoTask, right: TodoTask) {
   return String(left.createdAt).localeCompare(String(right.createdAt));
 }
 
+const AUTO_PLAN_DAY_KEY = "calendar.autoPlan.day.v1";
+const START_OFFSET_MINUTES_KEY = "calendar.planStartOffsetMinutes.v1";
+const DEFAULT_PLAN_START_OFFSET_MINUTES = 10;
+const DAY_END_TIME = "22:00";
+
+function normalizeTaskTitleKey(value: string) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/[^\p{L}\p{N}\s]/gu, "");
+}
+
+function priorityRank(priorityTag: string | null | undefined) {
+  const normalized = String(priorityTag || "Medium").toLowerCase();
+  if (normalized === "critical") return 4;
+  if (normalized === "high") return 3;
+  if (normalized === "medium") return 2;
+  return 1;
+}
+
+function toMinutes(time: string) {
+  const [hourText, minuteText] = String(time || "00:00").split(":");
+  const hour = Number(hourText || 0);
+  const minute = Number(minuteText || 0);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return 0;
+  return hour * 60 + minute;
+}
+
+function toTime(minutes: number) {
+  const clean = Math.max(0, Math.min(24 * 60 - 1, Math.round(minutes)));
+  const hour = Math.floor(clean / 60);
+  const minute = clean % 60;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function balancedPriorityOrder(tasks: TodoTask[]) {
+  const buckets: Record<number, TodoTask[]> = { 4: [], 3: [], 2: [], 1: [] };
+  tasks.forEach((task) => {
+    buckets[priorityRank(task.priorityTag)].push(task);
+  });
+  const pickOrder = [4, 3, 2, 1];
+  const ordered: TodoTask[] = [];
+  let previousRank = 0;
+  let heavyStreak = 0;
+  while (ordered.length < tasks.length) {
+    let picked: TodoTask | null = null;
+    let pickedRank = 0;
+    for (const rank of pickOrder) {
+      if (!buckets[rank].length) continue;
+      const isHeavy = rank >= 3;
+      if (isHeavy && previousRank >= 3 && heavyStreak >= 2) {
+        continue;
+      }
+      picked = buckets[rank].shift() || null;
+      pickedRank = rank;
+      break;
+    }
+    if (!picked) {
+      for (const rank of pickOrder) {
+        if (!buckets[rank].length) continue;
+        picked = buckets[rank].shift() || null;
+        pickedRank = rank;
+        break;
+      }
+    }
+    if (!picked) break;
+    ordered.push(picked);
+    if (pickedRank >= 3) {
+      heavyStreak = previousRank >= 3 ? heavyStreak + 1 : 1;
+    } else {
+      heavyStreak = 0;
+    }
+    previousRank = pickedRank;
+  }
+  return ordered;
+}
+
 type EditableTaskRowProps = {
   task: TodoTask;
   draft: {
@@ -340,6 +424,7 @@ type EditableTaskRowProps = {
     isDone: boolean;
     priorityTag: string;
     areaTag: string;
+    scheduleLocked: boolean;
     scheduledDate: string;
     scheduledTime: string;
     plannedTime: string;
@@ -355,6 +440,7 @@ type EditableTaskRowProps = {
   saving: boolean;
   saved: boolean;
   area: TaskAreaTag | null;
+  scheduleLocked: boolean;
   taskAreas: TaskAreaTag[];
   creatingArea: boolean;
   onToggleDone: (task: TodoTask, checked: boolean) => void;
@@ -364,6 +450,7 @@ type EditableTaskRowProps = {
   onOpenDetails: (taskId: string) => void;
   onPriorityTagChange: (task: TodoTask, priorityTag: string) => void;
   onAreaTagChange: (task: TodoTask, areaKey: string) => void;
+  onToggleScheduleLock: (task: TodoTask, locked: boolean) => void;
   onCreateAreaTag: (task: TodoTask, label: string) => Promise<TaskAreaTag | null>;
   onScheduleToday?: (taskId: string) => void;
   onUnscheduleToday?: (taskId: string) => void;
@@ -415,6 +502,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
   saving,
   saved,
   area,
+  scheduleLocked,
   taskAreas,
   creatingArea,
   onToggleDone,
@@ -424,6 +512,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
   onOpenDetails,
   onPriorityTagChange,
   onAreaTagChange,
+  onToggleScheduleLock,
   onCreateAreaTag,
   onScheduleToday,
   onUnscheduleToday,
@@ -544,6 +633,9 @@ const EditableTaskRow = memo(function EditableTaskRow({
     setQuickAreaLabel("");
     setShowQuickAreaInput(false);
   }, [onCreateAreaTag, quickAreaLabel, task]);
+  const handleToggleScheduleLock = useCallback(() => {
+    onToggleScheduleLock(task, !scheduleLocked);
+  }, [onToggleScheduleLock, scheduleLocked, task]);
   const handleDragStart = useCallback(
     (event: DragEvent<HTMLElement>) => {
       if (!draggable) return;
@@ -638,6 +730,15 @@ const EditableTaskRow = memo(function EditableTaskRow({
           </span>
         ) : null}
         <TaskAreaBadge area={area} />
+        <button
+          type="button"
+          className={`task-row-lock-toggle ${scheduleLocked ? "active" : ""}`}
+          aria-pressed={scheduleLocked}
+          title={scheduleLocked ? "Fixed time locked" : "Enable fixed-time lock"}
+          onClick={handleToggleScheduleLock}
+        >
+          {scheduleLocked ? <Lock size={14} /> : <LockOpen size={14} />}
+        </button>
         {showOrderControls && !draft.isDone ? (
           <div
             className="task-row-order-controls"
@@ -952,6 +1053,51 @@ const DailyHabitRow = memo(function DailyHabitRow({
   );
 });
 
+type TaskTagStatsRow = {
+  key: string;
+  label: string;
+  planned: number;
+  done: number;
+};
+
+function TaskTagBars({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: TaskTagStatsRow[];
+}) {
+  const peak = rows.reduce((max, row) => Math.max(max, row.planned, row.done), 1);
+  return (
+    <article className="calendar-tag-bars-card">
+      <h4>{title}</h4>
+      <div className="calendar-tag-bars-list">
+        {rows.map((row) => (
+          <div key={`${title}-${row.key}`} className="calendar-tag-bars-row">
+            <span className="calendar-tag-bars-label">{row.label}</span>
+            <div className="calendar-tag-bars-metrics">
+              <div
+                className="calendar-tag-bar planned"
+                style={{ width: `${Math.max(8, (row.planned / peak) * 100)}%` }}
+                title={`Planned: ${row.planned}`}
+              >
+                <small>{row.planned}</small>
+              </div>
+              <div
+                className="calendar-tag-bar done"
+                style={{ width: `${Math.max(8, (row.done / peak) * 100)}%` }}
+                title={`Done: ${row.done}`}
+              >
+                <small>{row.done}</small>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+}
+
 export default function CalendarTab({ userEmail: _userEmail }: { userEmail: string }) {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -965,6 +1111,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [newDate, setNewDate] = useState(() => format(new Date(), "yyyy-MM-dd"));
   const [newTime, setNewTime] = useState("");
   const [newEst, setNewEst] = useState(30);
+  const [newPriorityTag, setNewPriorityTag] = useState("Medium");
+  const [newAreaTag, setNewAreaTag] = useState("");
+  const [newScheduleLocked, setNewScheduleLocked] = useState(false);
+  const [planStartOffsetMinutes, setPlanStartOffsetMinutes] = useState(
+    DEFAULT_PLAN_START_OFFSET_MINUTES
+  );
+  const [estimateWasTouched, setEstimateWasTouched] = useState(false);
   const [shareOnCreate, setShareOnCreate] = useState(false);
   const [composerAdvancedOpen, setComposerAdvancedOpen] = useState(false);
   const [wheelOnlyToday, setWheelOnlyToday] = useState(true);
@@ -1003,6 +1156,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [quickNoteText, setQuickNoteText] = useState("");
   const [quickNoteSavedAt, setQuickNoteSavedAt] = useState<number | null>(null);
   const [quickNoteDrafts, setQuickNoteDrafts] = useState<Record<string, string>>({});
+  const [pendingAutoPlanReason, setPendingAutoPlanReason] = useState<string | null>(null);
+  const autoPlanningRef = useRef(false);
+  const autoPlanFingerprintRef = useRef<string>("");
+  const lateResyncKeyRef = useRef<string>("");
 
   useEffect(() => {
     try {
@@ -1047,6 +1204,33 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     }
   }, [calendarView]);
 
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(START_OFFSET_MINUTES_KEY);
+      if (!raw) return;
+      const next = Number(raw);
+      if (!Number.isFinite(next)) return;
+      setPlanStartOffsetMinutes(Math.max(0, Math.min(180, Math.round(next))));
+    } catch (_error) {
+      // ignore storage failures
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        START_OFFSET_MINUTES_KEY,
+        String(planStartOffsetMinutes)
+      );
+    } catch (_error) {
+      // ignore storage failures
+    }
+  }, [planStartOffsetMinutes]);
+
+  useEffect(() => {
+    setPendingAutoPlanReason("offset-change");
+  }, [planStartOffsetMinutes]);
+
   const range = useMemo(() => {
     const start = startOfWeek(selectedDate, { weekStartsOn: 1 });
     const end = endOfWeek(selectedDate, { weekStartsOn: 1 });
@@ -1059,6 +1243,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     () => format(selectedDate, "yyyy-MM-dd"),
     [selectedDate]
   );
+  const overdueRange = useMemo(() => {
+    const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
+    const start = format(subDays(weekStart, 7), "yyyy-MM-dd");
+    const end = format(subDays(weekStart, 1), "yyyy-MM-dd");
+    return { start, end };
+  }, [selectedDate]);
 
   const scrollTime = useMemo(() => {
     const now = new Date(nowTick);
@@ -1179,10 +1369,21 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     queryFn: () =>
       fetchJson<QuickNoteResponse>(`/api/settings/quick-notes/${selectedDayIso}`),
   });
+  const overdueTasksQuery = useQuery({
+    queryKey: ["tasks-overdue", overdueRange.start, overdueRange.end],
+    queryFn: () =>
+      fetchJson<TaskListResponse>(
+        `/api/tasks?start=${overdueRange.start}&end=${overdueRange.end}`
+      ),
+  });
 
   const tasks = useMemo(
     () => tasksQuery.data?.items || [],
     [tasksQuery.data?.items]
+  );
+  const overdueTasks = useMemo(
+    () => overdueTasksQuery.data?.items || [],
+    [overdueTasksQuery.data?.items]
   );
   const taskAreas = useMemo(
     () =>
@@ -1220,6 +1421,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     .filter((task) => !task.isDone)
     .filter((task) => !lowEnergyMode || getTaskEffort(task) === "low")
     .sort(compareTasksForExecution);
+  const overdueBacklogTasks = overdueTasks
+    .filter((task) => !task.isDone)
+    .filter((task) => !task.missedAt)
+    .filter((task) => Boolean(task.scheduledDate))
+    .filter((task) => !lowEnergyMode || getTaskEffort(task) === "low")
+    .sort(compareTasksForExecution);
 
   const setTaskDraft = useCallback((taskId: string, patch: TaskDraft) => {
     setTaskDrafts((prev) => ({
@@ -1247,6 +1454,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       isDone: draft.isDone ?? Boolean(task.isDone),
       priorityTag: draft.priorityTag ?? (task.priorityTag || "Medium"),
       areaTag: draft.areaTag ?? (task.areaTag || ""),
+      scheduleLocked: draft.scheduleLocked ?? Boolean(task.scheduleLocked),
       scheduledDate: draft.scheduledDate ?? (task.scheduledDate || ""),
       scheduledTime: draft.scheduledTime ?? (task.scheduledTime || ""),
       plannedTime:
@@ -1563,6 +1771,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       patch.area_tag = draft.areaTag || null;
     }
     if (
+      typeof draft.scheduleLocked === "boolean" &&
+      draft.scheduleLocked !== Boolean(task.scheduleLocked)
+    ) {
+      patch.schedule_locked = draft.scheduleLocked ? 1 : 0;
+    }
+    if (
       typeof draft.scheduledDate === "string" &&
       draft.scheduledDate !== (task.scheduledDate || "")
     ) {
@@ -1640,6 +1854,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 typeof patch.area_tag === "string" || patch.area_tag === null
                   ? patch.area_tag
                   : item.areaTag ?? null;
+              const nextScheduleLocked =
+                typeof patch.schedule_locked === "number" || patch.schedule_locked === null
+                  ? Boolean(patch.schedule_locked)
+                  : Boolean(item.scheduleLocked);
               const nextScheduledTime =
                 typeof patch.scheduled_time === "string" || patch.scheduled_time === null
                   ? patch.scheduled_time
@@ -1688,6 +1906,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 isDone: "is_done" in patch ? (patch.is_done ? 1 : 0) : item.isDone,
                 priorityTag: nextPriorityTag,
                 areaTag: nextAreaTag,
+                scheduleLocked: nextScheduleLocked,
                 scheduledTime: nextScheduledTime,
                 scheduledDate: nextScheduledDate,
                 plannedTime: nextPlannedTime,
@@ -1796,6 +2015,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           scheduled_date: input.scheduledDate,
           scheduled_time: input.scheduledTime,
           planned_time: input.scheduledTime,
+          priority_tag: input.priorityTag,
+          area_tag: input.areaTag || null,
+          schedule_locked: input.scheduleLocked ? 1 : 0,
           estimated_minutes: input.estimatedMinutes,
           sync_google: false,
         }),
@@ -1822,6 +2044,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       if (variables.shareWithPartner && payload?.task?.id) {
         shareTaskWithPartner.mutate(payload.task.id);
       }
+      setPendingAutoPlanReason("new-task");
       if (variables.scheduledDate && variables.scheduledDate !== selectedDayIso) {
         setSelectedDate(new Date(`${variables.scheduledDate}T12:00:00`));
       }
@@ -1833,6 +2056,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         setNewTitle((current) => current || lastAttempt.title);
         setNewDate(lastAttempt.scheduledDate);
         setNewTime(lastAttempt.scheduledTime || "");
+        setNewPriorityTag(lastAttempt.priorityTag);
+        setNewAreaTag(lastAttempt.areaTag || "");
+        setNewScheduleLocked(lastAttempt.scheduleLocked);
         setNewEst(lastAttempt.estimatedMinutes);
         setShareOnCreate(lastAttempt.shareWithPartner);
         lastCreateAttemptRef.current = null;
@@ -1958,6 +2184,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       }),
     onSuccess: (payload) => {
       setTaskSaveError(payload.warning || null);
+      setPendingAutoPlanReason("new-task");
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
     },
     onError: (error) => {
@@ -2176,6 +2403,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             setTaskSaveError(null);
             setSavingTaskId(null);
             setSavedTaskId(task.id);
+            setPendingAutoPlanReason("area-change");
             window.setTimeout(() => {
               setSavedTaskId((prev) => (prev === task.id ? null : prev));
             }, 900);
@@ -2204,6 +2432,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             setTaskSaveError(null);
             setSavingTaskId(null);
             setSavedTaskId(task.id);
+            setPendingAutoPlanReason("priority-change");
             window.setTimeout(() => {
               setSavedTaskId((prev) => (prev === task.id ? null : prev));
             }, 900);
@@ -2225,6 +2454,34 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       return area;
     },
     [handleCreateTaskArea, handleTaskAreaChange]
+  );
+
+  const handleTaskScheduleLockToggle = useCallback(
+    (task: TodoTask, locked: boolean) => {
+      setTaskDraft(task.id, { scheduleLocked: locked });
+      if (Boolean(task.scheduleLocked) === locked) return;
+      const patch = { schedule_locked: locked ? 1 : 0 };
+      applyTaskPatchToCache(task.id, patch);
+      setSavingTaskId(task.id);
+      updateTask.mutate(
+        { id: task.id, data: patch, syncGoogle: false },
+        {
+          onSuccess: () => {
+            setTaskSaveError(null);
+            setSavingTaskId(null);
+            setSavedTaskId(task.id);
+            setPendingAutoPlanReason("lock-change");
+            window.setTimeout(() => {
+              setSavedTaskId((prev) => (prev === task.id ? null : prev));
+            }, 900);
+          },
+          onError: () => {
+            setSavingTaskId(null);
+          },
+        }
+      );
+    },
+    [applyTaskPatchToCache, setTaskDraft, updateTask]
   );
 
   const buildTodayPlacementPatch = useCallback(
@@ -2397,6 +2654,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     },
     onSuccess: () => {
       setTaskSaveError(null);
+      if (!autoPlanningRef.current) {
+        requestAutoPlanning("manual-reorder");
+      }
       router.refresh();
     },
     onSettled: () => {
@@ -2724,6 +2984,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             ) {
               setSelectedDate(new Date(`${patch.scheduled_date}T12:00:00`));
             }
+            if (
+              "estimated_minutes" in patch ||
+              "priority_tag" in patch ||
+              "area_tag" in patch ||
+              "schedule_locked" in patch
+            ) {
+              setPendingAutoPlanReason("task-edit");
+            }
             window.setTimeout(() => {
               setSavedTaskId((prev) => (prev === task.id ? null : prev));
             }, 1400);
@@ -2792,13 +3060,16 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     setSavingTaskId(task.id);
     updateTask.mutate(
       { id: task.id, data: patch, syncGoogle: false },
-      {
-        onSuccess: () => {
-          setTaskSaveError(null);
-          clearDoneDraft(task.id);
-          syncHabitFromTaskState(task, checked);
-          setSavingTaskId(null);
-          setSavedTaskId(task.id);
+        {
+          onSuccess: () => {
+            setTaskSaveError(null);
+            clearDoneDraft(task.id);
+            syncHabitFromTaskState(task, checked);
+            if (checked) {
+              setPendingAutoPlanReason("task-finished");
+            }
+            setSavingTaskId(null);
+            setSavedTaskId(task.id);
           window.setTimeout(() => {
             setSavedTaskId((prev) => (prev === task.id ? null : prev));
           }, 900);
@@ -2917,11 +3188,18 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   const handleScheduleToday = useCallback(
     (taskId: string) => {
-      updateTask.mutate({
-        id: taskId,
-        data: { scheduled_date: selectedDayIso, scheduled_time: null, planned_time: null },
-        syncGoogle: false,
-      });
+      updateTask.mutate(
+        {
+          id: taskId,
+          data: { scheduled_date: selectedDayIso, scheduled_time: null, planned_time: null },
+          syncGoogle: false,
+        },
+        {
+          onSuccess: () => {
+            setPendingAutoPlanReason("schedule-today");
+          },
+        }
+      );
     },
     [updateTask, selectedDayIso]
   );
@@ -2940,6 +3218,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         data: patch,
         syncGoogle: false,
       });
+      setPendingAutoPlanReason("unschedule");
     },
     [applyTaskPatchToCache, updateTask]
   );
@@ -2959,6 +3238,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         data: patch,
         syncGoogle: false,
       });
+      setPendingAutoPlanReason("schedule-tomorrow");
     },
     [applyTaskPatchToCache, selectedDayIso, updateTask]
   );
@@ -3349,6 +3629,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       title,
       scheduledDate,
       scheduledTime: newTime || null,
+      priorityTag: newPriorityTag || "Medium",
+      areaTag: newAreaTag,
+      scheduleLocked: newScheduleLocked,
       estimatedMinutes: newEst,
       shareWithPartner: shareOnCreate,
     };
@@ -3357,11 +3640,24 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     lastCreateAttemptRef.current = payload;
     setNewTitle("");
     setShareOnCreate(false);
+    setNewScheduleLocked(false);
+    setEstimateWasTouched(false);
     setCalendarSelection(null);
     setComposerAdvancedOpen(false);
 
     createTask.mutate(payload);
-  }, [createTask, newDate, newEst, newTime, newTitle, selectedDayIso, shareOnCreate]);
+  }, [
+    createTask,
+    newAreaTag,
+    newDate,
+    newEst,
+    newPriorityTag,
+    newScheduleLocked,
+    newTime,
+    newTitle,
+    selectedDayIso,
+    shareOnCreate,
+  ]);
 
   const handleComposerCancel = useCallback(() => {
     setComposerAdvancedOpen(false);
@@ -3448,6 +3744,310 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     () => estimationHintQuery.data?.points || [],
     [estimationHintQuery.data?.points]
   );
+
+  const titleEstimateStats = useMemo(() => {
+    const stats = new Map<string, { sum: number; count: number; weekdays: number[] }>();
+    estimationPoints.forEach((point) => {
+      const key = normalizeTaskTitleKey(point.title);
+      if (!key || point.estimatedMinutes <= 0) return;
+      const current = stats.get(key) || { sum: 0, count: 0, weekdays: [] };
+      current.sum += point.actualMinutes > 0 ? point.actualMinutes : point.estimatedMinutes;
+      current.count += 1;
+      if (point.scheduledDate) {
+        const date = new Date(`${point.scheduledDate}T12:00:00`);
+        if (!Number.isNaN(date.getTime())) {
+          current.weekdays.push(date.getDay());
+        }
+      }
+      stats.set(key, current);
+    });
+    return stats;
+  }, [estimationPoints]);
+
+  const suggestedEstimate = useMemo(() => {
+    const key = normalizeTaskTitleKey(newTitle);
+    if (!key) return null;
+    const stat = titleEstimateStats.get(key);
+    if (!stat || stat.count < 3) return null;
+    return Math.max(5, Math.round((stat.sum / stat.count) / 5) * 5);
+  }, [newTitle, titleEstimateStats]);
+
+  const recurringSuggestion = useMemo(() => {
+    const key = normalizeTaskTitleKey(newTitle);
+    if (!key) return null;
+    const stat = titleEstimateStats.get(key);
+    if (!stat || stat.count < 4 || stat.weekdays.length < 4) return null;
+    const byDay = new Map<number, number>();
+    stat.weekdays.forEach((day) => {
+      byDay.set(day, (byDay.get(day) || 0) + 1);
+    });
+    const sorted = Array.from(byDay.entries()).sort((a, b) => b[1] - a[1]);
+    const [bestDay, hits] = sorted[0] || [];
+    if (bestDay === undefined || hits < 3) return null;
+    const labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    return `Recurring pattern detected: often on ${labels[bestDay]}.`;
+  }, [newTitle, titleEstimateStats]);
+
+  const tagStatsDaily = useMemo(() => {
+    const areaLabelByKey = new Map(taskAreas.map((area) => [area.key, area.label]));
+    const byTag = new Map<string, TaskTagStatsRow>();
+    tasksForDay.forEach((task) => {
+      const draft = readTaskDraft(task);
+      const key = String(draft.areaTag || "").trim() || "__none__";
+      const label = key === "__none__" ? "Sem tag" : areaLabelByKey.get(key) || key;
+      if (!byTag.has(key)) {
+        byTag.set(key, { key, label, planned: 0, done: 0 });
+      }
+      const row = byTag.get(key)!;
+      row.planned += 1;
+      if (draft.isDone) row.done += 1;
+    });
+    return Array.from(byTag.values()).sort((a, b) => b.planned - a.planned);
+  }, [readTaskDraft, taskAreas, tasksForDay]);
+
+  const tagStatsWeek = useMemo(() => {
+    const areaLabelByKey = new Map(taskAreas.map((area) => [area.key, area.label]));
+    const byTag = new Map<string, TaskTagStatsRow>();
+    tasks
+      .filter((task) => Boolean(task.scheduledDate))
+      .filter((task) => {
+        const date = String(task.scheduledDate || "");
+        return date >= range.start && date <= range.end;
+      })
+      .forEach((task) => {
+        const draft = readTaskDraft(task);
+        const key = String(draft.areaTag || "").trim() || "__none__";
+        const label = key === "__none__" ? "Sem tag" : areaLabelByKey.get(key) || key;
+        if (!byTag.has(key)) {
+          byTag.set(key, { key, label, planned: 0, done: 0 });
+        }
+        const row = byTag.get(key)!;
+        row.planned += 1;
+        if (draft.isDone) row.done += 1;
+      });
+    return Array.from(byTag.values()).sort((a, b) => b.planned - a.planned);
+  }, [range.end, range.start, readTaskDraft, taskAreas, tasks]);
+
+  useEffect(() => {
+    if (estimateWasTouched) return;
+    if (!suggestedEstimate) return;
+    setNewEst(suggestedEstimate);
+  }, [estimateWasTouched, suggestedEstimate]);
+
+  const areaBufferFactor = useMemo(() => {
+    const bucket = new Map<string, number[]>();
+    const all: number[] = [];
+    estimationPoints.forEach((point) => {
+      if (point.estimatedMinutes <= 0 || point.actualMinutes <= 0) return;
+      const ratio = point.actualMinutes / point.estimatedMinutes;
+      if (!Number.isFinite(ratio) || ratio <= 0) return;
+      const areaKey = String(point.areaTag || "").trim().toLowerCase();
+      if (!bucket.has(areaKey)) bucket.set(areaKey, []);
+      bucket.get(areaKey)!.push(ratio);
+      all.push(ratio);
+    });
+    const median = (values: number[]) => {
+      if (!values.length) return 1;
+      const sorted = [...values].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    };
+    const fallback = Math.max(1, median(all));
+    const byArea = new Map<string, number>();
+    bucket.forEach((values, key) => {
+      byArea.set(key, Math.max(1, median(values)));
+    });
+    return { byArea, fallback };
+  }, [estimationPoints]);
+
+  const requestAutoPlanning = useCallback((reason: string) => {
+    setPendingAutoPlanReason(reason);
+  }, []);
+
+  const runAutoPlanning = useCallback(
+    (reason: string) => {
+      if (autoPlanningRef.current) return false;
+      if (reorderFocusTasks.isPending || tasksQuery.isPending) return false;
+
+      const allTodayPending = tasksForDay
+        .filter((task) => !readTaskDraft(task).isDone)
+        .sort(compareTasksForExecution);
+      if (!allTodayPending.length) return true;
+
+      const inProgressTask = allTodayPending.find((task) => {
+        const draft = readTaskDraft(task);
+        return Boolean(draft.startTime) && !draft.endTime;
+      });
+      if (inProgressTask && reason !== "task-finished") return true;
+
+      const now = new Date();
+      const startMinutes =
+        now.getHours() * 60 +
+        now.getMinutes() +
+        Math.max(0, Math.round(planStartOffsetMinutes));
+      const endMinutes = toMinutes(DAY_END_TIME);
+      let cursor = Math.max(0, Math.min(endMinutes, startMinutes));
+
+      const locked = allTodayPending.filter((task) => {
+        const draft = readTaskDraft(task);
+        return Boolean(draft.scheduleLocked && draft.scheduledTime);
+      });
+      const unlocked = allTodayPending.filter((task) => {
+        const draft = readTaskDraft(task);
+        return !draft.scheduleLocked;
+      });
+      const orderedUnlocked = balancedPriorityOrder(unlocked);
+      const ordered = [...locked, ...orderedUnlocked].sort((left, right) => {
+        const leftTime = readTaskDraft(left).scheduledTime || "";
+        const rightTime = readTaskDraft(right).scheduledTime || "";
+        if (leftTime && rightTime) return leftTime.localeCompare(rightTime);
+        if (leftTime) return -1;
+        if (rightTime) return 1;
+        return 0;
+      });
+
+      const updates: FocusOrderUpdate[] = [];
+      const changedPatch = new Map<string, FocusOrderUpdate>();
+
+      ordered.forEach((task, index) => {
+        const draft = readTaskDraft(task);
+        const estimate = Math.max(5, Number(draft.estimatedMinutes || 30));
+        const areaKey = String(draft.areaTag || "").trim().toLowerCase();
+        const factor = areaBufferFactor.byArea.get(areaKey) || areaBufferFactor.fallback;
+        const bufferMinutes = Math.min(
+          60,
+          Math.max(0, Math.round(estimate * Math.max(0, factor - 1)))
+        );
+
+        if (draft.scheduleLocked && draft.scheduledTime) {
+          const lockStart = toMinutes(draft.scheduledTime);
+          if (lockStart > cursor) cursor = lockStart + estimate + bufferMinutes;
+          updates.push({ id: task.id, focusOrder: index + 1 });
+          return;
+        }
+
+        const nextStart = cursor;
+        const nextEnd = nextStart + estimate + bufferMinutes;
+        if (nextStart >= endMinutes) {
+          const patch: FocusOrderUpdate = {
+            id: task.id,
+            focusOrder: null,
+            scheduledDate: null,
+            scheduledTime: null,
+            plannedTime: null,
+          };
+          updates.push(patch);
+          changedPatch.set(task.id, patch);
+          return;
+        }
+
+        const nextTime = toTime(nextStart);
+        const patch: FocusOrderUpdate = {
+          id: task.id,
+          focusOrder: index + 1,
+          scheduledDate: selectedDayIso,
+          scheduledTime: nextTime,
+          plannedTime: nextTime,
+        };
+        updates.push(patch);
+        changedPatch.set(task.id, patch);
+        cursor = nextEnd;
+      });
+
+      const fingerprint = ordered
+        .map((task) => {
+          const patch = changedPatch.get(task.id);
+          const baseDraft = readTaskDraft(task);
+          const currentTime = baseDraft.scheduledTime || "";
+          const nextTime = patch?.scheduledTime ?? currentTime;
+          const nextDate = patch?.scheduledDate ?? baseDraft.scheduledDate ?? "";
+          const lock = baseDraft.scheduleLocked ? "1" : "0";
+          return `${task.id}|${nextDate}|${nextTime}|${lock}|${patch?.focusOrder ?? task.focusOrder ?? ""}`;
+        })
+        .join("::");
+      if (autoPlanFingerprintRef.current === fingerprint) return true;
+      autoPlanFingerprintRef.current = fingerprint;
+
+      autoPlanningRef.current = true;
+      reorderFocusTasks.mutate(updates, {
+        onSettled: () => {
+          autoPlanningRef.current = false;
+        },
+      });
+      return true;
+    },
+    [
+      areaBufferFactor.byArea,
+      areaBufferFactor.fallback,
+      planStartOffsetMinutes,
+      readTaskDraft,
+      reorderFocusTasks,
+      selectedDayIso,
+      tasksForDay,
+      tasksQuery.isPending,
+    ]
+  );
+
+  useEffect(() => {
+    if (!selectedDayIso || tasksQuery.isPending) return;
+    try {
+      const last = window.localStorage.getItem(AUTO_PLAN_DAY_KEY);
+      if (last !== selectedDayIso) {
+        window.localStorage.setItem(AUTO_PLAN_DAY_KEY, selectedDayIso);
+        requestAutoPlanning("first-open-day");
+      }
+    } catch (_error) {
+      requestAutoPlanning("first-open-day");
+    }
+  }, [requestAutoPlanning, selectedDayIso, tasksQuery.isPending]);
+
+  useEffect(() => {
+    if (!pendingAutoPlanReason) return;
+    if (autoPlanningRef.current) return;
+    const consumed = runAutoPlanning(pendingAutoPlanReason);
+    if (consumed) {
+      setPendingAutoPlanReason(null);
+    }
+  }, [pendingAutoPlanReason, runAutoPlanning]);
+
+  useEffect(() => {
+    if (tasksQuery.isPending) return;
+    const hasInProgress = pendingTasks.some((task) => {
+      const draft = readTaskDraft(task);
+      return Boolean(draft.startTime) && !draft.endTime;
+    });
+    if (hasInProgress) return;
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const overduePending = pendingTasks.filter((task) => {
+      const draft = readTaskDraft(task);
+      if (!draft.scheduledTime) return false;
+      if (draft.startTime) return false;
+      return toMinutes(draft.scheduledTime) < nowMinutes;
+    });
+    if (!overduePending.length) {
+      lateResyncKeyRef.current = "";
+      return;
+    }
+    const overdueKey = overduePending
+      .map((task) => {
+        const draft = readTaskDraft(task);
+        return `${task.id}|${draft.scheduledTime || ""}|${draft.startTime || ""}|${draft.endTime || ""}`;
+      })
+      .join("::");
+    if (lateResyncKeyRef.current === overdueKey) return;
+    lateResyncKeyRef.current = overdueKey;
+    if (!pendingAutoPlanReason) {
+      requestAutoPlanning("late-resync");
+    }
+  }, [
+    nowTick,
+    pendingAutoPlanReason,
+    pendingTasks,
+    readTaskDraft,
+    requestAutoPlanning,
+    tasksQuery.isPending,
+  ]);
 
   const readEstimationDraft = useCallback(
     (taskId: string, estimatedMinutes: number, actualMinutes: number) => {
@@ -3582,20 +4182,46 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           date={newDate}
           time={newTime}
           estimate={newEst}
+          priorityTag={newPriorityTag}
+          areaTag={newAreaTag}
+          scheduleLocked={newScheduleLocked}
+          startOffsetMinutes={planStartOffsetMinutes}
+          areaOptions={taskAreas.map((area) => ({ key: area.key, label: area.label }))}
           shareWithPartner={shareOnCreate}
           advancedOpen={composerAdvancedOpen}
           selectionLabel={composerSelectionLabel}
           pending={createTask.isPending}
           onSubmit={handleComposerSubmit}
-          onTitleChange={(value) => setNewTitle(value)}
+          onTitleChange={(value) => {
+            setNewTitle(value);
+            if (!value.trim()) {
+              setEstimateWasTouched(false);
+              setNewEst(30);
+            }
+          }}
           onDateChange={(value) => setNewDate(value)}
           onTimeChange={(value) => setNewTime(value)}
-          onEstimateChange={(value) => setNewEst(value)}
+          onEstimateChange={(value) => {
+            setEstimateWasTouched(true);
+            setNewEst(value);
+          }}
+          onPriorityTagChange={(value) => setNewPriorityTag(value)}
+          onAreaTagChange={(value) => setNewAreaTag(value)}
+          onScheduleLockedChange={(checked) => setNewScheduleLocked(checked)}
+          onStartOffsetMinutesChange={(value) => setPlanStartOffsetMinutes(value)}
           onShareChange={(checked) => setShareOnCreate(checked)}
           onToggleAdvanced={() => setComposerAdvancedOpen((current) => !current)}
           onClearSelection={clearCalendarSelection}
           onCancel={handleComposerCancel}
         />
+        {suggestedEstimate ? (
+          <p className="task-composer-smart-hint">
+            Suggested estimate: {suggestedEstimate} min from similar past tasks.
+          </p>
+        ) : null}
+        {recurringSuggestion ? (
+          <p className="task-composer-smart-hint">{recurringSuggestion}</p>
+        ) : null}
 
         <div className="calendar-status-rail">
           {tasksQuery.isPending ? (
@@ -3685,6 +4311,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     active={detailTaskId === task.id}
                     saving={savingTaskId === task.id}
                     saved={savedTaskId === task.id}
+                    scheduleLocked={Boolean(draft.scheduleLocked)}
                     taskAreas={taskAreas}
                     creatingArea={createTaskArea.isPending}
                     onToggleDone={requestToggleTaskDone}
@@ -3694,6 +4321,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     onOpenDetails={handleOpenTaskDetails}
                     onPriorityTagChange={handleTaskPriorityChange}
                     onAreaTagChange={handleTaskAreaChange}
+                    onToggleScheduleLock={handleTaskScheduleLockToggle}
                     onCreateAreaTag={handleCreateTaskAreaForTask}
                     onUnscheduleToday={handleUnscheduleToday}
                     onScheduleTomorrow={handleScheduleTomorrow}
@@ -3740,10 +4368,65 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               <p className="panel-kicker">Later</p>
               <h3>Backlog</h3>
             </div>
-            <span className="calendar-section-count">{unscheduledTasks.length}</span>
+            <span className="calendar-section-count">
+              {unscheduledTasks.length + overdueBacklogTasks.length}
+            </span>
           </div>
-          {unscheduledTasks.length ? (
+          {unscheduledTasks.length || overdueBacklogTasks.length ? (
             <div className="task-items">
+              {overdueBacklogTasks.length ? (
+                <p className="calendar-backlog-subtitle">
+                  Overdue from last 7 days ({overdueBacklogTasks.length})
+                </p>
+              ) : null}
+              {overdueBacklogTasks.map((task) => {
+                const draft = readTaskDraft(task);
+                const shareUi = getTaskSharePresentation(task);
+                return (
+                  <EditableTaskRow
+                    key={`overdue-${task.id}`}
+                    task={task}
+                    draft={draft}
+                    effort={getTaskEffort(task)}
+                    area={getTaskAreaMeta(draft.areaTag, taskAreas)}
+                    expanded={isTaskExpanded(task)}
+                    active={detailTaskId === task.id}
+                    saving={savingTaskId === task.id}
+                    saved={savedTaskId === task.id}
+                    scheduleLocked={Boolean(draft.scheduleLocked)}
+                    taskAreas={taskAreas}
+                    creatingArea={createTaskArea.isPending}
+                    onToggleDone={requestToggleTaskDone}
+                    onToggleMissed={requestToggleTaskMissed}
+                    onToggleExpanded={handleToggleTaskExpanded}
+                    onToggleSubtaskDone={handleToggleSubtaskDone}
+                    onOpenDetails={handleOpenTaskDetails}
+                    onPriorityTagChange={handleTaskPriorityChange}
+                    onAreaTagChange={handleTaskAreaChange}
+                    onToggleScheduleLock={handleTaskScheduleLockToggle}
+                    onCreateAreaTag={handleCreateTaskAreaForTask}
+                    onScheduleToday={handleScheduleToday}
+                    onMarkStarted={handleMarkStarted}
+                    onMarkNeedsFinish={handleMarkNeedsFinish}
+                    onResumeTask={handleResumeTask}
+                    onSetNext={handleSetTaskNext}
+                    onMoveFocus={handleMoveFocusTask}
+                    onDelete={handleDeleteTask}
+                    onShare={shareUi.canToggle ? handleShareTask : undefined}
+                    sharing={sharingTaskId === task.id}
+                    contextDate={selectedDayIso}
+                    showInlineNext
+                    subtaskSavingId={savingSubtaskId}
+                    shareLabel={shareUi.label}
+                    shareActionLabel={shareUi.actionLabel}
+                  />
+                );
+              })}
+              {unscheduledTasks.length ? (
+                <p className="calendar-backlog-subtitle">
+                  Unscheduled ({unscheduledTasks.length})
+                </p>
+              ) : null}
               {unscheduledTasks.map((task) => {
                 const draft = readTaskDraft(task);
                 const shareUi = getTaskSharePresentation(task);
@@ -3758,6 +4441,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     active={detailTaskId === task.id}
                     saving={savingTaskId === task.id}
                     saved={savedTaskId === task.id}
+                    scheduleLocked={Boolean(draft.scheduleLocked)}
                     taskAreas={taskAreas}
                     creatingArea={createTaskArea.isPending}
                     onToggleDone={requestToggleTaskDone}
@@ -3767,6 +4451,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     onOpenDetails={handleOpenTaskDetails}
                     onPriorityTagChange={handleTaskPriorityChange}
                     onAreaTagChange={handleTaskAreaChange}
+                    onToggleScheduleLock={handleTaskScheduleLockToggle}
                     onCreateAreaTag={handleCreateTaskAreaForTask}
                     onScheduleToday={handleScheduleToday}
                     onMarkStarted={handleMarkStarted}
@@ -3822,6 +4507,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   active={detailTaskId === task.id}
                   saving={savingTaskId === task.id}
                   saved={savedTaskId === task.id}
+                  scheduleLocked={Boolean(draft.scheduleLocked)}
                   taskAreas={taskAreas}
                   creatingArea={createTaskArea.isPending}
                   onToggleDone={requestToggleTaskDone}
@@ -3831,6 +4517,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   onOpenDetails={handleOpenTaskDetails}
                   onPriorityTagChange={handleTaskPriorityChange}
                   onAreaTagChange={handleTaskAreaChange}
+                  onToggleScheduleLock={handleTaskScheduleLockToggle}
                   onCreateAreaTag={handleCreateTaskAreaForTask}
                   onUnscheduleToday={handleUnscheduleToday}
                   onScheduleTomorrow={handleScheduleTomorrow}
@@ -4373,6 +5060,19 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 </article>
               )}
             </div>
+          </div>
+        </section>
+
+        <section className="calendar-tag-stats">
+          <div className="calendar-tag-stats-head">
+            <div>
+              <p className="panel-kicker">Week</p>
+              <h3>Task Stats By Tag</h3>
+            </div>
+          </div>
+          <div className="calendar-tag-stats-grid">
+            <TaskTagBars title="Today · Planned vs Done" rows={tagStatsDaily} />
+            <TaskTagBars title="Week · Planned vs Done" rows={tagStatsWeek} />
           </div>
         </section>
       </div>

@@ -87,6 +87,7 @@ export type TodoTask = {
   focusOrder?: number | null;
   priorityTag?: PriorityTag | string | null;
   areaTag?: TaskAreaKey | null;
+  scheduleLocked?: boolean;
   estimatedMinutes?: number | null;
   actualMinutes?: number | null;
   isDone?: number | null;
@@ -210,6 +211,7 @@ export type EstimationPoint = {
   errorMinutes: number;
   errorPercent: number;
   priorityTag: string;
+  areaTag: string | null;
   scheduledDate: string | null;
 };
 

@@ -4,6 +4,11 @@ import { format, parseISO, subDays } from "date-fns";
 import { ensureTaskCompletionColumns } from "./dbCompat";
 import { getTodayIsoForUser } from "./settings";
 import { deleteTaskAreaAssignment, getTaskAreaMap, setTaskAreaAssignment } from "./taskAreas";
+import {
+  deleteTaskScheduleLock,
+  getTaskScheduleLockMap,
+  setTaskScheduleLock,
+} from "./taskScheduleLocks";
 import type {
   TodoSubtask as PrismaTodoSubtask,
   TodoTask as PrismaTodoTask,
@@ -23,6 +28,7 @@ export type TaskPayload = {
   focusOrder?: number | null;
   priorityTag?: string | null;
   areaTag?: string | null;
+  scheduleLocked?: boolean | null;
   estimatedMinutes?: number | null;
   actualMinutes?: number | null;
   isDone?: number | null;
@@ -74,12 +80,14 @@ function normalizeSubtasks(subtasks: PrismaTodoSubtask[] | undefined) {
 function mergeTaskWithDetail(
   task: TaskWithSubtasks,
   detail: PrismaTodoTaskDetail | null | undefined,
-  areaTag: string | null = null
+  areaTag: string | null = null,
+  scheduleLocked = false
 ) {
   return {
     ...task,
     ...normalizeTaskDetailRow(task, detail),
     areaTag,
+    scheduleLocked,
     subtasks: normalizeSubtasks(task.subtasks),
   };
 }
@@ -235,12 +243,20 @@ export async function listTasks(
     },
   });
   const taskIds = tasks.map((task) => task.id);
-  const [detailMap, areaMap] = await Promise.all([
+  const [detailMap, areaMap, lockMap] = await Promise.all([
     loadTaskDetailMap(userEmail, taskIds),
     getTaskAreaMap(userEmail, taskIds),
+    getTaskScheduleLockMap(userEmail, taskIds),
   ]);
   return tasks
-    .map((task) => mergeTaskWithDetail(task, detailMap.get(task.id), areaMap.get(task.id) ?? null))
+    .map((task) =>
+      mergeTaskWithDetail(
+        task,
+        detailMap.get(task.id),
+        areaMap.get(task.id) ?? null,
+        Boolean(lockMap.get(task.id))
+      )
+    )
     .sort(compareTasksForFocus);
 }
 
@@ -300,6 +316,9 @@ export async function createTask(userEmail: string, payload: TaskPayload) {
   if (payload.areaTag !== undefined) {
     await setTaskAreaAssignment(userEmail, task.id, payload.areaTag);
   }
+  if (payload.scheduleLocked !== undefined) {
+    await setTaskScheduleLock(userEmail, task.id, Boolean(payload.scheduleLocked));
+  }
 
   if (shouldPersistTaskDetail(task, detail)) {
     await prisma.todoTaskDetail.upsert({
@@ -337,10 +356,16 @@ export async function createTask(userEmail: string, payload: TaskPayload) {
         createdAt: nowIso,
         updatedAt: nowIso,
       },
-      payload.areaTag ?? null
+      payload.areaTag ?? null,
+      Boolean(payload.scheduleLocked)
     );
   }
-  return mergeTaskWithDetail(task, null, payload.areaTag ?? null);
+  return mergeTaskWithDetail(
+    task,
+    null,
+    payload.areaTag ?? null,
+    Boolean(payload.scheduleLocked)
+  );
 }
 
 export async function updateTask(
@@ -359,6 +384,9 @@ export async function updateTask(
   }
   if (payload.areaTag !== undefined) {
     await setTaskAreaAssignment(userEmail, taskId, payload.areaTag);
+  }
+  if (payload.scheduleLocked !== undefined) {
+    await setTaskScheduleLock(userEmail, taskId, Boolean(payload.scheduleLocked));
   }
 
   let completedAtPatch: string | null | undefined = undefined;
@@ -482,8 +510,16 @@ export async function updateTask(
     }
   }
 
-  const areaMap = await getTaskAreaMap(userEmail, [taskId]);
-  return mergeTaskWithDetail(task, detail, areaMap.get(taskId) ?? null);
+  const [areaMap, lockMap] = await Promise.all([
+    getTaskAreaMap(userEmail, [taskId]),
+    getTaskScheduleLockMap(userEmail, [taskId]),
+  ]);
+  return mergeTaskWithDetail(
+    task,
+    detail,
+    areaMap.get(taskId) ?? null,
+    Boolean(lockMap.get(taskId))
+  );
 }
 
 export async function deleteTask(userEmail: string, taskId: string) {
@@ -498,6 +534,7 @@ export async function deleteTask(userEmail: string, taskId: string) {
   const nowIso = new Date().toISOString();
   await cleanupTaskShareSettingsAfterDelete(userEmail, taskId);
   await deleteTaskAreaAssignment(userEmail, taskId).catch(() => undefined);
+  await deleteTaskScheduleLock(userEmail, taskId).catch(() => undefined);
   await prisma.syncOutbox
     .deleteMany({
       where: { userEmail, entityId: taskId },

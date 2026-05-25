@@ -3,6 +3,7 @@ import { format, parseISO, subDays } from "date-fns";
 import { ensureTaskCompletionColumns } from "@/lib/server/dbCompat";
 import { TASK_PRIORITIES } from "@/lib/constants";
 import { WEEKDAY_LABELS_EN } from "@/lib/config/habits";
+import { getTaskAreaMap } from "@/lib/server/taskAreas";
 import type {
   EstimationBucket,
   EstimationPoint,
@@ -156,6 +157,10 @@ export async function getEstimationStats(
     },
     orderBy: [{ completedAt: "desc" }, { scheduledDate: "desc" }, { updatedAt: "desc" }],
   });
+  const areaMap = await getTaskAreaMap(
+    userEmail,
+    tasks.map((task) => task.id)
+  );
 
   const points: EstimationPoint[] = tasks
     .filter(
@@ -181,6 +186,7 @@ export async function getEstimationStats(
         errorMinutes,
         errorPercent,
         priorityTag: task.priorityTag || "Medium",
+        areaTag: areaMap.get(task.id) ?? null,
         scheduledDate: referenceDate,
       };
     });

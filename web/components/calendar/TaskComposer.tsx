@@ -8,6 +8,11 @@ type TaskComposerProps = {
   date: string;
   time: string;
   estimate: number;
+  priorityTag: string;
+  areaTag: string;
+  scheduleLocked: boolean;
+  startOffsetMinutes: number;
+  areaOptions: Array<{ key: string; label: string }>;
   shareWithPartner: boolean;
   advancedOpen: boolean;
   selectionLabel: string | null;
@@ -17,6 +22,10 @@ type TaskComposerProps = {
   onDateChange: (value: string) => void;
   onTimeChange: (value: string) => void;
   onEstimateChange: (value: number) => void;
+  onPriorityTagChange: (value: string) => void;
+  onAreaTagChange: (value: string) => void;
+  onScheduleLockedChange: (checked: boolean) => void;
+  onStartOffsetMinutesChange: (value: number) => void;
   onShareChange: (checked: boolean) => void;
   onToggleAdvanced: () => void;
   onClearSelection: () => void;
@@ -28,6 +37,11 @@ export default function TaskComposer({
   date,
   time,
   estimate,
+  priorityTag,
+  areaTag,
+  scheduleLocked,
+  startOffsetMinutes,
+  areaOptions,
   shareWithPartner,
   advancedOpen,
   selectionLabel,
@@ -37,6 +51,10 @@ export default function TaskComposer({
   onDateChange,
   onTimeChange,
   onEstimateChange,
+  onPriorityTagChange,
+  onAreaTagChange,
+  onScheduleLockedChange,
+  onStartOffsetMinutesChange,
   onShareChange,
   onToggleAdvanced,
   onClearSelection,
@@ -141,6 +159,56 @@ export default function TaskComposer({
               onKeyDown={handleKeyDown}
             />
           </div>
+          <div className="form-row">
+            <label htmlFor="calendar-task-priority">Priority</label>
+            <select
+              id="calendar-task-priority"
+              value={priorityTag}
+              onChange={(event) => onPriorityTagChange(event.target.value)}
+            >
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+              <option value="Critical">Critical</option>
+            </select>
+          </div>
+          <div className="form-row">
+            <label htmlFor="calendar-task-area">Tag</label>
+            <select
+              id="calendar-task-area"
+              value={areaTag}
+              onChange={(event) => onAreaTagChange(event.target.value)}
+            >
+              <option value="">No tag</option>
+              {areaOptions.map((area) => (
+                <option key={area.key} value={area.key}>
+                  {area.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="form-row">
+            <label htmlFor="calendar-task-offset">Start offset</label>
+            <input
+              id="calendar-task-offset"
+              type="number"
+              min={0}
+              max={180}
+              step={5}
+              value={startOffsetMinutes}
+              onChange={(event) =>
+                onStartOffsetMinutesChange(Math.min(180, Math.max(0, Number(event.target.value || 0))))
+              }
+            />
+          </div>
+          <label className="habit-row task-composer-share-row">
+            <input
+              type="checkbox"
+              checked={scheduleLocked}
+              onChange={(event) => onScheduleLockedChange(event.target.checked)}
+            />
+            <span>Fixed time (lock)</span>
+          </label>
           <label className="habit-row task-composer-share-row">
             <input
               type="checkbox"

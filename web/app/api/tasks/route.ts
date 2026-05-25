@@ -116,6 +116,7 @@ export async function POST(request: NextRequest) {
       focusOrder: payload.focus_order ?? null,
       priorityTag: payload.priority_tag || "Medium",
       areaTag: payload.area_tag ?? null,
+      scheduleLocked: payload.schedule_locked ? true : false,
       estimatedMinutes: payload.estimated_minutes || null,
       actualMinutes: payload.actual_minutes || null,
       isDone: payload.is_done ? 1 : 0,
