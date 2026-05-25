@@ -3335,9 +3335,40 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       setDragOverTaskId(null);
       if (!sourceTaskId || sourceTaskId === targetTaskId) return;
 
-      const sourceIndex = pendingTasks.findIndex((task) => task.id === sourceTaskId);
       const targetIndex = pendingTasks.findIndex((task) => task.id === targetTaskId);
-      if (sourceIndex < 0 || targetIndex < 0) return;
+      if (targetIndex < 0) return;
+
+      const sourceIndex = pendingTasks.findIndex((task) => task.id === sourceTaskId);
+      const sourceTask =
+        tasks.find((task) => task.id === sourceTaskId) ||
+        overdueTasks.find((task) => task.id === sourceTaskId);
+      if (!sourceTask) return;
+
+      if (sourceIndex < 0) {
+        const updates: FocusOrderUpdate[] = [];
+        let insertCursor = 0;
+        for (let index = 0; index <= pendingTasks.length; index += 1) {
+          if (index === targetIndex) {
+            updates.push({
+              id: sourceTaskId,
+              focusOrder: index + 1,
+              scheduledDate: selectedDayIso,
+              scheduledTime: null,
+              plannedTime: null,
+            });
+            insertCursor += 1;
+          }
+          if (index < pendingTasks.length) {
+            updates.push({
+              id: pendingTasks[index].id,
+              focusOrder: index + 1 + insertCursor,
+            });
+          }
+        }
+
+        reorderFocusTasks.mutate(updates);
+        return;
+      }
 
       const ordered = [...pendingTasks];
       const [moved] = ordered.splice(sourceIndex, 1);
@@ -3351,8 +3382,49 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         }))
       );
     },
-    [draggingTaskId, pendingTasks, reorderFocusTasks]
+    [draggingTaskId, overdueTasks, pendingTasks, reorderFocusTasks, selectedDayIso, tasks]
   );
+
+  const handleDropTaskAtStart = useCallback(() => {
+    const sourceTaskId = draggingTaskId;
+    setDraggingTaskId(null);
+    setDragOverTaskId(null);
+    if (!sourceTaskId) return;
+
+    const sourceIndex = pendingTasks.findIndex((task) => task.id === sourceTaskId);
+    if (sourceIndex >= 0) {
+      const ordered = [...pendingTasks];
+      const [moved] = ordered.splice(sourceIndex, 1);
+      ordered.unshift(moved);
+      reorderFocusTasks.mutate(
+        ordered.map((task, index) => ({
+          id: task.id,
+          focusOrder: index + 1,
+        }))
+      );
+      return;
+    }
+
+    const sourceTask =
+      tasks.find((task) => task.id === sourceTaskId) ||
+      overdueTasks.find((task) => task.id === sourceTaskId);
+    if (!sourceTask) return;
+
+    const updates: FocusOrderUpdate[] = [
+      {
+        id: sourceTaskId,
+        focusOrder: 1,
+        scheduledDate: selectedDayIso,
+        scheduledTime: null,
+        plannedTime: null,
+      },
+      ...pendingTasks.map((task, index) => ({
+        id: task.id,
+        focusOrder: index + 2,
+      })),
+    ];
+    reorderFocusTasks.mutate(updates);
+  }, [draggingTaskId, overdueTasks, pendingTasks, reorderFocusTasks, selectedDayIso, tasks]);
 
   const handleOpenTaskDetails = useCallback((taskId: string) => {
     setDetailTaskId(taskId);
@@ -4365,7 +4437,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     subtaskSavingId={savingSubtaskId}
                     shareLabel={shareUi.label}
                     shareActionLabel={shareUi.actionLabel}
-                    draggable={pendingTasks.length > 1}
+                    draggable={pendingTasks.length > 0}
                     dragging={draggingTaskId === task.id}
                     dropTarget={Boolean(draggingTaskId && dragOverTaskId === task.id && draggingTaskId !== task.id)}
                     onDragStartTask={handleDragTaskStart}
@@ -4377,7 +4449,18 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               })}
             </div>
           ) : (
-            <div className="line-empty">
+            <div
+              className="line-empty"
+              onDragOver={(event) => {
+                if (!draggingTaskId) return;
+                event.preventDefault();
+              }}
+              onDrop={(event) => {
+                if (!draggingTaskId) return;
+                event.preventDefault();
+                handleDropTaskAtStart();
+              }}
+            >
               {lowEnergyMode ? "No light tasks." : "No pending tasks."}
             </div>
           )}
@@ -4440,6 +4523,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     subtaskSavingId={savingSubtaskId}
                     shareLabel={shareUi.label}
                     shareActionLabel={shareUi.actionLabel}
+                    draggable
+                    dragging={draggingTaskId === task.id}
+                    dropTarget={Boolean(draggingTaskId && dragOverTaskId === task.id && draggingTaskId !== task.id)}
+                    onDragStartTask={handleDragTaskStart}
+                    onDragOverTask={handleDragTaskOver}
+                    onDropTask={handleDropTask}
+                    onDragEndTask={handleDragTaskEnd}
                   />
                 );
               })}
@@ -4493,6 +4583,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     subtaskSavingId={savingSubtaskId}
                     shareLabel={shareUi.label}
                     shareActionLabel={shareUi.actionLabel}
+                    draggable
+                    dragging={draggingTaskId === task.id}
+                    dropTarget={Boolean(draggingTaskId && dragOverTaskId === task.id && draggingTaskId !== task.id)}
+                    onDragStartTask={handleDragTaskStart}
+                    onDragOverTask={handleDragTaskOver}
+                    onDropTask={handleDropTask}
+                    onDragEndTask={handleDragTaskEnd}
                   />
                 );
               })}
