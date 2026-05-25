@@ -375,46 +375,92 @@ function toTime(minutes: number) {
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
-function balancedPriorityOrder(tasks: TodoTask[]) {
-  const buckets: Record<number, TodoTask[]> = { 4: [], 3: [], 2: [], 1: [] };
-  tasks.forEach((task) => {
-    buckets[priorityRank(task.priorityTag)].push(task);
+type PlanningTaskCandidate = {
+  task: TodoTask;
+  rank: number;
+  tagKey: string;
+  isLocked: boolean;
+  baseIndex: number;
+};
+
+function normalizeAreaTagForPlanning(value: string | null | undefined) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized || "__none__";
+}
+
+function comparePlanningCandidates(left: PlanningTaskCandidate, right: PlanningTaskCandidate) {
+  const rankDiff = right.rank - left.rank;
+  if (rankDiff !== 0) return rankDiff;
+
+  const leftFocus = getTaskFocusOrder(left.task) ?? Number.MAX_SAFE_INTEGER;
+  const rightFocus = getTaskFocusOrder(right.task) ?? Number.MAX_SAFE_INTEGER;
+  if (leftFocus !== rightFocus) return leftFocus - rightFocus;
+
+  return String(left.task.createdAt).localeCompare(String(right.task.createdAt));
+}
+
+function pickBalancedCandidate(
+  pool: PlanningTaskCandidate[],
+  previousTag: string | null,
+  previousRank: number,
+  heavyStreak: number
+) {
+  let candidates = pool;
+
+  if (previousTag) {
+    const withDifferentTag = candidates.filter((item) => item.tagKey !== previousTag);
+    if (withDifferentTag.length) {
+      candidates = withDifferentTag;
+    }
+  }
+
+  if (previousRank >= 3 && heavyStreak >= 2) {
+    const lighter = candidates.filter((item) => item.rank < 3);
+    if (lighter.length) {
+      candidates = lighter;
+    }
+  }
+
+  return [...candidates].sort(comparePlanningCandidates)[0];
+}
+
+function buildBalancedOrderWithLockedAnchors(candidates: PlanningTaskCandidate[]) {
+  if (candidates.length <= 1) return candidates;
+
+  const lockedByIndex = new Map<number, PlanningTaskCandidate>();
+  const unlocked = candidates.filter((item) => !item.isLocked);
+  candidates.forEach((item) => {
+    if (item.isLocked) lockedByIndex.set(item.baseIndex, item);
   });
-  const pickOrder = [4, 3, 2, 1];
-  const ordered: TodoTask[] = [];
+
+  const placed: PlanningTaskCandidate[] = [];
   let previousRank = 0;
   let heavyStreak = 0;
-  while (ordered.length < tasks.length) {
-    let picked: TodoTask | null = null;
-    let pickedRank = 0;
-    for (const rank of pickOrder) {
-      if (!buckets[rank].length) continue;
-      const isHeavy = rank >= 3;
-      if (isHeavy && previousRank >= 3 && heavyStreak >= 2) {
-        continue;
-      }
-      picked = buckets[rank].shift() || null;
-      pickedRank = rank;
-      break;
+  let previousTag: string | null = null;
+
+  for (let index = 0; index < candidates.length; index += 1) {
+    const lockedCandidate = lockedByIndex.get(index);
+    let next: PlanningTaskCandidate | undefined;
+    if (lockedCandidate) {
+      next = lockedCandidate;
+    } else {
+      next = pickBalancedCandidate(unlocked, previousTag, previousRank, heavyStreak);
+      if (!next) break;
+      const removeIndex = unlocked.findIndex((item) => item.task.id === next?.task.id);
+      if (removeIndex >= 0) unlocked.splice(removeIndex, 1);
     }
-    if (!picked) {
-      for (const rank of pickOrder) {
-        if (!buckets[rank].length) continue;
-        picked = buckets[rank].shift() || null;
-        pickedRank = rank;
-        break;
-      }
-    }
-    if (!picked) break;
-    ordered.push(picked);
-    if (pickedRank >= 3) {
+
+    placed.push(next);
+    if (next.rank >= 3) {
       heavyStreak = previousRank >= 3 ? heavyStreak + 1 : 1;
     } else {
       heavyStreak = 0;
     }
-    previousRank = pickedRank;
+    previousRank = next.rank;
+    previousTag = next.tagKey;
   }
-  return ordered;
+
+  return placed;
 }
 
 type EditableTaskRowProps = {
@@ -1158,8 +1204,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [quickNoteDrafts, setQuickNoteDrafts] = useState<Record<string, string>>({});
   const [pendingAutoPlanReason, setPendingAutoPlanReason] = useState<string | null>(null);
   const autoPlanningRef = useRef(false);
-  const autoPlanFingerprintRef = useRef<string>("");
-  const lateResyncKeyRef = useRef<string>("");
 
   useEffect(() => {
     try {
@@ -1225,10 +1269,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     } catch (_error) {
       // ignore storage failures
     }
-  }, [planStartOffsetMinutes]);
-
-  useEffect(() => {
-    setPendingAutoPlanReason("offset-change");
   }, [planStartOffsetMinutes]);
 
   const range = useMemo(() => {
@@ -1791,6 +1831,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       draft.scheduledTime !== (task.scheduledTime || "")
     ) {
       patch.scheduled_time = draft.scheduledTime || null;
+      if (draft.scheduledTime) {
+        patch.schedule_locked = 1;
+      }
     }
     if (
       typeof draft.plannedTime === "string" &&
@@ -1798,6 +1841,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     ) {
       patch.planned_time = draft.plannedTime || null;
       patch.scheduled_time = draft.plannedTime || null;
+      if (draft.plannedTime) {
+        patch.schedule_locked = 1;
+      }
     }
     if (
       typeof draft.startTime === "string" &&
@@ -2403,7 +2449,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             setTaskSaveError(null);
             setSavingTaskId(null);
             setSavedTaskId(task.id);
-            setPendingAutoPlanReason("area-change");
             window.setTimeout(() => {
               setSavedTaskId((prev) => (prev === task.id ? null : prev));
             }, 900);
@@ -2432,7 +2477,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             setTaskSaveError(null);
             setSavingTaskId(null);
             setSavedTaskId(task.id);
-            setPendingAutoPlanReason("priority-change");
             window.setTimeout(() => {
               setSavedTaskId((prev) => (prev === task.id ? null : prev));
             }, 900);
@@ -2470,7 +2514,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             setTaskSaveError(null);
             setSavingTaskId(null);
             setSavedTaskId(task.id);
-            setPendingAutoPlanReason("lock-change");
             window.setTimeout(() => {
               setSavedTaskId((prev) => (prev === task.id ? null : prev));
             }, 900);
@@ -2654,9 +2697,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     },
     onSuccess: () => {
       setTaskSaveError(null);
-      if (!autoPlanningRef.current) {
-        requestAutoPlanning("manual-reorder");
-      }
       router.refresh();
     },
     onSettled: () => {
@@ -2984,14 +3024,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             ) {
               setSelectedDate(new Date(`${patch.scheduled_date}T12:00:00`));
             }
-            if (
-              "estimated_minutes" in patch ||
-              "priority_tag" in patch ||
-              "area_tag" in patch ||
-              "schedule_locked" in patch
-            ) {
-              setPendingAutoPlanReason("task-edit");
-            }
             window.setTimeout(() => {
               setSavedTaskId((prev) => (prev === task.id ? null : prev));
             }, 1400);
@@ -3065,9 +3097,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             setTaskSaveError(null);
             clearDoneDraft(task.id);
             syncHabitFromTaskState(task, checked);
-            if (checked) {
-              setPendingAutoPlanReason("task-finished");
-            }
             setSavingTaskId(null);
             setSavedTaskId(task.id);
           window.setTimeout(() => {
@@ -3193,11 +3222,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           id: taskId,
           data: { scheduled_date: selectedDayIso, scheduled_time: null, planned_time: null },
           syncGoogle: false,
-        },
-        {
-          onSuccess: () => {
-            setPendingAutoPlanReason("schedule-today");
-          },
         }
       );
     },
@@ -3218,7 +3242,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         data: patch,
         syncGoogle: false,
       });
-      setPendingAutoPlanReason("unschedule");
     },
     [applyTaskPatchToCache, updateTask]
   );
@@ -3238,7 +3261,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         data: patch,
         syncGoogle: false,
       });
-      setPendingAutoPlanReason("schedule-tomorrow");
     },
     [applyTaskPatchToCache, selectedDayIso, updateTask]
   );
@@ -3631,7 +3653,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       scheduledTime: newTime || null,
       priorityTag: newPriorityTag || "Medium",
       areaTag: newAreaTag,
-      scheduleLocked: newScheduleLocked,
+      scheduleLocked: newScheduleLocked || Boolean(newTime),
       estimatedMinutes: newEst,
       shareWithPartner: shareOnCreate,
     };
@@ -3864,8 +3886,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     setPendingAutoPlanReason(reason);
   }, []);
 
+  type AutoPlanMode = "full" | "order" | "time";
+
   const runAutoPlanning = useCallback(
-    (reason: string) => {
+    (_reason: string, mode: AutoPlanMode = "full") => {
       if (autoPlanningRef.current) return false;
       if (reorderFocusTasks.isPending || tasksQuery.isPending) return false;
 
@@ -3874,11 +3898,31 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         .sort(compareTasksForExecution);
       if (!allTodayPending.length) return true;
 
-      const inProgressTask = allTodayPending.find((task) => {
+      if (mode === "full") {
+        const inProgressTask = allTodayPending.find((task) => {
+          const draft = readTaskDraft(task);
+          return Boolean(draft.startTime) && !draft.endTime;
+        });
+        if (inProgressTask) return true;
+      }
+
+      const shouldReorder = mode !== "time";
+      const shouldReschedule = mode !== "order";
+
+      const planningCandidates = allTodayPending.map<PlanningTaskCandidate>((task, baseIndex) => {
         const draft = readTaskDraft(task);
-        return Boolean(draft.startTime) && !draft.endTime;
+        return {
+          task,
+          rank: priorityRank(draft.priorityTag),
+          tagKey: normalizeAreaTagForPlanning(draft.areaTag),
+          isLocked: Boolean(draft.scheduleLocked),
+          baseIndex,
+        };
       });
-      if (inProgressTask && reason !== "task-finished") return true;
+
+      const orderedCandidates = shouldReorder
+        ? buildBalancedOrderWithLockedAnchors(planningCandidates)
+        : planningCandidates;
 
       const now = new Date();
       const startMinutes =
@@ -3888,29 +3932,31 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       const endMinutes = toMinutes(DAY_END_TIME);
       let cursor = Math.max(0, Math.min(endMinutes, startMinutes));
 
-      const locked = allTodayPending.filter((task) => {
-        const draft = readTaskDraft(task);
-        return Boolean(draft.scheduleLocked && draft.scheduledTime);
-      });
-      const unlocked = allTodayPending.filter((task) => {
-        const draft = readTaskDraft(task);
-        return !draft.scheduleLocked;
-      });
-      const orderedUnlocked = balancedPriorityOrder(unlocked);
-      const ordered = [...locked, ...orderedUnlocked].sort((left, right) => {
-        const leftTime = readTaskDraft(left).scheduledTime || "";
-        const rightTime = readTaskDraft(right).scheduledTime || "";
-        if (leftTime && rightTime) return leftTime.localeCompare(rightTime);
-        if (leftTime) return -1;
-        if (rightTime) return 1;
-        return 0;
-      });
+      const updateById = new Map<string, FocusOrderUpdate>();
+      const stageUpdate = (next: FocusOrderUpdate) => {
+        const current = updateById.get(next.id);
+        if (!current) {
+          updateById.set(next.id, next);
+          return;
+        }
+        updateById.set(next.id, { ...current, ...next });
+      };
 
-      const updates: FocusOrderUpdate[] = [];
-      const changedPatch = new Map<string, FocusOrderUpdate>();
-
-      ordered.forEach((task, index) => {
+      orderedCandidates.forEach((candidate, index) => {
+        const task = candidate.task;
         const draft = readTaskDraft(task);
+        const currentFocus = getTaskFocusOrder(task);
+        const nextFocus = index + 1;
+
+        if (shouldReorder && currentFocus !== nextFocus) {
+          stageUpdate({
+            id: task.id,
+            focusOrder: nextFocus,
+          });
+        }
+
+        if (!shouldReschedule) return;
+
         const estimate = Math.max(5, Number(draft.estimatedMinutes || 30));
         const areaKey = String(draft.areaTag || "").trim().toLowerCase();
         const factor = areaBufferFactor.byArea.get(areaKey) || areaBufferFactor.fallback;
@@ -3919,54 +3965,54 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           Math.max(0, Math.round(estimate * Math.max(0, factor - 1)))
         );
 
-        if (draft.scheduleLocked && draft.scheduledTime) {
-          const lockStart = toMinutes(draft.scheduledTime);
-          if (lockStart > cursor) cursor = lockStart + estimate + bufferMinutes;
-          updates.push({ id: task.id, focusOrder: index + 1 });
+        if (candidate.isLocked) {
+          if (draft.scheduledTime) {
+            cursor = Math.max(cursor, toMinutes(draft.scheduledTime));
+          }
+          cursor += estimate + bufferMinutes;
           return;
         }
 
         const nextStart = cursor;
         const nextEnd = nextStart + estimate + bufferMinutes;
         if (nextStart >= endMinutes) {
-          const patch: FocusOrderUpdate = {
-            id: task.id,
-            focusOrder: null,
-            scheduledDate: null,
-            scheduledTime: null,
-            plannedTime: null,
-          };
-          updates.push(patch);
-          changedPatch.set(task.id, patch);
+          const currentDate = draft.scheduledDate || "";
+          const currentTime = draft.scheduledTime || "";
+          const currentPlanned = draft.plannedTime || draft.scheduledTime || "";
+          if (currentDate || currentTime || currentPlanned) {
+            stageUpdate({
+              id: task.id,
+              focusOrder: shouldReorder ? nextFocus : currentFocus,
+              scheduledDate: null,
+              scheduledTime: null,
+              plannedTime: null,
+            });
+          }
           return;
         }
 
         const nextTime = toTime(nextStart);
-        const patch: FocusOrderUpdate = {
-          id: task.id,
-          focusOrder: index + 1,
-          scheduledDate: selectedDayIso,
-          scheduledTime: nextTime,
-          plannedTime: nextTime,
-        };
-        updates.push(patch);
-        changedPatch.set(task.id, patch);
+        const currentDate = draft.scheduledDate || "";
+        const currentTime = draft.scheduledTime || "";
+        const currentPlanned = draft.plannedTime || draft.scheduledTime || "";
+        if (
+          currentDate !== selectedDayIso ||
+          currentTime !== nextTime ||
+          currentPlanned !== nextTime
+        ) {
+          stageUpdate({
+            id: task.id,
+            focusOrder: shouldReorder ? nextFocus : currentFocus,
+            scheduledDate: selectedDayIso,
+            scheduledTime: nextTime,
+            plannedTime: nextTime,
+          });
+        }
         cursor = nextEnd;
       });
 
-      const fingerprint = ordered
-        .map((task) => {
-          const patch = changedPatch.get(task.id);
-          const baseDraft = readTaskDraft(task);
-          const currentTime = baseDraft.scheduledTime || "";
-          const nextTime = patch?.scheduledTime ?? currentTime;
-          const nextDate = patch?.scheduledDate ?? baseDraft.scheduledDate ?? "";
-          const lock = baseDraft.scheduleLocked ? "1" : "0";
-          return `${task.id}|${nextDate}|${nextTime}|${lock}|${patch?.focusOrder ?? task.focusOrder ?? ""}`;
-        })
-        .join("::");
-      if (autoPlanFingerprintRef.current === fingerprint) return true;
-      autoPlanFingerprintRef.current = fingerprint;
+      const updates = Array.from(updateById.values());
+      if (!updates.length) return true;
 
       autoPlanningRef.current = true;
       reorderFocusTasks.mutate(updates, {
@@ -4004,50 +4050,28 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   useEffect(() => {
     if (!pendingAutoPlanReason) return;
     if (autoPlanningRef.current) return;
-    const consumed = runAutoPlanning(pendingAutoPlanReason);
+    const consumed = runAutoPlanning(pendingAutoPlanReason, "full");
     if (consumed) {
       setPendingAutoPlanReason(null);
     }
   }, [pendingAutoPlanReason, runAutoPlanning]);
 
-  useEffect(() => {
-    if (tasksQuery.isPending) return;
-    const hasInProgress = pendingTasks.some((task) => {
-      const draft = readTaskDraft(task);
-      return Boolean(draft.startTime) && !draft.endTime;
-    });
-    if (hasInProgress) return;
-    const now = new Date();
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
-    const overduePending = pendingTasks.filter((task) => {
-      const draft = readTaskDraft(task);
-      if (!draft.scheduledTime) return false;
-      if (draft.startTime) return false;
-      return toMinutes(draft.scheduledTime) < nowMinutes;
-    });
-    if (!overduePending.length) {
-      lateResyncKeyRef.current = "";
-      return;
-    }
-    const overdueKey = overduePending
-      .map((task) => {
-        const draft = readTaskDraft(task);
-        return `${task.id}|${draft.scheduledTime || ""}|${draft.startTime || ""}|${draft.endTime || ""}`;
-      })
-      .join("::");
-    if (lateResyncKeyRef.current === overdueKey) return;
-    lateResyncKeyRef.current = overdueKey;
-    if (!pendingAutoPlanReason) {
-      requestAutoPlanning("late-resync");
-    }
-  }, [
-    nowTick,
-    pendingAutoPlanReason,
-    pendingTasks,
-    readTaskDraft,
-    requestAutoPlanning,
-    tasksQuery.isPending,
-  ]);
+  const planningActionsBusy =
+    autoPlanningRef.current ||
+    tasksQuery.isPending ||
+    reorderFocusTasks.isPending ||
+    updateTask.isPending ||
+    createTask.isPending ||
+    createHabitTask.isPending ||
+    deleteTask.isPending;
+
+  const handleAutoReorderNow = useCallback(() => {
+    runAutoPlanning("manual-order", "order");
+  }, [runAutoPlanning]);
+
+  const handleAutoRescheduleNow = useCallback(() => {
+    runAutoPlanning("manual-time", "time");
+  }, [runAutoPlanning]);
 
   const readEstimationDraft = useCallback(
     (taskId: string, estimatedMinutes: number, actualMinutes: number) => {
@@ -4873,7 +4897,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             const timeStr = format(date, "HH:mm");
             updateTask.mutate({
               id: info.event.id,
-              data: { scheduled_date: dateStr, scheduled_time: timeStr },
+              data: { scheduled_date: dateStr, scheduled_time: timeStr, schedule_locked: 1 },
             });
           }}
         />
@@ -4885,14 +4909,32 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               <h3>Activity Wheel</h3>
               <p className="activity-wheel-copy">Not sure what to do next? Spin the wheel.</p>
             </div>
-            <button
-              type="button"
-              className="secondary"
-              onClick={shuffleWheelStart}
-              disabled={wheelSpinning || wheelEligibleTasks.length <= 1}
-            >
-              Shuffle
-            </button>
+            <div className="activity-wheel-head-actions">
+              <button
+                type="button"
+                className="secondary subtle"
+                onClick={handleAutoReorderNow}
+                disabled={planningActionsBusy || allPendingTasks.length <= 1}
+              >
+                Auto reordenar
+              </button>
+              <button
+                type="button"
+                className="secondary subtle"
+                onClick={handleAutoRescheduleNow}
+                disabled={planningActionsBusy || allPendingTasks.length === 0}
+              >
+                Auto horários
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={shuffleWheelStart}
+                disabled={wheelSpinning || wheelEligibleTasks.length <= 1}
+              >
+                Shuffle
+              </button>
+            </div>
           </div>
 
           <div className="activity-wheel-controls">

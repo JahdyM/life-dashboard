@@ -2654,6 +2654,13 @@ button.link.danger {
   gap: 10px;
 }
 
+.activity-wheel-head-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .activity-wheel-head h3 {
   margin: 6px 0 0;
   font-size: 18px;
