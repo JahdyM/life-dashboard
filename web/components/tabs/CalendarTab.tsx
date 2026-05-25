@@ -272,9 +272,24 @@ function getTaskProgressState(draft: {
 
 function taskPriorityWeight(priorityTag: string | null | undefined) {
   const normalized = String(priorityTag || "").trim().toLowerCase();
-  if (!normalized || normalized === "low") return 1;
-  if (normalized === "medium") return 2;
-  if (normalized === "high" || normalized === "critical") return 3;
+  if (!normalized || normalized === "low" || normalized === "baixa") return 1;
+  if (
+    normalized === "medium" ||
+    normalized === "med" ||
+    normalized === "média" ||
+    normalized === "media"
+  ) {
+    return 2;
+  }
+  if (
+    normalized === "high" ||
+    normalized === "critical" ||
+    normalized === "alta" ||
+    normalized === "crítica" ||
+    normalized === "critica"
+  ) {
+    return 3;
+  }
   return 1;
 }
 
@@ -353,11 +368,21 @@ function normalizeTaskTitleKey(value: string) {
 }
 
 function priorityRank(priorityTag: string | null | undefined) {
-  const normalized = String(priorityTag || "Medium").toLowerCase();
-  if (normalized === "critical") return 4;
-  if (normalized === "high") return 3;
-  if (normalized === "medium") return 2;
-  return 1;
+  const normalized = String(priorityTag || "Medium").trim().toLowerCase();
+  if (normalized === "critical" || normalized === "crítica" || normalized === "critica") {
+    return 4;
+  }
+  if (normalized === "high" || normalized === "alta") return 3;
+  if (
+    normalized === "medium" ||
+    normalized === "med" ||
+    normalized === "média" ||
+    normalized === "media"
+  ) {
+    return 2;
+  }
+  if (normalized === "low" || normalized === "baixa") return 1;
+  return 2;
 }
 
 function toMinutes(time: string) {
@@ -405,23 +430,29 @@ function pickBalancedCandidate(
   previousRank: number,
   heavyStreak: number
 ) {
-  let candidates = pool;
+  if (!pool.length) return undefined;
 
-  if (previousTag) {
-    const withDifferentTag = candidates.filter((item) => item.tagKey !== previousTag);
-    if (withDifferentTag.length) {
-      candidates = withDifferentTag;
+  const ranked = [...pool].sort(comparePlanningCandidates);
+  const bestOverall = ranked[0];
+  const alternativesByTag = previousTag
+    ? ranked.filter((candidate) => candidate.tagKey !== previousTag)
+    : ranked;
+
+  let selectedPool = ranked;
+  if (previousTag && alternativesByTag.length) {
+    const bestAlternative = alternativesByTag[0];
+    // Keep priority first, but alternate tag when the drop is only one level.
+    if (bestAlternative.rank >= bestOverall.rank - 1) {
+      selectedPool = alternativesByTag;
     }
   }
 
   if (previousRank >= 3 && heavyStreak >= 2) {
-    const lighter = candidates.filter((item) => item.rank < 3);
-    if (lighter.length) {
-      candidates = lighter;
-    }
+    const lighter = selectedPool.filter((candidate) => candidate.rank < 3);
+    if (lighter.length) return lighter[0];
   }
 
-  return [...candidates].sort(comparePlanningCandidates)[0];
+  return selectedPool[0];
 }
 
 function buildBalancedOrderWithLockedAnchors(candidates: PlanningTaskCandidate[]) {
