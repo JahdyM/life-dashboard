@@ -3931,6 +3931,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         Math.max(0, Math.round(planStartOffsetMinutes));
       const endMinutes = toMinutes(DAY_END_TIME);
       let cursor = Math.max(0, Math.min(endMinutes, startMinutes));
+      let reachedDayEnd = false;
 
       const updateById = new Map<string, FocusOrderUpdate>();
       const stageUpdate = (next: FocusOrderUpdate) => {
@@ -3947,16 +3948,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         const draft = readTaskDraft(task);
         const currentFocus = getTaskFocusOrder(task);
         const nextFocus = index + 1;
-
-        if (shouldReorder && currentFocus !== nextFocus) {
-          stageUpdate({
-            id: task.id,
-            focusOrder: nextFocus,
-          });
-        }
-
-        if (!shouldReschedule) return;
-
         const estimate = Math.max(5, Number(draft.estimatedMinutes || 30));
         const areaKey = String(draft.areaTag || "").trim().toLowerCase();
         const factor = areaBufferFactor.byArea.get(areaKey) || areaBufferFactor.fallback;
@@ -3966,28 +3957,31 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         );
 
         if (candidate.isLocked) {
-          if (draft.scheduledTime) {
-            cursor = Math.max(cursor, toMinutes(draft.scheduledTime));
+          if (shouldReschedule && !reachedDayEnd) {
+            if (draft.scheduledTime) {
+              cursor = Math.max(cursor, toMinutes(draft.scheduledTime));
+            }
+            cursor += estimate + bufferMinutes;
+            if (cursor >= endMinutes) {
+              reachedDayEnd = true;
+            }
           }
-          cursor += estimate + bufferMinutes;
           return;
         }
+
+        if (shouldReorder && currentFocus !== nextFocus) {
+          stageUpdate({
+            id: task.id,
+            focusOrder: nextFocus,
+          });
+        }
+
+        if (!shouldReschedule || reachedDayEnd) return;
 
         const nextStart = cursor;
         const nextEnd = nextStart + estimate + bufferMinutes;
         if (nextStart >= endMinutes) {
-          const currentDate = draft.scheduledDate || "";
-          const currentTime = draft.scheduledTime || "";
-          const currentPlanned = draft.plannedTime || draft.scheduledTime || "";
-          if (currentDate || currentTime || currentPlanned) {
-            stageUpdate({
-              id: task.id,
-              focusOrder: shouldReorder ? nextFocus : currentFocus,
-              scheduledDate: null,
-              scheduledTime: null,
-              plannedTime: null,
-            });
-          }
+          reachedDayEnd = true;
           return;
         }
 
@@ -4009,6 +4003,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           });
         }
         cursor = nextEnd;
+        if (cursor >= endMinutes) {
+          reachedDayEnd = true;
+        }
       });
 
       const updates = Array.from(updateById.values());

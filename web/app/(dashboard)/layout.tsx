@@ -49,6 +49,7 @@ export default async function DashboardLayout({
     getDashboardOnboardingPreferences(userEmail),
   ]);
   const moodMeta = getMoodMeta(shell.moodCategory);
+  const shortName = (email: string) => email.split("@")[0];
 
   return (
     <Providers>
@@ -138,13 +139,19 @@ export default async function DashboardLayout({
             {shell.streaks.items.slice(0, 4).map((item) => (
               <article key={item.habit_key} className="shell-streak-card">
                 <p className="shell-streak-label">{item.label}</p>
-                <div className="shell-streak-row">
-                  <span>{item.user.email.split("@")[0]}</span>
-                  <strong>{item.user.streak}d</strong>
+                <div className="shell-streak-person">
+                  <span className="shell-streak-person-name">{shortName(item.user.email)}</span>
+                  <span className="shell-streak-person-metrics">
+                    <strong>🔥 {item.user.streak}d</strong>
+                    <strong>🏆 {item.user.max_streak || 0}d</strong>
+                  </span>
                 </div>
-                <div className="shell-streak-row">
-                  <span>{item.partner.email.split("@")[0]}</span>
-                  <strong>{item.partner.streak}d</strong>
+                <div className="shell-streak-person">
+                  <span className="shell-streak-person-name">{shortName(item.partner.email)}</span>
+                  <span className="shell-streak-person-metrics">
+                    <strong>🔥 {item.partner.streak}d</strong>
+                    <strong>🏆 {item.partner.max_streak || 0}d</strong>
+                  </span>
                 </div>
               </article>
             ))}

@@ -164,17 +164,19 @@ export default function CoupleTab({ userEmail }: { userEmail: string }) {
             <div key={item.habit_key} className="streak-card">
               <div className="streak-icon">🔥</div>
               <div className="streak-label">{item.label}</div>
-              <div className="streak-row">
-                <span>{item.user.streak} days</span>
-                <span>{item.user.email.split("@")[0]}</span>
+              <div className="streak-person-row">
+                <span className="streak-person-name">{item.user.email.split("@")[0]}</span>
+                <span className="streak-person-metrics">
+                  <strong>🔥 {item.user.streak}d</strong>
+                  <strong>🏆 {item.user.max_streak || 0}d</strong>
+                </span>
               </div>
-              <div className="streak-row">
-                <span>{item.partner.streak} days</span>
-                <span>{item.partner.email.split("@")[0]}</span>
-              </div>
-              <div className="streak-max">
-                Max: {item.user.email.split("@")[0]} {item.user.max_streak || 0} ·{" "}
-                {item.partner.email.split("@")[0]} {item.partner.max_streak || 0}
+              <div className="streak-person-row">
+                <span className="streak-person-name">{item.partner.email.split("@")[0]}</span>
+                <span className="streak-person-metrics">
+                  <strong>🔥 {item.partner.streak}d</strong>
+                  <strong>🏆 {item.partner.max_streak || 0}d</strong>
+                </span>
               </div>
             </div>
           ))}
