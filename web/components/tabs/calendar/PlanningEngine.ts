@@ -167,6 +167,59 @@ function toMinutes(time: string) {
   return hour * 60 + minute;
 }
 
+type TimeRange = { start: number; end: number };
+
+function mergeTimeRanges(ranges: TimeRange[]) {
+  if (ranges.length <= 1) return [...ranges];
+  const sorted = [...ranges].sort((left, right) => left.start - right.start);
+  const merged: TimeRange[] = [sorted[0]];
+  for (let index = 1; index < sorted.length; index += 1) {
+    const current = sorted[index];
+    const last = merged[merged.length - 1];
+    if (current.start > last.end) {
+      merged.push(current);
+      continue;
+    }
+    last.end = Math.max(last.end, current.end);
+  }
+  return merged;
+}
+
+function buildLockedTimeRanges(
+  candidates: PlanningTaskCandidate[],
+  areaBufferByKey: Map<string, number>,
+  areaBufferFallback: number
+) {
+  const ranges: TimeRange[] = [];
+  candidates.forEach((candidate) => {
+    if (!candidate.isLocked) return;
+    const draft = candidate.draft;
+    const fixedTime = draft.scheduledTime || draft.plannedTime;
+    if (!fixedTime) return;
+    const start = toMinutes(fixedTime);
+    if (!Number.isFinite(start)) return;
+    const estimate = Math.max(5, Number(draft.estimatedMinutes || 30));
+    const areaKey = normalizeAreaTagForPlanning(draft.areaTag);
+    const factor = areaBufferByKey.get(areaKey) || areaBufferFallback;
+    const bufferMinutes = Math.min(
+      60,
+      Math.max(0, Math.round(estimate * Math.max(0, factor - 1)))
+    );
+    ranges.push({
+      start,
+      end: start + estimate + bufferMinutes,
+    });
+  });
+  return mergeTimeRanges(ranges);
+}
+
+function findNextLockedTimeRange(cursor: number, lockedRanges: TimeRange[]) {
+  for (const range of lockedRanges) {
+    if (range.end > cursor) return range;
+  }
+  return null;
+}
+
 type BuildAutoPlanUpdatesOptions = {
   mode: AutoPlanMode;
   candidates: PlanningTaskCandidate[];
@@ -191,6 +244,9 @@ export function buildAutoPlanUpdates({
   const orderedCandidates = shouldReorder
     ? buildBalancedOrderWithLockedAnchors(candidates)
     : candidates;
+  const lockedTimeRanges = shouldReschedule
+    ? buildLockedTimeRanges(orderedCandidates, areaBufferByKey, areaBufferFallback)
+    : [];
 
   let cursor = Math.max(0, Math.min(endMinutes, startMinutes));
   let reachedDayEnd = false;
@@ -223,13 +279,6 @@ export function buildAutoPlanUpdates({
 
     if (candidate.isLocked) {
       stats.lockedPreservedCount += 1;
-      if (shouldReschedule && !reachedDayEnd) {
-        if (draft.scheduledTime) {
-          cursor = Math.max(cursor, toMinutes(draft.scheduledTime));
-        }
-        cursor += estimate + bufferMinutes;
-        if (cursor >= endMinutes) reachedDayEnd = true;
-      }
       return;
     }
 
@@ -243,6 +292,26 @@ export function buildAutoPlanUpdates({
     const currentDate = draft.scheduledDate || "";
     const currentTime = draft.scheduledTime || "";
     const currentPlanned = draft.plannedTime || draft.scheduledTime || "";
+
+    const requiredMinutes = estimate + bufferMinutes;
+    const normalizedStart = Math.max(0, Math.min(endMinutes, cursor));
+    let nextStart = normalizedStart;
+    while (true) {
+      const nextLockedRange = findNextLockedTimeRange(nextStart, lockedTimeRanges);
+      if (!nextLockedRange) break;
+      if (nextStart >= nextLockedRange.start && nextStart < nextLockedRange.end) {
+        nextStart = nextLockedRange.end;
+        continue;
+      }
+      if (
+        nextStart < nextLockedRange.start &&
+        nextStart + requiredMinutes > nextLockedRange.start
+      ) {
+        nextStart = nextLockedRange.end;
+        continue;
+      }
+      break;
+    }
 
     if (reachedDayEnd) {
       if (currentDate !== selectedDayIso || currentTime || currentPlanned) {
@@ -258,8 +327,7 @@ export function buildAutoPlanUpdates({
       return;
     }
 
-    const nextStart = cursor;
-    const nextEnd = nextStart + estimate + bufferMinutes;
+    const nextEnd = nextStart + requiredMinutes;
     if (nextStart >= endMinutes) {
       reachedDayEnd = true;
       if (currentDate !== selectedDayIso || currentTime || currentPlanned) {
