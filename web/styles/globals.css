@@ -2739,6 +2739,31 @@ button.link.danger {
   text-transform: uppercase;
 }
 
+.calendar-list-filter {
+  margin: 8px 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.calendar-list-filter label {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.calendar-list-filter select {
+  min-height: 30px;
+  min-width: 150px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 9px;
+  background: rgba(11, 15, 24, 0.74);
+  color: var(--text);
+  padding: 5px 9px;
+  font-size: 12px;
+}
+
 .activity-wheel-head {
   display: flex;
   justify-content: space-between;
@@ -4659,10 +4684,16 @@ button.link.danger {
   .task-header-actions,
   .task-composer-selection,
   .calendar-section-head,
+  .calendar-list-filter,
   .quick-note-head,
   .habits-section-head {
     width: 100%;
     align-items: flex-start;
+  }
+
+  .calendar-list-filter select {
+    flex: 1;
+    min-width: 0;
   }
 
   .shell-summary-grid {

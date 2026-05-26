@@ -161,6 +161,9 @@ type WheelSegment = {
   color: string;
 };
 
+const ALL_TAG_FILTER = "__all__";
+const NO_TAG_FILTER = "__none__";
+
 const WHEEL_SLICE_COLORS = [
   "#81623a",
   "#54677a",
@@ -1171,6 +1174,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [quickNoteDrafts, setQuickNoteDrafts] = useState<Record<string, string>>({});
   const [pendingAutoPlanReason, setPendingAutoPlanReason] = useState<string | null>(null);
   const [autoPlanNotice, setAutoPlanNotice] = useState<string | null>(null);
+  const [todayTagFilter, setTodayTagFilter] = useState(ALL_TAG_FILTER);
+  const [backlogTagFilter, setBacklogTagFilter] = useState(ALL_TAG_FILTER);
   const autoPlanningRef = useRef(false);
 
   useEffect(() => {
@@ -1505,28 +1510,62 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     [expandedTasks]
   );
 
+  const taskMatchesTagFilter = useCallback(
+    (task: TodoTask, tagFilter: string) => {
+      if (tagFilter === ALL_TAG_FILTER) return true;
+      const areaTag = (readTaskDraft(task).areaTag || "").trim();
+      if (tagFilter === NO_TAG_FILTER) return !areaTag;
+      return areaTag === tagFilter;
+    },
+    [readTaskDraft]
+  );
+
   const allPendingTasks = tasksForDay
     .filter((task) => !readTaskDraft(task).isDone)
     .sort(compareTasksForExecution);
   const pendingTasks = allPendingTasks.filter(
     (task) => !lowEnergyMode || getTaskEffort(task) === "low"
   );
+  const filteredPendingTasks = useMemo(
+    () => pendingTasks.filter((task) => taskMatchesTagFilter(task, todayTagFilter)),
+    [pendingTasks, taskMatchesTagFilter, todayTagFilter]
+  );
   const timedPendingTasks = useMemo(
     () =>
-      pendingTasks.filter((task) => {
+      filteredPendingTasks.filter((task) => {
         const draft = readTaskDraft(task);
         return Boolean(draft.scheduledTime || draft.plannedTime);
       }),
-    [pendingTasks, readTaskDraft]
+    [filteredPendingTasks, readTaskDraft]
   );
   const noTimePendingTasks = useMemo(
     () =>
-      pendingTasks.filter((task) => {
+      filteredPendingTasks.filter((task) => {
         const draft = readTaskDraft(task);
         return !draft.scheduledTime && !draft.plannedTime;
       }),
-    [pendingTasks, readTaskDraft]
+    [filteredPendingTasks, readTaskDraft]
   );
+  const filteredOverdueBacklogTasks = useMemo(
+    () =>
+      overdueBacklogTasks.filter((task) =>
+        taskMatchesTagFilter(task, backlogTagFilter)
+      ),
+    [backlogTagFilter, overdueBacklogTasks, taskMatchesTagFilter]
+  );
+  const filteredUnscheduledTasks = useMemo(
+    () =>
+      unscheduledTasks.filter((task) =>
+        taskMatchesTagFilter(task, backlogTagFilter)
+      ),
+    [backlogTagFilter, taskMatchesTagFilter, unscheduledTasks]
+  );
+  const todaySectionCountLabel =
+    todayTagFilter !== ALL_TAG_FILTER
+      ? `${filteredPendingTasks.length}/${pendingTasks.length}`
+      : lowEnergyMode
+        ? `${pendingTasks.length}/${allPendingTasks.length}`
+        : String(pendingTasks.length);
   const completedTaskRows = tasksForDay
     .filter((task) => readTaskDraft(task).isDone)
     .sort(compareTasksForExecution);
@@ -1995,10 +2034,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               overdueTasks.find((task) => task.id === taskId);
             if (sourceTask) {
               const nextTask = patchItem(sourceTask);
+              const nextScheduledDate = nextTask.scheduledDate;
               const inCurrentRange =
-                Boolean(nextTask.scheduledDate) &&
-                nextTask.scheduledDate >= range.start &&
-                nextTask.scheduledDate <= range.end;
+                typeof nextScheduledDate === "string" &&
+                nextScheduledDate >= range.start &&
+                nextScheduledDate <= range.end;
               if (inCurrentRange && !nextTask.isDone) {
                 items = [nextTask, ...items];
               }
@@ -4869,10 +4909,26 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               <h3>Tasks</h3>
             </div>
             <span className="calendar-section-count">
-              {lowEnergyMode ? `${pendingTasks.length}/${allPendingTasks.length}` : pendingTasks.length}
+              {todaySectionCountLabel}
             </span>
           </div>
-          {pendingTasks.length ? (
+          <div className="calendar-list-filter">
+            <label htmlFor="today-tag-filter">Tag</label>
+            <select
+              id="today-tag-filter"
+              value={todayTagFilter}
+              onChange={(event) => setTodayTagFilter(event.target.value)}
+            >
+              <option value={ALL_TAG_FILTER}>All tags</option>
+              <option value={NO_TAG_FILTER}>No tag</option>
+              {taskAreas.map((taskArea) => (
+                <option key={`today-filter-${taskArea.key}`} value={taskArea.key}>
+                  {taskArea.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          {filteredPendingTasks.length ? (
             <div
               className="task-items"
               onDragOver={(event) => {
@@ -4921,7 +4977,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 handleDropTaskAtStart();
               }}
             >
-              {lowEnergyMode ? "No light tasks." : "No pending tasks."}
+              {todayTagFilter === ALL_TAG_FILTER
+                ? lowEnergyMode
+                  ? "No light tasks."
+                  : "No pending tasks."
+                : "No tasks for this tag."}
             </div>
           )}
         </section>
@@ -4933,10 +4993,26 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               <h3>Backlog</h3>
             </div>
             <span className="calendar-section-count">
-              {unscheduledTasks.length + overdueBacklogTasks.length}
+              {filteredUnscheduledTasks.length + filteredOverdueBacklogTasks.length}
             </span>
           </div>
-          {unscheduledTasks.length || overdueBacklogTasks.length ? (
+          <div className="calendar-list-filter">
+            <label htmlFor="backlog-tag-filter">Tag</label>
+            <select
+              id="backlog-tag-filter"
+              value={backlogTagFilter}
+              onChange={(event) => setBacklogTagFilter(event.target.value)}
+            >
+              <option value={ALL_TAG_FILTER}>All tags</option>
+              <option value={NO_TAG_FILTER}>No tag</option>
+              {taskAreas.map((taskArea) => (
+                <option key={`backlog-filter-${taskArea.key}`} value={taskArea.key}>
+                  {taskArea.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          {filteredUnscheduledTasks.length || filteredOverdueBacklogTasks.length ? (
             <div
               className="task-items"
               onDragOver={(event) => {
@@ -4949,9 +5025,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 handleDropTaskToBacklog();
               }}
             >
-              {overdueBacklogTasks.length ? (
+              {filteredOverdueBacklogTasks.length ? (
                 <p className="calendar-backlog-subtitle">
-                  Overdue from last 7 days ({overdueBacklogTasks.length})
+                  Overdue from last 7 days ({filteredOverdueBacklogTasks.length})
                 </p>
               ) : null}
               {draggingTaskId ? (
@@ -4959,7 +5035,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   Solte aqui para mover para Backlog (sem horário)
                 </div>
               ) : null}
-              {overdueBacklogTasks.map((task) => {
+              {filteredOverdueBacklogTasks.map((task) => {
                 const draft = readTaskDraft(task);
                 const shareUi = getTaskSharePresentation(task);
                 return (
@@ -5012,12 +5088,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   />
                 );
               })}
-              {unscheduledTasks.length ? (
+              {filteredUnscheduledTasks.length ? (
                 <p className="calendar-backlog-subtitle">
-                  Unscheduled ({unscheduledTasks.length})
+                  Unscheduled ({filteredUnscheduledTasks.length})
                 </p>
               ) : null}
-              {unscheduledTasks.map((task) => {
+              {filteredUnscheduledTasks.map((task) => {
                 const draft = readTaskDraft(task);
                 const shareUi = getTaskSharePresentation(task);
                 return (
@@ -5077,7 +5153,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               })}
             </div>
           ) : (
-            <div className="line-empty">No backlog.</div>
+            <div className="line-empty">
+              {backlogTagFilter === ALL_TAG_FILTER
+                ? "No backlog."
+                : "No backlog tasks for this tag."}
+            </div>
           )}
         </section>
 
