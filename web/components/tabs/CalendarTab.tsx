@@ -4362,8 +4362,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     [
       areaBufferFactor.byArea,
       areaBufferFactor.fallback,
-      buildAutoPlanUpdates,
-      formatAutoPlanNotice,
       planStartOffsetMinutes,
       readTaskDraft,
       reorderFocusTasks,
@@ -4412,6 +4410,39 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const handleAutoRescheduleNow = useCallback(() => {
     runAutoPlanning("manual-time", "time");
   }, [runAutoPlanning]);
+
+  const getTaskSharePresentation = useCallback(
+    (task: TodoTask) => {
+      if (task.source === "shared" || task.source === "google_shared") {
+        return {
+          label: task.source === "google_shared" ? "Google share" : "Shared",
+          canToggle: false,
+          actionLabel: "Share",
+        };
+      }
+      const sentShare = activeSentShareByTaskId.get(task.id);
+      if (sentShare?.status === "pending") {
+        return {
+          label: `Shared · ${emailHandle(sentShare.toEmail)}`,
+          canToggle: true,
+          actionLabel: "Unshare",
+        };
+      }
+      if (sentShare?.status === "accepted") {
+        return {
+          label: `Shared · ${emailHandle(sentShare.toEmail)}`,
+          canToggle: true,
+          actionLabel: "Unshare",
+        };
+      }
+      return {
+        label: null,
+        canToggle: true,
+        actionLabel: "Share",
+      };
+    },
+    [activeSentShareByTaskId]
+  );
 
   const renderTodayTaskRow = useCallback(
     (task: TodoTask) => {
@@ -4493,12 +4524,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       handleResumeTask,
       handleScheduleTomorrow,
       handleSetTaskNext,
+      handleDropTask,
       handleShareTask,
       handleTaskAreaChange,
       handleTaskPriorityChange,
       handleTaskScheduleLockToggle,
       handleToggleSubtaskDone,
       handleToggleTaskExpanded,
+      getTaskSharePresentation,
       isTaskExpanded,
       pendingTasks,
       readTaskDraft,
@@ -4574,38 +4607,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     [readEstimationDraft, updateEstimationRow]
   );
 
-  const getTaskSharePresentation = useCallback(
-    (task: TodoTask) => {
-      if (task.source === "shared" || task.source === "google_shared") {
-        return {
-          label: task.source === "google_shared" ? "Google share" : "Shared",
-          canToggle: false,
-          actionLabel: "Share",
-        };
-      }
-      const sentShare = activeSentShareByTaskId.get(task.id);
-      if (sentShare?.status === "pending") {
-        return {
-          label: `Shared · ${emailHandle(sentShare.toEmail)}`,
-          canToggle: true,
-          actionLabel: "Unshare",
-        };
-      }
-      if (sentShare?.status === "accepted") {
-        return {
-          label: `Shared · ${emailHandle(sentShare.toEmail)}`,
-          canToggle: true,
-          actionLabel: "Unshare",
-        };
-      }
-      return {
-        label: null,
-        canToggle: true,
-        actionLabel: "Share",
-      };
-    },
-    [activeSentShareByTaskId]
-  );
   const detailShareUi = useMemo(
     () => (detailTask ? getTaskSharePresentation(detailTask) : null),
     [detailTask, getTaskSharePresentation]
