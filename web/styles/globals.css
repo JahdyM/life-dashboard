@@ -2156,22 +2156,37 @@ button.link.danger {
     linear-gradient(90deg, rgba(176, 118, 93, 0.13), rgba(255, 255, 255, 0.035));
 }
 
-.task-row-clock-late {
-  border-color: rgba(224, 118, 107, 0.44);
+.task-row.task-row-clock-late,
+.task-row.task-row-clock-late:focus-within,
+.task-row.task-row-clock-late.active {
+  border-color: rgba(231, 108, 95, 0.72);
   background:
-    linear-gradient(90deg, rgba(176, 71, 63, 0.18), rgba(255, 255, 255, 0.03));
+    linear-gradient(90deg, rgba(199, 72, 58, 0.33), rgba(255, 255, 255, 0.045));
+  box-shadow:
+    inset 4px 0 0 rgba(236, 117, 104, 0.9),
+    0 0 0 1px rgba(231, 108, 95, 0.2);
 }
 
-.task-row-clock-progress {
-  border-color: rgba(229, 194, 108, 0.46);
+.task-row.task-row-clock-progress,
+.task-row.task-row-clock-progress:focus-within,
+.task-row.task-row-clock-progress.active {
+  border-color: rgba(233, 193, 89, 0.72);
   background:
-    linear-gradient(90deg, rgba(197, 156, 63, 0.16), rgba(255, 255, 255, 0.03));
+    linear-gradient(90deg, rgba(214, 170, 64, 0.29), rgba(255, 255, 255, 0.045));
+  box-shadow:
+    inset 4px 0 0 rgba(239, 201, 101, 0.9),
+    0 0 0 1px rgba(233, 193, 89, 0.18);
 }
 
-.task-row-clock-done {
-  border-color: rgba(102, 189, 132, 0.44);
+.task-row.task-row-clock-done,
+.task-row.task-row-clock-done:focus-within,
+.task-row.task-row-clock-done.active {
+  border-color: rgba(92, 188, 126, 0.72);
   background:
-    linear-gradient(90deg, rgba(63, 153, 95, 0.17), rgba(255, 255, 255, 0.03));
+    linear-gradient(90deg, rgba(66, 167, 104, 0.28), rgba(255, 255, 255, 0.045));
+  box-shadow:
+    inset 4px 0 0 rgba(101, 199, 136, 0.9),
+    0 0 0 1px rgba(92, 188, 126, 0.18);
 }
 
 .task-row.habit-row-inline {

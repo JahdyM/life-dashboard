@@ -4504,10 +4504,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           : planningCandidates;
 
       const now = new Date();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const isManualTimeRun = mode === "time" && reason === "manual-time";
       const startMinutesByNow =
-        now.getHours() * 60 +
-        now.getMinutes() +
-        Math.max(0, Math.round(planStartOffsetMinutes));
+        nowMinutes +
+        (isManualTimeRun ? 0 : Math.max(0, Math.round(planStartOffsetMinutes)));
       const earliestPlannedStart = allTodayPending.reduce<number | null>((current, task) => {
         const draft = readTaskDraft(task);
         const next = draft.plannedTime || draft.scheduledTime;
@@ -4521,7 +4522,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       const isSelectedDayToday = selectedDayIso === todayIsoNow;
       const startMinutes =
         mode === "time"
-          ? earliestPlannedStart ?? (isSelectedDayToday ? startMinutesByNow : defaultDayStartMinutes)
+          ? isSelectedDayToday
+            ? startMinutesByNow
+            : earliestPlannedStart ?? defaultDayStartMinutes
           : isSelectedDayToday
             ? startMinutesByNow
             : earliestPlannedStart ?? defaultDayStartMinutes;
