@@ -138,6 +138,7 @@ type CreateTaskInput = {
   scheduleLocked: boolean;
   estimatedMinutes: number;
   shareWithPartner: boolean;
+  keepCurrentDayView?: boolean;
 };
 
 type FocusOrderUpdate = {
@@ -418,6 +419,14 @@ function normalizeTaskTitleKey(value: string) {
     .toLowerCase()
     .replace(/\s+/g, " ")
     .replace(/[^\p{L}\p{N}\s]/gu, "");
+}
+
+function isDissertationRelatedTask(task: TodoTask, areaTag: string) {
+  if (task.source === "dissertation") return true;
+  const normalizedArea = String(areaTag || task.areaTag || "").trim().toLowerCase();
+  if (normalizedArea === "mestrado" || normalizedArea === "dissertation") return true;
+  const title = String(task.title || "").toLowerCase();
+  return /disserta[cç][aã]o|mestrado|qualifica[cç][aã]o|defesa/.test(title);
 }
 
 function toMinutes(time: string) {
@@ -2251,7 +2260,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         shareTaskWithPartner.mutate(payload.task.id);
       }
       setPendingAutoPlanReason("new-task");
-      if (variables.scheduledDate && variables.scheduledDate !== selectedDayIso) {
+      if (
+        !variables.keepCurrentDayView &&
+        variables.scheduledDate &&
+        variables.scheduledDate !== selectedDayIso
+      ) {
         setSelectedDate(new Date(`${variables.scheduledDate}T12:00:00`));
       }
       void queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
@@ -3277,6 +3290,32 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             syncHabitFromTaskState(task, checked);
             setSavingTaskId(null);
             setSavedTaskId(task.id);
+            if (checked && isDissertationRelatedTask(task, draft.areaTag)) {
+              const tomorrowIso = format(addDays(new Date(), 1), "yyyy-MM-dd");
+              const suggestedTitle = `${task.title} — próximo passo`;
+              const nextStepTitle = window.prompt(
+                "Qual é o próximo passo desta frente da dissertação para amanhã?",
+                suggestedTitle
+              );
+              const cleanedTitle = String(nextStepTitle || "").trim();
+              if (cleanedTitle) {
+                createTask.mutate({
+                  title: cleanedTitle,
+                  scheduledDate: tomorrowIso,
+                  scheduledTime: null,
+                  priorityTag: draft.priorityTag || task.priorityTag || "Medium",
+                  areaTag: draft.areaTag || task.areaTag || "mestrado",
+                  scheduleLocked: false,
+                  estimatedMinutes: Math.max(5, Number(draft.estimatedMinutes || task.estimatedMinutes || 30)),
+                  shareWithPartner: false,
+                  keepCurrentDayView: true,
+                });
+                setBoardActionNotice({
+                  tone: "success",
+                  body: "Próximo passo da dissertação adicionado para amanhã.",
+                });
+              }
+            }
           window.setTimeout(() => {
             setSavedTaskId((prev) => (prev === task.id ? null : prev));
           }, 900);
@@ -3305,6 +3344,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     updateTask,
     applyTaskPatchToCache,
     clearDoneDraft,
+    createTask,
     syncHabitFromTaskState,
   ]);
 
