@@ -1519,8 +1519,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     .filter((task) => readTaskDraft(task).isDone)
     .sort(compareTasksForExecution);
   const completedTasks = completedTaskRows.filter((task) => task.source !== "habit");
-  const executionPositionByTaskId = new Map<string, number>(
-    pendingTasks.map((task, index) => [task.id, index + 1])
+  const executionPositionByTaskId = useMemo(
+    () => new Map<string, number>(pendingTasks.map((task, index) => [task.id, index + 1])),
+    [pendingTasks]
   );
   const pendingTaskPool = useMemo(
     () =>
