@@ -1251,6 +1251,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     () => format(selectedDate, "yyyy-MM-dd"),
     [selectedDate]
   );
+  const tomorrowFromSelectedIso = useMemo(
+    () => format(addDays(new Date(`${selectedDayIso}T12:00:00`), 1), "yyyy-MM-dd"),
+    [selectedDayIso]
+  );
   useEffect(() => {
     setAutoPlanNotice(null);
   }, [selectedDayIso]);
@@ -1445,6 +1449,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     .filter((task) => !task.isDone)
     .filter((task) => !task.missedAt)
     .filter((task) => Boolean(task.scheduledDate))
+    .filter((task) =>
+      task.scheduledDate
+        ? task.scheduledDate >= overdueRange.start &&
+          task.scheduledDate <= overdueRange.end &&
+          task.scheduledDate !== tomorrowFromSelectedIso
+        : false
+    )
     .filter((task) => !lowEnergyMode || getTaskEffort(task) === "low")
     .sort(compareTasksForExecution);
 
@@ -1605,9 +1616,20 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     () => taskSharesQuery.data?.sent || [],
     [taskSharesQuery.data?.sent]
   );
+  const detailTaskPool = useMemo(() => {
+    if (!overdueTasks.length) return tasks;
+    const seen = new Set(tasks.map((task) => task.id));
+    const merged = [...tasks];
+    overdueTasks.forEach((task) => {
+      if (seen.has(task.id)) return;
+      seen.add(task.id);
+      merged.push(task);
+    });
+    return merged;
+  }, [overdueTasks, tasks]);
   const detailTask = useMemo(
-    () => tasks.find((task) => task.id === detailTaskId) || null,
-    [detailTaskId, tasks]
+    () => detailTaskPool.find((task) => task.id === detailTaskId) || null,
+    [detailTaskId, detailTaskPool]
   );
   const detailTaskDraft = useMemo(
     () => (detailTask ? readTaskDraft(detailTask) : null),
@@ -1616,10 +1638,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   useEffect(() => {
     if (!detailTaskId) return;
-    if (!tasks.some((task) => task.id === detailTaskId)) {
+    if (!detailTaskPool.some((task) => task.id === detailTaskId)) {
       setDetailTaskId(null);
     }
-  }, [detailTaskId, tasks]);
+  }, [detailTaskId, detailTaskPool]);
 
   useEffect(() => {
     setExpandedTasks((previous) => {
@@ -1877,96 +1899,149 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   const applyTaskPatchToCache = useCallback(
     (taskId: string, patch: Record<string, string | number | null>) => {
-      queryClient.setQueryData<TaskListResponse | undefined>(
-        ["tasks", range.start, range.end],
-        (previous: TaskListResponse | undefined) => {
-          if (!previous?.items) return previous;
+      const applyPatch = (
+        previous: TaskListResponse | undefined,
+        options?: { keepOverdueOnly?: boolean }
+      ) => {
+        if (!previous?.items) return previous;
+        const patchItem = (item: TodoTask): TodoTask => {
+          const nextTitle =
+            typeof patch.title === "string" && patch.title ? patch.title : item.title;
+          const nextPriorityTag =
+            typeof patch.priority_tag === "string" || patch.priority_tag === null
+              ? patch.priority_tag
+              : item.priorityTag;
+          const nextAreaTag =
+            typeof patch.area_tag === "string" || patch.area_tag === null
+              ? patch.area_tag
+              : item.areaTag ?? null;
+          const nextScheduleLocked =
+            typeof patch.schedule_locked === "number" || patch.schedule_locked === null
+              ? Boolean(patch.schedule_locked)
+              : Boolean(item.scheduleLocked);
+          const nextScheduledTime =
+            typeof patch.scheduled_time === "string" || patch.scheduled_time === null
+              ? patch.scheduled_time
+              : item.scheduledTime;
+          const nextScheduledDate =
+            typeof patch.scheduled_date === "string" || patch.scheduled_date === null
+              ? patch.scheduled_date
+              : item.scheduledDate;
+          const nextPlannedTime =
+            typeof patch.planned_time === "string" || patch.planned_time === null
+              ? patch.planned_time
+              : typeof patch.scheduled_time === "string" || patch.scheduled_time === null
+                ? patch.scheduled_time
+                : item.plannedTime ?? item.scheduledTime ?? null;
+          const nextStartTime =
+            typeof patch.start_time === "string" || patch.start_time === null
+              ? patch.start_time
+              : item.startTime ?? null;
+          const nextEndTime =
+            typeof patch.end_time === "string" || patch.end_time === null
+              ? patch.end_time
+              : item.endTime ?? null;
+          const nextNotes =
+            typeof patch.notes === "string" || patch.notes === null
+              ? patch.notes
+              : item.notes ?? null;
+          const nextEstimatedMinutes =
+            typeof patch.estimated_minutes === "number" || patch.estimated_minutes === null
+              ? patch.estimated_minutes
+              : item.estimatedMinutes;
+          const nextActualMinutes =
+            typeof patch.actual_minutes === "number" || patch.actual_minutes === null
+              ? patch.actual_minutes
+              : item.actualMinutes;
+          const nextFocusOrder =
+            typeof patch.focus_order === "number" || patch.focus_order === null
+              ? patch.focus_order
+              : item.focusOrder ?? null;
+          const nextCompletedAt =
+            typeof patch.completed_at === "string" || patch.completed_at === null
+              ? patch.completed_at
+              : item.completedAt;
+          return {
+            ...item,
+            title: nextTitle,
+            isDone: "is_done" in patch ? (patch.is_done ? 1 : 0) : item.isDone,
+            priorityTag: nextPriorityTag,
+            areaTag: nextAreaTag,
+            scheduleLocked: nextScheduleLocked,
+            scheduledTime: nextScheduledTime,
+            scheduledDate: nextScheduledDate,
+            plannedTime: nextPlannedTime,
+            startTime: nextStartTime,
+            endTime: nextEndTime,
+            notes: nextNotes,
+            focusOrder: nextFocusOrder,
+            estimatedMinutes: nextEstimatedMinutes,
+            actualMinutes: nextActualMinutes,
+            completedAt: nextCompletedAt,
+          };
+        };
+
+        let foundTarget = false;
+        let items = previous.items.map((item) => {
+          if (item.id !== taskId) return item;
+          foundTarget = true;
+          return patchItem(item);
+        });
+
+        if (!options?.keepOverdueOnly) {
+          if (!foundTarget) {
+            const sourceTask =
+              tasks.find((task) => task.id === taskId) ||
+              overdueTasks.find((task) => task.id === taskId);
+            if (sourceTask) {
+              const nextTask = patchItem(sourceTask);
+              const inCurrentRange =
+                Boolean(nextTask.scheduledDate) &&
+                nextTask.scheduledDate >= range.start &&
+                nextTask.scheduledDate <= range.end;
+              if (inCurrentRange && !nextTask.isDone) {
+                items = [nextTask, ...items];
+              }
+            }
+          }
           return {
             ...previous,
-            items: previous.items.map((item) => {
-              if (item.id !== taskId) return item;
-              const nextTitle =
-                typeof patch.title === "string" && patch.title
-                  ? patch.title
-                  : item.title;
-              const nextPriorityTag =
-                typeof patch.priority_tag === "string" || patch.priority_tag === null
-                  ? patch.priority_tag
-                  : item.priorityTag;
-              const nextAreaTag =
-                typeof patch.area_tag === "string" || patch.area_tag === null
-                  ? patch.area_tag
-                  : item.areaTag ?? null;
-              const nextScheduleLocked =
-                typeof patch.schedule_locked === "number" || patch.schedule_locked === null
-                  ? Boolean(patch.schedule_locked)
-                  : Boolean(item.scheduleLocked);
-              const nextScheduledTime =
-                typeof patch.scheduled_time === "string" || patch.scheduled_time === null
-                  ? patch.scheduled_time
-                  : item.scheduledTime;
-              const nextScheduledDate =
-                typeof patch.scheduled_date === "string" || patch.scheduled_date === null
-                  ? patch.scheduled_date
-                  : item.scheduledDate;
-              const nextPlannedTime =
-                typeof patch.planned_time === "string" || patch.planned_time === null
-                  ? patch.planned_time
-                  : typeof patch.scheduled_time === "string" || patch.scheduled_time === null
-                    ? patch.scheduled_time
-                    : item.plannedTime ?? item.scheduledTime ?? null;
-              const nextStartTime =
-                typeof patch.start_time === "string" || patch.start_time === null
-                  ? patch.start_time
-                  : item.startTime ?? null;
-              const nextEndTime =
-                typeof patch.end_time === "string" || patch.end_time === null
-                  ? patch.end_time
-                  : item.endTime ?? null;
-              const nextNotes =
-                typeof patch.notes === "string" || patch.notes === null
-                  ? patch.notes
-                  : item.notes ?? null;
-              const nextEstimatedMinutes =
-                typeof patch.estimated_minutes === "number" || patch.estimated_minutes === null
-                  ? patch.estimated_minutes
-                  : item.estimatedMinutes;
-              const nextActualMinutes =
-                typeof patch.actual_minutes === "number" || patch.actual_minutes === null
-                  ? patch.actual_minutes
-                  : item.actualMinutes;
-              const nextFocusOrder =
-                typeof patch.focus_order === "number" || patch.focus_order === null
-                  ? patch.focus_order
-                  : item.focusOrder ?? null;
-              const nextCompletedAt =
-                typeof patch.completed_at === "string" || patch.completed_at === null
-                  ? patch.completed_at
-                  : item.completedAt;
-              return {
-                ...item,
-                title: nextTitle,
-                isDone: "is_done" in patch ? (patch.is_done ? 1 : 0) : item.isDone,
-                priorityTag: nextPriorityTag,
-                areaTag: nextAreaTag,
-                scheduleLocked: nextScheduleLocked,
-                scheduledTime: nextScheduledTime,
-                scheduledDate: nextScheduledDate,
-                plannedTime: nextPlannedTime,
-                startTime: nextStartTime,
-                endTime: nextEndTime,
-                notes: nextNotes,
-                focusOrder: nextFocusOrder,
-                estimatedMinutes: nextEstimatedMinutes,
-                actualMinutes: nextActualMinutes,
-                completedAt: nextCompletedAt,
-              };
-            }),
+            items,
           };
         }
+
+        return {
+          ...previous,
+          items: items.filter((item) =>
+            item.scheduledDate
+              ? item.scheduledDate >= overdueRange.start &&
+                item.scheduledDate <= overdueRange.end &&
+                item.scheduledDate !== tomorrowFromSelectedIso
+              : false
+          ),
+        };
+      };
+
+      queryClient.setQueryData<TaskListResponse | undefined>(
+        ["tasks", range.start, range.end],
+        (previous: TaskListResponse | undefined) => applyPatch(previous)
+      );
+      queryClient.setQueryData<TaskListResponse | undefined>(
+        ["tasks-overdue", overdueRange.start, overdueRange.end],
+        (previous: TaskListResponse | undefined) =>
+          applyPatch(previous, { keepOverdueOnly: true })
       );
     },
-    [queryClient, range.start, range.end]
+    [
+      overdueRange.end,
+      overdueRange.start,
+      queryClient,
+      range.end,
+      range.start,
+      overdueTasks,
+      tasks,
+      tomorrowFromSelectedIso,
+    ]
   );
 
   const clearDoneDraft = useCallback((taskId: string) => {
@@ -2278,6 +2353,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     onSuccess: () => {
       setTaskSaveError(null);
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
+      queryClient.invalidateQueries({
+        queryKey: ["tasks-overdue", overdueRange.start, overdueRange.end],
+      });
     },
     onError: (error, _taskIds, context) => {
       if (context?.previous) {
@@ -2349,6 +2427,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     onSuccess: () => {
       setTaskSaveError(null);
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
+      queryClient.invalidateQueries({
+        queryKey: ["tasks-overdue", overdueRange.start, overdueRange.end],
+      });
     },
     onError: (error) => {
       setTaskSaveError(readErrorMessage(error, "Couldn't update task."));
@@ -4905,6 +4986,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     onToggleScheduleLock={handleTaskScheduleLockToggle}
                     onCreateAreaTag={handleCreateTaskAreaForTask}
                     onScheduleToday={handleScheduleToday}
+                    onScheduleTomorrow={handleScheduleTomorrow}
                     onMoveToToday={handleScheduleToday}
                     onMarkStarted={handleMarkStarted}
                     onMarkNeedsFinish={handleMarkNeedsFinish}
@@ -4962,6 +5044,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     onToggleScheduleLock={handleTaskScheduleLockToggle}
                     onCreateAreaTag={handleCreateTaskAreaForTask}
                     onScheduleToday={handleScheduleToday}
+                    onScheduleTomorrow={handleScheduleTomorrow}
                     onMoveToToday={handleScheduleToday}
                     onMarkStarted={handleMarkStarted}
                     onMarkNeedsFinish={handleMarkNeedsFinish}
