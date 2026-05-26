@@ -114,7 +114,8 @@ export async function reconcileDissertationMirrors(
 
 /**
  * Reverse sync — given a TodoTask id that may be a dissertation mirror,
- * reflect its done state back onto the underlying dissertation step.
+ * reflect its done state and scheduledDate (dueDate) back onto the
+ * underlying dissertation step.
  * No-op when the task isn't a mirror or the step can't be found.
  */
 export async function syncDissertationStepFromMirrorTask(
@@ -123,7 +124,13 @@ export async function syncDissertationStepFromMirrorTask(
 ): Promise<void> {
   const task = await prisma.todoTask.findUnique({
     where: { id: taskId },
-    select: { source: true, externalEventKey: true, isDone: true, userEmail: true },
+    select: {
+      source: true,
+      externalEventKey: true,
+      isDone: true,
+      scheduledDate: true,
+      userEmail: true,
+    },
   });
   if (!task) return;
   if (task.userEmail !== userEmail) return;
@@ -137,6 +144,7 @@ export async function syncDissertationStepFromMirrorTask(
 
   let touched = false;
   const nowIso = new Date().toISOString();
+  const desiredDueDate = task.scheduledDate ?? null;
   const next: DissertationProject = {
     ...project,
     fronts: project.fronts.map((front) => ({
@@ -144,10 +152,13 @@ export async function syncDissertationStepFromMirrorTask(
       steps: front.steps.map((step) => {
         if (step.id !== stepId) return step;
         const desiredDone = (task.isDone ?? 0) > 0;
-        if (step.done === desiredDone) return step;
+        if (step.done === desiredDone && (step.dueDate ?? null) === desiredDueDate) {
+          return step;
+        }
         touched = true;
         return {
           ...step,
+          dueDate: desiredDueDate,
           done: desiredDone,
           completedAt: desiredDone ? step.completedAt || nowIso : null,
           updatedAt: nowIso,

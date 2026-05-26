@@ -88,12 +88,14 @@ export async function PATCH(
 
     const updated = await updateTask(userEmail, taskId, updatePayload);
 
-    // If this is a dissertation mirror task and its done state changed,
-    // sync the underlying dissertation step (best-effort, doesn't block).
+    // If this is a dissertation mirror task and either completion state or
+    // scheduled day changed, sync the underlying dissertation step (best-effort,
+    // doesn't block). This keeps "not today / tomorrow" moves from resurfacing
+    // as today's mirror task again.
     if (
       existing.source === "dissertation" &&
       existing.externalEventKey &&
-      payload.is_done !== undefined
+      (payload.is_done !== undefined || payload.scheduled_date !== undefined)
     ) {
       try {
         await syncDissertationStepFromMirrorTask(userEmail, taskId);
