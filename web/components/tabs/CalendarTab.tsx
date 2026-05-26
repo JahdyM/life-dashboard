@@ -1530,22 +1530,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     () => pendingTasks.filter((task) => taskMatchesTagFilter(task, todayTagFilter)),
     [pendingTasks, taskMatchesTagFilter, todayTagFilter]
   );
-  const timedPendingTasks = useMemo(
-    () =>
-      filteredPendingTasks.filter((task) => {
-        const draft = readTaskDraft(task);
-        return Boolean(draft.scheduledTime || draft.plannedTime);
-      }),
-    [filteredPendingTasks, readTaskDraft]
-  );
-  const noTimePendingTasks = useMemo(
-    () =>
-      filteredPendingTasks.filter((task) => {
-        const draft = readTaskDraft(task);
-        return !draft.scheduledTime && !draft.plannedTime;
-      }),
-    [filteredPendingTasks, readTaskDraft]
-  );
   const filteredOverdueBacklogTasks = useMemo(
     () =>
       overdueBacklogTasks.filter((task) =>
@@ -4941,14 +4925,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 handleDropTaskAtEnd();
               }}
             >
-              {timedPendingTasks.length ? (
-                <p className="calendar-day-subtitle">Planned with time ({timedPendingTasks.length})</p>
-              ) : null}
-              {timedPendingTasks.map((task) => renderTodayTaskRow(task))}
-              {noTimePendingTasks.length ? (
-                <p className="calendar-day-subtitle">Today without time ({noTimePendingTasks.length})</p>
-              ) : null}
-              {noTimePendingTasks.map((task) => renderTodayTaskRow(task))}
+              {filteredPendingTasks.map((task) => renderTodayTaskRow(task))}
               {draggingTaskId ? (
                 <div
                   className="task-drop-slot active"
