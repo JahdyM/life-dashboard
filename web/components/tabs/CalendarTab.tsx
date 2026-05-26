@@ -496,6 +496,7 @@ type EditableTaskRowProps = {
   onDragEndTask?: () => void;
   showMobileMoveActions?: boolean;
   nowTick: number;
+  showClockState?: boolean;
 };
 
 function TaskAreaBadge({ area }: { area: TaskAreaTag | null }) {
@@ -565,6 +566,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
   onDragEndTask,
   showMobileMoveActions = false,
   nowTick,
+  showClockState = true,
 }: EditableTaskRowProps) {
   const [quickAreaLabel, setQuickAreaLabel] = useState("");
   const [showQuickAreaInput, setShowQuickAreaInput] = useState(false);
@@ -584,7 +586,9 @@ const EditableTaskRow = memo(function EditableTaskRow({
   const progressState = getTaskProgressState(draft);
   const clockState = getTaskClockState(draft, contextDate, nowTick);
   const clockStateClass =
-    clockState === "late"
+    !showClockState
+      ? ""
+      : clockState === "late"
       ? "task-row-clock-late"
       : clockState === "progress"
         ? "task-row-clock-progress"
@@ -5116,6 +5120,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     sharing={sharingTaskId === task.id}
                     contextDate={selectedDayIso}
                     nowTick={nowTick}
+                    showClockState={false}
                     showInlineNext
                     subtaskSavingId={savingSubtaskId}
                     shareLabel={shareUi.label}
@@ -5175,6 +5180,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     sharing={sharingTaskId === task.id}
                     contextDate={selectedDayIso}
                     nowTick={nowTick}
+                    showClockState={false}
                     focusPosition={executionPositionByTaskId.get(task.id) || null}
                     canMoveFocusUp={(executionPositionByTaskId.get(task.id) || 0) > 1}
                     canMoveFocusDown={
