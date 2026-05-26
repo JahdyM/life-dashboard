@@ -47,6 +47,7 @@ import {
 } from "@/components/tabs/calendar/CalendarFeedback";
 import {
   buildAutoPlanUpdates,
+  buildBalancedOrderWithLockedAnchors,
   normalizeAreaTagForPlanning,
   priorityRank,
   taskPriorityWeight,
@@ -4329,15 +4330,40 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         };
       });
 
+      const hasAnyFocusOrder = planningCandidates.some(
+        (candidate) => getTaskFocusOrder(candidate.task) !== null
+      );
+      const candidatesForPlanning =
+        mode === "time" && !hasAnyFocusOrder
+          ? buildBalancedOrderWithLockedAnchors(planningCandidates)
+          : planningCandidates;
+
       const now = new Date();
-      const startMinutes =
+      const startMinutesByNow =
         now.getHours() * 60 +
         now.getMinutes() +
         Math.max(0, Math.round(planStartOffsetMinutes));
+      const earliestPlannedStart = allTodayPending.reduce<number | null>((current, task) => {
+        const draft = readTaskDraft(task);
+        const next = draft.plannedTime || draft.scheduledTime;
+        if (!next) return current;
+        const minutes = toMinutes(next);
+        if (!Number.isFinite(minutes)) return current;
+        return current === null ? minutes : Math.min(current, minutes);
+      }, null);
+      const todayIsoNow = format(new Date(), "yyyy-MM-dd");
+      const defaultDayStartMinutes = toMinutes("08:00");
+      const isSelectedDayToday = selectedDayIso === todayIsoNow;
+      const startMinutes =
+        mode === "time"
+          ? earliestPlannedStart ?? (isSelectedDayToday ? startMinutesByNow : defaultDayStartMinutes)
+          : isSelectedDayToday
+            ? startMinutesByNow
+            : earliestPlannedStart ?? defaultDayStartMinutes;
       const endMinutes = toMinutes(DAY_END_TIME);
       const { updates, stats } = buildAutoPlanUpdates({
         mode,
-        candidates: planningCandidates,
+        candidates: candidatesForPlanning,
         selectedDayIso,
         startMinutes,
         endMinutes,
