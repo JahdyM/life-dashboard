@@ -347,13 +347,13 @@ function getTaskFocusOrder(task: Pick<TodoTask, "focusOrder">) {
 }
 
 function compareTasksForExecution(left: TodoTask, right: TodoTask) {
+  const leftTime = left.plannedTime || left.scheduledTime || "99:99";
+  const rightTime = right.plannedTime || right.scheduledTime || "99:99";
+  if (leftTime !== rightTime) return leftTime.localeCompare(rightTime);
+
   const leftFocus = getTaskFocusOrder(left) ?? Number.MAX_SAFE_INTEGER;
   const rightFocus = getTaskFocusOrder(right) ?? Number.MAX_SAFE_INTEGER;
   if (leftFocus !== rightFocus) return leftFocus - rightFocus;
-
-  const leftTime = left.scheduledTime || "99:99";
-  const rightTime = right.scheduledTime || "99:99";
-  if (leftTime !== rightTime) return leftTime.localeCompare(rightTime);
 
   return String(left.createdAt).localeCompare(String(right.createdAt));
 }
