@@ -2156,6 +2156,24 @@ button.link.danger {
     linear-gradient(90deg, rgba(176, 118, 93, 0.13), rgba(255, 255, 255, 0.035));
 }
 
+.task-row-clock-late {
+  border-color: rgba(224, 118, 107, 0.44);
+  background:
+    linear-gradient(90deg, rgba(176, 71, 63, 0.18), rgba(255, 255, 255, 0.03));
+}
+
+.task-row-clock-progress {
+  border-color: rgba(229, 194, 108, 0.46);
+  background:
+    linear-gradient(90deg, rgba(197, 156, 63, 0.16), rgba(255, 255, 255, 0.03));
+}
+
+.task-row-clock-done {
+  border-color: rgba(102, 189, 132, 0.44);
+  background:
+    linear-gradient(90deg, rgba(63, 153, 95, 0.17), rgba(255, 255, 255, 0.03));
+}
+
 .task-row.habit-row-inline {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr) 94px 78px auto auto;

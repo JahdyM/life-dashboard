@@ -297,6 +297,40 @@ function getTaskProgressState(draft: {
   return null;
 }
 
+function normalizeIsoDate(value: string | null | undefined) {
+  const normalized = String(value || "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : "";
+}
+
+function getTaskClockState(
+  draft: {
+    isDone: boolean;
+    scheduledDate: string;
+    scheduledTime: string;
+    plannedTime: string;
+    estimatedMinutes: number;
+  },
+  contextDate: string,
+  nowTick: number
+) {
+  if (draft.isDone) return "done" as const;
+
+  const effectiveDate = normalizeIsoDate(draft.scheduledDate) || normalizeIsoDate(contextDate);
+  const now = new Date(nowTick);
+  const todayIso = format(now, "yyyy-MM-dd");
+  if (effectiveDate && effectiveDate < todayIso) return "late" as const;
+  if (effectiveDate && effectiveDate > todayIso) return "todo" as const;
+
+  const anchorTime = draft.plannedTime || draft.scheduledTime;
+  if (!anchorTime) return "todo" as const;
+  const startMinutes = toMinutes(anchorTime);
+  const estimatedMinutes = Math.max(5, Number(draft.estimatedMinutes || 30));
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  if (nowMinutes >= startMinutes + estimatedMinutes) return "late" as const;
+  if (nowMinutes >= startMinutes) return "progress" as const;
+  return "todo" as const;
+}
+
 function polar(cx: number, cy: number, radius: number, angleDegFromTop: number) {
   const radians = (Math.PI / 180) * angleDegFromTop;
   return {
@@ -347,13 +381,28 @@ function getTaskFocusOrder(task: Pick<TodoTask, "focusOrder">) {
 }
 
 function compareTasksForExecution(left: TodoTask, right: TodoTask) {
+  const leftFocus = getTaskFocusOrder(left);
+  const rightFocus = getTaskFocusOrder(right);
+  const sameDay =
+    Boolean(left.scheduledDate) &&
+    Boolean(right.scheduledDate) &&
+    String(left.scheduledDate) === String(right.scheduledDate);
+
+  if (sameDay && (leftFocus !== null || rightFocus !== null)) {
+    const leftFocusValue = leftFocus ?? Number.MAX_SAFE_INTEGER;
+    const rightFocusValue = rightFocus ?? Number.MAX_SAFE_INTEGER;
+    if (leftFocusValue !== rightFocusValue) return leftFocusValue - rightFocusValue;
+  }
+
   const leftTime = left.plannedTime || left.scheduledTime || "99:99";
   const rightTime = right.plannedTime || right.scheduledTime || "99:99";
   if (leftTime !== rightTime) return leftTime.localeCompare(rightTime);
 
-  const leftFocus = getTaskFocusOrder(left) ?? Number.MAX_SAFE_INTEGER;
-  const rightFocus = getTaskFocusOrder(right) ?? Number.MAX_SAFE_INTEGER;
-  if (leftFocus !== rightFocus) return leftFocus - rightFocus;
+  if (leftFocus !== null || rightFocus !== null) {
+    const leftFocusValue = leftFocus ?? Number.MAX_SAFE_INTEGER;
+    const rightFocusValue = rightFocus ?? Number.MAX_SAFE_INTEGER;
+    if (leftFocusValue !== rightFocusValue) return leftFocusValue - rightFocusValue;
+  }
 
   return String(left.createdAt).localeCompare(String(right.createdAt));
 }
@@ -446,6 +495,7 @@ type EditableTaskRowProps = {
   onDropTask?: (taskId: string) => void;
   onDragEndTask?: () => void;
   showMobileMoveActions?: boolean;
+  nowTick: number;
 };
 
 function TaskAreaBadge({ area }: { area: TaskAreaTag | null }) {
@@ -514,6 +564,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
   onDropTask,
   onDragEndTask,
   showMobileMoveActions = false,
+  nowTick,
 }: EditableTaskRowProps) {
   const [quickAreaLabel, setQuickAreaLabel] = useState("");
   const [showQuickAreaInput, setShowQuickAreaInput] = useState(false);
@@ -531,6 +582,15 @@ const EditableTaskRow = memo(function EditableTaskRow({
   const hasSubtasks = subtasks.length > 0;
   const allSubtasksDone = hasSubtasks && completedSubtasks === subtasks.length;
   const progressState = getTaskProgressState(draft);
+  const clockState = getTaskClockState(draft, contextDate, nowTick);
+  const clockStateClass =
+    clockState === "late"
+      ? "task-row-clock-late"
+      : clockState === "progress"
+        ? "task-row-clock-progress"
+        : clockState === "done"
+          ? "task-row-clock-done"
+          : "";
   const metadataSummary = [
     draft.scheduledDate && draft.scheduledDate !== contextDate ? draft.scheduledDate : "",
     summarizeTaskMetadata(draft),
@@ -653,7 +713,7 @@ const EditableTaskRow = memo(function EditableTaskRow({
 
   return (
     <article
-      className={`task-row task-row-editable ${active ? "active" : ""} ${progressState ? `task-row-${progressState}` : ""} ${allSubtasksDone && !draft.isDone ? "task-row-ready" : ""} ${isMissed ? "task-row-missed" : ""} ${shareLabel ? "task-row-shared" : ""} ${draggable ? "task-row-draggable" : ""} ${dragging ? "task-row-dragging" : ""} ${dropTarget ? "task-row-drop-target" : ""}`}
+      className={`task-row task-row-editable ${active ? "active" : ""} ${progressState ? `task-row-${progressState}` : ""} ${clockStateClass} ${allSubtasksDone && !draft.isDone ? "task-row-ready" : ""} ${isMissed ? "task-row-missed" : ""} ${shareLabel ? "task-row-shared" : ""} ${draggable ? "task-row-draggable" : ""} ${dragging ? "task-row-dragging" : ""} ${dropTarget ? "task-row-drop-target" : ""}`}
       draggable={draggable}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
@@ -4617,6 +4677,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           onShare={shareUi.canToggle ? handleShareTask : undefined}
           sharing={sharingTaskId === task.id}
           contextDate={selectedDayIso}
+          nowTick={nowTick}
           focusPosition={executionPositionByTaskId.get(task.id) || null}
           canMoveFocusUp={(executionPositionByTaskId.get(task.id) || 0) > 1}
           canMoveFocusDown={(executionPositionByTaskId.get(task.id) || 0) < pendingTasks.length}
@@ -4673,6 +4734,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       savingTaskId,
       savedTaskId,
       selectedDayIso,
+      nowTick,
       sharingTaskId,
       taskAreas,
       handleUnscheduleToday,
@@ -5050,6 +5112,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     onShare={shareUi.canToggle ? handleShareTask : undefined}
                     sharing={sharingTaskId === task.id}
                     contextDate={selectedDayIso}
+                    nowTick={nowTick}
                     showInlineNext
                     subtaskSavingId={savingSubtaskId}
                     shareLabel={shareUi.label}
@@ -5108,6 +5171,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     onShare={shareUi.canToggle ? handleShareTask : undefined}
                     sharing={sharingTaskId === task.id}
                     contextDate={selectedDayIso}
+                    nowTick={nowTick}
                     focusPosition={executionPositionByTaskId.get(task.id) || null}
                     canMoveFocusUp={(executionPositionByTaskId.get(task.id) || 0) > 1}
                     canMoveFocusDown={
@@ -5187,6 +5251,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   onShare={shareUi.canToggle ? handleShareTask : undefined}
                   sharing={sharingTaskId === task.id}
                   contextDate={selectedDayIso}
+                  nowTick={nowTick}
                   subtaskSavingId={savingSubtaskId}
                   shareLabel={shareUi.label}
                   shareActionLabel={shareUi.actionLabel}
