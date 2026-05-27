@@ -138,7 +138,6 @@ type CreateTaskInput = {
   scheduleLocked: boolean;
   estimatedMinutes: number;
   shareWithPartner: boolean;
-  keepCurrentDayView?: boolean;
 };
 
 type FocusOrderUpdate = {
@@ -421,12 +420,8 @@ function normalizeTaskTitleKey(value: string) {
     .replace(/[^\p{L}\p{N}\s]/gu, "");
 }
 
-function isDissertationRelatedTask(task: TodoTask, areaTag: string) {
-  if (task.source === "dissertation") return true;
-  const normalizedArea = String(areaTag || task.areaTag || "").trim().toLowerCase();
-  if (normalizedArea === "mestrado" || normalizedArea === "dissertation") return true;
-  const title = String(task.title || "").toLowerCase();
-  return /disserta[cç][aã]o|mestrado|qualifica[cç][aã]o|defesa/.test(title);
+function isDissertationFrontTask(task: TodoTask) {
+  return task.source === "dissertation";
 }
 
 function toMinutes(time: string) {
@@ -1237,6 +1232,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [boardActionNotice, setBoardActionNotice] = useState<{
     tone: "success" | "warning";
     body: string;
+  } | null>(null);
+  const [nextDissertationStepDraft, setNextDissertationStepDraft] = useState<{
+    sourceTaskId: string;
+    title: string;
+    priorityTag: string;
+    areaTag: string;
+    estimatedMinutes: number;
   } | null>(null);
   const [reconnectingGoogle, setReconnectingGoogle] = useState(false);
   const [habitTimeDrafts, setHabitTimeDrafts] = useState<Record<string, string>>({});
@@ -2260,11 +2262,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         shareTaskWithPartner.mutate(payload.task.id);
       }
       setPendingAutoPlanReason("new-task");
-      if (
-        !variables.keepCurrentDayView &&
-        variables.scheduledDate &&
-        variables.scheduledDate !== selectedDayIso
-      ) {
+      if (variables.scheduledDate && variables.scheduledDate !== selectedDayIso) {
         setSelectedDate(new Date(`${variables.scheduledDate}T12:00:00`));
       }
       void queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
@@ -3290,31 +3288,21 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             syncHabitFromTaskState(task, checked);
             setSavingTaskId(null);
             setSavedTaskId(task.id);
-            if (checked && isDissertationRelatedTask(task, draft.areaTag)) {
-              const tomorrowIso = format(addDays(new Date(), 1), "yyyy-MM-dd");
-              const suggestedTitle = `${task.title} — próximo passo`;
-              const nextStepTitle = window.prompt(
-                "Qual é o próximo passo desta frente da dissertação para amanhã?",
-                suggestedTitle
+            if (checked && isDissertationFrontTask(task)) {
+              setNextDissertationStepDraft({
+                sourceTaskId: task.id,
+                title: `${task.title} - proximo passo`,
+                priorityTag: draft.priorityTag || task.priorityTag || "Medium",
+                areaTag: draft.areaTag || task.areaTag || "mestrado",
+                estimatedMinutes: Math.max(
+                  5,
+                  Number(draft.estimatedMinutes || task.estimatedMinutes || 30)
+                ),
+              });
+            } else if (!checked) {
+              setNextDissertationStepDraft((current) =>
+                current?.sourceTaskId === task.id ? null : current
               );
-              const cleanedTitle = String(nextStepTitle || "").trim();
-              if (cleanedTitle) {
-                createTask.mutate({
-                  title: cleanedTitle,
-                  scheduledDate: tomorrowIso,
-                  scheduledTime: null,
-                  priorityTag: draft.priorityTag || task.priorityTag || "Medium",
-                  areaTag: draft.areaTag || task.areaTag || "mestrado",
-                  scheduleLocked: false,
-                  estimatedMinutes: Math.max(5, Number(draft.estimatedMinutes || task.estimatedMinutes || 30)),
-                  shareWithPartner: false,
-                  keepCurrentDayView: true,
-                });
-                setBoardActionNotice({
-                  tone: "success",
-                  body: "Próximo passo da dissertação adicionado para amanhã.",
-                });
-              }
             }
           window.setTimeout(() => {
             setSavedTaskId((prev) => (prev === task.id ? null : prev));
@@ -3344,7 +3332,6 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     updateTask,
     applyTaskPatchToCache,
     clearDoneDraft,
-    createTask,
     syncHabitFromTaskState,
   ]);
 
@@ -3461,6 +3448,28 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       tone: "success",
       body: formatMoveNotice(kind),
     });
+  }, []);
+
+  const prepareNextDissertationStep = useCallback(() => {
+    if (!nextDissertationStepDraft) return;
+    const tomorrowIso = format(addDays(new Date(), 1), "yyyy-MM-dd");
+    setNewTitle(nextDissertationStepDraft.title);
+    setNewDate(tomorrowIso);
+    setNewTime("");
+    setNewPriorityTag(nextDissertationStepDraft.priorityTag || "Medium");
+    setNewAreaTag(nextDissertationStepDraft.areaTag || "mestrado");
+    setNewEst(Math.max(5, Number(nextDissertationStepDraft.estimatedMinutes || 30)));
+    setNewScheduleLocked(false);
+    setComposerAdvancedOpen(true);
+    setBoardActionNotice({
+      tone: "success",
+      body: "Rascunho do próximo passo preparado para amanhã no composer.",
+    });
+    setNextDissertationStepDraft(null);
+  }, [nextDissertationStepDraft]);
+
+  const dismissNextDissertationStep = useCallback(() => {
+    setNextDissertationStepDraft(null);
   }, []);
 
   const handleScheduleToday = useCallback(
@@ -4957,6 +4966,16 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             />
           ) : null}
           {taskSaveError ? <InlineActionNotice tone="warning" body={taskSaveError} /> : null}
+          {nextDissertationStepDraft ? (
+            <InlineActionNotice
+              tone="default"
+              body="Frente da dissertação concluída. Quer preparar o próximo passo para amanhã?"
+              actionLabel="Preparar"
+              onAction={prepareNextDissertationStep}
+              secondaryLabel="Dispensar"
+              onSecondary={dismissNextDissertationStep}
+            />
+          ) : null}
           {boardActionNotice ? (
             <InlineActionNotice tone={boardActionNotice.tone} body={boardActionNotice.body} />
           ) : null}
