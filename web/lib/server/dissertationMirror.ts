@@ -9,6 +9,33 @@ function newTaskId() {
   return randomUUID().replace(/-/g, "");
 }
 
+function parseIsoDateUtc(iso: string) {
+  const [year, month, day] = String(iso || "")
+    .split("-")
+    .map((value) => Number(value));
+  if (!year || !month || !day) return null;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function normalizeDissertationDueDate(dateIso: string | null | undefined) {
+  if (!dateIso) return null;
+  const base = parseIsoDateUtc(dateIso);
+  if (!base) return null;
+  const normalized = new Date(base);
+  while (normalized.getUTCDay() === 0 || normalized.getUTCDay() === 6) {
+    normalized.setUTCDate(normalized.getUTCDate() + 1);
+  }
+  return normalized.toISOString().slice(0, 10);
+}
+
+function isWeekendIsoDate(dateIso: string) {
+  const parsed = parseIsoDateUtc(dateIso);
+  if (!parsed) return false;
+  const weekday = parsed.getUTCDay();
+  return weekday === 0 || weekday === 6;
+}
+
 function mirrorTitle(front: DissertationFront, step: DissertationStep) {
   return `${step.title} — ${front.title}`;
 }
@@ -50,6 +77,18 @@ export async function reconcileDissertationMirrors(
   const seenStepIds = new Set<string>();
   const nowIso = new Date().toISOString();
   const todayIso = nowIso.slice(0, 10);
+  if (isWeekendIsoDate(todayIso)) {
+    if (existing.length > 0) {
+      await prisma.todoTask.deleteMany({
+        where: {
+          id: {
+            in: existing.map((row) => row.id),
+          },
+        },
+      });
+    }
+    return;
+  }
 
   for (const front of project.fronts) {
     for (const step of front.steps) {
@@ -144,7 +183,7 @@ export async function syncDissertationStepFromMirrorTask(
 
   let touched = false;
   const nowIso = new Date().toISOString();
-  const desiredDueDate = task.scheduledDate ?? null;
+  const desiredDueDate = normalizeDissertationDueDate(task.scheduledDate ?? null);
   const next: DissertationProject = {
     ...project,
     fronts: project.fronts.map((front) => ({

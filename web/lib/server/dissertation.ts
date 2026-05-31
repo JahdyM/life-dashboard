@@ -40,6 +40,30 @@ function newId() {
   return randomUUID().replace(/-/g, "");
 }
 
+function parseIsoDateUtc(iso: string) {
+  const [year, month, day] = String(iso || "")
+    .split("-")
+    .map((value) => Number(value));
+  if (!year || !month || !day) return null;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatIsoDateUtc(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function normalizeDissertationDueDate(dateIso: string | null | undefined) {
+  if (!dateIso) return null;
+  const base = parseIsoDateUtc(dateIso);
+  if (!base) return null;
+  const normalized = new Date(base);
+  while (normalized.getUTCDay() === 0 || normalized.getUTCDay() === 6) {
+    normalized.setUTCDate(normalized.getUTCDate() + 1);
+  }
+  return formatIsoDateUtc(normalized);
+}
+
 function step(title: string, dueDate: string | null = null): DissertationStep {
   const created = nowIso();
   return {
@@ -213,6 +237,7 @@ function rollOverdueStepsToToday(
 ): { project: DissertationProject; changed: boolean } {
   let changed = false;
   const updatedAt = nowIso();
+  const targetDueDate = normalizeDissertationDueDate(todayIso) || todayIso;
   const next: DissertationProject = {
     ...project,
     fronts: project.fronts.map((front) => ({
@@ -220,9 +245,30 @@ function rollOverdueStepsToToday(
       steps: front.steps.map((step) => {
         if (!step.dueDate) return step;
         if (step.done) return step;
-        if (step.dueDate >= todayIso) return step;
+        if (step.dueDate >= targetDueDate) return step;
         changed = true;
-        return { ...step, dueDate: todayIso, updatedAt };
+        return { ...step, dueDate: targetDueDate, updatedAt };
+      }),
+    })),
+  };
+  return { project: changed ? next : project, changed };
+}
+
+function shiftWeekendUndoneStepsToWeekday(
+  project: DissertationProject
+): { project: DissertationProject; changed: boolean } {
+  let changed = false;
+  const updatedAt = nowIso();
+  const next: DissertationProject = {
+    ...project,
+    fronts: project.fronts.map((front) => ({
+      ...front,
+      steps: front.steps.map((step) => {
+        if (!step.dueDate || step.done) return step;
+        const normalizedDueDate = normalizeDissertationDueDate(step.dueDate);
+        if (!normalizedDueDate || normalizedDueDate === step.dueDate) return step;
+        changed = true;
+        return { ...step, dueDate: normalizedDueDate, updatedAt };
       }),
     })),
   };
@@ -244,9 +290,14 @@ export async function loadDissertationProject(
   userEmail: string
 ): Promise<DissertationProject> {
   const raw = await loadDissertationProjectRaw(userEmail);
+  const { project: shiftedWeekend, changed: shiftedWeekendChanged } =
+    shiftWeekendUndoneStepsToWeekday(raw);
   const todayIso = nowIso().slice(0, 10);
-  const { project: rolled, changed } = rollOverdueStepsToToday(raw, todayIso);
-  if (changed) {
+  const { project: rolled, changed: rolledChanged } = rollOverdueStepsToToday(
+    shiftedWeekend,
+    todayIso
+  );
+  if (shiftedWeekendChanged || rolledChanged) {
     await saveDissertationProject(userEmail, rolled);
   }
   await reconcileMirrorsSafely(userEmail, rolled);
@@ -415,7 +466,9 @@ function normalizeProject(project: DissertationProject): DissertationProject {
         .map((item) => ({
           ...item,
           title: item.title.trim(),
-          dueDate: item.dueDate || null,
+          dueDate: item.done
+            ? item.dueDate || null
+            : normalizeDissertationDueDate(item.dueDate) || null,
           completedAt: item.done ? item.completedAt || nowIso() : null,
           updatedAt: item.updatedAt || nowIso(),
           createdAt: item.createdAt || nowIso(),
@@ -482,7 +535,7 @@ function mutateProject(project: DissertationProject, action: DissertationAction)
       };
 
     case "add_step": {
-      const nextStep = step(action.title, action.dueDate ?? null);
+      const nextStep = step(action.title, normalizeDissertationDueDate(action.dueDate) ?? null);
       return {
         ...project,
         fronts: project.fronts.map((item) =>
@@ -506,7 +559,10 @@ function mutateProject(project: DissertationProject, action: DissertationAction)
                     : {
                         ...item,
                         title: action.title ?? item.title,
-                        dueDate: action.dueDate === undefined ? item.dueDate : action.dueDate,
+                        dueDate:
+                          action.dueDate === undefined
+                            ? item.dueDate
+                            : normalizeDissertationDueDate(action.dueDate),
                         done: action.done ?? item.done,
                         completedAt:
                           action.done === undefined

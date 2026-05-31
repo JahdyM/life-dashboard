@@ -40,6 +40,11 @@ function isHabitScheduledOnDate(
   familyWorshipDay: number
 ): boolean {
   const weekday = getWeekdayUtc(dateIso);
+  // Workout remains trackable on weekends, but for *streak* purposes it is
+  // only required on weekdays (Mon-Fri). This avoids breaking streaks on Sat/Sun.
+  if (habitKey === "workout" && (weekday === 0 || weekday === 6)) {
+    return false;
+  }
   return isHabitScheduledForWeekday(habitKey, weekday, meetingDays, familyWorshipDay);
 }
 
