@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import type { CSSProperties } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchJson } from "@/lib/client/api";
 import type {
@@ -21,6 +22,40 @@ function currentYM() {
 
 function fmt(n: number) {
   return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function roundMoney(n: number) {
+  return Math.round(n * 100) / 100;
+}
+
+function cleanMoneyDraft(value: string) {
+  return value.replace(/[^\d.,]/g, "");
+}
+
+function parseMoneyDraft(value: string): number | null | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const lastComma = trimmed.lastIndexOf(",");
+  const lastDot = trimmed.lastIndexOf(".");
+  const decimalIndex = Math.max(lastComma, lastDot);
+  const dotGroups = trimmed.split(".");
+  const normalized =
+    lastComma < 0 && dotGroups.length > 1 && dotGroups[0].length <= 3 && dotGroups.slice(1).every((group) => group.length === 3)
+      ? dotGroups.join("")
+      : decimalIndex >= 0
+        ? `${trimmed.slice(0, decimalIndex).replace(/[.,]/g, "") || "0"}.${trimmed.slice(decimalIndex + 1).replace(/[.,]/g, "")}`
+        : trimmed.replace(/[.,]/g, "");
+
+  if (!/^\d+(\.\d*)?$/.test(normalized)) return undefined;
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? roundMoney(parsed) : undefined;
+}
+
+function draftFromMoney(value: number | null | undefined, editing = false) {
+  if (value === null || value === undefined) return "";
+  return editing ? String(value).replace(".", ",") : fmt(value);
 }
 
 function debtKeyFromName(name: string) {
@@ -97,6 +132,74 @@ function ProgressBar({ current, target, color = "#8e79af" }: { current: number; 
         {pct}% — R$ {fmt(current)} / R$ {fmt(target)}
       </small>
     </div>
+  );
+}
+
+function MoneyInput({
+  value,
+  onValueChange,
+  allowEmpty = false,
+  placeholder,
+  style,
+  ariaLabel,
+}: {
+  value: number | null | undefined;
+  onValueChange: (value: number | null) => void;
+  allowEmpty?: boolean;
+  placeholder?: string;
+  style?: CSSProperties;
+  ariaLabel?: string;
+}) {
+  const [draft, setDraft] = useState(() => draftFromMoney(value));
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) setDraft(draftFromMoney(value));
+  }, [focused, value]);
+
+  const commitDraft = (raw: string) => {
+    const parsed = parseMoneyDraft(raw);
+    if (parsed === undefined) {
+      setDraft(draftFromMoney(value));
+      return;
+    }
+    if (parsed === null) {
+      const emptyValue = allowEmpty ? null : 0;
+      onValueChange(emptyValue);
+      setDraft(draftFromMoney(emptyValue));
+      return;
+    }
+    onValueChange(parsed);
+    setDraft(draftFromMoney(parsed));
+  };
+
+  return (
+    <input
+      aria-label={ariaLabel}
+      type="text"
+      inputMode="decimal"
+      value={draft}
+      placeholder={placeholder}
+      style={style}
+      onFocus={() => {
+        setFocused(true);
+        setDraft(draftFromMoney(value, true));
+      }}
+      onChange={(e) => {
+        const nextDraft = cleanMoneyDraft(e.target.value);
+        setDraft(nextDraft);
+
+        if (/[,.]$/.test(nextDraft.trim())) return;
+
+        const parsed = parseMoneyDraft(nextDraft);
+        if (parsed === undefined) return;
+        onValueChange(parsed === null ? (allowEmpty ? null : 0) : parsed);
+      }}
+      onBlur={() => {
+        setFocused(false);
+        commitDraft(draft);
+      }}
+    />
   );
 }
 
@@ -387,37 +490,32 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
                     </span>
                   )}
                 </span>
-                <input
+                <MoneyInput
                   key={`${item.id}-budget`}
-                  type="number"
-                  min="0"
-                  step="10"
                   value={item.budget}
+                  ariaLabel={`Budgeted amount for ${item.label}`}
                   style={{ width: 90, textAlign: "right" }}
-                  onChange={(e) =>
+                  onValueChange={(value) =>
                     update((prev) => ({
                       ...prev,
                       fixedCosts: prev.fixedCosts.map((c) =>
-                        c.id === item.id ? { ...c, budget: Number(e.target.value) } : c
+                        c.id === item.id ? { ...c, budget: value ?? 0 } : c
                       ),
                     }))
                   }
                 />
-                <input
+                <MoneyInput
                   key={`${item.id}-actual`}
-                  type="number"
-                  min="0"
-                  step="10"
-                  value={item.actual ?? ""}
-                  placeholder={String(item.budget)}
+                  value={item.actual}
+                  allowEmpty
+                  ariaLabel={`Actual amount for ${item.label}`}
+                  placeholder={fmt(item.budget)}
                   style={{ width: 90, textAlign: "right" }}
-                  onChange={(e) =>
+                  onValueChange={(value) =>
                     update((prev) => ({
                       ...prev,
                       fixedCosts: prev.fixedCosts.map((c) =>
-                        c.id === item.id
-                          ? { ...c, actual: e.target.value === "" ? null : Number(e.target.value) }
-                          : c
+                        c.id === item.id ? { ...c, actual: value } : c
                       ),
                     }))
                   }
