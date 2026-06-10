@@ -2904,6 +2904,14 @@ button.link.danger {
   place-items: center;
 }
 
+.activity-wheel-dial-wrap.shuffling {
+  filter: saturate(1.12) brightness(1.04);
+}
+
+.activity-wheel-rotor.shuffling {
+  transform-origin: center;
+}
+
 .activity-wheel-dial-shell {
   position: relative;
   width: 100%;

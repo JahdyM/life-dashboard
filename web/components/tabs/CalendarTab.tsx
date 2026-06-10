@@ -178,6 +178,7 @@ const WHEEL_CENTER = 130;
 const WHEEL_RADIUS = 118;
 const WHEEL_LABEL_RADIUS = 78;
 const WHEEL_SPIN_DURATION_MS = 2600;
+const WHEEL_SHUFFLE_STEP_MS = 140;
 const MAX_WHEEL_SHUFFLE_COUNT = 999;
 const MAX_WHEEL_SHUFFLE_INPUT_LENGTH = String(MAX_WHEEL_SHUFFLE_COUNT).length + 1;
 
@@ -1220,7 +1221,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [wheelLastTaskId, setWheelLastTaskId] = useState<string | null>(null);
   const [wheelShuffleNonce, setWheelShuffleNonce] = useState(0);
   const [wheelShuffleCountInput, setWheelShuffleCountInput] = useState("1");
+  const [wheelShuffling, setWheelShuffling] = useState(false);
+  const [wheelShuffleProgress, setWheelShuffleProgress] = useState(0);
   const wheelSpinTimeoutRef = useRef<number | null>(null);
+  const wheelShuffleTimeoutRef = useRef<number | null>(null);
   const [calendarSelection, setCalendarSelection] = useState<{
     date: string;
     time: string;
@@ -1397,6 +1401,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     () => () => {
       if (wheelSpinTimeoutRef.current) {
         window.clearTimeout(wheelSpinTimeoutRef.current);
+      }
+      if (wheelShuffleTimeoutRef.current) {
+        window.clearTimeout(wheelShuffleTimeoutRef.current);
       }
     },
     []
@@ -4128,7 +4135,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   );
 
   const spinActivityWheel = useCallback(() => {
-    if (wheelSpinning) return;
+    if (wheelSpinning || wheelShuffling) return;
     if (!wheelSegments.length || wheelTotalWeight <= 0) {
       setWheelResultTaskId(null);
       return;
@@ -4180,25 +4187,51 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       setWheelLastTaskId(resultTaskId);
       setWheelSpinning(false);
     }, WHEEL_SPIN_DURATION_MS);
-  }, [wheelRotation, wheelSegments, wheelSpinning, wheelTotalWeight]);
+  }, [wheelRotation, wheelSegments, wheelShuffling, wheelSpinning, wheelTotalWeight]);
 
   const shuffleWheelStart = useCallback(() => {
-    if (wheelSpinning) return;
+    if (wheelSpinning || wheelShuffling) return;
+    if (wheelShuffleTimeoutRef.current) {
+      window.clearTimeout(wheelShuffleTimeoutRef.current);
+    }
+    const totalShuffles = wheelShuffleCount;
+    let currentShuffle = 0;
+
     setWheelShuffleCountInput(String(wheelShuffleCount));
-    setWheelShuffleNonce((previous) => previous + wheelShuffleCount);
     setWheelResultTaskId(null);
-    setWheelRotation((previous) =>
-      previous + 45 + Math.floor(Math.random() * 150) + Math.min(wheelShuffleCount - 1, 10) * 24
-    );
-  }, [wheelShuffleCount, wheelSpinning]);
+    setWheelShuffleProgress(0);
+    setWheelShuffling(true);
+
+    const runNextShuffle = () => {
+      currentShuffle += 1;
+      setWheelShuffleNonce((previous) => previous + 1);
+      setWheelShuffleProgress(currentShuffle);
+      setWheelRotation((previous) => previous + 60 + Math.floor(Math.random() * 140));
+
+      if (currentShuffle >= totalShuffles) {
+        wheelShuffleTimeoutRef.current = window.setTimeout(() => {
+          setWheelShuffling(false);
+          setWheelShuffleProgress(0);
+          wheelShuffleTimeoutRef.current = null;
+        }, WHEEL_SHUFFLE_STEP_MS);
+        return;
+      }
+
+      wheelShuffleTimeoutRef.current = window.setTimeout(runNextShuffle, WHEEL_SHUFFLE_STEP_MS);
+    };
+
+    runNextShuffle();
+  }, [wheelShuffleCount, wheelShuffling, wheelSpinning]);
 
   const wheelRotorStyle = useMemo(
     () =>
       ({
         transform: `rotate(${wheelRotation}deg)`,
-        transition: `transform ${WHEEL_SPIN_DURATION_MS}ms cubic-bezier(0.12, 0.88, 0.16, 1)`,
+        transition: wheelShuffling
+          ? `transform ${WHEEL_SHUFFLE_STEP_MS}ms ease-out`
+          : `transform ${WHEEL_SPIN_DURATION_MS}ms cubic-bezier(0.12, 0.88, 0.16, 1)`,
       }) as CSSProperties,
-    [wheelRotation]
+    [wheelRotation, wheelShuffling]
   );
 
   const handleOpenWheelResult = useCallback(() => {
@@ -5720,7 +5753,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   pattern="[0-9]*"
                   aria-label="Quantidade de embaralhadas da roleta"
                   value={wheelShuffleCountInput}
-                  disabled={wheelSpinning}
+                  disabled={wheelSpinning || wheelShuffling}
                   onChange={(event) =>
                     setWheelShuffleCountInput(cleanWheelShuffleCountInput(event.target.value))
                   }
@@ -5731,9 +5764,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 type="button"
                 className="secondary"
                 onClick={shuffleWheelStart}
-                disabled={wheelSpinning || wheelEligibleTasks.length <= 1}
+                disabled={wheelSpinning || wheelShuffling || wheelEligibleTasks.length <= 1}
               >
-                Shuffle{wheelShuffleCount > 1 ? ` ${wheelShuffleCount}x` : ""}
+                {wheelShuffling
+                  ? `Shuffling ${wheelShuffleProgress}/${wheelShuffleCount}`
+                  : `Shuffle${wheelShuffleCount > 1 ? ` ${wheelShuffleCount}x` : ""}`}
               </button>
             </div>
           </div>
@@ -5764,7 +5799,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           </div>
 
           <div className="activity-wheel-stage">
-            <div className={`activity-wheel-dial-wrap ${wheelSpinning ? "spinning" : ""}`}>
+            <div
+              className={`activity-wheel-dial-wrap ${wheelSpinning ? "spinning" : ""} ${
+                wheelShuffling ? "shuffling" : ""
+              }`}
+            >
               <span className="activity-wheel-pointer" aria-hidden="true" />
               <div className="activity-wheel-dial-shell">
                 <svg
@@ -5774,7 +5813,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   aria-label="Roulette wheel with pending tasks"
                 >
                   <g
-                    className={`activity-wheel-rotor ${wheelSpinning ? "spinning" : ""}`}
+                    className={`activity-wheel-rotor ${wheelSpinning ? "spinning" : ""} ${
+                      wheelShuffling ? "shuffling" : ""
+                    }`}
                     style={wheelRotorStyle}
                   >
                     {wheelSegments.map((segment) => {
@@ -5800,7 +5841,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                               segment.endAngle
                             )}
                             className={`activity-wheel-slice ${
-                              !wheelSpinning && segment.task.id === wheelResultTaskId
+                              !wheelSpinning &&
+                              !wheelShuffling &&
+                              segment.task.id === wheelResultTaskId
                                 ? "is-result"
                                 : ""
                             }`}
@@ -5846,16 +5889,18 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                   type="button"
                   className="activity-wheel-hub-button"
                   onClick={spinActivityWheel}
-                  disabled={wheelSpinning || wheelEligibleTasks.length === 0}
+                  disabled={wheelSpinning || wheelShuffling || wheelEligibleTasks.length === 0}
                   aria-label={
                     wheelSpinning
                       ? "Wheel spinning"
+                      : wheelShuffling
+                        ? "Wheel shuffling"
                       : wheelEligibleTasks.length === 0
                         ? "No pending tasks to spin"
                         : "Spin activity wheel"
                   }
                 >
-                  {wheelSpinning ? "..." : "Spin"}
+                  {wheelSpinning ? "..." : wheelShuffling ? "Mix" : "Spin"}
                 </button>
               </div>
             </div>
@@ -5882,7 +5927,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                       type="button"
                       className="page-link inline muted"
                       onClick={spinActivityWheel}
-                      disabled={wheelSpinning}
+                      disabled={wheelSpinning || wheelShuffling}
                     >
                       Spin again
                     </button>
