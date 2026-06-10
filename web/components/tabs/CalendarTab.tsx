@@ -178,6 +178,18 @@ const WHEEL_CENTER = 130;
 const WHEEL_RADIUS = 118;
 const WHEEL_LABEL_RADIUS = 78;
 const WHEEL_SPIN_DURATION_MS = 2600;
+const MAX_WHEEL_SHUFFLE_COUNT = 999;
+const MAX_WHEEL_SHUFFLE_INPUT_LENGTH = String(MAX_WHEEL_SHUFFLE_COUNT).length + 1;
+
+function cleanWheelShuffleCountInput(value: string) {
+  return value.replace(/\D/g, "").slice(0, MAX_WHEEL_SHUFFLE_INPUT_LENGTH);
+}
+
+function parseWheelShuffleCount(value: string) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return 1;
+  return Math.min(MAX_WHEEL_SHUFFLE_COUNT, Math.max(1, parsed));
+}
 
 function hashWheelSeed(input: string) {
   let hash = 2166136261;
@@ -1207,6 +1219,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [wheelResultTaskId, setWheelResultTaskId] = useState<string | null>(null);
   const [wheelLastTaskId, setWheelLastTaskId] = useState<string | null>(null);
   const [wheelShuffleNonce, setWheelShuffleNonce] = useState(0);
+  const [wheelShuffleCountInput, setWheelShuffleCountInput] = useState("1");
   const wheelSpinTimeoutRef = useRef<number | null>(null);
   const [calendarSelection, setCalendarSelection] = useState<{
     date: string;
@@ -1697,6 +1710,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const wheelTotalWeight = useMemo(
     () => wheelSegments.reduce((sum, segment) => sum + segment.weight, 0),
     [wheelSegments]
+  );
+  const wheelShuffleCount = useMemo(
+    () => parseWheelShuffleCount(wheelShuffleCountInput),
+    [wheelShuffleCountInput]
   );
 
   useEffect(() => {
@@ -4167,10 +4184,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   const shuffleWheelStart = useCallback(() => {
     if (wheelSpinning) return;
-    setWheelShuffleNonce((previous) => previous + 1);
+    setWheelShuffleCountInput(String(wheelShuffleCount));
+    setWheelShuffleNonce((previous) => previous + wheelShuffleCount);
     setWheelResultTaskId(null);
-    setWheelRotation((previous) => previous + 45 + Math.floor(Math.random() * 150));
-  }, [wheelSpinning]);
+    setWheelRotation((previous) =>
+      previous + 45 + Math.floor(Math.random() * 150) + Math.min(wheelShuffleCount - 1, 10) * 24
+    );
+  }, [wheelShuffleCount, wheelSpinning]);
 
   const wheelRotorStyle = useMemo(
     () =>
@@ -5692,13 +5712,28 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               >
                 Auto horários
               </button>
+              <label className="activity-wheel-shuffle-count">
+                <span>Shuffle x</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  aria-label="Quantidade de embaralhadas da roleta"
+                  value={wheelShuffleCountInput}
+                  disabled={wheelSpinning}
+                  onChange={(event) =>
+                    setWheelShuffleCountInput(cleanWheelShuffleCountInput(event.target.value))
+                  }
+                  onBlur={() => setWheelShuffleCountInput(String(wheelShuffleCount))}
+                />
+              </label>
               <button
                 type="button"
                 className="secondary"
                 onClick={shuffleWheelStart}
                 disabled={wheelSpinning || wheelEligibleTasks.length <= 1}
               >
-                Shuffle
+                Shuffle{wheelShuffleCount > 1 ? ` ${wheelShuffleCount}x` : ""}
               </button>
             </div>
           </div>

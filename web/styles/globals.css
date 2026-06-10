@@ -2811,6 +2811,40 @@ button.link.danger {
   gap: 8px;
 }
 
+.activity-wheel-shuffle-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid rgba(216, 204, 183, 0.28);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.activity-wheel-shuffle-count input {
+  width: 42px;
+  min-height: 24px;
+  padding: 2px 6px;
+  border: 1px solid rgba(216, 204, 183, 0.22);
+  border-radius: 999px;
+  background: rgba(17, 16, 19, 0.34);
+  color: var(--text-main);
+  font: inherit;
+  text-align: center;
+}
+
+.activity-wheel-shuffle-count input:focus {
+  outline: 2px solid rgba(217, 201, 121, 0.35);
+  outline-offset: 1px;
+}
+
+.activity-wheel-shuffle-count input:disabled {
+  opacity: 0.55;
+}
+
 .activity-wheel-head h3 {
   margin: 6px 0 0;
   font-size: 18px;
