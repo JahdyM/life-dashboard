@@ -2,8 +2,10 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db/prisma";
 import type { DissertationFront, DissertationProject, DissertationStep } from "@/lib/dissertation";
+import { getTaskAreaMap, setTaskAreaAssignment } from "./taskAreas";
 
 const MIRROR_SOURCE = "dissertation";
+export const DISSERTATION_TASK_AREA_TAG = "mestrado";
 
 function newTaskId() {
   return randomUUID().replace(/-/g, "");
@@ -69,6 +71,7 @@ export async function reconcileDissertationMirrors(
       completedAt: true,
     },
   });
+  const existingAreaMap = await getTaskAreaMap(userEmail, existing.map((row) => row.id));
   const existingByStepId = new Map<string, (typeof existing)[number]>();
   for (const row of existing) {
     if (row.externalEventKey) existingByStepId.set(row.externalEventKey, row);
@@ -104,7 +107,7 @@ export async function reconcileDissertationMirrors(
       const current = existingByStepId.get(step.id);
 
       if (!current) {
-        await prisma.todoTask.create({
+        const created = await prisma.todoTask.create({
           data: {
             id: newTaskId(),
             userEmail,
@@ -118,9 +121,12 @@ export async function reconcileDissertationMirrors(
             updatedAt: nowIso,
           },
         });
+        await setTaskAreaAssignment(userEmail, created.id, DISSERTATION_TASK_AREA_TAG);
         continue;
       }
 
+      const needsAreaUpdate =
+        existingAreaMap.get(current.id) !== DISSERTATION_TASK_AREA_TAG;
       const needsUpdate =
         current.title !== desiredTitle ||
         current.scheduledDate !== desiredScheduledDate ||
@@ -139,6 +145,9 @@ export async function reconcileDissertationMirrors(
             updatedAt: nowIso,
           },
         });
+      }
+      if (needsAreaUpdate) {
+        await setTaskAreaAssignment(userEmail, current.id, DISSERTATION_TASK_AREA_TAG);
       }
     }
   }

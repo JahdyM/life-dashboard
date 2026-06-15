@@ -14,6 +14,7 @@ import { getUserTimeZone } from "@/lib/server/settings";
 import { DEFAULT_TIME_ZONE } from "@/lib/constants";
 import { taskCreateSchema, taskListQuerySchema } from "@/lib/server/schemas";
 import { logServerEvent } from "@/lib/server/logger";
+import { DISSERTATION_TASK_AREA_TAG } from "@/lib/server/dissertationMirror";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest) {
     }
     const payload = parsed.data;
     const title = payload.title;
+    const source = payload.source || "manual";
     const scheduledTimeInput = payload.scheduled_time ?? payload.planned_time ?? null;
     let googleEventId: string | null = null;
     let warning: string | null = null;
@@ -105,7 +107,7 @@ export async function POST(request: NextRequest) {
     }
     const task = await createTask(userEmail, {
       title,
-      source: payload.source || "manual",
+      source,
       externalEventKey: googleEventId ? `google:primary:${googleEventId}` : null,
       scheduledDate: payload.scheduled_date || null,
       scheduledTime: scheduledTimeInput,
@@ -115,7 +117,7 @@ export async function POST(request: NextRequest) {
       notes: payload.notes ?? null,
       focusOrder: payload.focus_order ?? null,
       priorityTag: payload.priority_tag || "Medium",
-      areaTag: payload.area_tag ?? null,
+      areaTag: source === "dissertation" ? DISSERTATION_TASK_AREA_TAG : payload.area_tag ?? null,
       scheduleLocked: payload.schedule_locked ? true : false,
       estimatedMinutes: payload.estimated_minutes || null,
       actualMinutes: payload.actual_minutes || null,

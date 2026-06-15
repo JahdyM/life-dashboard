@@ -9,7 +9,10 @@ import {
 import { updateTask, deleteTask } from "@/lib/server/tasks";
 import { prisma } from "@/lib/db/prisma";
 import { addPointsOnce, POINTS } from "@/lib/server/rewards";
-import { syncDissertationStepFromMirrorTask } from "@/lib/server/dissertationMirror";
+import {
+  DISSERTATION_TASK_AREA_TAG,
+  syncDissertationStepFromMirrorTask,
+} from "@/lib/server/dissertationMirror";
 import { updateGoogleEvent, deleteGoogleEvent } from "@/lib/server/googleCalendar";
 import { getUserTimeZone } from "@/lib/server/settings";
 import { rememberDeletedGoogleTask } from "@/lib/server/taskTombstones";
@@ -40,6 +43,7 @@ export async function PATCH(
     const payload = parsed.data;
     const existing = await prisma.todoTask.findUnique({ where: { id: taskId } });
     if (!existing || existing.userEmail !== userEmail) return jsonError("Task not found", 404);
+    const isDissertationMirror = existing.source === "dissertation";
     const updatePayload: Partial<TaskPayload> = {};
     if (payload.title !== undefined) updatePayload.title = payload.title;
     if (payload.scheduled_date !== undefined) updatePayload.scheduledDate = payload.scheduled_date;
@@ -65,7 +69,11 @@ export async function PATCH(
     if (payload.notes !== undefined) updatePayload.notes = payload.notes ?? null;
     if (payload.focus_order !== undefined) updatePayload.focusOrder = payload.focus_order ?? null;
     if (payload.priority_tag !== undefined) updatePayload.priorityTag = payload.priority_tag;
-    if (payload.area_tag !== undefined) updatePayload.areaTag = payload.area_tag;
+    if (isDissertationMirror) {
+      updatePayload.areaTag = DISSERTATION_TASK_AREA_TAG;
+    } else if (payload.area_tag !== undefined) {
+      updatePayload.areaTag = payload.area_tag;
+    }
     if (payload.schedule_locked !== undefined) {
       updatePayload.scheduleLocked = payload.schedule_locked ? true : false;
     }
@@ -93,7 +101,7 @@ export async function PATCH(
     // doesn't block). This keeps "not today / tomorrow" moves from resurfacing
     // as today's mirror task again.
     if (
-      existing.source === "dissertation" &&
+      isDissertationMirror &&
       existing.externalEventKey &&
       (payload.is_done !== undefined || payload.scheduled_date !== undefined)
     ) {
