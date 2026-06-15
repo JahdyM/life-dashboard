@@ -6,6 +6,7 @@ import {
   importDespertaiIssues,
   setApostilaRead,
   setArticleSeriesRead,
+  setBrochureRead,
   setBroadcastingVideoRead,
   setBibleChapterRead,
   setDespertaiIssueRead,
@@ -83,6 +84,9 @@ export async function PATCH(request: NextRequest) {
     }
     if (payload.type === "toggle_apostila") {
       return jsonOk(await setApostilaRead(userEmail, payload.video_id, payload.read));
+    }
+    if (payload.type === "toggle_brochure") {
+      return jsonOk(await setBrochureRead(userEmail, payload.video_id, payload.read));
     }
     return jsonOk(
       await setBibleChapterRead(userEmail, payload.book_key, payload.chapter, payload.read)
