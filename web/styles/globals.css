@@ -3322,6 +3322,33 @@ button.link.danger {
   align-items: center;
 }
 
+.night-owl-end-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  padding: 4px 8px 4px 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.night-owl-end-control input {
+  width: 82px;
+  border: 0;
+  border-radius: 999px;
+  padding: 4px 6px;
+  color: var(--text);
+  background: rgba(12, 17, 22, 0.72);
+  font: inherit;
+}
+
+.night-owl-end-control input:focus {
+  outline: 2px solid rgba(216, 174, 105, 0.34);
+  outline-offset: 2px;
+}
+
 .calendar-completed {
   margin-top: 12px;
   border: 1px solid var(--border-soft);

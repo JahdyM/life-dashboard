@@ -423,11 +423,10 @@ function compareTasksForExecution(left: TodoTask, right: TodoTask) {
 const AUTO_PLAN_DAY_KEY = "calendar.autoPlan.day.v1";
 const START_OFFSET_MINUTES_KEY = "calendar.planStartOffsetMinutes.v1";
 const NIGHT_OWL_DAYS_KEY = "calendar.nightOwlDays.v1";
+const NIGHT_OWL_END_TIMES_KEY = "calendar.nightOwlEndTimes.v1";
 const DEFAULT_PLAN_START_OFFSET_MINUTES = 10;
 const DAY_END_TIME = "22:00";
-const NIGHT_OWL_END_TIME = "02:00";
-const NIGHT_OWL_END_MINUTES = 26 * 60;
-const NIGHT_OWL_CUTOFF_MINUTES = 2 * 60;
+const DEFAULT_NIGHT_OWL_END_TIME = "02:00";
 
 function normalizeTaskTitleKey(value: string) {
   return String(value || "")
@@ -447,6 +446,19 @@ function toMinutes(time: string) {
   const minute = Number(minuteText || 0);
   if (!Number.isFinite(hour) || !Number.isFinite(minute)) return 0;
   return hour * 60 + minute;
+}
+
+function toPlanningEndMinutes(time: string) {
+  const minutes = toMinutes(time);
+  if (minutes <= 12 * 60) return minutes + 24 * 60;
+  return minutes;
+}
+
+function toFullCalendarSlotTime(minutes: number) {
+  const clean = Math.max(0, Math.round(minutes));
+  const hour = Math.floor(clean / 60);
+  const minute = clean % 60;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`;
 }
 
 type EditableTaskRowProps = {
@@ -1273,6 +1285,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [todayTagFilter, setTodayTagFilter] = useState(ALL_TAG_FILTER);
   const [backlogTagFilter, setBacklogTagFilter] = useState(ALL_TAG_FILTER);
   const [nightOwlDays, setNightOwlDays] = useState<Record<string, boolean>>({});
+  const [nightOwlEndTimes, setNightOwlEndTimes] = useState<Record<string, string>>({});
   const autoPlanningRef = useRef(false);
 
   useEffect(() => {
@@ -1314,6 +1327,19 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   useEffect(() => {
     try {
+      const raw = window.localStorage.getItem(NIGHT_OWL_END_TIMES_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Record<string, string>;
+      if (parsed && typeof parsed === "object") {
+        setNightOwlEndTimes(parsed);
+      }
+    } catch (_error) {
+      // ignore storage failures
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
       window.localStorage.setItem(
         "calendar.dismissedHabitsByDay.v1",
         JSON.stringify(dismissedHabitsByDay)
@@ -1338,6 +1364,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       // ignore storage failures
     }
   }, [nightOwlDays]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(NIGHT_OWL_END_TIMES_KEY, JSON.stringify(nightOwlEndTimes));
+    } catch (_error) {
+      // ignore storage failures
+    }
+  }, [nightOwlEndTimes]);
 
   useEffect(() => {
     try {
@@ -1379,8 +1413,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     [selectedDayIso]
   );
   const isNightOwlDay = Boolean(nightOwlDays[selectedDayIso]);
-  const planningDayEndTime = isNightOwlDay ? NIGHT_OWL_END_TIME : DAY_END_TIME;
-  const planningDayEndMinutes = isNightOwlDay ? NIGHT_OWL_END_MINUTES : toMinutes(DAY_END_TIME);
+  const selectedNightOwlEndTime = nightOwlEndTimes[selectedDayIso] || DEFAULT_NIGHT_OWL_END_TIME;
+  const planningDayEndTime = isNightOwlDay ? selectedNightOwlEndTime : DAY_END_TIME;
+  const planningDayEndMinutes = isNightOwlDay
+    ? toPlanningEndMinutes(selectedNightOwlEndTime)
+    : toMinutes(DAY_END_TIME);
+  const calendarSlotMaxTime = isNightOwlDay
+    ? toFullCalendarSlotTime(Math.max(24 * 60, planningDayEndMinutes))
+    : "24:00:00";
   useEffect(() => {
     setAutoPlanNotice(null);
   }, [selectedDayIso]);
@@ -1567,7 +1607,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     if (!isNightOwlDay || task.scheduledDate !== tomorrowFromSelectedIso) return false;
     const earlyTime = task.plannedTime || task.scheduledTime || "";
     if (!earlyTime) return false;
-    return toMinutes(earlyTime) <= NIGHT_OWL_CUTOFF_MINUTES;
+    return toMinutes(earlyTime) <= Math.max(0, planningDayEndMinutes - 24 * 60);
   });
   const unscheduledTasks = tasks
     .filter((task) => !task.scheduledDate)
@@ -4599,6 +4639,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   }, []);
 
   const toggleNightOwlDay = useCallback(() => {
+    const willEnable = !nightOwlDays[selectedDayIso];
     setNightOwlDays((current) => {
       const next = { ...current };
       if (next[selectedDayIso]) {
@@ -4608,8 +4649,25 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       }
       return next;
     });
+    if (willEnable) {
+      setNightOwlEndTimes((currentEndTimes) => ({
+        ...currentEndTimes,
+        [selectedDayIso]: currentEndTimes[selectedDayIso] || DEFAULT_NIGHT_OWL_END_TIME,
+      }));
+    }
     requestAutoPlanning("manual-time");
-  }, [requestAutoPlanning, selectedDayIso]);
+  }, [nightOwlDays, requestAutoPlanning, selectedDayIso]);
+
+  const updateNightOwlEndTime = useCallback(
+    (value: string) => {
+      setNightOwlEndTimes((current) => ({
+        ...current,
+        [selectedDayIso]: value || DEFAULT_NIGHT_OWL_END_TIME,
+      }));
+      requestAutoPlanning("manual-time");
+    },
+    [requestAutoPlanning, selectedDayIso]
+  );
 
   const runAutoPlanning = useCallback(
     (reason: string, mode: AutoPlanMode = "full") => {
@@ -5739,6 +5797,17 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             >
               Corujão
             </button>
+            {isNightOwlDay ? (
+              <label className="night-owl-end-control">
+                Até
+                <input
+                  type="time"
+                  value={selectedNightOwlEndTime}
+                  onChange={(event) => updateNightOwlEndTime(event.target.value)}
+                  aria-label="Horário final do corujão"
+                />
+              </label>
+            ) : null}
           </div>
         </div>
         <FullCalendar
@@ -5754,7 +5823,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           scrollTime={scrollTime}
           scrollTimeReset={false}
           slotMinTime="05:00:00"
-          slotMaxTime={isNightOwlDay ? "26:00:00" : "24:00:00"}
+          slotMaxTime={calendarSlotMaxTime}
           slotDuration="00:30:00"
           selectable
           selectMirror
