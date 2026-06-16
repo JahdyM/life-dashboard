@@ -422,8 +422,12 @@ function compareTasksForExecution(left: TodoTask, right: TodoTask) {
 
 const AUTO_PLAN_DAY_KEY = "calendar.autoPlan.day.v1";
 const START_OFFSET_MINUTES_KEY = "calendar.planStartOffsetMinutes.v1";
+const NIGHT_OWL_DAYS_KEY = "calendar.nightOwlDays.v1";
 const DEFAULT_PLAN_START_OFFSET_MINUTES = 10;
 const DAY_END_TIME = "22:00";
+const NIGHT_OWL_END_TIME = "02:00";
+const NIGHT_OWL_END_MINUTES = 26 * 60;
+const NIGHT_OWL_CUTOFF_MINUTES = 2 * 60;
 
 function normalizeTaskTitleKey(value: string) {
   return String(value || "")
@@ -1268,6 +1272,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [autoPlanNotice, setAutoPlanNotice] = useState<string | null>(null);
   const [todayTagFilter, setTodayTagFilter] = useState(ALL_TAG_FILTER);
   const [backlogTagFilter, setBacklogTagFilter] = useState(ALL_TAG_FILTER);
+  const [nightOwlDays, setNightOwlDays] = useState<Record<string, boolean>>({});
   const autoPlanningRef = useRef(false);
 
   useEffect(() => {
@@ -1296,6 +1301,19 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   useEffect(() => {
     try {
+      const raw = window.localStorage.getItem(NIGHT_OWL_DAYS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Record<string, boolean>;
+      if (parsed && typeof parsed === "object") {
+        setNightOwlDays(parsed);
+      }
+    } catch (_error) {
+      // ignore storage failures
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
       window.localStorage.setItem(
         "calendar.dismissedHabitsByDay.v1",
         JSON.stringify(dismissedHabitsByDay)
@@ -1312,6 +1330,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       // ignore storage failures
     }
   }, [calendarView]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(NIGHT_OWL_DAYS_KEY, JSON.stringify(nightOwlDays));
+    } catch (_error) {
+      // ignore storage failures
+    }
+  }, [nightOwlDays]);
 
   useEffect(() => {
     try {
@@ -1352,6 +1378,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     () => format(addDays(new Date(`${selectedDayIso}T12:00:00`), 1), "yyyy-MM-dd"),
     [selectedDayIso]
   );
+  const isNightOwlDay = Boolean(nightOwlDays[selectedDayIso]);
+  const planningDayEndTime = isNightOwlDay ? NIGHT_OWL_END_TIME : DAY_END_TIME;
+  const planningDayEndMinutes = isNightOwlDay ? NIGHT_OWL_END_MINUTES : toMinutes(DAY_END_TIME);
   useEffect(() => {
     setAutoPlanNotice(null);
   }, [selectedDayIso]);
@@ -1533,7 +1562,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     [taskEffort]
   );
 
-  const tasksForDay = tasks.filter((task) => task.scheduledDate === selectedDayIso);
+  const tasksForDay = tasks.filter((task) => {
+    if (task.scheduledDate === selectedDayIso) return true;
+    if (!isNightOwlDay || task.scheduledDate !== tomorrowFromSelectedIso) return false;
+    const earlyTime = task.plannedTime || task.scheduledTime || "";
+    if (!earlyTime) return false;
+    return toMinutes(earlyTime) <= NIGHT_OWL_CUTOFF_MINUTES;
+  });
   const unscheduledTasks = tasks
     .filter((task) => !task.scheduledDate)
     // Done tasks belong on a date (backlog is for *pending* work). If one
@@ -4563,6 +4598,19 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     setPendingAutoPlanReason(reason);
   }, []);
 
+  const toggleNightOwlDay = useCallback(() => {
+    setNightOwlDays((current) => {
+      const next = { ...current };
+      if (next[selectedDayIso]) {
+        delete next[selectedDayIso];
+      } else {
+        next[selectedDayIso] = true;
+      }
+      return next;
+    });
+    requestAutoPlanning("manual-time");
+  }, [requestAutoPlanning, selectedDayIso]);
+
   const runAutoPlanning = useCallback(
     (reason: string, mode: AutoPlanMode = "full") => {
       if (autoPlanningRef.current) return false;
@@ -4634,7 +4682,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           : isSelectedDayToday
             ? startMinutesByNow
             : earliestPlannedStart ?? defaultDayStartMinutes;
-      const endMinutes = toMinutes(DAY_END_TIME);
+      const endMinutes = planningDayEndMinutes;
       const { updates, stats } = buildAutoPlanUpdates({
         mode,
         candidates: candidatesForPlanning,
@@ -4647,7 +4695,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
       const shouldReport = reason.startsWith("manual-") || reason === "new-task";
       if (shouldReport) {
-        setAutoPlanNotice(formatAutoPlanNotice(mode, stats, DAY_END_TIME));
+        setAutoPlanNotice(formatAutoPlanNotice(mode, stats, planningDayEndTime));
       }
 
       if (!updates.length) return true;
@@ -4664,6 +4712,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       areaBufferFactor.byArea,
       areaBufferFactor.fallback,
       planStartOffsetMinutes,
+      planningDayEndMinutes,
+      planningDayEndTime,
       readTaskDraft,
       reorderFocusTasks,
       selectedDayIso,
@@ -5680,6 +5730,15 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             >
               Week
             </button>
+            <button
+              className={isNightOwlDay ? "chip active" : "chip"}
+              onClick={toggleNightOwlDay}
+              type="button"
+              aria-pressed={isNightOwlDay}
+              title={isNightOwlDay ? "Planning until 02:00" : "Allow tasks after 22:00"}
+            >
+              Corujão
+            </button>
           </div>
         </div>
         <FullCalendar
@@ -5695,7 +5754,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           scrollTime={scrollTime}
           scrollTimeReset={false}
           slotMinTime="05:00:00"
-          slotMaxTime="24:00:00"
+          slotMaxTime={isNightOwlDay ? "26:00:00" : "24:00:00"}
           slotDuration="00:30:00"
           selectable
           selectMirror

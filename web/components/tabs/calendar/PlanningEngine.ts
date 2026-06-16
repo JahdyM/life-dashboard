@@ -183,11 +183,18 @@ export function buildBalancedOrderWithLockedAnchors(candidates: PlanningTaskCand
   return placed;
 }
 
-function toTime(minutes: number) {
-  const clean = Math.max(0, Math.min(24 * 60 - 1, Math.round(minutes)));
+function toClockTime(minutes: number) {
+  const clean = ((Math.round(minutes) % (24 * 60)) + 24 * 60) % (24 * 60);
   const hour = Math.floor(clean / 60);
   const minute = clean % 60;
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function addIsoDays(dateIso: string, days: number) {
+  if (days <= 0) return dateIso;
+  const [year, month, day] = dateIso.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  return date.toISOString().slice(0, 10);
 }
 
 function toMinutes(time: string) {
@@ -196,6 +203,14 @@ function toMinutes(time: string) {
   const minute = Number(minuteText || 0);
   if (!Number.isFinite(hour) || !Number.isFinite(minute)) return 0;
   return hour * 60 + minute;
+}
+
+function toPlanningMinutes(time: string, scheduledDate: string, selectedDayIso: string) {
+  const baseMinutes = toMinutes(time);
+  if (scheduledDate > selectedDayIso && baseMinutes <= 12 * 60) {
+    return baseMinutes + 24 * 60;
+  }
+  return baseMinutes;
 }
 
 type TimeRange = { start: number; end: number };
@@ -218,6 +233,7 @@ function mergeTimeRanges(ranges: TimeRange[]) {
 
 function buildLockedTimeRanges(
   candidates: PlanningTaskCandidate[],
+  selectedDayIso: string,
   areaBufferByKey: Map<string, number>,
   areaBufferFallback: number
 ) {
@@ -227,7 +243,7 @@ function buildLockedTimeRanges(
     const draft = candidate.draft;
     const fixedTime = draft.scheduledTime || draft.plannedTime;
     if (!fixedTime) return;
-    const start = toMinutes(fixedTime);
+    const start = toPlanningMinutes(fixedTime, draft.scheduledDate, selectedDayIso);
     if (!Number.isFinite(start)) return;
     const estimate = Math.max(5, Number(draft.estimatedMinutes || 30));
     const areaKey = normalizeAreaTagForPlanning(draft.areaTag);
@@ -276,7 +292,7 @@ export function buildAutoPlanUpdates({
     ? buildBalancedOrderWithLockedAnchors(candidates)
     : candidates;
   const lockedTimeRanges = shouldReschedule
-    ? buildLockedTimeRanges(orderedCandidates, areaBufferByKey, areaBufferFallback)
+    ? buildLockedTimeRanges(orderedCandidates, selectedDayIso, areaBufferByKey, areaBufferFallback)
     : [];
 
   let cursor = Math.max(0, Math.min(endMinutes, startMinutes));
@@ -374,12 +390,14 @@ export function buildAutoPlanUpdates({
       return;
     }
 
-    const nextTime = toTime(nextStart);
-    if (currentDate !== selectedDayIso || currentTime !== nextTime || currentPlanned !== nextTime) {
+    const dayOffset = Math.floor(nextStart / (24 * 60));
+    const nextDate = addIsoDays(selectedDayIso, dayOffset);
+    const nextTime = toClockTime(nextStart);
+    if (currentDate !== nextDate || currentTime !== nextTime || currentPlanned !== nextTime) {
       stageUpdate({
         id: task.id,
         focusOrder: shouldReorder ? nextFocus : currentFocus,
-        scheduledDate: selectedDayIso,
+        scheduledDate: nextDate,
         scheduledTime: nextTime,
         plannedTime: nextTime,
       });
