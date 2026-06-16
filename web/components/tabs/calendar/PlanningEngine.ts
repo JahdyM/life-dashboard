@@ -85,32 +85,70 @@ function comparePlanningCandidates(left: PlanningTaskCandidate, right: PlanningT
   return String(left.task.createdAt).localeCompare(String(right.task.createdAt));
 }
 
-function pickBalancedCandidate(
+function estimateMinutesForPlanning(candidate: PlanningTaskCandidate) {
+  return Math.max(5, Number(candidate.draft.estimatedMinutes || 30));
+}
+
+function compareShortFirst(left: PlanningTaskCandidate, right: PlanningTaskCandidate) {
+  const durationDiff = estimateMinutesForPlanning(left) - estimateMinutesForPlanning(right);
+  if (durationDiff !== 0) return durationDiff;
+  return comparePlanningCandidates(left, right);
+}
+
+function compareLongFirst(left: PlanningTaskCandidate, right: PlanningTaskCandidate) {
+  const durationDiff = estimateMinutesForPlanning(right) - estimateMinutesForPlanning(left);
+  if (durationDiff !== 0) return durationDiff;
+  return comparePlanningCandidates(left, right);
+}
+
+function removePlanningCandidate(
+  pool: PlanningTaskCandidate[],
+  candidate: PlanningTaskCandidate
+) {
+  const removeIndex = pool.findIndex((item) => item.task.id === candidate.task.id);
+  if (removeIndex >= 0) pool.splice(removeIndex, 1);
+}
+
+function pickRhythmCandidate(
   pool: PlanningTaskCandidate[],
   previousTag: string | null,
-  previousRank: number,
-  heavyStreak: number
+  preferLong: boolean
 ) {
   if (!pool.length) return undefined;
 
-  const ranked = [...pool].sort(comparePlanningCandidates);
-  const topRank = ranked[0].rank;
-  const nearTopByPriority = ranked.filter((candidate) => candidate.rank >= topRank - 1);
-  const alternativesByTag = previousTag
-    ? nearTopByPriority.filter((candidate) => candidate.tagKey !== previousTag)
-    : nearTopByPriority;
+  const sorted = [...pool].sort(preferLong ? compareLongFirst : compareShortFirst);
+  if (!previousTag) return sorted[0];
 
-  let selectedPool = nearTopByPriority;
-  if (previousTag && alternativesByTag.length) {
-    selectedPool = alternativesByTag;
+  const differentArea = sorted.find((candidate) => candidate.tagKey !== previousTag);
+  if (differentArea) return differentArea;
+
+  const shortRepeat = sorted.find((candidate) => estimateMinutesForPlanning(candidate) <= 30);
+  return shortRepeat || sorted[0];
+}
+
+function pickOpeningCandidate(pool: PlanningTaskCandidate[], previousTag: string | null) {
+  if (!pool.length) return undefined;
+
+  const sorted = [...pool].sort(compareShortFirst);
+  if (!previousTag) return sorted[0];
+
+  const differentArea = sorted.find((candidate) => candidate.tagKey !== previousTag);
+  if (differentArea) return differentArea;
+
+  return sorted[0];
+}
+
+function pickDayRhythmCandidate(
+  pool: PlanningTaskCandidate[],
+  previousTag: string | null,
+  unlockedPlacedCount: number
+) {
+  if (unlockedPlacedCount < 3) {
+    return pickOpeningCandidate(pool, previousTag);
   }
 
-  if (previousRank >= 3 && heavyStreak >= 2) {
-    const lighter = selectedPool.filter((candidate) => candidate.rank < 3);
-    if (lighter.length) return lighter[0];
-  }
-
-  return selectedPool[0];
+  const preferLong = (unlockedPlacedCount - 3) % 2 === 0;
+  return pickRhythmCandidate(pool, previousTag, preferLong);
 }
 
 export function buildBalancedOrderWithLockedAnchors(candidates: PlanningTaskCandidate[]) {
@@ -123,9 +161,8 @@ export function buildBalancedOrderWithLockedAnchors(candidates: PlanningTaskCand
   });
 
   const placed: PlanningTaskCandidate[] = [];
-  let previousRank = 0;
-  let heavyStreak = 0;
   let previousTag: string | null = null;
+  let unlockedPlacedCount = 0;
 
   for (let index = 0; index < candidates.length; index += 1) {
     const lockedCandidate = lockedByIndex.get(index);
@@ -133,19 +170,13 @@ export function buildBalancedOrderWithLockedAnchors(candidates: PlanningTaskCand
     if (lockedCandidate) {
       next = lockedCandidate;
     } else {
-      next = pickBalancedCandidate(unlocked, previousTag, previousRank, heavyStreak);
+      next = pickDayRhythmCandidate(unlocked, previousTag, unlockedPlacedCount);
       if (!next) break;
-      const removeIndex = unlocked.findIndex((item) => item.task.id === next?.task.id);
-      if (removeIndex >= 0) unlocked.splice(removeIndex, 1);
+      removePlanningCandidate(unlocked, next);
+      unlockedPlacedCount += 1;
     }
 
     placed.push(next);
-    if (next.rank >= 3) {
-      heavyStreak = previousRank >= 3 ? heavyStreak + 1 : 1;
-    } else {
-      heavyStreak = 0;
-    }
-    previousRank = next.rank;
     previousTag = next.tagKey;
   }
 
