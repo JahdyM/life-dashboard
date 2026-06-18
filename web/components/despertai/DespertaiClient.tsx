@@ -500,7 +500,17 @@ function WheelFilterField({
 
 export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"despertai" | "videos" | "broadcasting" | "articles" | "books" | "tracts" | "apostilas" | "brochures" | "bible">("despertai");
+  const [activeTab, setActiveTab] = useState<
+    | "despertai"
+    | "videos"
+    | "broadcasting"
+    | "articles"
+    | "books"
+    | "tracts"
+    | "apostilas"
+    | "brochures"
+    | "bible"
+  >("despertai");
   const [importText, setImportText] = useState("");
   const [despertaiSearch, setDespertaiSearch] = useState("");
   const [videoSearch, setVideoSearch] = useState("");
@@ -1887,7 +1897,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
           className={activeTab === "brochures" ? "active" : ""}
           onClick={() => setActiveTab("brochures")}
         >
-          Brochuras e Livretos
+          Brochuras
         </button>
         <button
           type="button"
@@ -3689,7 +3699,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
 
           {apostilaWheelResult ? (
             <article className="reading-selected-callout">
-              <span>Sorteado</span>
+              <span>Sorteada</span>
               <strong>{apostilaWheelResult.title}</strong>
               <button type="button" className="page-link inline muted" onClick={() => revealApostilaFromWheel(apostilaWheelResult.id)}>
                 Ver na lista
@@ -3714,7 +3724,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
                     elementId={apostilaElementId(video.id)}
                     toggleType="toggle_apostila"
                     metaFallback="Apostila"
-                    readLabel="Lido"
+                    readLabel="Lida"
                   />
                 ))}
               </div>
@@ -3742,7 +3752,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
                     elementId={apostilaElementId(video.id)}
                     toggleType="toggle_apostila"
                     metaFallback="Apostila"
-                    readLabel="Lido"
+                    readLabel="Lida"
                   />
                 ))}
               </div>
@@ -3757,7 +3767,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
         <section className="despertai-tab-panel">
           <div className="reading-summary-grid">
             <article className="reading-summary-card main">
-              <ProgressDonut value={data.brochures.progressPercent} label="brochuras e livretos" />
+              <ProgressDonut value={data.brochures.progressPercent} label="brochuras" />
               <div>
                 <p className="panel-kicker">Brochuras e Livretos</p>
                 <h3>{data.brochures.finishedVideos}/{data.brochures.totalVideos} lidos</h3>
@@ -3792,7 +3802,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
 
             <div className="activity-wheel-controls">
               <span className="activity-wheel-meta">
-                {brochureWheelEligibleItems.length} brochuras e livretos
+                {brochureWheelEligibleItems.length} brochuras
               </span>
             </div>
 
@@ -3885,7 +3895,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
                         ? "Roleta girando"
                         : brochureWheelEligibleItems.length === 0
                           ? "Nenhuma brochura pendente"
-                          : "Sortear brochura/livreto"
+                          : "Sortear brochura"
                     }
                   >
                     {brochureWheelSpinning ? "..." : "Girar"}
@@ -3899,7 +3909,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
                 ) : brochureWheelResult ? (
                   <article className="activity-wheel-result-card despertai-wheel-result-card">
                     <strong>{brochureWheelResult.title}</strong>
-                    <p>{brochureWheelResult.naturalKey || "Brochura/Livreto"}</p>
+                    <p>{brochureWheelResult.naturalKey || "Brochura"}</p>
                     <div className="activity-wheel-result-actions">
                       <button type="button" className="secondary" onClick={() => revealBrochureFromWheel(brochureWheelResult.id)}>
                         Ver
@@ -3921,7 +3931,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
                       {brochureWheelOrderedItems.slice(0, 8).map((video) => (
                         <li key={video.id} title={video.title}>
                           <span>{truncateWheelLabel(video.title, 30)}</span>
-                          <small>{video.documentId || "Brochura/Livreto"}</small>
+                          <small>{video.documentId || "Brochura"}</small>
                         </li>
                       ))}
                     </ul>
@@ -3938,12 +3948,12 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
           <ReadingSearchField
             value={brochureSearch}
             onChange={setBrochureSearch}
-            placeholder="Buscar brochura ou livreto"
+            placeholder="Buscar brochura"
           />
 
           {brochureWheelResult ? (
             <article className="reading-selected-callout">
-              <span>Sorteado</span>
+              <span>Sorteada</span>
               <strong>{brochureWheelResult.title}</strong>
               <button type="button" className="page-link inline muted" onClick={() => revealBrochureFromWheel(brochureWheelResult.id)}>
                 Ver na lista
@@ -3967,15 +3977,15 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
                     selected={brochureWheelResultId === video.id}
                     elementId={brochureElementId(video.id)}
                     toggleType="toggle_brochure"
-                    metaFallback="Brochura/Livreto"
-                    readLabel="Lido"
+                    metaFallback="Brochura"
+                    readLabel="Lida"
                   />
                 ))}
               </div>
             ) : brochureSearchTerm ? (
               <div className="line-empty">Nenhuma brochura encontrada.</div>
             ) : (
-              <div className="line-empty">Todas as brochuras e livretos foram lidos.</div>
+              <div className="line-empty">Todas as brochuras foram lidas.</div>
             )}
           </section>
 
@@ -3995,8 +4005,8 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
                     selected={brochureWheelResultId === video.id}
                     elementId={brochureElementId(video.id)}
                     toggleType="toggle_brochure"
-                    metaFallback="Brochura/Livreto"
-                    readLabel="Lido"
+                    metaFallback="Brochura"
+                    readLabel="Lida"
                   />
                 ))}
               </div>

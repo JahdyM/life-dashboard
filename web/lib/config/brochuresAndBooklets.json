@@ -1,1 +1,170 @@
-[]
+[
+  {
+    "id": "brochure-mbs",
+    "title": "Programação de leitura da Bíblia para a Celebração",
+    "duration_seconds": 0,
+    "natural_key": "Brochuras e Livretos · 2026 · mbs",
+    "document_id": "mbs",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/mbs"
+  },
+  {
+    "id": "brochure-lmd",
+    "title": "Ame as Pessoas",
+    "duration_seconds": 0,
+    "natural_key": "Brochuras e Livretos · 2023 · lmd",
+    "document_id": "lmd",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/lmd"
+  },
+  {
+    "id": "brochure-wfg",
+    "title": "Aprenda com a Sabedoria de Jesus",
+    "duration_seconds": 0,
+    "natural_key": "Brochuras e Livretos · 2022 · wfg",
+    "document_id": "wfg",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/wfg"
+  },
+  {
+    "id": "brochure-lffi",
+    "title": "Seja Feliz para Sempre!",
+    "duration_seconds": 0,
+    "natural_key": "Brochuras e Livretos · 2021 · lffi",
+    "document_id": "lffi",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/lffi"
+  },
+  {
+    "id": "brochure-th",
+    "title": "Melhore",
+    "duration_seconds": 0,
+    "natural_key": "Brochuras e Livretos · 2018 · th",
+    "document_id": "th",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/th"
+  },
+  {
+    "id": "brochure-ypq",
+    "title": "10 Perguntas",
+    "duration_seconds": 0,
+    "natural_key": "Brochuras e Livretos · 2016 · ypq",
+    "document_id": "ypq",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/ypq"
+  },
+  {
+    "id": "brochure-fg",
+    "title": "Boas Notícias",
+    "duration_seconds": 0,
+    "natural_key": "Brochuras e Livretos · 2016 · fg",
+    "document_id": "fg",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/fg"
+  },
+  {
+    "id": "brochure-jl",
+    "title": "Vontade de Jeová",
+    "duration_seconds": 0,
+    "natural_key": "Brochuras e Livretos · 2015 · jl",
+    "document_id": "jl",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/jl"
+  },
+  {
+    "id": "brochure-yc",
+    "title": "Ensine Seus Filhos",
+    "duration_seconds": 0,
+    "natural_key": "Brochuras e Livretos · 2014 · yc",
+    "document_id": "yc",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/yc"
+  },
+  {
+    "id": "brochure-hf",
+    "title": "Família",
+    "duration_seconds": 0,
+    "natural_key": "Brochuras e Livretos · 2014 · hf",
+    "document_id": "hf",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/hf"
+  },
+  {
+    "id": "brochure-hl",
+    "title": "Vida Feliz",
+    "duration_seconds": 0,
+    "natural_key": "Brochuras e Livretos · 2013 · hl",
+    "document_id": "hl",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/hl"
+  },
+  {
+    "id": "brochure-lf",
+    "title": "Origem da Vida",
+    "duration_seconds": 0,
+    "natural_key": "Brochuras e Livretos · 2010 · lf",
+    "document_id": "lf",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/lf"
+  },
+  {
+    "id": "brochure-rk",
+    "title": "Verdadeira Fé",
+    "duration_seconds": 0,
+    "natural_key": "Brochuras e Livretos · 2010 · rk",
+    "document_id": "rk",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/rk"
+  },
+  {
+    "id": "brochure-bm",
+    "title": "Mensagem da Bíblia",
+    "duration_seconds": 0,
+    "natural_key": "Brochuras e Livretos · 2009 · bm",
+    "document_id": "bm",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/bm"
+  },
+  {
+    "id": "brochure-ol",
+    "title": "Caminho para a Vida",
+    "duration_seconds": 0,
+    "natural_key": "Brochuras e Livretos · 2002 · ol",
+    "document_id": "ol",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/ol"
+  },
+  {
+    "id": "brochure-dg",
+    "title": "Importa-se Deus?",
+    "duration_seconds": 0,
+    "natural_key": "Brochuras e Livretos · 2002 · dg",
+    "document_id": "dg",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/dg"
+  },
+  {
+    "id": "brochure-la",
+    "title": "Vida Satisfatória",
+    "duration_seconds": 0,
+    "natural_key": "Brochuras e Livretos · 2001 · la",
+    "document_id": "la",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/la"
+  },
+  {
+    "id": "brochure-gf",
+    "title": "Amigo de Deus",
+    "duration_seconds": 0,
+    "natural_key": "Brochuras e Livretos · 2000 · gf",
+    "document_id": "gf",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/gf"
+  },
+  {
+    "id": "brochure-wj",
+    "title": "Por Que Adorar a Deus",
+    "duration_seconds": 0,
+    "natural_key": "Brochuras e Livretos · 2000 · wj",
+    "document_id": "wj",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/wj"
+  },
+  {
+    "id": "brochure-rq",
+    "title": "Deus Requer",
+    "duration_seconds": 0,
+    "natural_key": "Brochuras e Livretos · 1996 · rq",
+    "document_id": "rq",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/rq"
+  },
+  {
+    "id": "brochure-pr",
+    "title": "Objetivo da Vida",
+    "duration_seconds": 0,
+    "natural_key": "Brochuras e Livretos · 1993 · pr",
+    "document_id": "pr",
+    "url": "https://wol.jw.org/pt/wol/publication/r5/lp-t/pr"
+  }
+]
