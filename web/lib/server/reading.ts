@@ -6,6 +6,7 @@ import despertaiCatalog from "@/lib/config/despertaiPublications.json";
 import broadcastingCatalog from "@/lib/config/broadcastingVideos.json";
 import readingBooksCatalog from "@/lib/config/readingBooks.json";
 import tractsCatalog from "@/lib/config/tractsAndKingdomNews.json";
+import watchtowerCatalog from "@/lib/config/watchtowerPublications.json";
 import videoCatalog from "@/lib/config/readingVideos.json";
 import { BIBLE_BOOK_BY_KEY, BIBLE_SECTIONS, BIBLE_TOTAL_CHAPTERS } from "@/lib/config/bible";
 import { getSetting, setSetting } from "@/lib/server/settings";
@@ -37,6 +38,7 @@ type StoredReadingState = {
   tracts: StoredReadingVideo[];
   apostilas: StoredReadingVideo[];
   brochures: StoredReadingVideo[];
+  watchtower: StoredReadingVideo[];
   bible_read_chapters: Record<string, number[]>;
 };
 
@@ -180,6 +182,19 @@ const DEFAULT_BROCHURES: StoredReadingVideo[] = (brochuresCatalog as CatalogRead
     updated_at: CATALOG_CREATED_AT,
   }));
 
+const DEFAULT_WATCHTOWER: StoredReadingVideo[] = (watchtowerCatalog as CatalogReadingVideo[])
+  .map((item) => ({
+    id: item.id,
+    title: item.title,
+    duration_seconds: Math.max(0, Math.trunc(Number(item.duration_seconds) || 0)),
+    natural_key: item.natural_key || null,
+    document_id: item.document_id || null,
+    url: item.url || null,
+    read: false,
+    created_at: CATALOG_CREATED_AT,
+    updated_at: CATALOG_CREATED_AT,
+  }));
+
 function defaultState(): StoredReadingState {
   return {
     despertai_issues: DEFAULT_DESPERTAI_ISSUES,
@@ -190,6 +205,7 @@ function defaultState(): StoredReadingState {
     tracts: DEFAULT_TRACTS,
     apostilas: DEFAULT_APOSTILAS,
     brochures: DEFAULT_BROCHURES,
+    watchtower: DEFAULT_WATCHTOWER,
     bible_read_chapters: {},
   };
 }
@@ -355,6 +371,14 @@ function normalizeState(raw: unknown): StoredReadingState {
           DEFAULT_BROCHURES
         )
       : DEFAULT_BROCHURES,
+    watchtower: Array.isArray(state.watchtower)
+      ? mergeWithDefaultVideos(
+          state.watchtower
+            .map((video) => normalizeVideo(video, nowIso))
+            .filter((video): video is StoredReadingVideo => Boolean(video)),
+          DEFAULT_WATCHTOWER
+        )
+      : DEFAULT_WATCHTOWER,
     bible_read_chapters: normalizeBibleReadChapters(state.bible_read_chapters),
   };
 }
@@ -468,6 +492,7 @@ function toPageData(state: StoredReadingState): ReadingPageData {
   const tracts = videoSectionProgress(state.tracts);
   const apostilas = videoSectionProgress(state.apostilas);
   const brochures = videoSectionProgress(state.brochures);
+  const watchtower = videoSectionProgress(state.watchtower);
 
   const sections = BIBLE_SECTIONS.map((section) => ({
     title: section.title,
@@ -505,6 +530,7 @@ function toPageData(state: StoredReadingState): ReadingPageData {
     tracts,
     apostilas,
     brochures,
+    watchtower,
     bible: {
       totalChapters: BIBLE_TOTAL_CHAPTERS,
       readChapters: readBibleChapters,
@@ -805,6 +831,17 @@ export async function setBrochureRead(userEmail: string, itemId: string, read: b
     item.id === itemId ? { ...item, read, updated_at: nowIso } : item
   );
   const nextState = { ...state, brochures: nextItems };
+  await saveState(userEmail, nextState);
+  return toPageData(nextState);
+}
+
+export async function setWatchtowerRead(userEmail: string, itemId: string, read: boolean) {
+  const state = await getState(userEmail);
+  const nowIso = new Date().toISOString();
+  const nextItems = state.watchtower.map((item) =>
+    item.id === itemId ? { ...item, read, updated_at: nowIso } : item
+  );
+  const nextState = { ...state, watchtower: nextItems };
   await saveState(userEmail, nextState);
   return toPageData(nextState);
 }

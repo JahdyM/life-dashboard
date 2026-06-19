@@ -19,6 +19,7 @@ type ReadingPatchPayload =
   | { type: "toggle_tract"; video_id: string; read: boolean }
   | { type: "toggle_apostila"; video_id: string; read: boolean }
   | { type: "toggle_brochure"; video_id: string; read: boolean }
+  | { type: "toggle_watchtower"; video_id: string; read: boolean }
   | { type: "toggle_bible_chapter"; book_key: string; chapter: number; read: boolean };
 
 type DespertaiClientProps = {
@@ -217,6 +218,10 @@ function brochureElementId(videoId: string) {
   return `brochure-${videoId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 }
 
+function watchtowerElementId(videoId: string) {
+  return `watchtower-${videoId.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+}
+
 function formatDuration(seconds: number) {
   const total = Math.max(0, Math.round(seconds));
   const hours = Math.floor(total / 3600);
@@ -411,7 +416,8 @@ function VideoCard({
     | "toggle_reading_book"
     | "toggle_tract"
     | "toggle_apostila"
-    | "toggle_brochure";
+    | "toggle_brochure"
+    | "toggle_watchtower";
 }) {
   return (
     <article
@@ -509,6 +515,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
     | "tracts"
     | "apostilas"
     | "brochures"
+    | "watchtower"
     | "bible"
   >("despertai");
   const [importText, setImportText] = useState("");
@@ -520,6 +527,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const [tractSearch, setTractSearch] = useState("");
   const [apostilaSearch, setApostilaSearch] = useState("");
   const [brochureSearch, setBrochureSearch] = useState("");
+  const [watchtowerSearch, setWatchtowerSearch] = useState("");
   const [issueWheelMinYear, setIssueWheelMinYear] = useState("");
   const [issueWheelMaxYear, setIssueWheelMaxYear] = useState("");
   const [issueWheelMinTopics, setIssueWheelMinTopics] = useState("");
@@ -585,6 +593,13 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const [brochureWheelShuffleNonce, setBrochureWheelShuffleNonce] = useState(0);
   const [pendingRevealBrochureId, setPendingRevealBrochureId] = useState<string | null>(null);
   const brochureWheelSpinTimeoutRef = useRef<number | null>(null);
+  const [watchtowerWheelSpinning, setWatchtowerWheelSpinning] = useState(false);
+  const [watchtowerWheelRotation, setWatchtowerWheelRotation] = useState(0);
+  const [watchtowerWheelResultId, setWatchtowerWheelResultId] = useState<string | null>(null);
+  const [watchtowerWheelLastId, setWatchtowerWheelLastId] = useState<string | null>(null);
+  const [watchtowerWheelShuffleNonce, setWatchtowerWheelShuffleNonce] = useState(0);
+  const [pendingRevealWatchtowerId, setPendingRevealWatchtowerId] = useState<string | null>(null);
+  const watchtowerWheelSpinTimeoutRef = useRef<number | null>(null);
 
   const readingQuery = useQuery({
     queryKey,
@@ -629,6 +644,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const tractSearchTerm = normalizeSearchText(tractSearch);
   const apostilaSearchTerm = normalizeSearchText(apostilaSearch);
   const brochureSearchTerm = normalizeSearchText(brochureSearch);
+  const watchtowerSearchTerm = normalizeSearchText(watchtowerSearch);
   const filteredPendingIssues = useMemo(() => {
     if (!despertaiSearchTerm) return data.despertai.pendingIssues;
     return data.despertai.pendingIssues.filter((issue) =>
@@ -725,6 +741,18 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       matchesSearchText(`${video.title} ${video.naturalKey || ""}`, brochureSearchTerm)
     );
   }, [data.brochures.finishedVideosList, brochureSearchTerm]);
+  const filteredPendingWatchtower = useMemo(() => {
+    if (!watchtowerSearchTerm) return data.watchtower.pendingVideosList;
+    return data.watchtower.pendingVideosList.filter((video) =>
+      matchesSearchText(`${video.title} ${video.naturalKey || ""}`, watchtowerSearchTerm)
+    );
+  }, [data.watchtower.pendingVideosList, watchtowerSearchTerm]);
+  const filteredFinishedWatchtower = useMemo(() => {
+    if (!watchtowerSearchTerm) return data.watchtower.finishedVideosList;
+    return data.watchtower.finishedVideosList.filter((video) =>
+      matchesSearchText(`${video.title} ${video.naturalKey || ""}`, watchtowerSearchTerm)
+    );
+  }, [data.watchtower.finishedVideosList, watchtowerSearchTerm]);
   const issueWheelFilteredPool = useMemo(() => {
     const minYear = optionalPositiveNumber(issueWheelMinYear);
     const maxYear = optionalPositiveNumber(issueWheelMaxYear);
@@ -760,6 +788,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   const tractWheelFilteredPool = data.tracts.pendingVideosList;
   const apostilaWheelFilteredPool = data.apostilas.pendingVideosList;
   const brochureWheelFilteredPool = data.brochures.pendingVideosList;
+  const watchtowerWheelFilteredPool = data.watchtower.pendingVideosList;
   const issueWheelHasFilters = Boolean(
     issueWheelMinYear || issueWheelMaxYear || issueWheelMinTopics || issueWheelMaxTopics
   );
@@ -1100,6 +1129,48 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       }) as CSSProperties,
     [brochureWheelRotation]
   );
+  const watchtowerWheelEligibleItems = useMemo(() => {
+    const pending = watchtowerWheelFilteredPool;
+    if (!watchtowerWheelLastId || pending.length <= 1) return pending;
+    const filtered = pending.filter((video) => video.id !== watchtowerWheelLastId);
+    return filtered.length ? filtered : pending;
+  }, [watchtowerWheelFilteredPool, watchtowerWheelLastId]);
+  const watchtowerWheelOrderedItems = useMemo(() => {
+    const sorted = [...watchtowerWheelEligibleItems].sort((a, b) => a.id.localeCompare(b.id));
+    if (sorted.length <= 1) return sorted;
+    const seed = hashWheelSeed(
+      `${watchtowerWheelShuffleNonce}:${sorted.map((video) => video.id).join("|")}`
+    );
+    return shuffleWithSeed(sorted, seed);
+  }, [watchtowerWheelEligibleItems, watchtowerWheelShuffleNonce]);
+  const watchtowerWheelSegments = useMemo<VideoWheelSegment[]>(() => {
+    if (!watchtowerWheelOrderedItems.length) return [];
+    const span = 360 / watchtowerWheelOrderedItems.length;
+    return watchtowerWheelOrderedItems.map((video, index) => {
+      const startAngle = index * span;
+      const endAngle = startAngle + span;
+      return {
+        video,
+        startAngle,
+        endAngle,
+        midAngle: startAngle + span / 2,
+        span,
+        color: DESPERTAI_WHEEL_COLORS[index % DESPERTAI_WHEEL_COLORS.length],
+      };
+    });
+  }, [watchtowerWheelOrderedItems]);
+  const watchtowerWheelResult = useMemo(
+    () => data.watchtower.pendingVideosList.find((video) => video.id === watchtowerWheelResultId) || null,
+    [data.watchtower.pendingVideosList, watchtowerWheelResultId]
+  );
+  const watchtowerWheelRotorStyle = useMemo(
+    () =>
+      ({
+        transform: `rotate(${watchtowerWheelRotation}deg)`,
+        transition: `transform ${DESPERTAI_WHEEL_SPIN_DURATION_MS}ms cubic-bezier(0.12, 0.88, 0.16, 1)`,
+      }) as CSSProperties,
+    [watchtowerWheelRotation]
+  );
 
   useEffect(() => {
     if (wheelResultIssueId && !issueWheelFilteredPool.some((issue) => issue.id === wheelResultIssueId)) {
@@ -1181,6 +1252,15 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   }, [brochureWheelFilteredPool, brochureWheelResultId]);
 
   useEffect(() => {
+    if (
+      watchtowerWheelResultId &&
+      !watchtowerWheelFilteredPool.some((video) => video.id === watchtowerWheelResultId)
+    ) {
+      setWatchtowerWheelResultId(null);
+    }
+  }, [watchtowerWheelFilteredPool, watchtowerWheelResultId]);
+
+  useEffect(() => {
     return () => {
       if (wheelSpinTimeoutRef.current) {
         window.clearTimeout(wheelSpinTimeoutRef.current);
@@ -1205,6 +1285,9 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       }
       if (brochureWheelSpinTimeoutRef.current) {
         window.clearTimeout(brochureWheelSpinTimeoutRef.current);
+      }
+      if (watchtowerWheelSpinTimeoutRef.current) {
+        window.clearTimeout(watchtowerWheelSpinTimeoutRef.current);
       }
     };
   }, []);
@@ -1412,6 +1495,31 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
       window.cancelAnimationFrame(secondFrame);
     };
   }, [activeTab, pendingRevealBrochureId]);
+
+  useEffect(() => {
+    if (!pendingRevealWatchtowerId || activeTab !== "watchtower") {
+      return;
+    }
+
+    let firstFrame = 0;
+    let secondFrame = 0;
+    firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        const target = document.getElementById(watchtowerElementId(pendingRevealWatchtowerId));
+        if (!target) {
+          setPendingRevealWatchtowerId(null);
+          return;
+        }
+        scrollReadingTargetIntoView(target);
+        setPendingRevealWatchtowerId(null);
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
+  }, [activeTab, pendingRevealWatchtowerId]);
 
   const patch = (payload: ReadingPatchPayload) => {
     patchMutation.mutate(payload);
@@ -1840,6 +1948,57 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
     setBrochureWheelRotation((current) => current + 45 + Math.floor(Math.random() * 150));
   };
 
+  const revealWatchtowerFromWheel = (videoId: string) => {
+    setActiveTab("watchtower");
+    setWatchtowerSearch("");
+    setPendingRevealWatchtowerId(videoId);
+  };
+
+  const spinWatchtowerWheel = () => {
+    if (watchtowerWheelSpinning || !watchtowerWheelSegments.length) return;
+    if (watchtowerWheelSegments.length === 1) {
+      const onlyVideo = watchtowerWheelSegments[0].video;
+      setWatchtowerWheelResultId(onlyVideo.id);
+      setWatchtowerWheelLastId(onlyVideo.id);
+      return;
+    }
+
+    const selectedSegment = watchtowerWheelSegments[Math.floor(Math.random() * watchtowerWheelSegments.length)];
+    const safeMargin = Math.min(10, selectedSegment.span * 0.2);
+    const minStop = selectedSegment.startAngle + safeMargin;
+    const maxStop = selectedSegment.endAngle - safeMargin;
+    const stopAngle =
+      maxStop > minStop
+        ? minStop + Math.random() * (maxStop - minStop)
+        : selectedSegment.midAngle;
+    const currentRotation = ((watchtowerWheelRotation % 360) + 360) % 360;
+    const targetRotationMod = (360 - stopAngle + 360) % 360;
+    let delta = targetRotationMod - currentRotation;
+    if (delta < 0) delta += 360;
+    const finalRotation = watchtowerWheelRotation + 1800 + delta;
+
+    setWatchtowerWheelResultId(null);
+    setWatchtowerWheelSpinning(true);
+    setWatchtowerWheelRotation(finalRotation);
+    if (watchtowerWheelSpinTimeoutRef.current) {
+      window.clearTimeout(watchtowerWheelSpinTimeoutRef.current);
+    }
+    watchtowerWheelSpinTimeoutRef.current = window.setTimeout(() => {
+      const resultSegment = findWheelSegmentAtPointer(watchtowerWheelSegments, finalRotation);
+      const resultVideoId = resultSegment?.video.id || selectedSegment.video.id;
+      setWatchtowerWheelResultId(resultVideoId);
+      setWatchtowerWheelLastId(resultVideoId);
+      setWatchtowerWheelSpinning(false);
+    }, DESPERTAI_WHEEL_SPIN_DURATION_MS);
+  };
+
+  const shuffleWatchtowerWheel = () => {
+    if (watchtowerWheelSpinning) return;
+    setWatchtowerWheelShuffleNonce((current) => current + 1);
+    setWatchtowerWheelResultId(null);
+    setWatchtowerWheelRotation((current) => current + 45 + Math.floor(Math.random() * 150));
+  };
+
   return (
     <div className="card despertai-shell">
       <div ref={tabsRef} className="despertai-tabs" role="tablist" aria-label="Reading sections">
@@ -1898,6 +2057,13 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
           onClick={() => setActiveTab("brochures")}
         >
           Brochuras
+        </button>
+        <button
+          type="button"
+          className={activeTab === "watchtower" ? "active" : ""}
+          onClick={() => setActiveTab("watchtower")}
+        >
+          Sentinela
         </button>
         <button
           type="button"
@@ -4014,6 +4180,260 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
               <div className="line-empty">Nenhuma brochura encontrada.</div>
             ) : (
               <div className="line-empty">Nenhuma brochura lida ainda.</div>
+            )}
+          </section>
+        </section>
+      ) : activeTab === "watchtower" ? (
+        <section className="despertai-tab-panel">
+          <div className="reading-summary-grid">
+            <article className="reading-summary-card main">
+              <ProgressDonut value={data.watchtower.progressPercent} label="Sentinela" />
+              <div>
+                <p className="panel-kicker">A Sentinela</p>
+                <h3>{data.watchtower.finishedVideos}/{data.watchtower.totalVideos} lidas</h3>
+              </div>
+            </article>
+            <article className="reading-summary-card">
+              <span>Pendentes</span>
+              <strong>{data.watchtower.pendingVideos}</strong>
+            </article>
+            <article className="reading-summary-card">
+              <span>Catálogo</span>
+              <strong>WOL</strong>
+            </article>
+          </div>
+
+          <section className="despertai-wheel-card">
+            <div className="activity-wheel-head">
+              <div>
+                <p className="panel-kicker">Roleta</p>
+                <h3>A Sentinela</h3>
+                <p className="activity-wheel-copy">Clique no centro para sortear.</p>
+              </div>
+              <button
+                type="button"
+                className="secondary"
+                onClick={shuffleWatchtowerWheel}
+                disabled={watchtowerWheelSpinning || watchtowerWheelOrderedItems.length <= 1}
+              >
+                Embaralhar
+              </button>
+            </div>
+
+            <div className="activity-wheel-controls">
+              <span className="activity-wheel-meta">
+                {watchtowerWheelEligibleItems.length} edições
+              </span>
+            </div>
+
+            <div className="activity-wheel-stage">
+              <div className={`activity-wheel-dial-wrap ${watchtowerWheelSpinning ? "spinning" : ""}`}>
+                <span className="activity-wheel-pointer" aria-hidden="true" />
+                <div className="activity-wheel-dial-shell">
+                  <svg
+                    className="activity-wheel-dial"
+                    viewBox="0 0 260 260"
+                    role="img"
+                    aria-label="Roleta de edições da Sentinela não lidos"
+                  >
+                    <g
+                      className={`activity-wheel-rotor ${watchtowerWheelSpinning ? "spinning" : ""}`}
+                      style={watchtowerWheelRotorStyle}
+                    >
+                      {watchtowerWheelSegments.map((segment) => {
+                        const labelPoint = polar(
+                          DESPERTAI_WHEEL_CENTER,
+                          DESPERTAI_WHEEL_CENTER,
+                          DESPERTAI_WHEEL_LABEL_RADIUS,
+                          segment.midAngle
+                        );
+                        const labelMaxLength =
+                          segment.span >= 72 ? 11 : segment.span >= 45 ? 9 : 8;
+                        const label = truncateWheelLabel(segment.video.title, labelMaxLength);
+                        const canRenderLabel = segment.span >= 24;
+
+                        return (
+                          <g key={segment.video.id}>
+                            <path
+                              d={describeWheelSlice(
+                                DESPERTAI_WHEEL_CENTER,
+                                DESPERTAI_WHEEL_CENTER,
+                                DESPERTAI_WHEEL_RADIUS,
+                                segment.startAngle,
+                                segment.endAngle
+                              )}
+                              className={`activity-wheel-slice ${
+                                !watchtowerWheelSpinning && segment.video.id === watchtowerWheelResultId
+                                  ? "is-result"
+                                  : ""
+                              }`}
+                              style={{ fill: segment.color }}
+                            >
+                              <title>{segment.video.title}</title>
+                            </path>
+                            {canRenderLabel ? (
+                              <text
+                                x={labelPoint.x}
+                                y={labelPoint.y}
+                                className="activity-wheel-slice-label"
+                                dominantBaseline="middle"
+                                textAnchor="middle"
+                              >
+                                {label}
+                              </text>
+                            ) : null}
+                          </g>
+                        );
+                      })}
+                      <circle
+                        cx={DESPERTAI_WHEEL_CENTER}
+                        cy={DESPERTAI_WHEEL_CENTER}
+                        r={DESPERTAI_WHEEL_RADIUS}
+                        className="activity-wheel-rim"
+                      />
+                    </g>
+                    <circle
+                      cx={DESPERTAI_WHEEL_CENTER}
+                      cy={DESPERTAI_WHEEL_CENTER}
+                      r="31"
+                      className="activity-wheel-hub"
+                    />
+                    <circle
+                      cx={DESPERTAI_WHEEL_CENTER}
+                      cy={DESPERTAI_WHEEL_CENTER}
+                      r="6"
+                      className="activity-wheel-hub-dot"
+                    />
+                  </svg>
+                  <button
+                    type="button"
+                    className="activity-wheel-hub-button"
+                    onClick={spinWatchtowerWheel}
+                    disabled={watchtowerWheelSpinning || watchtowerWheelEligibleItems.length === 0}
+                    aria-label={
+                      watchtowerWheelSpinning
+                        ? "Roleta girando"
+                        : watchtowerWheelEligibleItems.length === 0
+                          ? "Nenhuma edição pendente"
+                          : "Sortear edição"
+                    }
+                  >
+                    {watchtowerWheelSpinning ? "..." : "Girar"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="activity-wheel-result despertai-wheel-result">
+                {watchtowerWheelEligibleItems.length === 0 ? (
+                  <p className="line-empty">Nenhuma edição pendente.</p>
+                ) : watchtowerWheelResult ? (
+                  <article className="activity-wheel-result-card despertai-wheel-result-card">
+                    <strong>{watchtowerWheelResult.title}</strong>
+                    <p>{watchtowerWheelResult.naturalKey || "Sentinela"}</p>
+                    <div className="activity-wheel-result-actions">
+                      <button type="button" className="secondary" onClick={() => revealWatchtowerFromWheel(watchtowerWheelResult.id)}>
+                        Ver
+                      </button>
+                      <button
+                        type="button"
+                        className="page-link inline muted"
+                        onClick={spinWatchtowerWheel}
+                        disabled={watchtowerWheelSpinning}
+                      >
+                        Sortear de novo
+                      </button>
+                    </div>
+                  </article>
+                ) : (
+                  <article className="activity-wheel-summary-card">
+                    <p className="activity-wheel-summary-title">Na roleta</p>
+                    <ul className="activity-wheel-task-list">
+                      {watchtowerWheelOrderedItems.slice(0, 8).map((video) => (
+                        <li key={video.id} title={video.title}>
+                          <span>{truncateWheelLabel(video.title, 30)}</span>
+                          <small>{video.documentId || "Sentinela"}</small>
+                        </li>
+                      ))}
+                    </ul>
+                    {watchtowerWheelOrderedItems.length > 8 ? (
+                      <p className="activity-wheel-more">+{watchtowerWheelOrderedItems.length - 8} mais</p>
+                    ) : null}
+                    <p className="activity-wheel-tip">O nome completo aparece depois do sorteio.</p>
+                  </article>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <ReadingSearchField
+            value={watchtowerSearch}
+            onChange={setWatchtowerSearch}
+            placeholder="Buscar Sentinela"
+          />
+
+          {watchtowerWheelResult ? (
+            <article className="reading-selected-callout">
+              <span>Sorteada</span>
+              <strong>{watchtowerWheelResult.title}</strong>
+              <button type="button" className="page-link inline muted" onClick={() => revealWatchtowerFromWheel(watchtowerWheelResult.id)}>
+                Ver na lista
+              </button>
+            </article>
+          ) : null}
+
+          <section className="despertai-list-section">
+            <div className="despertai-section-title">
+              <h3>Não lidas</h3>
+              <span>{filteredPendingWatchtower.length}</span>
+            </div>
+            {filteredPendingWatchtower.length ? (
+              <div className="reading-video-list">
+                {filteredPendingWatchtower.map((video) => (
+                  <VideoCard
+                    key={video.id}
+                    video={video}
+                    busy={patchMutation.isPending}
+                    onPatch={patch}
+                    selected={watchtowerWheelResultId === video.id}
+                    elementId={watchtowerElementId(video.id)}
+                    toggleType="toggle_watchtower"
+                    metaFallback="Sentinela"
+                    readLabel="Lida"
+                  />
+                ))}
+              </div>
+            ) : watchtowerSearchTerm ? (
+              <div className="line-empty">Nenhuma edição encontrada.</div>
+            ) : (
+              <div className="line-empty">Todas as edições foram lidas.</div>
+            )}
+          </section>
+
+          <section className="despertai-list-section">
+            <div className="despertai-section-title">
+              <h3>Lidos</h3>
+              <span>{filteredFinishedWatchtower.length}</span>
+            </div>
+            {filteredFinishedWatchtower.length ? (
+              <div className="reading-video-list reading-video-finished-list">
+                {filteredFinishedWatchtower.map((video) => (
+                  <VideoCard
+                    key={video.id}
+                    video={video}
+                    busy={patchMutation.isPending}
+                    onPatch={patch}
+                    selected={watchtowerWheelResultId === video.id}
+                    elementId={watchtowerElementId(video.id)}
+                    toggleType="toggle_watchtower"
+                    metaFallback="Sentinela"
+                    readLabel="Lida"
+                  />
+                ))}
+              </div>
+            ) : watchtowerSearchTerm ? (
+              <div className="line-empty">Nenhuma edição encontrada.</div>
+            ) : (
+              <div className="line-empty">Nenhuma edição lida ainda.</div>
             )}
           </section>
         </section>
