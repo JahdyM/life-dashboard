@@ -2889,6 +2889,49 @@ button.link.danger {
   color: #cabfae;
 }
 
+.activity-wheel-tag-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: -2px;
+}
+
+.activity-wheel-tag-chip {
+  --tag-color: #cabfae;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 5px 10px;
+  border: 1px solid rgba(216, 204, 183, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.activity-wheel-tag-chip input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: var(--tag-color);
+}
+
+.activity-wheel-tag-chip.selected {
+  border-color: color-mix(in srgb, var(--tag-color) 58%, transparent);
+  background: color-mix(in srgb, var(--tag-color) 16%, rgba(255, 255, 255, 0.04));
+  color: #f4eadc;
+}
+
+.activity-wheel-tag-chip:hover,
+.activity-wheel-tag-chip:focus-within {
+  border-color: color-mix(in srgb, var(--tag-color) 72%, transparent);
+  background: color-mix(in srgb, var(--tag-color) 20%, rgba(255, 255, 255, 0.05));
+}
+
 .activity-wheel-stage {
   display: grid;
   grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);

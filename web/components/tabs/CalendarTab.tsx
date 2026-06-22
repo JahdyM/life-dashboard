@@ -1294,6 +1294,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [wheelLastTaskId, setWheelLastTaskId] = useState<string | null>(null);
   const [wheelShuffleNonce, setWheelShuffleNonce] = useState(0);
   const [wheelShuffleCountInput, setWheelShuffleCountInput] = useState("1");
+  const [wheelExcludedTagKeys, setWheelExcludedTagKeys] = useState<string[]>([]);
   const [wheelShuffling, setWheelShuffling] = useState(false);
   const [wheelShuffleProgress, setWheelShuffleProgress] = useState(0);
   const wheelSpinTimeoutRef = useRef<number | null>(null);
@@ -1785,7 +1786,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     () => new Map<string, number>(pendingTasks.map((task, index) => [task.id, index + 1])),
     [pendingTasks]
   );
-  const pendingTaskPool = useMemo(
+  const wheelTagOptions = useMemo(
+    () => [
+      ...taskAreas,
+      { key: NO_TAG_FILTER, label: "No tag", color: "#8f8779" },
+    ],
+    [taskAreas]
+  );
+  const wheelScopeTaskPool = useMemo(
     () =>
       tasks.filter((task) => {
         if (readTaskDraft(task).isDone) return false;
@@ -1796,6 +1804,18 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         return task.scheduledDate >= range.start && task.scheduledDate <= range.end;
       }),
     [range.end, range.start, readTaskDraft, selectedDayIso, tasks, wheelOnlyToday]
+  );
+  const pendingTaskPool = useMemo(() => {
+    if (!wheelExcludedTagKeys.length) return wheelScopeTaskPool;
+    const excluded = new Set(wheelExcludedTagKeys);
+    return wheelScopeTaskPool.filter((task) => {
+      const tagKey = String(readTaskDraft(task).areaTag || "").trim() || NO_TAG_FILTER;
+      return !excluded.has(tagKey);
+    });
+  }, [readTaskDraft, wheelExcludedTagKeys, wheelScopeTaskPool]);
+  const wheelIncludedTagCount = Math.max(
+    0,
+    wheelTagOptions.length - wheelExcludedTagKeys.length
   );
   const wheelEligibleTasks = useMemo(() => {
     if (!wheelAvoidRepeat || !wheelLastTaskId || pendingTaskPool.length <= 1) {
@@ -4324,6 +4344,15 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     }, WHEEL_SPIN_DURATION_MS);
   }, [wheelRotation, wheelSegments, wheelShuffling, wheelSpinning, wheelTotalWeight]);
 
+  const toggleWheelTag = useCallback((tagKey: string) => {
+    setWheelExcludedTagKeys((current) =>
+      current.includes(tagKey)
+        ? current.filter((key) => key !== tagKey)
+        : [...current, tagKey]
+    );
+    setWheelResultTaskId(null);
+  }, []);
+
   const shuffleWheelStart = useCallback(() => {
     if (wheelSpinning || wheelShuffling) return;
     if (wheelShuffleTimeoutRef.current) {
@@ -5989,8 +6018,28 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               <span>Avoid repeat</span>
             </label>
             <span className="activity-wheel-meta">
-              {wheelEligibleTasks.length} tasks · weight {wheelTotalWeight}
+              {wheelEligibleTasks.length} tasks · weight {wheelTotalWeight} · {wheelIncludedTagCount}/{wheelTagOptions.length} tags
             </span>
+          </div>
+
+          <div className="activity-wheel-tag-filter" aria-label="Activity wheel tag filters">
+            {wheelTagOptions.map((tag) => {
+              const checked = !wheelExcludedTagKeys.includes(tag.key);
+              return (
+                <label
+                  key={tag.key}
+                  className={`activity-wheel-tag-chip ${checked ? "selected" : ""}`}
+                  style={{ "--tag-color": tag.color } as CSSProperties}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleWheelTag(tag.key)}
+                  />
+                  <span>{tag.label}</span>
+                </label>
+              );
+            })}
           </div>
 
           <div className="activity-wheel-stage">
