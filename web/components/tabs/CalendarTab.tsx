@@ -253,6 +253,41 @@ function taskTitleMatchesHabit(taskTitle: string, habit: Pick<DailyHabitItem, "k
   return canonicalHabitKey(taskTitle) === canonicalHabitKey(habit.label);
 }
 
+function normalizedHabitAreaName(name: string) {
+  return canonicalHabitKey(name)
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function areaTagForHabit(habit: Pick<DailyHabitItem, "key" | "label">) {
+  const key = String(habit.key || "").trim().toLowerCase();
+  const name = normalizedHabitAreaName(habit.label);
+
+  if (
+    key === "bible_reading" ||
+    key === "daily_text" ||
+    name === "bible reading & study" ||
+    name === "bible study" ||
+    name === "bible studying" ||
+    name === "daily text"
+  ) {
+    return "jw";
+  }
+  if (key === "workout" || name === "workout" || name === "remedios") {
+    return "saude";
+  }
+  if (key === "writing" || key === "general_reading" || name === "writing" || name === "general reading") {
+    return "hobbies";
+  }
+  if (key === "shower" || name === "shower") {
+    return "eu";
+  }
+  if (name === "15/15") {
+    return "casa";
+  }
+  return "";
+}
+
 const emailHandle = (email: string) => {
   const normalized = String(email || "").trim().toLowerCase();
   if (!normalized.includes("@")) return normalized;
@@ -2481,10 +2516,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       title,
       scheduledTime,
       estimatedMinutes,
+      areaTag,
     }: {
       title: string;
       scheduledTime?: string | null;
       estimatedMinutes?: number;
+      areaTag?: string;
     }) =>
       fetchJson<{ task: TodoTask; warning?: string | null }>("/api/tasks", {
         method: "POST",
@@ -2495,6 +2532,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           scheduled_time: scheduledTime || null,
           planned_time: scheduledTime || null,
           estimated_minutes: estimatedMinutes || 30,
+          area_tag: areaTag || null,
           sync_google: false,
         }),
       }),
@@ -4464,6 +4502,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         title: habit.label,
         scheduledTime,
         estimatedMinutes,
+        areaTag: areaTagForHabit(habit),
       });
     },
     [createHabitTask, habitDurationDrafts, habitTimeDrafts, selectedDayIso]

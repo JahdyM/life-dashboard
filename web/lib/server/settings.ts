@@ -162,10 +162,11 @@ export async function saveCustomHabits(
 
 const DEFAULT_CUSTOM_HABITS = DEFAULT_CUSTOM_HABIT_TEMPLATES;
 const CUSTOM_HABIT_ADDITIONS_SYNC_KEY = "custom_habits_template_additions_v1";
-const CURRENT_CUSTOM_HABIT_ADDITIONS_VERSION = "2026-06-22-duolingo-medicine";
+const CURRENT_CUSTOM_HABIT_ADDITIONS_VERSION = "2026-06-22-duolingo-medicine-15-15";
 const ADDITIVE_CUSTOM_HABIT_TEMPLATE_IDS = new Set([
   "default-duolingo",
   "default-medicine",
+  "default-15-15",
 ]);
 
 async function syncDefaultCustomHabitAdditions(
