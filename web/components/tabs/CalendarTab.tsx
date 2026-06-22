@@ -288,6 +288,28 @@ function areaTagForHabit(habit: Pick<DailyHabitItem, "key" | "label">) {
   return "";
 }
 
+function defaultDurationForHabit(habit: Pick<DailyHabitItem, "key" | "label">) {
+  const key = String(habit.key || "").trim().toLowerCase();
+  const name = normalizedHabitAreaName(habit.label);
+
+  if (key === "workout" || name === "workout") return 60;
+  if (key === "daily_text" || name === "daily text") return 2;
+  if (
+    key === "bible_reading" ||
+    name === "bible reading & study" ||
+    name === "bible study" ||
+    name === "bible studying"
+  ) {
+    return 15;
+  }
+  if (key === "general_reading" || name === "general reading") return 15;
+  if (key === "writing" || name === "writing") return 10;
+  if (name === "remedios") return 2;
+  if (name === "15/15") return 35;
+  if (key === "shower" || name === "shower") return 25;
+  return 30;
+}
+
 const emailHandle = (email: string) => {
   const normalized = String(email || "").trim().toLowerCase();
   if (!normalized.includes("@")) return normalized;
@@ -4491,7 +4513,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const handleAddHabitToAgenda = useCallback(
     (habit: DailyHabitItem) => {
       const scheduledTime = habitTimeDrafts[habit.id] || null;
-      const estimatedMinutes = Math.max(5, Number(habitDurationDrafts[habit.id] || 30));
+      const estimatedMinutes = Math.max(
+        1,
+        Number(habitDurationDrafts[habit.id] || defaultDurationForHabit(habit))
+      );
       setDismissedHabitsByDay((prev) => {
         const current = prev[selectedDayIso] || [];
         if (!current.includes(habit.id)) return prev;
@@ -5675,7 +5700,10 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                       key={habit.id}
                       habit={habit}
                       timeValue={habitTimeDrafts[habit.id] || ""}
-                      durationValue={Math.max(5, Number(habitDurationDrafts[habit.id] || 30))}
+                      durationValue={Math.max(
+                        1,
+                        Number(habitDurationDrafts[habit.id] || defaultDurationForHabit(habit))
+                      )}
                       saving={
                         updateDayHabit.isPending ||
                         updateCustomHabitDone.isPending ||
