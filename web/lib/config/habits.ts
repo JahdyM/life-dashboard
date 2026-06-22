@@ -186,6 +186,8 @@ export const DEFAULT_CUSTOM_HABIT_TEMPLATES: CustomHabitTemplate[] = [
   { id: "default-general-reading", name: "General reading (books)", active: true },
   { id: "default-writing", name: "Writing", active: true },
   { id: "default-scientific-writing", name: "Scientific Writing", active: true },
+  { id: "default-duolingo", name: "Duolingo", active: true },
+  { id: "default-medicine", name: "Remédios", active: true },
 ];
 
 export const HABIT_FIELD_NAMES = HABIT_FIELD_CONFIGS.map((habit) => habit.field);

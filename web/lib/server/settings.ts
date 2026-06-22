@@ -132,7 +132,10 @@ export async function getAllCustomHabits(userEmail: string) {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
       const filtered = parsed.filter((item) => typeof item === "object");
-      const normalized = normalizeCustomHabits(filtered);
+      const normalized = await syncDefaultCustomHabitAdditions(
+        userEmail,
+        normalizeCustomHabits(filtered)
+      );
       if (normalized.length !== filtered.length) {
         await saveCustomHabits(userEmail, normalized);
       }
@@ -158,6 +161,37 @@ export async function saveCustomHabits(
 }
 
 const DEFAULT_CUSTOM_HABITS = DEFAULT_CUSTOM_HABIT_TEMPLATES;
+const CUSTOM_HABIT_ADDITIONS_SYNC_KEY = "custom_habits_template_additions_v1";
+const CURRENT_CUSTOM_HABIT_ADDITIONS_VERSION = "2026-06-22-duolingo-medicine";
+const ADDITIVE_CUSTOM_HABIT_TEMPLATE_IDS = new Set([
+  "default-duolingo",
+  "default-medicine",
+]);
+
+async function syncDefaultCustomHabitAdditions(
+  userEmail: string,
+  habits: Array<{ id: string; name: string; active?: boolean }>
+) {
+  const marker = await getSetting(userEmail, CUSTOM_HABIT_ADDITIONS_SYNC_KEY);
+  if (marker === CURRENT_CUSTOM_HABIT_ADDITIONS_VERSION) return habits;
+
+  const existingKeys = new Set(habits.map((habit) => canonicalHabitKey(habit.name)));
+  const additions = DEFAULT_CUSTOM_HABIT_TEMPLATES.filter(
+    (template) =>
+      ADDITIVE_CUSTOM_HABIT_TEMPLATE_IDS.has(template.id) &&
+      !existingKeys.has(canonicalHabitKey(template.name))
+  );
+  const next = additions.length ? normalizeCustomHabits([...habits, ...additions]) : habits;
+  if (additions.length) {
+    await saveCustomHabits(userEmail, next);
+  }
+  await setSetting(
+    userEmail,
+    CUSTOM_HABIT_ADDITIONS_SYNC_KEY,
+    CURRENT_CUSTOM_HABIT_ADDITIONS_VERSION
+  );
+  return next;
+}
 
 export async function ensureDefaultCustomHabits(userEmail: string) {
   const stored = await getAllCustomHabits(userEmail);
