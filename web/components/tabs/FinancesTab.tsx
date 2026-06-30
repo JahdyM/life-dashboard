@@ -84,7 +84,15 @@ function computeSummary(f: MonthlyFinance) {
     (s, c) => s + (c.paid === "pago" || c.paid === "sim" ? c.actual ?? c.budget : 0),
     0
   );
+  const pendingFixedCosts = f.fixedCosts.reduce(
+    (s, c) => s + (c.paid === "pago" || c.paid === "sim" ? 0 : c.actual ?? c.budget),
+    0
+  );
   const totalDebtsPaid = Object.values(f.debts).reduce((s, d: DebtEntry) => s + (d.paid || 0), 0);
+  const pendingDebts = Object.values(f.debts).reduce(
+    (s, d: DebtEntry) => s + Math.max(0, (d.monthly || 0) - (d.paid || 0)),
+    0
+  );
   const totalOutstanding = Object.values(f.debts).reduce(
     (s, d: DebtEntry) => s + Math.max(0, (d.total || 0) - (d.paid || 0)),
     0
@@ -94,18 +102,27 @@ function computeSummary(f: MonthlyFinance) {
     (s, e: ExtraExpense) => s + (e.paid === false ? 0 : e.amount || 0),
     0
   );
+  const pendingExtras = (f.extraExpenses || []).reduce(
+    (s, e: ExtraExpense) => s + (e.paid === false ? e.amount || 0 : 0),
+    0
+  );
   const monthSpentSoFar = paidFixedCosts + totalDebtsPaid + paidExtras;
+  const monthPending = pendingFixedCosts + pendingDebts + pendingExtras;
   const surplus = totalIncome - totalActual - totalDebtsPaid - totalExtras;
   return {
     totalIncome,
     totalBudget,
     totalActual,
     paidFixedCosts,
+    pendingFixedCosts,
     totalDebtsPaid,
+    pendingDebts,
     totalOutstanding,
     totalExtras,
     paidExtras,
+    pendingExtras,
     monthSpentSoFar,
+    monthPending,
     surplus,
     allocation: {
       casa: surplus > 0 ? Math.round(surplus * 0.2 * 100) / 100 : 0,
@@ -433,6 +450,11 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
             label="Month so far"
             value={`R$ ${fmt(summary.monthSpentSoFar)}`}
             sub={`fixed ${fmt(summary.paidFixedCosts)} · debts ${fmt(summary.totalDebtsPaid)} · extras ${fmt(summary.paidExtras)}`}
+          />
+          <SummaryCard
+            label="Pending"
+            value={`R$ ${fmt(summary.monthPending)}`}
+            sub={`fixed ${fmt(summary.pendingFixedCosts)} · debts ${fmt(summary.pendingDebts)} · extras ${fmt(summary.pendingExtras)}`}
           />
           <SummaryCard label="Fixed costs paid" value={`R$ ${fmt(summary.totalActual)}`} sub={`budgeted R$ ${fmt(summary.totalBudget)}`} />
           <SummaryCard label="Debt payments made" value={`R$ ${fmt(summary.totalDebtsPaid)}`} sub={`outstanding R$ ${fmt(summary.totalOutstanding)}`} />
