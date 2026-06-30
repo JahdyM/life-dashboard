@@ -60,6 +60,7 @@ export type ExtraExpense = {
   id: string;
   label: string;
   amount: number;
+  paid?: boolean;
 };
 
 export type MonthlyFinance = {
@@ -305,21 +306,33 @@ export function computeFinanceSummary(f: MonthlyFinance) {
   const totalIncome = (f.income.gui || 0) + (f.income.jahdy || 0) + (f.income.extras || 0);
   const totalBudget = f.fixedCosts.reduce((s, c) => s + c.budget, 0);
   const totalActual = f.fixedCosts.reduce((s, c) => s + (c.actual ?? 0), 0);
+  const paidFixedCosts = f.fixedCosts.reduce(
+    (s, c) => s + (c.paid === "pago" || c.paid === "sim" ? c.actual ?? c.budget : 0),
+    0
+  );
   const totalDebtsPaid = Object.values(f.debts).reduce((s, d) => s + (d.paid || 0), 0);
   const totalOutstanding = Object.values(f.debts).reduce(
     (s, d) => s + Math.max(0, (d.total || 0) - (d.paid || 0)),
     0
   );
   const totalExtras = (f.extraExpenses || []).reduce((s, e) => s + (e.amount || 0), 0);
+  const paidExtras = (f.extraExpenses || []).reduce(
+    (s, e) => s + (e.paid === false ? 0 : e.amount || 0),
+    0
+  );
+  const monthSpentSoFar = paidFixedCosts + totalDebtsPaid + paidExtras;
   const surplus = totalIncome - totalActual - totalDebtsPaid - totalExtras;
   // Divisão padrão do sobrado: 20% casa, 10% R.E., resto dívidas
   return {
     totalIncome,
     totalBudget,
     totalActual,
+    paidFixedCosts,
     totalDebtsPaid,
     totalOutstanding,
     totalExtras,
+    paidExtras,
+    monthSpentSoFar,
     surplus,
     allocation: {
       casa: surplus > 0 ? Math.round(surplus * 0.2 * 100) / 100 : 0,

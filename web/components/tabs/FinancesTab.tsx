@@ -80,15 +80,33 @@ function computeSummary(f: MonthlyFinance) {
   const totalIncome = (f.income.gui || 0) + (f.income.jahdy || 0) + (f.income.extras || 0);
   const totalBudget = f.fixedCosts.reduce((s, c) => s + c.budget, 0);
   const totalActual = f.fixedCosts.reduce((s, c) => s + (c.actual ?? 0), 0);
+  const paidFixedCosts = f.fixedCosts.reduce(
+    (s, c) => s + (c.paid === "pago" || c.paid === "sim" ? c.actual ?? c.budget : 0),
+    0
+  );
   const totalDebtsPaid = Object.values(f.debts).reduce((s, d: DebtEntry) => s + (d.paid || 0), 0);
   const totalOutstanding = Object.values(f.debts).reduce(
     (s, d: DebtEntry) => s + Math.max(0, (d.total || 0) - (d.paid || 0)),
     0
   );
   const totalExtras = (f.extraExpenses || []).reduce((s, e: ExtraExpense) => s + (e.amount || 0), 0);
+  const paidExtras = (f.extraExpenses || []).reduce(
+    (s, e: ExtraExpense) => s + (e.paid === false ? 0 : e.amount || 0),
+    0
+  );
+  const monthSpentSoFar = paidFixedCosts + totalDebtsPaid + paidExtras;
   const surplus = totalIncome - totalActual - totalDebtsPaid - totalExtras;
   return {
-    totalIncome, totalBudget, totalActual, totalDebtsPaid, totalOutstanding, totalExtras, surplus,
+    totalIncome,
+    totalBudget,
+    totalActual,
+    paidFixedCosts,
+    totalDebtsPaid,
+    totalOutstanding,
+    totalExtras,
+    paidExtras,
+    monthSpentSoFar,
+    surplus,
     allocation: {
       casa: surplus > 0 ? Math.round(surplus * 0.2 * 100) / 100 : 0,
       reservaEmergencia: surplus > 0 ? Math.round(surplus * 0.1 * 100) / 100 : 0,
@@ -411,6 +429,11 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
       {summary && (
         <div className="shell-summary-grid">
           <SummaryCard label="Income" value={`R$ ${fmt(summary.totalIncome)}`} accent />
+          <SummaryCard
+            label="Month so far"
+            value={`R$ ${fmt(summary.monthSpentSoFar)}`}
+            sub={`fixed ${fmt(summary.paidFixedCosts)} · debts ${fmt(summary.totalDebtsPaid)} · extras ${fmt(summary.paidExtras)}`}
+          />
           <SummaryCard label="Fixed costs paid" value={`R$ ${fmt(summary.totalActual)}`} sub={`budgeted R$ ${fmt(summary.totalBudget)}`} />
           <SummaryCard label="Debt payments made" value={`R$ ${fmt(summary.totalDebtsPaid)}`} sub={`outstanding R$ ${fmt(summary.totalOutstanding)}`} />
           {summary.totalExtras > 0 && <SummaryCard label="Extra expenses" value={`R$ ${fmt(summary.totalExtras)}`} />}
@@ -679,8 +702,10 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
       <div className="card">
         <h2>⚡ Extra Expenses</h2>
         <div style={{ display: "grid", gap: 6 }}>
-          {(finance.extraExpenses || []).map((ex: ExtraExpense) => (
-            <div key={ex.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {(finance.extraExpenses || []).map((ex: ExtraExpense) => {
+            const isPaid = ex.paid !== false;
+            return (
+            <div key={ex.id} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <input
                 aria-label="Description"
                 type="text"
@@ -712,6 +737,26 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
               />
               <button
                 className="secondary"
+                type="button"
+                style={{
+                  padding: "2px 8px",
+                  fontSize: "0.75rem",
+                  color: isPaid ? "#9DCFB7" : "var(--text-soft,#888)",
+                  borderColor: isPaid ? "#9DCFB7" : "var(--border,#444)",
+                }}
+                onClick={() =>
+                  update((prev) => ({
+                    ...prev,
+                    extraExpenses: prev.extraExpenses.map((x) =>
+                      x.id === ex.id ? { ...x, paid: !isPaid } : x
+                    ),
+                  }))
+                }
+              >
+                {isPaid ? "Paid" : "Pending"}
+              </button>
+              <button
+                className="secondary"
                 style={{ padding: "2px 8px", fontSize: "0.75rem" }}
                 onClick={() =>
                   update((prev) => ({
@@ -723,7 +768,8 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
                 ✕
               </button>
             </div>
-          ))}
+          );
+          })}
         </div>
         <div style={{ marginTop: 10 }}>
           <button
@@ -733,7 +779,7 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
                 ...prev,
                 extraExpenses: [
                   ...(prev.extraExpenses || []),
-                  { id: `ex_${Date.now()}`, label: "", amount: 0 },
+                  { id: `ex_${Date.now()}`, label: "", amount: 0, paid: true },
                 ],
               }))
             }
