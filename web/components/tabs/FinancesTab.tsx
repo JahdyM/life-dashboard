@@ -430,23 +430,21 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
             return (
               <div key={key} style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <span style={{ minWidth: 140, fontSize: "0.88rem" }}>{labels[key]}</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="100"
-                  value={val ?? ""}
+                <MoneyInput
+                  value={val}
+                  allowEmpty={key === "jahdy"}
                   placeholder={key === "jahdy" ? "— no salary" : "0"}
+                  ariaLabel={labels[key]}
                   style={{ width: 140 }}
-                  onChange={(e) => {
-                    const raw = e.target.value;
+                  onValueChange={(value) =>
                     update((prev) => ({
                       ...prev,
                       income: {
                         ...prev.income,
-                        [key]: raw === "" ? null : Number(raw),
+                        [key]: key === "jahdy" ? value : value ?? 0,
                       },
-                    }));
-                  }}
+                    }))
+                  }
                 />
                 {key === "jahdy" && (
                   <button
@@ -622,18 +620,16 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
                         <small style={{ color: "var(--text-soft)", fontSize: "0.68rem" }}>
                           {labels[field]}
                         </small>
-                        <input
-                          type="number"
-                          min="0"
-                          className="no-spinner"
+                        <MoneyInput
                           value={entry[field]}
+                          ariaLabel={`${labels[field]} amount for ${entry.label || key}`}
                           style={{ width: "100%", textAlign: "right" }}
-                          onChange={(e) =>
+                          onValueChange={(value) =>
                             update((prev) => ({
                               ...prev,
                               debts: {
                                 ...prev.debts,
-                                [key]: { ...prev.debts[key], [field]: Number(e.target.value) },
+                                [key]: { ...prev.debts[key], [field]: value ?? 0 },
                               },
                             }))
                           }
@@ -697,19 +693,16 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
                   }))
                 }
               />
-              <input
-                aria-label="Amount"
-                type="number"
-                min="0"
-                className="no-spinner"
+              <MoneyInput
                 value={ex.amount}
+                ariaLabel="Amount"
                 placeholder="0"
                 style={{ width: 110, textAlign: "right" }}
-                onChange={(e) =>
+                onValueChange={(value) =>
                   update((prev) => ({
                     ...prev,
                     extraExpenses: prev.extraExpenses.map((x) =>
-                      x.id === ex.id ? { ...x, amount: Number(e.target.value) } : x
+                      x.id === ex.id ? { ...x, amount: value ?? 0 } : x
                     ),
                   }))
                 }
@@ -776,16 +769,13 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
                     </span>
                   )}
                 </div>
-                <input
-                  aria-label={`Current amount — ${g.title}`}
-                  type="number"
-                  min="0"
-                  className="no-spinner"
-                  defaultValue={g.current}
-                  style={{ width: 110 }}
-                  onBlur={(e) => {
-                    const val = Number(e.target.value);
-                    if (val !== g.current) patchSgMut.mutate({ id: g.id, current: val });
+                <MoneyInput
+                  value={g.current}
+                  ariaLabel={`Current amount — ${g.title}`}
+                  style={{ width: 110, textAlign: "right" }}
+                  onValueChange={(value) => {
+                    const next = value ?? 0;
+                    if (next !== g.current) patchSgMut.mutate({ id: g.id, current: next });
                   }}
                 />
                 <button className="secondary" style={{ padding: "2px 8px", fontSize: "0.75rem" }} onClick={() => delSgMut.mutate(g.id)}>✕</button>
@@ -808,7 +798,14 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
             </div>
             <div className="form-row">
               <label htmlFor="sg-target">Target (R$)</label>
-              <input id="sg-target" type="number" min="1" step="500" value={sgTarget} onChange={(e) => setSgTarget(e.target.value)} placeholder="10000" />
+              <input
+                id="sg-target"
+                type="text"
+                inputMode="decimal"
+                value={sgTarget}
+                onChange={(e) => setSgTarget(cleanMoneyDraft(e.target.value))}
+                placeholder="10000"
+              />
             </div>
             <div className="form-row">
               <label htmlFor="sg-emoji">Emoji</label>
@@ -816,8 +813,9 @@ export default function FinancesTab({ userEmail }: { userEmail: string }) {
             </div>
             <button
               onClick={() => {
-                if (!sgTitle || !sgTarget) return;
-                addSgMut.mutate({ title: sgTitle, target: Number(sgTarget), emoji: sgEmoji || "💰" });
+                const target = parseMoneyDraft(sgTarget);
+                if (!sgTitle || target === null || target === undefined || target <= 0) return;
+                addSgMut.mutate({ title: sgTitle, target, emoji: sgEmoji || "💰" });
               }}
               disabled={addSgMut.isPending}
             >

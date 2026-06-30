@@ -195,7 +195,56 @@ function financeKey(year: number, month: number) {
   return `monthly_finance::${year}::${month}`;
 }
 
-export async function getMonthlyFinance(
+function previousMonthOf(year: number, month: number) {
+  return month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 };
+}
+
+function debtRemaining(debt: DebtEntry | undefined) {
+  if (!debt) return null;
+  return Math.max(0, (debt.total || 0) - (debt.paid || 0));
+}
+
+function mergeMonthlyFinance(parsed: Partial<MonthlyFinance>, def: MonthlyFinance): MonthlyFinance {
+  // Merge: keep default fixed costs structure, override with saved values
+  const savedCosts = Array.isArray(parsed.fixedCosts) ? parsed.fixedCosts : [];
+  const savedById = new Map(savedCosts.map((c) => [c.id, c]));
+  const fixedCosts = def.fixedCosts.map((defItem) => {
+    const saved = savedById.get(defItem.id);
+    return saved ? { ...defItem, ...saved } : defItem;
+  });
+  // Append any custom items not in defaults
+  savedCosts.forEach((c) => {
+    if (!def.fixedCosts.find((d) => d.id === c.id)) fixedCosts.push(c);
+  });
+  // Migrate old debt format (bare numbers) and keep custom debt rows.
+  const rawDebts = (parsed.debts || {}) as Record<string, number | Partial<DebtEntry>>;
+  const debtKeys = Array.from(new Set([...Object.keys(def.debts), ...Object.keys(rawDebts)]));
+  const migratedDebts = Object.fromEntries(
+    debtKeys.map((k) => {
+      const v = rawDebts[k] ?? def.debts[k];
+      const fallback = def.debts[k] ?? makeDebt(debtLabelFromKey(k));
+      if (typeof v === "number") {
+        return [k, { ...fallback, total: v }];
+      }
+      return [
+        k,
+        {
+          ...fallback,
+          ...v,
+          label: typeof v?.label === "string" && v.label.trim() ? v.label.trim() : fallback.label,
+        },
+      ];
+    })
+  ) as MonthlyDebts;
+  return {
+    income: { ...def.income, ...(parsed.income || {}) },
+    fixedCosts,
+    debts: migratedDebts,
+    extraExpenses: Array.isArray(parsed.extraExpenses) ? parsed.extraExpenses : [],
+  };
+}
+
+async function getMonthlyFinanceSnapshot(
   userEmail: string,
   year: number,
   month: number
@@ -203,45 +252,41 @@ export async function getMonthlyFinance(
   const raw = await getCoupleRaw(userEmail, financeKey(year, month));
   if (!raw) return makeDefaultFinance(year, month);
   try {
+    return mergeMonthlyFinance(JSON.parse(raw) as Partial<MonthlyFinance>, makeDefaultFinance(year, month));
+  } catch {
+    return makeDefaultFinance(year, month);
+  }
+}
+
+async function makeDefaultFinanceWithDebtCarryover(
+  userEmail: string,
+  year: number,
+  month: number
+) {
+  const current = makeDefaultFinance(year, month);
+  const previousMonth = previousMonthOf(year, month);
+  const previous = await getMonthlyFinanceSnapshot(userEmail, previousMonth.year, previousMonth.month);
+
+  (["contador", "nacional"] as const).forEach((key) => {
+    const carriedTotal = debtRemaining(previous.debts[key]);
+    if (carriedTotal === null || !current.debts[key]) return;
+    current.debts[key] = { ...current.debts[key], total: carriedTotal };
+  });
+
+  return current;
+}
+
+export async function getMonthlyFinance(
+  userEmail: string,
+  year: number,
+  month: number
+): Promise<MonthlyFinance> {
+  const raw = await getCoupleRaw(userEmail, financeKey(year, month));
+  if (!raw) return makeDefaultFinanceWithDebtCarryover(userEmail, year, month);
+  try {
     const parsed = JSON.parse(raw) as Partial<MonthlyFinance>;
     const def = makeDefaultFinance(year, month);
-    // Merge: keep default fixed costs structure, override with saved values
-    const savedCosts = Array.isArray(parsed.fixedCosts) ? parsed.fixedCosts : [];
-    const savedById = new Map(savedCosts.map((c) => [c.id, c]));
-    const fixedCosts = def.fixedCosts.map((defItem) => {
-      const saved = savedById.get(defItem.id);
-      return saved ? { ...defItem, ...saved } : defItem;
-    });
-    // Append any custom items not in defaults
-    savedCosts.forEach((c) => {
-      if (!def.fixedCosts.find((d) => d.id === c.id)) fixedCosts.push(c);
-    });
-    // Migrate old debt format (bare numbers) and keep custom debt rows.
-    const rawDebts = (parsed.debts || {}) as Record<string, number | Partial<DebtEntry>>;
-    const debtKeys = Array.from(new Set([...Object.keys(def.debts), ...Object.keys(rawDebts)]));
-    const migratedDebts = Object.fromEntries(
-      debtKeys.map((k) => {
-        const v = rawDebts[k] ?? def.debts[k];
-        const fallback = def.debts[k] ?? makeDebt(debtLabelFromKey(k));
-        if (typeof v === "number") {
-          return [k, { ...fallback, total: v }];
-        }
-        return [
-          k,
-          {
-            ...fallback,
-            ...v,
-            label: typeof v?.label === "string" && v.label.trim() ? v.label.trim() : fallback.label,
-          },
-        ];
-      })
-    ) as MonthlyDebts;
-    return {
-      income: { ...def.income, ...(parsed.income || {}) },
-      fixedCosts,
-      debts: migratedDebts,
-      extraExpenses: Array.isArray(parsed.extraExpenses) ? parsed.extraExpenses : [],
-    };
+    return mergeMonthlyFinance(parsed, def);
   } catch {
     return makeDefaultFinance();
   }
