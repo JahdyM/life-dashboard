@@ -81,7 +81,10 @@ function computeSummary(f: MonthlyFinance) {
   const totalBudget = f.fixedCosts.reduce((s, c) => s + c.budget, 0);
   const totalActual = f.fixedCosts.reduce((s, c) => s + (c.actual ?? 0), 0);
   const totalDebtsPaid = Object.values(f.debts).reduce((s, d: DebtEntry) => s + (d.paid || 0), 0);
-  const totalOutstanding = Object.values(f.debts).reduce((s, d: DebtEntry) => s + (d.total || 0), 0);
+  const totalOutstanding = Object.values(f.debts).reduce(
+    (s, d: DebtEntry) => s + Math.max(0, (d.total || 0) - (d.paid || 0)),
+    0
+  );
   const totalExtras = (f.extraExpenses || []).reduce((s, e: ExtraExpense) => s + (e.amount || 0), 0);
   const surplus = totalIncome - totalActual - totalDebtsPaid - totalExtras;
   return {
