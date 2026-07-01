@@ -1861,13 +1861,19 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     0,
     wheelTagOptions.length - wheelExcludedTagKeys.length
   );
-  const focusTaskOptions = useMemo(
-    () => pendingTaskPool.filter((task) => task.source !== "habit"),
-    [pendingTaskPool]
-  );
+  const focusTaskOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return [...tasks, ...overdueTasks]
+      .filter((task) => {
+        if (seen.has(task.id)) return false;
+        seen.add(task.id);
+        return !readTaskDraft(task).isDone && !task.missedAt;
+      })
+      .sort(compareTasksForExecution);
+  }, [overdueTasks, readTaskDraft, tasks]);
   const focusTask = useMemo(
-    () => tasks.find((task) => task.id === focusTaskId) || null,
-    [focusTaskId, tasks]
+    () => focusTaskOptions.find((task) => task.id === focusTaskId) || null,
+    [focusTaskId, focusTaskOptions]
   );
   const focusElapsedSeconds = useMemo(() => {
     if (focusStatus !== "running" || !focusStartedAt) return focusAccumulatedSeconds;
