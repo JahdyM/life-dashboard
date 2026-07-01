@@ -1613,6 +1613,14 @@ button.link.danger {
   font-size: 18px;
 }
 
+.calendar-section-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .task-composer-primary {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

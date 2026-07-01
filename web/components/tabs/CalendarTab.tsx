@@ -1704,6 +1704,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   });
   const unscheduledTasks = tasks
     .filter((task) => !task.scheduledDate)
+    .filter((task) => task.source !== "habit")
     // Done tasks belong on a date (backlog is for *pending* work). If one
     // ever ends up here despite the auto-anchor in toggleTaskDoneNow, hide
     // it from backlog so it doesn't read as "still to do".
@@ -1715,6 +1716,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     .sort(compareTasksForExecution);
   const overdueBacklogTasks = overdueTasks
     .filter((task) => !task.isDone)
+    .filter((task) => task.source !== "habit")
     .filter((task) => !task.missedAt)
     .filter((task) => Boolean(task.scheduledDate))
     .filter((task) =>
@@ -1806,6 +1808,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         taskMatchesTagFilter(task, backlogTagFilter)
       ),
     [backlogTagFilter, taskMatchesTagFilter, unscheduledTasks]
+  );
+  const visibleBacklogTaskIds = useMemo(
+    () => [
+      ...filteredOverdueBacklogTasks.map((task) => task.id),
+      ...filteredUnscheduledTasks.map((task) => task.id),
+    ],
+    [filteredOverdueBacklogTasks, filteredUnscheduledTasks]
   );
   const todaySectionCountLabel =
     todayTagFilter !== ALL_TAG_FILTER
@@ -2838,6 +2847,38 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     },
     onError: (error) => {
       setTaskSaveError(readErrorMessage(error, "Couldn't update task."));
+    },
+  });
+
+  const clearBacklog = useMutation({
+    mutationFn: async (taskIds: string[]) => {
+      if (!taskIds.length) return;
+      const nowIso = new Date().toISOString();
+      await Promise.all(
+        taskIds.map((taskId) =>
+          fetchJson(`/api/tasks/${taskId}`, {
+            method: "PATCH",
+            body: JSON.stringify({
+              is_missed: 1,
+              missed_at: nowIso,
+              is_done: 0,
+              completed_at: null,
+              sync_google: false,
+            }),
+          })
+        )
+      );
+    },
+    onSuccess: () => {
+      setTaskSaveError(null);
+      setBoardActionNotice({ tone: "success", body: "Backlog cleared." });
+      queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
+      queryClient.invalidateQueries({
+        queryKey: ["tasks-overdue", overdueRange.start, overdueRange.end],
+      });
+    },
+    onError: (error) => {
+      setTaskSaveError(readErrorMessage(error, "Couldn't clear backlog."));
     },
   });
 
@@ -5553,9 +5594,22 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               <p className="panel-kicker">Later</p>
               <h3>Backlog</h3>
             </div>
-            <span className="calendar-section-count">
-              {filteredUnscheduledTasks.length + filteredOverdueBacklogTasks.length}
-            </span>
+            <div className="calendar-section-actions">
+              {visibleBacklogTaskIds.length ? (
+                <button
+                  type="button"
+                  className="secondary subtle"
+                  onClick={() => clearBacklog.mutate(visibleBacklogTaskIds)}
+                  disabled={clearBacklog.isPending}
+                  title="Mark visible backlog as not doing"
+                >
+                  {clearBacklog.isPending ? "Clearing…" : "Clear"}
+                </button>
+              ) : null}
+              <span className="calendar-section-count">
+                {visibleBacklogTaskIds.length}
+              </span>
+            </div>
           </div>
           <div className="calendar-list-filter">
             <label htmlFor="backlog-tag-filter">Tag</label>
