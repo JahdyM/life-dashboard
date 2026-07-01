@@ -4463,6 +4463,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     [updateSubtaskMutation]
   );
 
+  const applyWheelTagResult = useCallback((tagKey: string | undefined | null) => {
+    if (!tagKey) return;
+    setWheelResultTagKey(tagKey);
+    setTodayTagFilter(tagKey);
+  }, []);
+
   const spinActivityWheel = useCallback(() => {
     if (wheelSpinning || wheelShuffling) return;
     if (!wheelSegments.length || wheelTotalWeight <= 0) {
@@ -4473,7 +4479,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     if (wheelSegments.length === 1) {
       const single = wheelSegments[0];
       setWheelResultTaskId(single.task?.id || null);
-      setWheelResultTagKey(single.tagKey || null);
+      applyWheelTagResult(single.tagKey);
       if (single.task) setWheelLastTaskId(single.task.id);
       setWheelRotation((previous) => previous + 360);
       return;
@@ -4517,11 +4523,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       const result = resultSegment || selectedSegment;
       const resultTaskId = result.task?.id || null;
       setWheelResultTaskId(resultTaskId);
-      setWheelResultTagKey(result.tagKey || null);
+      applyWheelTagResult(result.tagKey);
       if (resultTaskId) setWheelLastTaskId(resultTaskId);
       setWheelSpinning(false);
     }, WHEEL_SPIN_DURATION_MS);
-  }, [wheelRotation, wheelSegments, wheelShuffling, wheelSpinning, wheelTotalWeight]);
+  }, [applyWheelTagResult, wheelRotation, wheelSegments, wheelShuffling, wheelSpinning, wheelTotalWeight]);
 
   const toggleWheelTag = useCallback((tagKey: string) => {
     setWheelExcludedTagKeys((current) =>
