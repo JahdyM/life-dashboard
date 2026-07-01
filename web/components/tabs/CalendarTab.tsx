@@ -1876,7 +1876,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const focusTargetSeconds = Math.max(60, focusMinutes * 60);
   const focusRemainingSeconds = Math.max(0, focusTargetSeconds - focusElapsedSeconds);
   const focusActualMinutes = Math.max(1, Math.round(focusElapsedSeconds / 60));
-  const focusBreakMinutes = recommendedBreakMinutes(focusActualMinutes);
+  const focusBreakMinutes = recommendedBreakMinutes(focusMinutes);
 
   useEffect(() => {
     if (focusStatus !== "running") return;
