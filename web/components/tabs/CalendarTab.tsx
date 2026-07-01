@@ -198,7 +198,11 @@ type StoredFocusTimerState = {
   accumulatedSeconds: number;
   startedAt: number | null;
   reviewElapsedSeconds: number;
+  updatedAt: number;
+  expiresAt: number | null;
 };
+
+type FocusTimerResponse = { state: StoredFocusTimerState | null };
 
 function readStoredFocusTimerState(): StoredFocusTimerState | null {
   if (typeof window === "undefined") return null;
@@ -217,6 +221,8 @@ function readStoredFocusTimerState(): StoredFocusTimerState | null {
       accumulatedSeconds: Math.max(0, Number(parsed.accumulatedSeconds || 0)),
       startedAt: typeof parsed.startedAt === "number" ? parsed.startedAt : null,
       reviewElapsedSeconds: Math.max(0, Number(parsed.reviewElapsedSeconds || 0)),
+      updatedAt: Math.max(0, Number(parsed.updatedAt || 0)),
+      expiresAt: typeof parsed.expiresAt === "number" ? parsed.expiresAt : null,
     };
   } catch {
     return null;
@@ -1322,6 +1328,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const router = useRouter();
   const calendarRef = useRef<FullCalendar | null>(null);
   const lastCreateAttemptRef = useRef<CreateTaskInput | null>(null);
+  const appliedRemoteFocusTimerRef = useRef<number>(0);
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "failed">("idle");
@@ -1346,6 +1353,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [focusAccumulatedSeconds, setFocusAccumulatedSeconds] = useState(initialFocusTimer?.accumulatedSeconds || 0);
   const [focusStartedAt, setFocusStartedAt] = useState<number | null>(initialFocusTimer?.startedAt || null);
   const [focusReviewElapsedSeconds, setFocusReviewElapsedSeconds] = useState(initialFocusTimer?.reviewElapsedSeconds || 0);
+  const [focusUpdatedAt, setFocusUpdatedAt] = useState(initialFocusTimer?.updatedAt || 0);
+  const [focusExpiresAt, setFocusExpiresAt] = useState<number | null>(initialFocusTimer?.expiresAt || null);
   const [focusNow, setFocusNow] = useState(() => Date.now());
   const [wheelOnlyToday, setWheelOnlyToday] = useState(true);
   const [wheelAvoidRepeat, setWheelAvoidRepeat] = useState(true);
@@ -1594,29 +1603,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     return () => window.clearInterval(intervalId);
   }, [focusStatus]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const payload: StoredFocusTimerState = {
-      taskId: focusTaskId,
-      minutes: focusMinutes,
-      status: focusStatus,
-      accumulatedSeconds: focusAccumulatedSeconds,
-      startedAt: focusStartedAt,
-      reviewElapsedSeconds: focusReviewElapsedSeconds,
-    };
-    if (!payload.taskId && payload.status === "idle" && payload.accumulatedSeconds <= 0) {
-      window.localStorage.removeItem(FOCUS_TIMER_STORAGE_KEY);
-      return;
-    }
-    window.localStorage.setItem(FOCUS_TIMER_STORAGE_KEY, JSON.stringify(payload));
-  }, [
-    focusAccumulatedSeconds,
-    focusMinutes,
-    focusReviewElapsedSeconds,
-    focusStartedAt,
-    focusStatus,
-    focusTaskId,
-  ]);
+
 
   useEffect(
     () => () => {
@@ -1699,6 +1686,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     queryKey: ["energy-settings"],
     queryFn: () => fetchJson<EnergyResponse>("/api/energy"),
   });
+  const focusTimerQuery = useQuery({
+    queryKey: ["focus-timer"],
+    queryFn: () => fetchJson<FocusTimerResponse>("/api/focus-timer"),
+    staleTime: 5_000,
+  });
   const taskSharesQuery = useQuery({
     queryKey: ["task-shares"],
     queryFn: () => fetchJson<TaskSharesResponse>("/api/task-shares"),
@@ -1722,6 +1714,75 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       ),
   });
 
+  const { mutate: saveFocusTimer } = useMutation({
+    mutationFn: (state: StoredFocusTimerState) =>
+      fetchJson<FocusTimerResponse>("/api/focus-timer", {
+        method: "PUT",
+        body: JSON.stringify(state),
+      }),
+    onSuccess: (payload) => {
+      if (payload.state?.updatedAt) setFocusUpdatedAt(payload.state.updatedAt);
+    },
+  });
+
+  useEffect(() => {
+    const state = focusTimerQuery.data?.state;
+    if (!state?.updatedAt) return;
+    if (state.updatedAt <= appliedRemoteFocusTimerRef.current) return;
+    if (focusUpdatedAt && state.updatedAt < focusUpdatedAt) return;
+    appliedRemoteFocusTimerRef.current = state.updatedAt;
+    setFocusTaskId(state.taskId || "");
+    setFocusMinutes(Math.max(1, Number(state.minutes || 25)));
+    setFocusStatus(state.status || "idle");
+    setFocusAccumulatedSeconds(Math.max(0, Number(state.accumulatedSeconds || 0)));
+    setFocusStartedAt(state.startedAt || null);
+    setFocusReviewElapsedSeconds(Math.max(0, Number(state.reviewElapsedSeconds || 0)));
+    setFocusUpdatedAt(state.updatedAt);
+    setFocusExpiresAt(state.expiresAt || null);
+    setFocusNow(Date.now());
+  }, [focusTimerQuery.data?.state, focusUpdatedAt]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const now = Date.now();
+    const targetSeconds = Math.max(60, focusMinutes * 60);
+    const expiresAt =
+      focusStatus === "running" && focusStartedAt
+        ? Math.min(
+            focusStartedAt + 8 * 60 * 60 * 1000,
+            focusStartedAt + Math.max(targetSeconds * 1000 * 4, 2 * 60 * 60 * 1000)
+          )
+        : null;
+    const payload: StoredFocusTimerState = {
+      taskId: focusTaskId,
+      minutes: focusMinutes,
+      status: focusStatus,
+      accumulatedSeconds: focusAccumulatedSeconds,
+      startedAt: focusStartedAt,
+      reviewElapsedSeconds: focusReviewElapsedSeconds,
+      updatedAt: now,
+      expiresAt,
+    };
+    setFocusUpdatedAt((current) => Math.max(current, now));
+    if (!payload.taskId && payload.status === "idle" && payload.accumulatedSeconds <= 0) {
+      window.localStorage.removeItem(FOCUS_TIMER_STORAGE_KEY);
+    } else {
+      window.localStorage.setItem(FOCUS_TIMER_STORAGE_KEY, JSON.stringify(payload));
+    }
+    setFocusExpiresAt(expiresAt);
+    if (!focusTimerQuery.isFetched) return;
+    const timeoutId = window.setTimeout(() => saveFocusTimer(payload), 650);
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    focusAccumulatedSeconds,
+    focusTimerQuery.isFetched,
+    focusMinutes,
+    focusReviewElapsedSeconds,
+    focusStartedAt,
+    focusStatus,
+    focusTaskId,
+    saveFocusTimer,
+  ]);
   const tasks = useMemo(
     () => tasksQuery.data?.items || [],
     [tasksQuery.data?.items]
@@ -1942,6 +2003,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const focusRemainingSeconds = Math.max(0, focusTargetSeconds - focusElapsedSeconds);
   const focusActualMinutes = Math.max(1, Math.round(focusElapsedSeconds / 60));
   const focusBreakMinutes = recommendedBreakMinutes(focusMinutes);
+  const focusLimitLabel = useMemo(() => {
+    if (focusStatus !== "running" || !focusExpiresAt) return null;
+    const minutes = Math.max(0, Math.ceil((focusExpiresAt - focusNow) / 60_000));
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    return hours > 0 ? `${hours}h ${rest}m limit` : `${minutes}m limit`;
+  }, [focusExpiresAt, focusNow, focusStatus]);
 
   useEffect(() => {
     if (focusStatus !== "running") return;
@@ -6305,6 +6373,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               </div>
               <p className="focus-timer-meta">
                 Break: {focusBreakMinutes} min · estimate error: {focusTask ? `${focusActualMinutes - Number(focusTask.estimatedMinutes || focusMinutes)} min` : "—"}
+                {focusLimitLabel ? ` · ${focusLimitLabel}` : ""}
               </p>
               {focusStatus === "review" ? (
                 <div className="focus-timer-review">
