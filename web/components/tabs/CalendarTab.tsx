@@ -189,6 +189,39 @@ const WHEEL_SPIN_DURATION_MS = 2600;
 const WHEEL_SHUFFLE_STEP_MS = 140;
 const MAX_WHEEL_SHUFFLE_COUNT = 999;
 const MAX_WHEEL_SHUFFLE_INPUT_LENGTH = String(MAX_WHEEL_SHUFFLE_COUNT).length + 1;
+const FOCUS_TIMER_STORAGE_KEY = "life-dashboard:calendar-focus-timer:v1";
+
+type StoredFocusTimerState = {
+  taskId: string;
+  minutes: number;
+  status: FocusTimerStatus;
+  accumulatedSeconds: number;
+  startedAt: number | null;
+  reviewElapsedSeconds: number;
+};
+
+function readStoredFocusTimerState(): StoredFocusTimerState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(FOCUS_TIMER_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StoredFocusTimerState>;
+    const status: FocusTimerStatus =
+      parsed.status === "running" || parsed.status === "paused" || parsed.status === "review"
+        ? parsed.status
+        : "idle";
+    return {
+      taskId: String(parsed.taskId || ""),
+      minutes: Math.max(1, Number(parsed.minutes || 25)),
+      status,
+      accumulatedSeconds: Math.max(0, Number(parsed.accumulatedSeconds || 0)),
+      startedAt: typeof parsed.startedAt === "number" ? parsed.startedAt : null,
+      reviewElapsedSeconds: Math.max(0, Number(parsed.reviewElapsedSeconds || 0)),
+    };
+  } catch {
+    return null;
+  }
+}
 
 function cleanWheelShuffleCountInput(value: string) {
   return value.replace(/\D/g, "").slice(0, MAX_WHEEL_SHUFFLE_INPUT_LENGTH);
@@ -1306,12 +1339,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [estimateWasTouched, setEstimateWasTouched] = useState(false);
   const [shareOnCreate, setShareOnCreate] = useState(false);
   const [composerAdvancedOpen, setComposerAdvancedOpen] = useState(false);
-  const [focusTaskId, setFocusTaskId] = useState<string>("");
-  const [focusMinutes, setFocusMinutes] = useState(25);
-  const [focusStatus, setFocusStatus] = useState<FocusTimerStatus>("idle");
-  const [focusAccumulatedSeconds, setFocusAccumulatedSeconds] = useState(0);
-  const [focusStartedAt, setFocusStartedAt] = useState<number | null>(null);
-  const [focusReviewElapsedSeconds, setFocusReviewElapsedSeconds] = useState(0);
+  const [initialFocusTimer] = useState(() => readStoredFocusTimerState());
+  const [focusTaskId, setFocusTaskId] = useState<string>(initialFocusTimer?.taskId || "");
+  const [focusMinutes, setFocusMinutes] = useState(initialFocusTimer?.minutes || 25);
+  const [focusStatus, setFocusStatus] = useState<FocusTimerStatus>(initialFocusTimer?.status || "idle");
+  const [focusAccumulatedSeconds, setFocusAccumulatedSeconds] = useState(initialFocusTimer?.accumulatedSeconds || 0);
+  const [focusStartedAt, setFocusStartedAt] = useState<number | null>(initialFocusTimer?.startedAt || null);
+  const [focusReviewElapsedSeconds, setFocusReviewElapsedSeconds] = useState(initialFocusTimer?.reviewElapsedSeconds || 0);
   const [focusNow, setFocusNow] = useState(() => Date.now());
   const [wheelOnlyToday, setWheelOnlyToday] = useState(true);
   const [wheelAvoidRepeat, setWheelAvoidRepeat] = useState(true);
@@ -1542,6 +1576,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     const onVisibilityChange = () => {
       if (!document.hidden) {
         setNowTick(Date.now());
+        setFocusNow(Date.now());
       }
     };
 
@@ -1558,6 +1593,30 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     const intervalId = window.setInterval(() => setFocusNow(Date.now()), 1000);
     return () => window.clearInterval(intervalId);
   }, [focusStatus]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const payload: StoredFocusTimerState = {
+      taskId: focusTaskId,
+      minutes: focusMinutes,
+      status: focusStatus,
+      accumulatedSeconds: focusAccumulatedSeconds,
+      startedAt: focusStartedAt,
+      reviewElapsedSeconds: focusReviewElapsedSeconds,
+    };
+    if (!payload.taskId && payload.status === "idle" && payload.accumulatedSeconds <= 0) {
+      window.localStorage.removeItem(FOCUS_TIMER_STORAGE_KEY);
+      return;
+    }
+    window.localStorage.setItem(FOCUS_TIMER_STORAGE_KEY, JSON.stringify(payload));
+  }, [
+    focusAccumulatedSeconds,
+    focusMinutes,
+    focusReviewElapsedSeconds,
+    focusStartedAt,
+    focusStatus,
+    focusTaskId,
+  ]);
 
   useEffect(
     () => () => {
