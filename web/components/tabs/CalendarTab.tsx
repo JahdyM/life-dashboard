@@ -152,14 +152,22 @@ type FocusOrderUpdate = {
 type CalendarViewMode = "timeGridDay" | "timeGridWeek";
 
 type WheelSegment = {
-  task: TodoTask;
+  id: string;
+  label: string;
+  fullLabel: string;
   weight: number;
   startAngle: number;
   endAngle: number;
   midAngle: number;
   span: number;
   color: string;
+  task?: TodoTask;
+  tagKey?: string;
+  tagLabel?: string;
 };
+
+type WheelMode = "tasks" | "tags";
+type FocusTimerStatus = "idle" | "running" | "paused" | "review";
 
 const ALL_TAG_FILTER = "__all__";
 const NO_TAG_FILTER = "__none__";
@@ -443,6 +451,18 @@ function findWheelSegmentAtPointer(segments: WheelSegment[], rotationDeg: number
         pointerAngle >= segment.startAngle && pointerAngle < segment.endAngle
     ) || segments[segments.length - 1]
   );
+}
+
+function formatTimerSeconds(totalSeconds: number) {
+  const safe = Math.max(0, Math.floor(totalSeconds));
+  const minutes = Math.floor(safe / 60);
+  const seconds = safe % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function recommendedBreakMinutes(workMinutes: number) {
+  if (workMinutes <= 0) return 5;
+  return Math.min(30, Math.max(5, Math.round(workMinutes * 0.2)));
 }
 
 function getTaskFocusOrder(task: Pick<TodoTask, "focusOrder">) {
@@ -1286,11 +1306,20 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const [estimateWasTouched, setEstimateWasTouched] = useState(false);
   const [shareOnCreate, setShareOnCreate] = useState(false);
   const [composerAdvancedOpen, setComposerAdvancedOpen] = useState(false);
+  const [focusTaskId, setFocusTaskId] = useState<string>("");
+  const [focusMinutes, setFocusMinutes] = useState(25);
+  const [focusStatus, setFocusStatus] = useState<FocusTimerStatus>("idle");
+  const [focusAccumulatedSeconds, setFocusAccumulatedSeconds] = useState(0);
+  const [focusStartedAt, setFocusStartedAt] = useState<number | null>(null);
+  const [focusReviewElapsedSeconds, setFocusReviewElapsedSeconds] = useState(0);
+  const [focusNow, setFocusNow] = useState(() => Date.now());
   const [wheelOnlyToday, setWheelOnlyToday] = useState(true);
   const [wheelAvoidRepeat, setWheelAvoidRepeat] = useState(true);
+  const [wheelMode, setWheelMode] = useState<WheelMode>("tasks");
   const [wheelSpinning, setWheelSpinning] = useState(false);
   const [wheelRotation, setWheelRotation] = useState(0);
   const [wheelResultTaskId, setWheelResultTaskId] = useState<string | null>(null);
+  const [wheelResultTagKey, setWheelResultTagKey] = useState<string | null>(null);
   const [wheelLastTaskId, setWheelLastTaskId] = useState<string | null>(null);
   const [wheelShuffleNonce, setWheelShuffleNonce] = useState(0);
   const [wheelShuffleCountInput, setWheelShuffleCountInput] = useState("1");
@@ -1523,6 +1552,12 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
+
+  useEffect(() => {
+    if (focusStatus !== "running") return undefined;
+    const intervalId = window.setInterval(() => setFocusNow(Date.now()), 1000);
+    return () => window.clearInterval(intervalId);
+  }, [focusStatus]);
 
   useEffect(
     () => () => {
@@ -1817,6 +1852,31 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     0,
     wheelTagOptions.length - wheelExcludedTagKeys.length
   );
+  const focusTaskOptions = useMemo(
+    () => pendingTaskPool.filter((task) => task.source !== "habit"),
+    [pendingTaskPool]
+  );
+  const focusTask = useMemo(
+    () => tasks.find((task) => task.id === focusTaskId) || null,
+    [focusTaskId, tasks]
+  );
+  const focusElapsedSeconds = useMemo(() => {
+    if (focusStatus !== "running" || !focusStartedAt) return focusAccumulatedSeconds;
+    return focusAccumulatedSeconds + Math.max(0, Math.floor((focusNow - focusStartedAt) / 1000));
+  }, [focusAccumulatedSeconds, focusNow, focusStartedAt, focusStatus]);
+  const focusTargetSeconds = Math.max(60, focusMinutes * 60);
+  const focusRemainingSeconds = Math.max(0, focusTargetSeconds - focusElapsedSeconds);
+  const focusActualMinutes = Math.max(1, Math.round(focusElapsedSeconds / 60));
+  const focusBreakMinutes = recommendedBreakMinutes(focusActualMinutes);
+
+  useEffect(() => {
+    if (focusStatus !== "running") return;
+    if (focusElapsedSeconds < focusTargetSeconds) return;
+    setFocusReviewElapsedSeconds(focusElapsedSeconds);
+    setFocusAccumulatedSeconds(focusTargetSeconds);
+    setFocusStartedAt(null);
+    setFocusStatus("review");
+  }, [focusElapsedSeconds, focusStatus, focusTargetSeconds]);
   const wheelEligibleTasks = useMemo(() => {
     if (!wheelAvoidRepeat || !wheelLastTaskId || pendingTaskPool.length <= 1) {
       return pendingTaskPool;
@@ -1832,35 +1892,95 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     );
     return shuffleWithSeed(sorted, seed);
   }, [wheelEligibleTasks, wheelShuffleNonce]);
-  const wheelSegments = useMemo<WheelSegment[]>(() => {
-    if (!wheelOrderedTasks.length) return [];
-    const totalWeight = wheelOrderedTasks.reduce(
-      (sum, task) => sum + taskPriorityWeight(task.priorityTag),
-      0
+  const wheelOrderedTags = useMemo(() => {
+    const areaByKey = new Map(wheelTagOptions.map((tag) => [tag.key, tag]));
+    const byKey = new Map<
+      string,
+      { key: string; label: string; color: string; weight: number; count: number }
+    >();
+    pendingTaskPool.forEach((task) => {
+      const tagKey = String(readTaskDraft(task).areaTag || "").trim() || NO_TAG_FILTER;
+      const meta = areaByKey.get(tagKey) || {
+        key: tagKey,
+        label: tagKey === NO_TAG_FILTER ? "No tag" : tagKey,
+        color: "#8f8779",
+      };
+      const current = byKey.get(tagKey) || {
+        key: tagKey,
+        label: meta.label,
+        color: meta.color,
+        weight: 0,
+        count: 0,
+      };
+      current.weight += taskPriorityWeight(task.priorityTag);
+      current.count += 1;
+      byKey.set(tagKey, current);
+    });
+    const sorted = Array.from(byKey.values()).sort((a, b) => a.key.localeCompare(b.key));
+    if (sorted.length <= 1) return sorted;
+    const seed = hashWheelSeed(
+      `tags:${wheelShuffleNonce}:${sorted.map((tag) => tag.key).join("|")}`
     );
+    return shuffleWithSeed(sorted, seed);
+  }, [pendingTaskPool, readTaskDraft, wheelShuffleNonce, wheelTagOptions]);
+  const wheelSegments = useMemo<WheelSegment[]>(() => {
+    const items =
+      wheelMode === "tags"
+        ? wheelOrderedTags.map((tag, index) => ({
+            id: `tag:${tag.key}`,
+            label: tag.label,
+            fullLabel: `${tag.label} · ${tag.count} task${tag.count === 1 ? "" : "s"}`,
+            weight: tag.weight,
+            color: tag.color || WHEEL_SLICE_COLORS[index % WHEEL_SLICE_COLORS.length],
+            tagKey: tag.key,
+            tagLabel: tag.label,
+          }))
+        : wheelOrderedTasks.map((task, index) => ({
+            id: task.id,
+            label: task.title,
+            fullLabel: task.title,
+            weight: taskPriorityWeight(task.priorityTag),
+            color: WHEEL_SLICE_COLORS[index % WHEEL_SLICE_COLORS.length],
+            task,
+          }));
+    if (!items.length) return [];
+    const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
     if (totalWeight <= 0) return [];
 
     let cursor = 0;
-    return wheelOrderedTasks.map((task, index) => {
-      const weight = taskPriorityWeight(task.priorityTag);
+    return items.map((item) => {
+      const weight = item.weight;
       const span = (weight / totalWeight) * 360;
       const startAngle = cursor;
       const endAngle = cursor + span;
       cursor = endAngle;
       return {
-        task,
+        ...item,
         weight,
         startAngle,
         endAngle,
         midAngle: startAngle + span / 2,
         span,
-        color: WHEEL_SLICE_COLORS[index % WHEEL_SLICE_COLORS.length],
       };
     });
-  }, [wheelOrderedTasks]);
+  }, [wheelMode, wheelOrderedTags, wheelOrderedTasks]);
   const wheelResultTask = useMemo(
     () => tasks.find((task) => task.id === wheelResultTaskId) || null,
     [tasks, wheelResultTaskId]
+  );
+  const wheelResultTag = useMemo(
+    () => wheelTagOptions.find((tag) => tag.key === wheelResultTagKey) || null,
+    [wheelResultTagKey, wheelTagOptions]
+  );
+  const wheelResultTagTasks = useMemo(
+    () =>
+      wheelResultTagKey
+        ? pendingTaskPool.filter((task) => {
+            const tagKey = String(readTaskDraft(task).areaTag || "").trim() || NO_TAG_FILTER;
+            return tagKey === wheelResultTagKey;
+          })
+        : [],
+    [pendingTaskPool, readTaskDraft, wheelResultTagKey]
   );
   const wheelResultDraft = useMemo(
     () => (wheelResultTask ? readTaskDraft(wheelResultTask) : null),
@@ -1881,6 +2001,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       setWheelResultTaskId(null);
     }
   }, [pendingTaskPool, wheelResultTaskId]);
+
+  useEffect(() => {
+    if (!wheelResultTagKey) return;
+    if (!wheelOrderedTags.some((tag) => tag.key === wheelResultTagKey)) {
+      setWheelResultTagKey(null);
+    }
+  }, [wheelOrderedTags, wheelResultTagKey]);
 
   const pendingTaskShares = useMemo(
     () => taskSharesQuery.data?.items || [],
@@ -4293,12 +4420,14 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     if (wheelSpinning || wheelShuffling) return;
     if (!wheelSegments.length || wheelTotalWeight <= 0) {
       setWheelResultTaskId(null);
+      setWheelResultTagKey(null);
       return;
     }
     if (wheelSegments.length === 1) {
       const single = wheelSegments[0];
-      setWheelResultTaskId(single.task.id);
-      setWheelLastTaskId(single.task.id);
+      setWheelResultTaskId(single.task?.id || null);
+      setWheelResultTagKey(single.tagKey || null);
+      if (single.task) setWheelLastTaskId(single.task.id);
       setWheelRotation((previous) => previous + 360);
       return;
     }
@@ -4325,6 +4454,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         : selectedSegment.midAngle;
 
     setWheelResultTaskId(null);
+    setWheelResultTagKey(null);
     setWheelSpinning(true);
     const currentRotation = ((wheelRotation % 360) + 360) % 360;
     const targetRotationMod = (360 - stopAngle + 360) % 360;
@@ -4337,9 +4467,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     }
     wheelSpinTimeoutRef.current = window.setTimeout(() => {
       const resultSegment = findWheelSegmentAtPointer(wheelSegments, finalRotation);
-      const resultTaskId = resultSegment?.task.id || selectedSegment.task.id;
+      const result = resultSegment || selectedSegment;
+      const resultTaskId = result.task?.id || null;
       setWheelResultTaskId(resultTaskId);
-      setWheelLastTaskId(resultTaskId);
+      setWheelResultTagKey(result.tagKey || null);
+      if (resultTaskId) setWheelLastTaskId(resultTaskId);
       setWheelSpinning(false);
     }, WHEEL_SPIN_DURATION_MS);
   }, [wheelRotation, wheelSegments, wheelShuffling, wheelSpinning, wheelTotalWeight]);
@@ -4351,6 +4483,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         : [...current, tagKey]
     );
     setWheelResultTaskId(null);
+    setWheelResultTagKey(null);
   }, []);
 
   const shuffleWheelStart = useCallback(() => {
@@ -4363,6 +4496,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
     setWheelShuffleCountInput(String(wheelShuffleCount));
     setWheelResultTaskId(null);
+    setWheelResultTagKey(null);
     setWheelShuffleProgress(0);
     setWheelShuffling(true);
 
@@ -4402,6 +4536,74 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     if (!wheelResultTask) return;
     handleOpenTaskDetails(wheelResultTask.id);
   }, [handleOpenTaskDetails, wheelResultTask]);
+
+  const resetFocusTimer = useCallback(() => {
+    setFocusStatus("idle");
+    setFocusStartedAt(null);
+    setFocusAccumulatedSeconds(0);
+    setFocusReviewElapsedSeconds(0);
+  }, []);
+
+  const handleFocusStart = useCallback(() => {
+    if (!focusTask && focusTaskOptions[0]) {
+      setFocusTaskId(focusTaskOptions[0].id);
+    }
+    setFocusNow(Date.now());
+    setFocusStartedAt(Date.now());
+    setFocusStatus("running");
+  }, [focusTask, focusTaskOptions]);
+
+  const handleFocusPause = useCallback(() => {
+    setFocusAccumulatedSeconds(focusElapsedSeconds);
+    setFocusStartedAt(null);
+    setFocusStatus("paused");
+  }, [focusElapsedSeconds]);
+
+  const handleFocusStop = useCallback(() => {
+    setFocusReviewElapsedSeconds(focusElapsedSeconds);
+    setFocusAccumulatedSeconds(focusElapsedSeconds);
+    setFocusStartedAt(null);
+    setFocusStatus("review");
+  }, [focusElapsedSeconds]);
+
+  const handleFocusNeedMoreTime = useCallback((extraMinutes: number) => {
+    setFocusMinutes((current) => Math.max(1, current + extraMinutes));
+    setFocusStartedAt(Date.now());
+    setFocusNow(Date.now());
+    setFocusStatus("running");
+  }, []);
+
+  const handleFocusSave = useCallback(
+    (finished: boolean) => {
+      if (!focusTask) {
+        resetFocusTimer();
+        return;
+      }
+      const actualMinutes = Math.max(
+        1,
+        Math.round((focusReviewElapsedSeconds || focusElapsedSeconds) / 60)
+      );
+      if (finished) {
+        toggleTaskDoneNow(focusTask, true, actualMinutes);
+      } else {
+        updateTask.mutate({
+          id: focusTask.id,
+          data: { actual_minutes: actualMinutes },
+          syncGoogle: false,
+        });
+      }
+      resetFocusTimer();
+    },
+    [focusElapsedSeconds, focusReviewElapsedSeconds, focusTask, resetFocusTimer, toggleTaskDoneNow, updateTask]
+  );
+
+  const handleFocusWheelTask = useCallback(() => {
+    if (!wheelResultTask) return;
+    setFocusTaskId(wheelResultTask.id);
+    const estimate = Number(wheelResultTask.estimatedMinutes || 0);
+    if (estimate > 0) setFocusMinutes(estimate);
+    resetFocusTimer();
+  }, [resetFocusTimer, wheelResultTask]);
 
   const handleShareTask = useCallback(
     (taskId: string) => {
@@ -5906,6 +6108,95 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             ) : null}
           </div>
         </div>
+
+        <section className="focus-timer-card">
+          <div className="focus-timer-head">
+            <div>
+              <p className="panel-kicker">Focus lab</p>
+              <h3>Pomodoro</h3>
+            </div>
+            <span className={`focus-timer-status ${focusStatus}`}>{focusStatus}</span>
+          </div>
+          <div className="focus-timer-body">
+            <div className="focus-timer-orb">
+              <div
+                className="focus-timer-ring"
+                style={{
+                  "--timer-progress": `${Math.min(
+                    100,
+                    Math.round((focusElapsedSeconds / focusTargetSeconds) * 100)
+                  )}%`,
+                } as CSSProperties}
+              >
+                <span>{formatTimerSeconds(focusRemainingSeconds)}</span>
+                <small>{formatTimerSeconds(focusElapsedSeconds)} done</small>
+              </div>
+            </div>
+            <div className="focus-timer-panel">
+              <label className="focus-timer-field">
+                <span>Task</span>
+                <select
+                  value={focusTaskId}
+                  onChange={(event) => {
+                    const task = tasks.find((item) => item.id === event.target.value);
+                    setFocusTaskId(event.target.value);
+                    if (task?.estimatedMinutes) setFocusMinutes(Number(task.estimatedMinutes));
+                    resetFocusTimer();
+                  }}
+                  disabled={focusStatus === "running"}
+                >
+                  <option value="">Choose task</option>
+                  {focusTaskOptions.map((task) => (
+                    <option key={task.id} value={task.id}>{task.title}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="focus-timer-field compact">
+                <span>Minutes</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={240}
+                  value={focusMinutes}
+                  disabled={focusStatus === "running"}
+                  onChange={(event) => setFocusMinutes(Math.max(1, Number(event.target.value || 1)))}
+                />
+              </label>
+              <div className="focus-timer-actions">
+                {focusStatus === "running" ? (
+                  <button type="button" className="secondary" onClick={handleFocusPause}>Pause</button>
+                ) : (
+                  <button type="button" onClick={handleFocusStart} disabled={!focusTask && focusTaskOptions.length === 0}>Start</button>
+                )}
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={handleFocusStop}
+                  disabled={focusStatus === "idle" || focusElapsedSeconds <= 0}
+                >
+                  Stop
+                </button>
+                <button type="button" className="page-link inline muted" onClick={resetFocusTimer}>Reset</button>
+              </div>
+              <p className="focus-timer-meta">
+                Break: {focusBreakMinutes} min · estimate error: {focusTask ? `${focusActualMinutes - Number(focusTask.estimatedMinutes || focusMinutes)} min` : "—"}
+              </p>
+              {focusStatus === "review" ? (
+                <div className="focus-timer-review">
+                  <strong>{formatTimerSeconds(focusReviewElapsedSeconds || focusElapsedSeconds)} logged</strong>
+                  <span>Need more time or finished?</span>
+                  <div>
+                    <button type="button" className="secondary" onClick={() => handleFocusNeedMoreTime(5)}>+5 min</button>
+                    <button type="button" className="secondary" onClick={() => handleFocusNeedMoreTime(15)}>+15 min</button>
+                    <button type="button" onClick={() => handleFocusSave(true)}>Done</button>
+                    <button type="button" className="page-link inline muted" onClick={() => handleFocusSave(false)}>Save time</button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </section>
+
         <FullCalendar
           ref={calendarRef}
           plugins={[timeGridPlugin, interactionPlugin]}
@@ -6001,6 +6292,28 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           ) : null}
 
           <div className="activity-wheel-controls">
+            <div className="activity-wheel-mode-toggle" role="group" aria-label="Wheel mode">
+              <button
+                type="button"
+                className={wheelMode === "tasks" ? "chip active" : "chip"}
+                onClick={() => {
+                  setWheelMode("tasks");
+                  setWheelResultTagKey(null);
+                }}
+              >
+                Tasks
+              </button>
+              <button
+                type="button"
+                className={wheelMode === "tags" ? "chip active" : "chip"}
+                onClick={() => {
+                  setWheelMode("tags");
+                  setWheelResultTaskId(null);
+                }}
+              >
+                Tags
+              </button>
+            </div>
             <label className="activity-wheel-toggle">
               <input
                 type="checkbox"
@@ -6018,7 +6331,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               <span>Avoid repeat</span>
             </label>
             <span className="activity-wheel-meta">
-              {wheelEligibleTasks.length} tasks · weight {wheelTotalWeight} · {wheelIncludedTagCount}/{wheelTagOptions.length} tags
+              {wheelMode === "tags" ? `${wheelOrderedTags.length} tags` : `${wheelEligibleTasks.length} tasks`} · weight {wheelTotalWeight} · {wheelIncludedTagCount}/{wheelTagOptions.length} tags
             </span>
           </div>
 
@@ -6071,11 +6384,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                       );
                       const labelMaxLength =
                         segment.span >= 72 ? 11 : segment.span >= 45 ? 9 : 8;
-                      const label = truncateWheelLabel(segment.task.title, labelMaxLength);
+                      const label = truncateWheelLabel(segment.label, labelMaxLength);
                       const canRenderLabel = segment.span >= 28;
 
                       return (
-                        <g key={segment.task.id}>
+                        <g key={segment.id}>
                           <path
                             d={describeWheelSlice(
                               WHEEL_CENTER,
@@ -6087,13 +6400,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                             className={`activity-wheel-slice ${
                               !wheelSpinning &&
                               !wheelShuffling &&
-                              segment.task.id === wheelResultTaskId
+                              (segment.task?.id === wheelResultTaskId || segment.tagKey === wheelResultTagKey)
                                 ? "is-result"
                                 : ""
                             }`}
                             style={{ fill: segment.color }}
                           >
-                            <title>{segment.task.title}</title>
+                            <title>{segment.fullLabel}</title>
                           </path>
                           {canRenderLabel ? (
                             <text
@@ -6167,6 +6480,42 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     <button type="button" className="secondary" onClick={handleOpenWheelResult}>
                       Open
                     </button>
+                    <button type="button" className="secondary" onClick={handleFocusWheelTask}>
+                      Focus
+                    </button>
+                    <button
+                      type="button"
+                      className="page-link inline muted"
+                      onClick={spinActivityWheel}
+                      disabled={wheelSpinning || wheelShuffling}
+                    >
+                      Spin again
+                    </button>
+                  </div>
+                </article>
+              ) : wheelResultTag ? (
+                <article className="activity-wheel-result-card">
+                  <strong>{wheelResultTag.label}</strong>
+                  <p>{wheelResultTagTasks.length} pending task{wheelResultTagTasks.length === 1 ? "" : "s"}</p>
+                  <ul className="activity-wheel-task-list compact">
+                    {wheelResultTagTasks.slice(0, 6).map((task) => (
+                      <li key={task.id} title={task.title}>
+                        <button
+                          type="button"
+                          className="page-link inline"
+                          onClick={() => {
+                            setFocusTaskId(task.id);
+                            if (task.estimatedMinutes) setFocusMinutes(Number(task.estimatedMinutes));
+                            resetFocusTimer();
+                          }}
+                        >
+                          {truncateWheelLabel(task.title, 32)}
+                        </button>
+                        <small>{task.estimatedMinutes ? `${task.estimatedMinutes} min` : task.priorityTag || "Task"}</small>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="activity-wheel-result-actions">
                     <button
                       type="button"
                       className="page-link inline muted"
@@ -6181,15 +6530,22 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                 <article className="activity-wheel-summary-card">
                   <p className="activity-wheel-summary-title">In this wheel</p>
                   <ul className="activity-wheel-task-list">
-                    {wheelOrderedTasks.slice(0, 8).map((task) => (
-                      <li key={task.id} title={task.title}>
-                        <span>{truncateWheelLabel(task.title, 28)}</span>
-                        <small>{task.priorityTag || "Default"}</small>
-                      </li>
-                    ))}
+                    {wheelMode === "tags"
+                      ? wheelOrderedTags.slice(0, 8).map((tag) => (
+                          <li key={tag.key} title={tag.label}>
+                            <span>{truncateWheelLabel(tag.label, 28)}</span>
+                            <small>{tag.count} task{tag.count === 1 ? "" : "s"}</small>
+                          </li>
+                        ))
+                      : wheelOrderedTasks.slice(0, 8).map((task) => (
+                          <li key={task.id} title={task.title}>
+                            <span>{truncateWheelLabel(task.title, 28)}</span>
+                            <small>{task.priorityTag || "Default"}</small>
+                          </li>
+                        ))}
                   </ul>
-                  {wheelOrderedTasks.length > 8 ? (
-                    <p className="activity-wheel-more">+{wheelOrderedTasks.length - 8} more</p>
+                  {(wheelMode === "tags" ? wheelOrderedTags.length : wheelOrderedTasks.length) > 8 ? (
+                    <p className="activity-wheel-more">+{(wheelMode === "tags" ? wheelOrderedTags.length : wheelOrderedTasks.length) - 8} more</p>
                   ) : null}
                   <p className="activity-wheel-tip">Tap the center hub to spin.</p>
                 </article>

@@ -2672,6 +2672,136 @@ button.link.danger {
   line-height: 1.45;
 }
 
+.focus-timer-card {
+  margin: 12px 0 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border-soft));
+  border-radius: 22px;
+  padding: 16px;
+  background:
+    radial-gradient(circle at 14% 12%, rgba(143, 184, 216, 0.14), transparent 34%),
+    radial-gradient(circle at 82% 18%, rgba(217, 201, 121, 0.12), transparent 32%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02));
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+}
+
+.focus-timer-head,
+.focus-timer-body,
+.focus-timer-actions,
+.focus-timer-review div {
+  display: flex;
+  gap: 10px;
+}
+
+.focus-timer-head {
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.focus-timer-head h3 {
+  margin: 4px 0 0;
+  font-size: 19px;
+}
+
+.focus-timer-status {
+  border: 1px solid rgba(216, 204, 183, 0.18);
+  border-radius: 999px;
+  padding: 4px 9px;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: capitalize;
+}
+
+.focus-timer-status.running {
+  color: #f4eadc;
+  border-color: rgba(217, 201, 121, 0.45);
+  background: rgba(217, 201, 121, 0.1);
+}
+
+.focus-timer-body {
+  align-items: center;
+}
+
+.focus-timer-orb {
+  flex: 0 0 auto;
+}
+
+.focus-timer-ring {
+  --timer-progress: 0%;
+  width: 152px;
+  height: 152px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 4px;
+  background:
+    radial-gradient(circle, rgba(24, 22, 27, 0.95) 56%, transparent 58%),
+    conic-gradient(var(--accent) var(--timer-progress), rgba(216, 204, 183, 0.14) 0);
+  box-shadow: inset 0 0 0 1px rgba(216, 204, 183, 0.12), 0 16px 36px rgba(0, 0, 0, 0.28);
+}
+
+.focus-timer-ring span {
+  color: #fff7e8;
+  font-size: 30px;
+  font-weight: 750;
+  letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.focus-timer-ring small,
+.focus-timer-meta {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.focus-timer-panel {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.focus-timer-field {
+  display: grid;
+  gap: 5px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.focus-timer-field.compact {
+  max-width: 150px;
+}
+
+.focus-timer-field select,
+.focus-timer-field input {
+  width: 100%;
+}
+
+.focus-timer-actions,
+.focus-timer-review div {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.focus-timer-review {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(217, 201, 121, 0.24);
+  border-radius: 16px;
+  background: rgba(217, 201, 121, 0.07);
+}
+
+.focus-timer-review strong {
+  color: #fff7e8;
+}
+
+.focus-timer-review span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 .activity-wheel {
   margin-top: 14px;
   border: 1px solid var(--border-soft);
@@ -4742,6 +4872,15 @@ button.link.danger {
   }
   .calendar-quick-row {
     grid-template-columns: 1fr;
+  }
+
+  .focus-timer-body {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .focus-timer-orb {
+    align-self: center;
   }
 }
 
