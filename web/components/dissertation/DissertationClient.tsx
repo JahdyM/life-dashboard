@@ -18,7 +18,6 @@ import {
   frontProgressPercent,
   isDissertationFrontComplete,
   isoDateDiffDays,
-  projectProgressPercent,
   todayStepForFront,
   type DissertationAction,
   type DissertationDeadline,
@@ -62,12 +61,18 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function projectStats(project: DissertationProject) {
-  const steps = project.fronts.flatMap((front) => front.steps);
+function projectStats(fronts: DissertationFront[]) {
+  const steps = fronts.flatMap((front) => front.steps);
   const done = steps.filter((step) => step.done).length;
   const withDates = steps.filter((step) => step.dueDate && !step.done).length;
-  const completedFronts = project.fronts.filter(isDissertationFrontComplete).length;
-  return { total: steps.length, done, withDates, completedFronts };
+  return { total: steps.length, done, withDates };
+}
+
+function projectProgressForFronts(fronts: DissertationFront[]) {
+  const steps = fronts.flatMap((front) => front.steps);
+  if (steps.length === 0) return 100;
+  const done = steps.filter((step) => step.done).length;
+  return Math.round((done / steps.length) * 100);
 }
 
 export default function DissertationClient({ initialProject }: { initialProject: DissertationProject }) {
@@ -108,8 +113,6 @@ export default function DissertationClient({ initialProject }: { initialProject:
   });
 
   const project = projectQuery.data;
-  const stats = useMemo(() => projectStats(project), [project]);
-  const deadlines = useMemo(() => collectDissertationDeadlines(project).slice(0, 12), [project]);
   const { activeFronts, completedFronts } = useMemo(
     () => ({
       activeFronts: project.fronts.filter((front) => !isDissertationFrontComplete(front)),
@@ -117,10 +120,9 @@ export default function DissertationClient({ initialProject }: { initialProject:
     }),
     [project.fronts]
   );
-  const orderedFronts = useMemo(
-    () => [...activeFronts, ...completedFronts],
-    [activeFronts, completedFronts]
-  );
+  const stats = useMemo(() => projectStats(activeFronts), [activeFronts]);
+  const activeProgress = useMemo(() => projectProgressForFronts(activeFronts), [activeFronts]);
+  const deadlines = useMemo(() => collectDissertationDeadlines(project).slice(0, 12), [project]);
   const activeFrontCount = activeFronts.length;
   const doneToday = countDoneToday(project, today);
   const allTodayDone = activeFrontCount === 0 || (doneToday > 0 && doneToday >= activeFrontCount);
@@ -210,13 +212,13 @@ export default function DissertationClient({ initialProject }: { initialProject:
     <section className="dissertation-academic" aria-label="Dissertação">
       <header className="dissertation-academic-hero">
         <div>
-          <p>Mestrado · 6 frentes</p>
+          <p>Mestrado · {activeFrontCount} frente(s) ativa(s)</p>
           <h2>{project.title}</h2>
           <span>{project.subtitle}</span>
         </div>
         <div className="dissertation-academic-progress">
-          <strong>{projectProgressPercent(project)}%</strong>
-          <span>geral</span>
+          <strong>{activeProgress}%</strong>
+          <span>ativo</span>
         </div>
         <div className={`dissertation-academic-date urgency-${defenseUrgency}`}>
           <span>Defesa</span>
@@ -227,7 +229,7 @@ export default function DissertationClient({ initialProject }: { initialProject:
       <div className="dissertation-academic-stats">
         <SmallStat label="Passos" value={`${stats.done}/${stats.total}`} />
         <SmallStat label="Hoje" value={`${doneToday}/${activeFrontCount}`} />
-        <SmallStat label="Frentes" value={`${stats.completedFronts}/${project.fronts.length}`} />
+        <SmallStat label="Ativas" value={String(activeFrontCount)} />
         <SmallStat label="Com prazo" value={String(stats.withDates)} />
       </div>
 
@@ -290,12 +292,15 @@ export default function DissertationClient({ initialProject }: { initialProject:
       <section className="dissertation-fronts-section">
         <div className="dissertation-section-title">
           <div>
-            <p>Frentes</p>
+            <p>Frentes ativas</p>
             <h3>Status, próximos passos e ideias</h3>
           </div>
         </div>
         <div className="dissertation-front-grid">
-          {orderedFronts.map((front) => (
+          {activeFronts.length === 0 ? (
+            <p className="dissertation-empty">Nenhuma frente ativa.</p>
+          ) : null}
+          {activeFronts.map((front) => (
             <FrontCard
               key={front.id}
               front={front}
@@ -329,6 +334,30 @@ export default function DissertationClient({ initialProject }: { initialProject:
           }}
         />
       </label>
+
+      {completedFronts.length > 0 ? (
+        <section className="dissertation-completed-section">
+          <div className="dissertation-section-title">
+            <div>
+              <p>Feitas</p>
+              <h3>Frentes concluídas</h3>
+            </div>
+            <span>{completedFronts.length}</span>
+          </div>
+          <div className="dissertation-completed-grid">
+            {completedFronts.map((front) => (
+              <FrontCard
+                key={front.id}
+                front={front}
+                stepDraft={stepDrafts[front.id] || ""}
+                setStepDrafts={setStepDrafts}
+                onAddStep={() => addStep(front)}
+                mutate={mutate}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <div className="dissertation-sync-state" aria-live="polite">
         {notice || (projectQuery.isFetching || actionMutation.isPending ? "Syncing..." : "")}
