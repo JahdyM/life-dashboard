@@ -10172,7 +10172,7 @@ input.no-spinner[type="number"] {
 
 .dissertation-front-complete .task-check:disabled {
   cursor: default;
-  opacity: 0.9;
+  opacity: 0.45;
 }
 
 .dissertation-front-complete-note {

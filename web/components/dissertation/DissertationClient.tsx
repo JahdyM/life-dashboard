@@ -421,10 +421,10 @@ function FrontCard({
           <button
             type="button"
             className={`task-check ${isComplete ? "checked" : ""}`}
-            aria-label={isComplete ? "Frente concluída" : `Marcar ${front.title} como concluída`}
+            aria-label={isComplete ? `Reabrir ${front.title}` : `Marcar ${front.title} como concluída`}
             aria-pressed={isComplete}
-            disabled={isComplete || front.steps.length === 0}
-            onClick={() => mutate({ type: "complete_front", frontId: front.id, done: true })}
+            disabled={front.steps.length === 0}
+            onClick={() => mutate({ type: "complete_front", frontId: front.id, done: !isComplete })}
           />
           <strong>{progress}%</strong>
         </div>
