@@ -3616,6 +3616,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   const syncNow = async () => {
     setSyncStatus("syncing");
+    setTaskSaveError(null);
     try {
       const result = await fetchJson<CalendarSyncResponse>("/api/calendar/sync", {
         method: "POST",
@@ -3629,8 +3630,8 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       setSyncStatus("failed");
       const rawMessage = error instanceof Error ? error.message : "";
       if (isGoogleReconnectErrorText(rawMessage)) {
-        setTaskSaveError("Google expired. Redirecting…");
-        triggerGoogleReconnect();
+        setReconnectingGoogle(false);
+        setTaskSaveError("Google needs reconnect before syncing.");
         return;
       }
       setTaskSaveError(readErrorMessage(error, "Couldn't sync."));
@@ -5606,7 +5607,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
             <InlineActionNotice
               tone="warning"
               body="Reconnect Google to sync."
-              actionLabel={reconnectingGoogle ? "Redirecting..." : "Reconnect"}
+              actionLabel={reconnectingGoogle ? "Opening..." : "Reconnect"}
               onAction={triggerGoogleReconnect}
             />
           ) : null}
