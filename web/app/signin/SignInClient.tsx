@@ -35,8 +35,7 @@ export default function SignInClient({
     if (reconnectStartedRef.current) return;
     reconnectStartedRef.current = true;
     setSubmitting(true);
-    void signIn("google", {
-      callbackUrl,
+    void signIn("google", { callbackUrl }, {
       prompt: "consent",
       access_type: "offline",
     });
@@ -86,11 +85,11 @@ export default function SignInClient({
           disabled={submitting}
           onClick={() => {
             setSubmitting(true);
-            void signIn("google", {
-              callbackUrl,
-              prompt: reconnectGoogle ? "consent" : undefined,
-              access_type: "offline",
-            });
+            void signIn(
+              "google",
+              { callbackUrl },
+              reconnectGoogle ? { prompt: "consent", access_type: "offline" } : undefined
+            );
           }}
         >
           {submitting

@@ -31,7 +31,7 @@ export default async function SignInPage({
   const error = firstParam(searchParams?.error) || null;
   const reconnectGoogle = firstParam(searchParams?.reconnect) === "google";
 
-  if (email && isAllowedEmail(email)) {
+  if (email && isAllowedEmail(email) && !reconnectGoogle) {
     redirect(callbackUrl);
   }
 

@@ -3604,10 +3604,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     if (typeof window === "undefined") return;
     setReconnectingGoogle(true);
     try {
-      const callbackUrl = window.location.href;
-      const reconnectUrl = `/signin?reconnect=google&callbackUrl=${encodeURIComponent(
-        callbackUrl
-      )}`;
+      const reconnectUrl = `/signin?reconnect=google&callbackUrl=${encodeURIComponent("/calendar")}`;
       window.location.assign(reconnectUrl);
     } catch (_error) {
       setReconnectingGoogle(false);
