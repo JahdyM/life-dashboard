@@ -34,6 +34,7 @@ type GoogleTaskMapping = {
 
 export type GoogleCalendarEvent = {
   id?: string;
+  status?: string;
   summary?: string;
   start?: GoogleEventDateTime;
   end?: GoogleEventDateTime;
@@ -240,6 +241,7 @@ export async function listGoogleEventsAcrossCalendars(
 ) {
   const calendarIds = await listGoogleCalendarIds(userEmail);
   const output: GoogleCalendarEventItem[] = [];
+  let recoverableFailure: Error | null = null;
   for (const calendarId of calendarIds) {
     try {
       const events = await listGoogleEvents(userEmail, startIso, endIso, calendarId);
@@ -255,8 +257,12 @@ export async function listGoogleEventsAcrossCalendars(
       ) {
         throw error;
       }
+      recoverableFailure = error instanceof Error ? error : new Error("Google calendar fetch failed");
       continue;
     }
+  }
+  if (!output.length && recoverableFailure) {
+    throw recoverableFailure;
   }
   return output;
 }

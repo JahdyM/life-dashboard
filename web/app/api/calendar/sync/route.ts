@@ -32,7 +32,7 @@ function knownCalendarSyncError(message: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const userEmail = await requireUserEmail();
+    const userEmail = await requireUserEmail(request);
     let rawBody: unknown;
     try {
       rawBody = await request.json();
@@ -44,9 +44,6 @@ export async function POST(request: NextRequest) {
     const { start, end } = parsed.data;
     await ensureTaskCompletionColumns();
     const items = await listGoogleEventsAcrossCalendars(userEmail, start, end);
-    if (!items.length) {
-      return jsonOk({ synced: 0 });
-    }
     const eventIds = items
       .map((item: GoogleCalendarEventItem) => item.event?.id)
       .filter((value): value is string => Boolean(value));
@@ -84,13 +81,19 @@ export async function POST(request: NextRequest) {
     );
     const timezone = (await getUserTimeZone(userEmail)) || DEFAULT_TIME_ZONE;
     const nowIso = new Date().toISOString();
-    const operations = items
+    const eligibleItems = items
       .filter((item: GoogleCalendarEventItem) => Boolean(item.event?.id))
+      .filter((item: GoogleCalendarEventItem) => item.event.status !== "cancelled")
       .filter((item: GoogleCalendarEventItem) => {
         const eventId = item.event.id as string;
         return !deletedGoogleTaskKeys.has(`google:${item.calendarId}:${eventId}`);
-      })
-      .map((item: GoogleCalendarEventItem) => {
+      });
+
+    let created = 0;
+    let updated = 0;
+    let failed = 0;
+    for (const item of eligibleItems) {
+      try {
         const eventId = item.event.id as string;
         const externalEventKey = `google:${item.calendarId}:${eventId}`;
         const mapped = googleEventToTask(item.event, timezone, {
@@ -116,7 +119,7 @@ export async function POST(request: NextRequest) {
             existingTask.source === "google_shared"
               ? payload.source
               : existingTask.source;
-          return prisma.todoTask.update({
+          await prisma.todoTask.update({
             where: { id: existingTask.id },
             data: {
               title: payload.title,
@@ -130,8 +133,10 @@ export async function POST(request: NextRequest) {
               updatedAt: nowIso,
             },
           });
+          updated += 1;
+          continue;
         }
-        return prisma.todoTask.create({
+        await prisma.todoTask.create({
           data: {
             id: randomUUID(),
             userEmail,
@@ -149,11 +154,64 @@ export async function POST(request: NextRequest) {
             updatedAt: nowIso,
           },
         });
-      });
-    if (operations.length > 0) {
-      await prisma.$transaction(operations);
+        created += 1;
+      } catch (error) {
+        failed += 1;
+        logServerEvent("warn", {
+          endpoint: "POST /api/calendar/sync",
+          message: "Failed to sync one Google Calendar event",
+          error,
+          meta: {
+            calendarId: item.calendarId,
+            eventId: item.event?.id,
+          },
+        });
+      }
     }
-    return jsonOk({ synced: items.length });
+
+    const liveEventKeys = new Set(
+      eligibleItems.map((item) => `google:${item.calendarId}:${item.event.id as string}`)
+    );
+    const staleGoogleTasks = await prisma.todoTask.findMany({
+      where: {
+        userEmail,
+        source: { in: ["google", "google_shared"] },
+        scheduledDate: { gte: start, lte: end },
+      },
+      select: {
+        id: true,
+        externalEventKey: true,
+        googleCalendarId: true,
+        googleEventId: true,
+      },
+    });
+    const staleIds = staleGoogleTasks
+      .filter((task) => {
+        const key =
+          task.externalEventKey ||
+          (task.googleEventId
+            ? `google:${task.googleCalendarId || "primary"}:${task.googleEventId}`
+            : null);
+        return key ? !liveEventKeys.has(key) : false;
+      })
+      .map((task) => task.id);
+    if (staleIds.length > 0) {
+      await prisma.$transaction([
+        prisma.todoTaskDetail.deleteMany({ where: { userEmail, taskId: { in: staleIds } } }),
+        prisma.todoSubtask.deleteMany({ where: { userEmail, taskId: { in: staleIds } } }),
+        prisma.todoTask.deleteMany({ where: { userEmail, id: { in: staleIds } } }),
+      ]);
+    }
+
+    return jsonOk({
+      synced: created + updated,
+      created,
+      updated,
+      removed: staleIds.length,
+      skipped: items.length - eligibleItems.length,
+      failed,
+      warning: failed ? `${failed} event(s) could not be synced.` : null,
+    });
   } catch (err) {
     logServerEvent("error", {
       endpoint: "POST /api/calendar/sync",
