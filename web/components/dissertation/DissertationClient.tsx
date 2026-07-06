@@ -207,14 +207,20 @@ export default function DissertationClient({ initialProject }: { initialProject:
     setStepDrafts((current) => ({ ...current, [front.id]: "" }));
     mutate({ type: "add_step", frontId: front.id, title });
   }
+  const activeSubtitle =
+    activeFrontCount === 0
+      ? "Tudo concluído."
+      : `${activeFrontCount} frente${activeFrontCount === 1 ? "" : "s"} ativa${activeFrontCount === 1 ? "" : "s"} · pequenos passos por dia`;
 
   return (
     <section className="dissertation-academic" aria-label="Dissertação">
       <header className="dissertation-academic-hero">
         <div>
-          <p>Mestrado · {activeFrontCount} frente(s) ativa(s)</p>
+          <p>
+            Mestrado · {activeFrontCount} frente{activeFrontCount === 1 ? "" : "s"} ativa{activeFrontCount === 1 ? "" : "s"}
+          </p>
           <h2>{project.title}</h2>
-          <span>{project.subtitle}</span>
+          <span>{activeSubtitle}</span>
         </div>
         <div className="dissertation-academic-progress">
           <strong>{activeProgress}%</strong>

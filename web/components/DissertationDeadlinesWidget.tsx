@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   formatBrazilianDate,
+  isDissertationFrontComplete,
   isoDateDiffDays,
 } from "@/lib/dissertation";
 import { loadDissertationProject } from "@/lib/server/dissertation";
@@ -54,7 +55,8 @@ export default async function DissertationDeadlinesWidget({
 }) {
   try {
     const project = await loadDissertationProject(userEmail);
-    const fronts = [...project.fronts].sort((left, right) => {
+    const activeFronts = project.fronts.filter((front) => !isDissertationFrontComplete(front));
+    const fronts = [...activeFronts].sort((left, right) => {
       if (!left.targetDate && !right.targetDate) return left.order - right.order;
       if (!left.targetDate) return 1;
       if (!right.targetDate) return -1;
@@ -94,13 +96,15 @@ export default async function DissertationDeadlinesWidget({
           </div>
         ) : (
           <div className="study-widget-main">
-            <h3>Sem atividades</h3>
-            <p className="study-widget-meaning">Abra a dissertação para criar as frentes e prazos.</p>
+            <h3>Tudo concluído</h3>
+            <p className="study-widget-meaning">As frentes ativas não têm prazos pendentes.</p>
           </div>
         )}
 
         <footer className="study-widget-footer">
-          <span>{project.fronts.length} frentes</span>
+          <span>
+            {activeFronts.length} frente{activeFronts.length === 1 ? "" : "s"} ativa{activeFronts.length === 1 ? "" : "s"}
+          </span>
           <Link href="/dissertation" prefetch={false} className="page-link inline muted">
             Abrir
           </Link>
