@@ -1,8 +1,14 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/db/prisma";
-import type { DissertationFront, DissertationProject, DissertationStep } from "@/lib/dissertation";
-import { getTaskAreaMap, setTaskAreaAssignment } from "./taskAreas";
+import {
+  isDissertationFrontComplete,
+  type DissertationFront,
+  type DissertationProject,
+  type DissertationStep,
+} from "@/lib/dissertation";
+import { deleteTaskAreaAssignment, getTaskAreaMap, setTaskAreaAssignment } from "./taskAreas";
+import { deleteTaskScheduleLock } from "./taskScheduleLocks";
 
 const MIRROR_SOURCE = "dissertation";
 export const DISSERTATION_TASK_AREA_TAG = "mestrado";
@@ -40,6 +46,30 @@ function isWeekendIsoDate(dateIso: string) {
 
 function mirrorTitle(front: DissertationFront, step: DissertationStep) {
   return `${step.title} — ${front.title}`;
+}
+
+async function deleteMirrorTasks(userEmail: string, taskIds: string[]) {
+  if (taskIds.length === 0) return;
+  await Promise.all(
+    taskIds.map(async (taskId) => {
+      await deleteTaskAreaAssignment(userEmail, taskId).catch(() => undefined);
+      await deleteTaskScheduleLock(userEmail, taskId).catch(() => undefined);
+    })
+  );
+  await prisma.$transaction([
+    prisma.todoTaskDetail.deleteMany({
+      where: { userEmail, taskId: { in: taskIds } },
+    }),
+    prisma.todoSubtask.deleteMany({
+      where: { userEmail, taskId: { in: taskIds } },
+    }),
+    prisma.syncOutbox.deleteMany({
+      where: { userEmail, entityId: { in: taskIds } },
+    }),
+    prisma.todoTask.deleteMany({
+      where: { userEmail, source: MIRROR_SOURCE, id: { in: taskIds } },
+    }),
+  ]);
 }
 
 /**
@@ -82,18 +112,13 @@ export async function reconcileDissertationMirrors(
   const todayIso = nowIso.slice(0, 10);
   if (isWeekendIsoDate(todayIso)) {
     if (existing.length > 0) {
-      await prisma.todoTask.deleteMany({
-        where: {
-          id: {
-            in: existing.map((row) => row.id),
-          },
-        },
-      });
+      await deleteMirrorTasks(userEmail, existing.map((row) => row.id));
     }
     return;
   }
 
   for (const front of project.fronts) {
+    if (isDissertationFrontComplete(front)) continue;
     for (const step of front.steps) {
       // Only mirror steps whose dueDate is today. Undated steps and steps
       // dated for any other day are intentionally left off the calendar.
@@ -156,7 +181,7 @@ export async function reconcileDissertationMirrors(
     .filter((row) => !row.externalEventKey || !seenStepIds.has(row.externalEventKey))
     .map((row) => row.id);
   if (orphanIds.length > 0) {
-    await prisma.todoTask.deleteMany({ where: { id: { in: orphanIds } } });
+    await deleteMirrorTasks(userEmail, orphanIds);
   }
 }
 
@@ -187,8 +212,8 @@ export async function syncDissertationStepFromMirrorTask(
   if (!stepId) return;
 
   // Lazy import to avoid circular dependency between dissertation.ts and this module.
-  const { loadDissertationProject, saveDissertationProject } = await import("./dissertation");
-  const project = await loadDissertationProject(userEmail);
+  const { loadDissertationProjectRaw, saveDissertationProject } = await import("./dissertation");
+  const project = await loadDissertationProjectRaw(userEmail);
 
   let touched = false;
   const nowIso = new Date().toISOString();

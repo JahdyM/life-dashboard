@@ -207,7 +207,7 @@ function buildDefaultProject(): DissertationProject {
  * reconciles after saveDissertationProject) so we don't run reconcile twice
  * per request.
  */
-async function loadDissertationProjectRaw(
+export async function loadDissertationProjectRaw(
   userEmail: string
 ): Promise<DissertationProject> {
   const row = await prisma.setting.findUnique({ where: { key: settingKey(userEmail) } });
