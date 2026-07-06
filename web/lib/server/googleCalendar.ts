@@ -55,9 +55,14 @@ export type GoogleCalendarEventItem = {
   event: GoogleCalendarEvent;
 };
 
+export type GoogleCalendarEventFetchResult = {
+  items: GoogleCalendarEventItem[];
+  failedCalendarCount: number;
+};
+
 function isGoogleAuthExpired(status: number, bodyText: string) {
-  if (status === 401 || status === 403) return true;
-  return /invalid_grant|invalid_credentials|autherror/i.test(bodyText);
+  if (status === 401) return true;
+  return /invalid_grant|invalid_credentials|autherror|invalid_token|unauthorized/i.test(bodyText);
 }
 
 async function clearGoogleToken(userEmail: string) {
@@ -238,9 +243,10 @@ export async function listGoogleEventsAcrossCalendars(
   userEmail: string,
   startIso: string,
   endIso: string
-) {
+): Promise<GoogleCalendarEventFetchResult> {
   const calendarIds = await listGoogleCalendarIds(userEmail);
   const output: GoogleCalendarEventItem[] = [];
+  let failedCalendarCount = 0;
   let recoverableFailure: Error | null = null;
   for (const calendarId of calendarIds) {
     try {
@@ -257,6 +263,7 @@ export async function listGoogleEventsAcrossCalendars(
       ) {
         throw error;
       }
+      failedCalendarCount += 1;
       recoverableFailure = error instanceof Error ? error : new Error("Google calendar fetch failed");
       continue;
     }
@@ -264,7 +271,7 @@ export async function listGoogleEventsAcrossCalendars(
   if (!output.length && recoverableFailure) {
     throw recoverableFailure;
   }
-  return output;
+  return { items: output, failedCalendarCount };
 }
 
 export function googleEventToTask(

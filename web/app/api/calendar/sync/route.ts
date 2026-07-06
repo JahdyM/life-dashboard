@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) return jsonError(zodErrorMessage(parsed.error), 400);
     const { start, end } = parsed.data;
     await ensureTaskCompletionColumns();
-    const items = await listGoogleEventsAcrossCalendars(userEmail, start, end);
+    const { items, failedCalendarCount } = await listGoogleEventsAcrossCalendars(userEmail, start, end);
     const eventIds = items
       .map((item: GoogleCalendarEventItem) => item.event?.id)
       .filter((value): value is string => Boolean(value));
@@ -172,19 +172,22 @@ export async function POST(request: NextRequest) {
     const liveEventKeys = new Set(
       eligibleItems.map((item) => `google:${item.calendarId}:${item.event.id as string}`)
     );
-    const staleGoogleTasks = await prisma.todoTask.findMany({
-      where: {
-        userEmail,
-        source: { in: ["google", "google_shared"] },
-        scheduledDate: { gte: start, lte: end },
-      },
-      select: {
-        id: true,
-        externalEventKey: true,
-        googleCalendarId: true,
-        googleEventId: true,
-      },
-    });
+    const staleGoogleTasks =
+      failedCalendarCount === 0
+        ? await prisma.todoTask.findMany({
+            where: {
+              userEmail,
+              source: { in: ["google", "google_shared"] },
+              scheduledDate: { gte: start, lte: end },
+            },
+            select: {
+              id: true,
+              externalEventKey: true,
+              googleCalendarId: true,
+              googleEventId: true,
+            },
+          })
+        : [];
     const staleIds = staleGoogleTasks
       .filter((task) => {
         const key =
@@ -210,7 +213,10 @@ export async function POST(request: NextRequest) {
       removed: staleIds.length,
       skipped: items.length - eligibleItems.length,
       failed,
-      warning: failed ? `${failed} event(s) could not be synced.` : null,
+      warning:
+        failed || failedCalendarCount
+          ? `${failed + failedCalendarCount} item(s) could not be synced.`
+          : null,
     });
   } catch (err) {
     logServerEvent("error", {

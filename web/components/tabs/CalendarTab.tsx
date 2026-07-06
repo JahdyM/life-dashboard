@@ -203,6 +203,15 @@ type StoredFocusTimerState = {
 };
 
 type FocusTimerResponse = { state: StoredFocusTimerState | null };
+type CalendarSyncResponse = {
+  synced: number;
+  created?: number;
+  updated?: number;
+  removed?: number;
+  skipped?: number;
+  failed?: number;
+  warning?: string | null;
+};
 
 function readStoredFocusTimerState(): StoredFocusTimerState | null {
   if (typeof window === "undefined") return null;
@@ -3608,13 +3617,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
   const syncNow = async () => {
     setSyncStatus("syncing");
     try {
-      await fetchJson("/api/calendar/sync", {
+      const result = await fetchJson<CalendarSyncResponse>("/api/calendar/sync", {
         method: "POST",
         body: JSON.stringify(range),
       });
       setSyncStatus("idle");
       setReconnectingGoogle(false);
-      setTaskSaveError(null);
+      setTaskSaveError(result.warning || null);
       queryClient.invalidateQueries({ queryKey: ["tasks", range.start, range.end] });
     } catch (error) {
       setSyncStatus("failed");
