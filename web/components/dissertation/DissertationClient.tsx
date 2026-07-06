@@ -110,7 +110,18 @@ export default function DissertationClient({ initialProject }: { initialProject:
   const project = projectQuery.data;
   const stats = useMemo(() => projectStats(project), [project]);
   const deadlines = useMemo(() => collectDissertationDeadlines(project).slice(0, 12), [project]);
-  const activeFrontCount = project.fronts.filter((front) => !isDissertationFrontComplete(front)).length;
+  const { activeFronts, completedFronts } = useMemo(
+    () => ({
+      activeFronts: project.fronts.filter((front) => !isDissertationFrontComplete(front)),
+      completedFronts: project.fronts.filter(isDissertationFrontComplete),
+    }),
+    [project.fronts]
+  );
+  const orderedFronts = useMemo(
+    () => [...activeFronts, ...completedFronts],
+    [activeFronts, completedFronts]
+  );
+  const activeFrontCount = activeFronts.length;
   const doneToday = countDoneToday(project, today);
   const allTodayDone = activeFrontCount === 0 || (doneToday > 0 && doneToday >= activeFrontCount);
   const defenseUrgency = dateUrgency(project.defenseTargetDate, today);
@@ -259,7 +270,10 @@ export default function DissertationClient({ initialProject }: { initialProject:
           </div>
         ) : null}
         <div className="dissertation-today-grid">
-          {project.fronts.map((front) => (
+          {activeFronts.length === 0 ? (
+            <p className="dissertation-empty">Todas as frentes estão concluídas.</p>
+          ) : null}
+          {activeFronts.map((front) => (
             <TodayFrontRow
               key={front.id}
               front={front}
@@ -281,7 +295,7 @@ export default function DissertationClient({ initialProject }: { initialProject:
           </div>
         </div>
         <div className="dissertation-front-grid">
-          {project.fronts.map((front) => (
+          {orderedFronts.map((front) => (
             <FrontCard
               key={front.id}
               front={front}
@@ -348,7 +362,6 @@ function TodayFrontRow({
   mutate: (action: DissertationAction) => void;
 }) {
   const todayStep = todayStepForFront(front, today);
-  const frontComplete = isDissertationFrontComplete(front);
 
   return (
     <article className="dissertation-today-row" style={{ borderLeftColor: front.color }}>
@@ -356,9 +369,7 @@ function TodayFrontRow({
         <span>{front.icon}</span>
         <strong>{front.title}</strong>
       </div>
-      {frontComplete ? (
-        <span className="dissertation-front-complete-note">Frente concluída</span>
-      ) : todayStep ? (
+      {todayStep ? (
         <StepCheckbox front={front} step={todayStep} mutate={mutate} compact />
       ) : (
         <input
@@ -432,6 +443,15 @@ function FrontCard({
 
       <div className="dissertation-front-meter"><span style={{ width: `${progress}%` }} /></div>
 
+      {isComplete ? (
+        <div className="dissertation-front-archive-note">
+          <span>Concluída</span>
+          <p>Arquivada no final. Clique no check para reabrir.</p>
+        </div>
+      ) : null}
+
+      {!isComplete ? (
+        <>
       <label className="dissertation-front-status">
         <span>Status</span>
         <input
@@ -493,6 +513,8 @@ function FrontCard({
           }}
         />
       </label>
+        </>
+      ) : null}
     </article>
   );
 }

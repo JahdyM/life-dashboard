@@ -10186,6 +10186,29 @@ input.no-spinner[type="number"] {
   font-weight: 700;
 }
 
+.dissertation-front-archive-note {
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgba(157, 207, 183, 0.22);
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: rgba(157, 207, 183, 0.08);
+}
+
+.dissertation-front-archive-note span {
+  color: #cfe9d8;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.dissertation-front-archive-note p {
+  margin: 0;
+  color: rgba(232, 241, 235, 0.68);
+  font-size: 0.86rem;
+}
+
 .dissertation-front-meter {
   height: 6px;
   overflow: hidden;

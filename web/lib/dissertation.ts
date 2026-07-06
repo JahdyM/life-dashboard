@@ -116,7 +116,8 @@ export function todayStepForFront(front: DissertationFront, todayIso?: string): 
 }
 
 export function collectDissertationDeadlines(project: DissertationProject): DissertationDeadline[] {
-  const stepDeadlines = project.fronts.flatMap((front) =>
+  const activeFronts = project.fronts.filter((front) => !isDissertationFrontComplete(front));
+  const stepDeadlines = activeFronts.flatMap((front) =>
     front.steps
       .filter((step) => step.dueDate && !step.done)
       .map((step) => ({
@@ -129,7 +130,7 @@ export function collectDissertationDeadlines(project: DissertationProject): Diss
       }))
   );
 
-  const frontTargets = project.fronts
+  const frontTargets = activeFronts
     .filter((front) => front.targetDate)
     .map((front) => ({
       id: `${front.id}-target`,
