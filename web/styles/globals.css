@@ -10259,7 +10259,7 @@ input.no-spinner[type="number"] {
 
 .dissertation-step-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) 138px auto;
+  grid-template-columns: auto minmax(0, 1fr) 138px auto auto;
   gap: 8px;
   align-items: center;
   border-radius: 15px;
@@ -10521,6 +10521,21 @@ input.no-spinner[type="number"] {
 .dissertation-step-delete:focus-visible {
   opacity: 1;
   color: #f4a89e;
+}
+
+.dissertation-step-today {
+  min-width: 56px;
+  border-color: rgba(216, 185, 119, 0.26) !important;
+  background: rgba(216, 185, 119, 0.1) !important;
+  color: #f0d59a !important;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.dissertation-step-today:hover,
+.dissertation-step-today:focus-visible {
+  border-color: rgba(216, 185, 119, 0.48) !important;
+  background: rgba(216, 185, 119, 0.16) !important;
 }
 @media (hover: none) {
   .dissertation-step-delete { opacity: 0.7; }

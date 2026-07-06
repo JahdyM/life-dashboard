@@ -567,6 +567,7 @@ function StepCheckbox({
 }) {
   const today = new Date().toISOString().slice(0, 10);
   const urgency = step.done ? "none" : dateUrgency(step.dueDate, today);
+  const isPlannedToday = step.dueDate === today;
 
   return (
     <div className={`dissertation-step-row ${step.done ? "done" : ""} ${compact ? "compact" : ""} urgency-${urgency}`}>
@@ -604,6 +605,27 @@ function StepCheckbox({
         <span className={`diss-date-pill urgency-${urgency}`}>
           {formatRelativeDeadline(step.dueDate, today)}
         </span>
+      ) : null}
+      {!compact ? (
+        isPlannedToday ? (
+          <span className="diss-date-pill urgency-soon">No dia</span>
+        ) : (
+          <button
+            type="button"
+            className="dissertation-step-today"
+            aria-label={`Colocar ${step.title} no dia de hoje`}
+            onClick={() =>
+              mutate({
+                type: "update_step",
+                frontId: front.id,
+                stepId: step.id,
+                dueDate: today,
+              })
+            }
+          >
+            Hoje
+          </button>
+        )
       ) : null}
       {!compact ? (
         <button
