@@ -288,6 +288,7 @@ function isGoogleReconnectErrorText(text: string | null | undefined) {
   return (
     normalized.includes("google authorization expired") ||
     normalized.includes("google calendar not connected") ||
+    normalized.includes("google needs reconnect") ||
     normalized.includes("reconnect your account")
   );
 }
@@ -5611,7 +5612,9 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
               onAction={triggerGoogleReconnect}
             />
           ) : null}
-          {taskSaveError ? <InlineActionNotice tone="warning" body={taskSaveError} /> : null}
+          {taskSaveError && !reconnectRequired ? (
+            <InlineActionNotice tone="warning" body={taskSaveError} />
+          ) : null}
           {nextDissertationStepDraft ? (
             <InlineActionNotice
               tone="default"
