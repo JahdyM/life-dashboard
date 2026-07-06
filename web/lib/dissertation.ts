@@ -47,6 +47,7 @@ export type DissertationProject = {
 export type DissertationAction =
   | { type: "update_project"; title?: string; subtitle?: string; defenseTargetDate?: string | null; generalNotes?: string }
   | { type: "update_front"; frontId: string; status?: string; notes?: string; targetDate?: string | null }
+  | { type: "complete_front"; frontId: string; done: boolean }
   | { type: "add_step"; frontId: string; title: string; dueDate?: string | null }
   | { type: "update_step"; frontId: string; stepId: string; title?: string; dueDate?: string | null; done?: boolean }
   | { type: "delete_step"; frontId: string; stepId: string };
@@ -94,6 +95,10 @@ export function frontProgressPercent(front: DissertationFront): number {
   if (front.steps.length === 0) return 0;
   const done = front.steps.filter((step) => step.done).length;
   return Math.round((done / front.steps.length) * 100);
+}
+
+export function isDissertationFrontComplete(front: DissertationFront): boolean {
+  return front.steps.length > 0 && front.steps.every((step) => step.done);
 }
 
 export function projectProgressPercent(project: DissertationProject): number {

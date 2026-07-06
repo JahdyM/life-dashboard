@@ -10015,7 +10015,7 @@ input.no-spinner[type="number"] {
 
 .dissertation-academic-stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -10156,6 +10156,34 @@ input.no-spinner[type="number"] {
 .dissertation-front-card header strong {
   color: var(--front-color);
   font-size: 1rem;
+}
+
+.dissertation-front-complete {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  flex-shrink: 0;
+}
+
+.dissertation-front-complete .task-check {
+  width: 24px;
+  height: 24px;
+}
+
+.dissertation-front-complete .task-check:disabled {
+  cursor: default;
+  opacity: 0.9;
+}
+
+.dissertation-front-complete-note {
+  justify-self: start;
+  border: 1px solid rgba(157, 207, 183, 0.26);
+  border-radius: 999px;
+  padding: 7px 11px;
+  background: rgba(157, 207, 183, 0.1);
+  color: #cfe9d8 !important;
+  font-size: 0.84rem;
+  font-weight: 700;
 }
 
 .dissertation-front-meter {

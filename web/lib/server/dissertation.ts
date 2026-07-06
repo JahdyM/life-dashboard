@@ -534,6 +534,27 @@ function mutateProject(project: DissertationProject, action: DissertationAction)
         ),
       };
 
+    case "complete_front": {
+      const updatedAt = nowIso();
+      return {
+        ...project,
+        fronts: project.fronts.map((frontItem) =>
+          frontItem.id !== action.frontId
+            ? frontItem
+            : {
+                ...frontItem,
+                status: action.done ? "Concluída." : frontItem.status,
+                steps: frontItem.steps.map((item) => ({
+                  ...item,
+                  done: action.done,
+                  completedAt: action.done ? item.completedAt || updatedAt : null,
+                  updatedAt,
+                })),
+              }
+        ),
+      };
+    }
+
     case "add_step": {
       const nextStep = step(action.title, normalizeDissertationDueDate(action.dueDate) ?? null);
       return {

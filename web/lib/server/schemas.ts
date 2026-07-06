@@ -739,6 +739,13 @@ export const dissertationActionSchema = z.discriminatedUnion("type", [
     .strict(),
   z
     .object({
+      type: z.literal("complete_front"),
+      frontId: dissertationIdSchema,
+      done: z.boolean(),
+    })
+    .strict(),
+  z
+    .object({
       type: z.literal("add_step"),
       frontId: dissertationIdSchema,
       title: z.string().trim().min(1).max(240),

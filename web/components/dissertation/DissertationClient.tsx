@@ -16,6 +16,7 @@ import {
   formatBrazilianDate,
   formatRelativeDeadline,
   frontProgressPercent,
+  isDissertationFrontComplete,
   isoDateDiffDays,
   projectProgressPercent,
   todayStepForFront,
@@ -65,7 +66,8 @@ function projectStats(project: DissertationProject) {
   const steps = project.fronts.flatMap((front) => front.steps);
   const done = steps.filter((step) => step.done).length;
   const withDates = steps.filter((step) => step.dueDate && !step.done).length;
-  return { total: steps.length, done, withDates };
+  const completedFronts = project.fronts.filter(isDissertationFrontComplete).length;
+  return { total: steps.length, done, withDates, completedFronts };
 }
 
 export default function DissertationClient({ initialProject }: { initialProject: DissertationProject }) {
@@ -108,8 +110,9 @@ export default function DissertationClient({ initialProject }: { initialProject:
   const project = projectQuery.data;
   const stats = useMemo(() => projectStats(project), [project]);
   const deadlines = useMemo(() => collectDissertationDeadlines(project).slice(0, 12), [project]);
+  const activeFrontCount = project.fronts.filter((front) => !isDissertationFrontComplete(front)).length;
   const doneToday = countDoneToday(project, today);
-  const allTodayDone = doneToday > 0 && doneToday >= project.fronts.length;
+  const allTodayDone = activeFrontCount === 0 || (doneToday > 0 && doneToday >= activeFrontCount);
   const defenseUrgency = dateUrgency(project.defenseTargetDate, today);
   const defenseCountdown = project.defenseTargetDate
     ? formatRelativeDeadline(project.defenseTargetDate, today)
@@ -212,7 +215,8 @@ export default function DissertationClient({ initialProject }: { initialProject:
 
       <div className="dissertation-academic-stats">
         <SmallStat label="Passos" value={`${stats.done}/${stats.total}`} />
-        <SmallStat label="Hoje" value={`${doneToday}/${project.fronts.length}`} />
+        <SmallStat label="Hoje" value={`${doneToday}/${activeFrontCount}`} />
+        <SmallStat label="Frentes" value={`${stats.completedFronts}/${project.fronts.length}`} />
         <SmallStat label="Com prazo" value={String(stats.withDates)} />
       </div>
 
@@ -344,6 +348,7 @@ function TodayFrontRow({
   mutate: (action: DissertationAction) => void;
 }) {
   const todayStep = todayStepForFront(front, today);
+  const frontComplete = isDissertationFrontComplete(front);
 
   return (
     <article className="dissertation-today-row" style={{ borderLeftColor: front.color }}>
@@ -351,7 +356,9 @@ function TodayFrontRow({
         <span>{front.icon}</span>
         <strong>{front.title}</strong>
       </div>
-      {todayStep ? (
+      {frontComplete ? (
+        <span className="dissertation-front-complete-note">Frente concluída</span>
+      ) : todayStep ? (
         <StepCheckbox front={front} step={todayStep} mutate={mutate} compact />
       ) : (
         <input
@@ -386,7 +393,7 @@ function FrontCard({
   const progress = frontProgressPercent(front);
   const openSteps = front.steps.filter((step) => !step.done);
   const doneSteps = front.steps.filter((step) => step.done);
-  const isComplete = front.steps.length > 0 && progress === 100;
+  const isComplete = isDissertationFrontComplete(front);
   const targetUrgency = dateUrgency(front.targetDate, today);
 
   return (
@@ -410,7 +417,17 @@ function FrontCard({
             </p>
           </div>
         </div>
-        <strong>{progress}%</strong>
+        <div className="dissertation-front-complete">
+          <button
+            type="button"
+            className={`task-check ${isComplete ? "checked" : ""}`}
+            aria-label={isComplete ? "Frente concluída" : `Marcar ${front.title} como concluída`}
+            aria-pressed={isComplete}
+            disabled={isComplete || front.steps.length === 0}
+            onClick={() => mutate({ type: "complete_front", frontId: front.id, done: true })}
+          />
+          <strong>{progress}%</strong>
+        </div>
       </header>
 
       <div className="dissertation-front-meter"><span style={{ width: `${progress}%` }} /></div>
