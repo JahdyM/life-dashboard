@@ -3604,7 +3604,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     if (typeof window === "undefined") return;
     setReconnectingGoogle(true);
     try {
-      const reconnectUrl = `/signin?reconnect=google&callbackUrl=${encodeURIComponent("/calendar")}`;
+      const reconnectUrl = `/signin?reconnect=google&callbackUrl=${encodeURIComponent("/calendar?google=reconnected")}`;
       window.location.assign(reconnectUrl);
     } catch (_error) {
       setReconnectingGoogle(false);
@@ -3612,7 +3612,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
     }
   }, []);
 
-  const syncNow = async () => {
+  const syncNow = useCallback(async () => {
     setSyncStatus("syncing");
     setTaskSaveError(null);
     try {
@@ -3634,7 +3634,19 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       }
       setTaskSaveError(readErrorMessage(error, "Couldn't sync."));
     }
-  };
+  }, [queryClient, range]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("google") !== "reconnected") return;
+    params.delete("google");
+    const nextSearch = params.toString();
+    const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}`;
+    window.history.replaceState(null, "", nextUrl);
+    setTaskSaveError("Google reconnected. Syncing calendar…");
+    void syncNow();
+  }, [syncNow]);
 
   const applyCalendarSelection = (startDate: Date, endDate?: Date | null) => {
     const nextDate = format(startDate, "yyyy-MM-dd");

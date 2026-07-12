@@ -3,6 +3,7 @@ import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "./db/prisma";
 import { encryptToken } from "./encryption";
 import { getAllowedEmails } from "./env";
+import { logServerEvent } from "./server/logger";
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID || "build-placeholder-google-client-id";
 const googleClientSecret =
@@ -42,35 +43,49 @@ export const authOptions: NextAuthOptions = {
           const expiresAt = account.expires_at
             ? new Date(account.expires_at * 1000).toISOString()
             : null;
-          if (refresh || access) {
-            const nowIso = new Date().toISOString();
-            const existing = await prisma.googleCalendarToken.findUnique({
-              where: { userEmail: email },
+          const nowIso = new Date().toISOString();
+          const existing = await prisma.googleCalendarToken.findUnique({
+            where: { userEmail: email },
+          });
+
+          if (!refresh && !access && !existing) {
+            logServerEvent("warn", {
+              endpoint: "NextAuth signIn",
+              userEmail: email,
+              message: "Google sign-in returned no calendar token",
             });
-            const refreshEnc = refresh
-              ? encryptToken(refresh)
-              : existing?.refreshTokenEnc || "";
-            await prisma.googleCalendarToken.upsert({
-              where: { userEmail: email },
-              update: {
-                refreshTokenEnc: refreshEnc,
-                accessToken: access || existing?.accessToken || null,
-                expiresAt: expiresAt || existing?.expiresAt || null,
-                scope: account.scope || existing?.scope || null,
-                updatedAt: nowIso,
-              },
-              create: {
-                userEmail: email,
-                refreshTokenEnc: refreshEnc,
-                accessToken: access || null,
-                expiresAt: expiresAt || null,
-                scope: account.scope || null,
-                updatedAt: nowIso,
-              },
-            });
+            return false;
           }
-        } catch (_err) {
-          return true;
+
+          const refreshEnc = refresh
+            ? encryptToken(refresh)
+            : existing?.refreshTokenEnc || encryptToken("");
+          await prisma.googleCalendarToken.upsert({
+            where: { userEmail: email },
+            update: {
+              refreshTokenEnc: refreshEnc,
+              accessToken: access || existing?.accessToken || null,
+              expiresAt: expiresAt || existing?.expiresAt || null,
+              scope: account.scope || existing?.scope || null,
+              updatedAt: nowIso,
+            },
+            create: {
+              userEmail: email,
+              refreshTokenEnc: refreshEnc,
+              accessToken: access || null,
+              expiresAt: expiresAt || null,
+              scope: account.scope || null,
+              updatedAt: nowIso,
+            },
+          });
+        } catch (error) {
+          logServerEvent("error", {
+            endpoint: "NextAuth signIn",
+            userEmail: email,
+            message: "Failed to save Google calendar token",
+            error,
+          });
+          return false;
         }
       }
       return true;
