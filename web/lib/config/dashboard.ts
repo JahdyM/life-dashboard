@@ -1,5 +1,6 @@
 export const DASHBOARD_MODULE_KEYS = [
   "today",
+  "assistant",
   "calendar",
   "habits",
   "ministry",
@@ -19,6 +20,7 @@ export type DashboardModuleKey = (typeof DASHBOARD_MODULE_KEYS)[number];
 
 export type DashboardModuleIconKey =
   | "sparkles"
+  | "bot"
   | "calendar"
   | "timer"
   | "ministry"
@@ -91,6 +93,15 @@ export const DASHBOARD_MODULES: DashboardModuleConfig[] = [
     icon: "sparkles",
     defaultEnabled: true,
     order: 10,
+  },
+  {
+    key: "assistant",
+    label: "Orbit",
+    href: "/assistant",
+    navGroup: "primary",
+    icon: "bot",
+    defaultEnabled: true,
+    order: 15,
   },
   {
     key: "calendar",

@@ -7,6 +7,7 @@ import {
   BookHeart,
   BookOpen,
   BookOpenText,
+  Bot,
   CalendarDays,
   ChartNoAxesCombined,
   GraduationCap,
@@ -35,6 +36,7 @@ function isActivePath(pathname: string, href: string) {
 function NavLink({ item, active }: { item: DashboardModuleConfig; active: boolean }) {
   const iconMap: Record<DashboardModuleIconKey, JSX.Element> = {
     sparkles: <Sparkles size={14} />,
+    bot: <Bot size={14} />,
     calendar: <CalendarDays size={14} />,
     timer: <TimerReset size={14} />,
     ministry: <BookOpenText size={14} />,
