@@ -11055,6 +11055,10 @@ input.no-spinner[type="number"] {
   color: #efd3a5;
 }
 
+.orbit-dock-panel > header .orbit-dock-actions {
+  gap: 2px;
+}
+
 .orbit-dock-panel > header strong {
   color: var(--text);
   font-size: 0.86rem;
@@ -11075,6 +11079,11 @@ input.no-spinner[type="number"] {
 .orbit-dock-panel > header button:hover {
   color: var(--text);
   background: rgba(255, 255, 255, 0.06);
+}
+
+.orbit-dock-panel > header button:disabled {
+  opacity: 0.38;
+  cursor: default;
 }
 
 .orbit-dock-answer {
@@ -11251,13 +11260,43 @@ input.no-spinner[type="number"] {
 }
 
 .assistant-free-badge {
-  margin-left: auto;
   padding: 7px 10px;
   border-radius: 999px;
   color: #cde7d7;
   border: 1px solid rgba(134, 200, 162, 0.24);
   background: rgba(134, 200, 162, 0.08);
   font-size: 0.74rem;
+}
+
+.assistant-hero-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.assistant-clear {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.035);
+  cursor: pointer;
+}
+
+.assistant-clear:hover:not(:disabled) {
+  color: var(--text);
+  border-color: rgba(210, 168, 105, 0.24);
+  background: rgba(210, 168, 105, 0.08);
+}
+
+.assistant-clear:disabled {
+  opacity: 0.38;
+  cursor: default;
 }
 
 .assistant-chat {
@@ -11482,6 +11521,10 @@ input.no-spinner[type="number"] {
   }
 
   .assistant-free-badge {
+    display: none;
+  }
+
+  .assistant-hero-actions {
     position: absolute;
     top: 14px;
     right: 14px;

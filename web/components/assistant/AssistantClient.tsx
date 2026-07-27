@@ -1,7 +1,14 @@
 "use client";
 
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
-import { Bot, CornerDownLeft, LoaderCircle, Orbit, Sparkles } from "lucide-react";
+import {
+  Bot,
+  CornerDownLeft,
+  LoaderCircle,
+  Orbit,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { fetchJson } from "@/lib/client/api";
@@ -19,6 +26,12 @@ type UiMessage = AssistantChatMessage & {
 };
 
 const STORAGE_KEY = "life-dashboard-orbit-chat-v1";
+const WELCOME_MESSAGE: UiMessage = {
+  id: "welcome",
+  role: "assistant",
+  content:
+    "Tell me what you need. I can organize your day, estimate time, review your rhythm, or draft a routine.",
+};
 
 export default function AssistantClient() {
   const router = useRouter();
@@ -28,14 +41,7 @@ export default function AssistantClient() {
   const [sending, setSending] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [messages, setMessages] = useState<UiMessage[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      content:
-        "Tell me what you need. I can organize your day, estimate time, review your rhythm, or draft a routine.",
-    },
-  ]);
+  const [messages, setMessages] = useState<UiMessage[]>([WELCOME_MESSAGE]);
 
   useEffect(() => {
     try {
@@ -104,6 +110,13 @@ export default function AssistantClient() {
     }
   }
 
+  function clearConversation() {
+    window.localStorage.removeItem(STORAGE_KEY);
+    setMessages([WELCOME_MESSAGE]);
+    setInput("");
+    setError(null);
+  }
+
   async function applyPlan(messageId: string, actions: AssistantAction[]) {
     if (applyingId) return;
     setApplyingId(messageId);
@@ -142,7 +155,18 @@ export default function AssistantClient() {
           <h2>Orbit</h2>
           <p>Plan, estimate, and notice patterns.</p>
         </div>
-        <span className="assistant-free-badge">Free tier</span>
+        <div className="assistant-hero-actions">
+          <button
+            type="button"
+            className="assistant-clear"
+            onClick={clearConversation}
+            disabled={sending || Boolean(applyingId) || messages.length <= 1}
+          >
+            <Trash2 size={15} aria-hidden="true" />
+            Clear
+          </button>
+          <span className="assistant-free-badge">Free tier</span>
+        </div>
       </section>
 
       <section className="assistant-chat" aria-live="polite">

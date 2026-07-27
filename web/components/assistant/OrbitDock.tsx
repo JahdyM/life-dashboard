@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useState } from "react";
-import { Bot, CornerDownLeft, LoaderCircle, Orbit, X } from "lucide-react";
+import { Bot, CornerDownLeft, LoaderCircle, Orbit, Trash2, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import type {
@@ -153,6 +153,13 @@ export default function OrbitDock() {
     }
   }
 
+  function clearConversation() {
+    setMessages([]);
+    setInput("");
+    setError(null);
+    setOpen(false);
+  }
+
   const latest = [...messages].reverse().find((message) => message.role === "assistant");
 
   return (
@@ -164,9 +171,20 @@ export default function OrbitDock() {
               <Bot size={16} />
               <strong>Orbit · {context.label}</strong>
             </div>
-            <button type="button" onClick={() => setOpen(false)} aria-label="Close Orbit">
-              <X size={16} />
-            </button>
+            <div className="orbit-dock-actions">
+              <button
+                type="button"
+                onClick={clearConversation}
+                aria-label="Clear Orbit conversation"
+                title="Clear conversation"
+                disabled={sending || Boolean(applyingId)}
+              >
+                <Trash2 size={15} />
+              </button>
+              <button type="button" onClick={() => setOpen(false)} aria-label="Close Orbit">
+                <X size={16} />
+              </button>
+            </div>
           </header>
           <div className="orbit-dock-answer">
             {sending ? (
