@@ -204,77 +204,6 @@ function calibrateRepeatedTask(
   };
 }
 
-function responseSchema() {
-  return {
-    type: "OBJECT",
-    required: ["message", "actions"],
-    properties: {
-      message: { type: "STRING" },
-      actions: {
-        type: "ARRAY",
-        maxItems: 40,
-        items: {
-          type: "OBJECT",
-          required: ["type", "title", "reason", "payload"],
-          properties: {
-            type: { type: "STRING", enum: [...ASSISTANT_ACTION_TYPES] },
-            title: { type: "STRING" },
-            reason: { type: "STRING" },
-            payload: {
-              type: "OBJECT",
-              properties: {
-                taskId: { type: "STRING" },
-                title: { type: "STRING" },
-                scheduledDate: { type: "STRING", nullable: true },
-                scheduledTime: { type: "STRING", nullable: true },
-                estimatedMinutes: {
-                  type: "INTEGER",
-                  nullable: true,
-                  minimum: 1,
-                  maximum: 480,
-                },
-                priority: {
-                  type: "STRING",
-                  enum: ["Low", "Medium", "High", "Critical"],
-                },
-                areaTag: { type: "STRING", nullable: true },
-                focusOrder: {
-                  type: "INTEGER",
-                  nullable: true,
-                  minimum: 1,
-                  maximum: 1000,
-                },
-                habitName: { type: "STRING" },
-                areaLabel: { type: "STRING" },
-                areaColor: { type: "STRING", nullable: true },
-                month: { type: "STRING" },
-                targetMinutes: { type: "INTEGER", nullable: true, minimum: 0 },
-                date: { type: "STRING" },
-                goalMinutes: {
-                  type: "INTEGER",
-                  nullable: true,
-                  minimum: 0,
-                  maximum: 1440,
-                },
-                actualMinutes: {
-                  type: "INTEGER",
-                  nullable: true,
-                  minimum: 0,
-                  maximum: 1440,
-                },
-                notes: { type: "STRING", nullable: true },
-                frontId: { type: "STRING" },
-                status: { type: "STRING" },
-                dueDate: { type: "STRING", nullable: true },
-              },
-            },
-          },
-        },
-      },
-    },
-  };
-}
-
 async function buildAssistantContext(userEmail: string, scope: AssistantScope) {
   const todayIso = await getTodayIsoForUser(userEmail);
   const startIso = dayOffset(todayIso, -14);
@@ -418,6 +347,7 @@ function systemInstruction(context: AssistantContext) {
     "MINISTRY: daily goals are always manual. You may set a monthly goal and specific daily plans, but never auto-distribute the monthly target unless the user explicitly asks you to create a proposed schedule. Preserve logged actual time unless the user explicitly changes it.",
     "DISSERTATION: use front IDs from context when adding a next step or changing a front status.",
     "Allowed actions: create_task, update_task, create_habit, create_area, set_ministry_month_goal, update_ministry_day, add_dissertation_step, update_dissertation_front.",
+    'Return only one JSON object shaped as {"message":"short answer","actions":[{"type":"allowed action","title":"short preview title","reason":"brief reason","payload":{}}]}. Use an empty actions array when no change is needed. Never add keys outside this structure.',
     "Never delete, complete, or mark records missed. Do not alter sensitive metrics. If the requested operation has no supported safe action, explain what is missing instead of pretending.",
     `Dashboard context: ${JSON.stringify(context)}`,
   ].join("\n");
@@ -445,7 +375,6 @@ export async function askAssistant(
         temperature: 0.3,
         maxOutputTokens: 4000,
         responseMimeType: "application/json",
-        responseSchema: responseSchema(),
       },
     });
     const requestModel = async (model: string) => {
