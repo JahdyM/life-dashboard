@@ -23,6 +23,7 @@ import {
 } from "./settings";
 import { createTaskArea, getTaskAreas } from "./taskAreas";
 import { createTask, listTasks, updateTask } from "./tasks";
+import { logServerEvent } from "./logger";
 
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 const isoTime = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -81,6 +82,62 @@ function dayOffset(dayIso: string, offset: number) {
 
 function assistantModel() {
   return process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
+}
+
+type GeminiPayload = {
+  error?: { code?: number; status?: string; message?: string };
+  candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+};
+
+let resolvedFallbackModel: string | null = null;
+
+function modelScore(name: string) {
+  let score = 0;
+  if (/^gemini-\d+(?:\.\d+)?-flash$/.test(name)) score += 120;
+  else if (name.includes("flash-latest")) score += 110;
+  else if (name.includes("flash")) score += 90;
+  else if (name.includes("pro")) score += 50;
+  if (name.includes("lite")) score -= 5;
+  if (/(preview|experimental|exp-)/.test(name)) score -= 25;
+  if (/(image|audio|tts|live|embedding|robotics|computer-use)/.test(name)) {
+    score -= 200;
+  }
+  return score;
+}
+
+async function findAvailableGeminiModel(
+  apiKey: string,
+  excludedModel: string,
+  signal: AbortSignal
+) {
+  try {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models", {
+      headers: { "x-goog-api-key": apiKey },
+      signal,
+    });
+    if (!response.ok) return null;
+    const payload = (await response.json()) as {
+      models?: Array<{
+        name?: string;
+        supportedGenerationMethods?: string[];
+      }>;
+    };
+    return (
+      (payload.models || [])
+        .filter((model) => model.supportedGenerationMethods?.includes("generateContent"))
+        .map((model) => (model.name || "").replace(/^models\//, ""))
+        .filter((name) => name && name !== excludedModel && modelScore(name) > 0)
+        .sort((left, right) => modelScore(right) - modelScore(left))[0] || null
+    );
+  } catch {
+    return null;
+  }
+}
+
+function geminiEndpoint(model: string) {
+  return `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
+    model
+  )}:generateContent`;
 }
 
 function needs(scope: AssistantScope, ...scopes: AssistantScope[]) {
@@ -378,43 +435,68 @@ export async function askAssistant(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 35_000);
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
-        assistantModel()
-      )}:generateContent`,
-      {
+    const requestBody = JSON.stringify({
+      systemInstruction: { parts: [{ text: systemInstruction(context) }] },
+      contents: messages.slice(-16).map((message) => ({
+        role: message.role === "assistant" ? "model" : "user",
+        parts: [{ text: message.content }],
+      })),
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 4000,
+        responseMimeType: "application/json",
+        responseSchema: responseSchema(),
+      },
+    });
+    const requestModel = async (model: string) => {
+      const response = await fetch(geminiEndpoint(model), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-goog-api-key": apiKey,
         },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemInstruction(context) }] },
-          contents: messages.slice(-16).map((message) => ({
-            role: message.role === "assistant" ? "model" : "user",
-            parts: [{ text: message.content }],
-          })),
-          generationConfig: {
-            temperature: 0.3,
-            maxOutputTokens: 4000,
-            responseMimeType: "application/json",
-            responseSchema: responseSchema(),
-          },
-        }),
+        body: requestBody,
         signal: controller.signal,
-      }
-    );
+      });
+      const payload = (await response.json().catch(() => null)) as GeminiPayload | null;
+      return { response, payload };
+    };
 
-    const payload = (await response.json().catch(() => null)) as {
-      error?: { message?: string };
-      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-    } | null;
+    let model = resolvedFallbackModel || assistantModel();
+    let result = await requestModel(model);
+
+    if (result.response.status === 404) {
+      const fallback = await findAvailableGeminiModel(apiKey, model, controller.signal);
+      if (fallback) {
+        model = fallback;
+        resolvedFallbackModel = fallback;
+        result = await requestModel(model);
+      }
+    }
+
+    if (result.response.status >= 500) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      result = await requestModel(model);
+    }
+
+    const { response, payload } = result;
     if (!response.ok) {
+      logServerEvent("error", {
+        endpoint: "Gemini generateContent",
+        message: "Gemini rejected the Orbit request",
+        meta: {
+          status: response.status,
+          model,
+          providerStatus: payload?.error?.status || null,
+          providerMessage: payload?.error?.message?.slice(0, 600) || null,
+        },
+      });
       if (response.status === 429) throw new Error("AI_QUOTA_REACHED");
       if (response.status === 400) throw new Error("AI_REQUEST_REJECTED");
       if (response.status === 401 || response.status === 403) {
         throw new Error("AI_AUTH_FAILED");
       }
+      if (response.status === 404) throw new Error("AI_MODEL_UNAVAILABLE");
       throw new Error("AI_REQUEST_FAILED");
     }
 

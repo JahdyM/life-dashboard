@@ -11,3 +11,4 @@ web/.env.local
 web/.env.production
 web/.env.development
 web/tsconfig.tsbuildinfo
+.vercel
