@@ -59,6 +59,9 @@ function assistantError(error: unknown) {
   if (message === "AI_MODEL_UNAVAILABLE") {
     return jsonError("Orbit could not find an available Gemini model.", 503);
   }
+  if (message === "AI_INVALID_RESPONSE") {
+    return jsonError("Orbit returned an invalid plan. Try the request again.", 502);
+  }
   if (message === "AI_REQUEST_FAILED" || message === "AI_EMPTY_RESPONSE") {
     return jsonError("Orbit could not reach Gemini. Try again.", 502);
   }

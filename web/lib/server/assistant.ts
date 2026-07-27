@@ -72,6 +72,85 @@ const applySchema = z.array(actionSchema).min(1).max(40);
 type AssistantContext = Awaited<ReturnType<typeof buildAssistantContext>>;
 type EstimationHistoryItem = AssistantContext["completedTaskHistory"][number];
 
+const payloadAliases: Record<string, string[]> = {
+  taskId: ["task_id", "id"],
+  scheduledDate: ["scheduled_date"],
+  scheduledTime: ["scheduled_time", "planned_time", "plannedTime", "time"],
+  estimatedMinutes: [
+    "estimated_minutes",
+    "estimate_minutes",
+    "estimate",
+    "duration_minutes",
+    "durationMinutes",
+    "duration",
+  ],
+  areaTag: ["area_tag", "tag"],
+  focusOrder: ["focus_order", "order"],
+  habitName: ["habit_name"],
+  areaLabel: ["area_label"],
+  areaColor: ["area_color"],
+  targetMinutes: ["target_minutes"],
+  goalMinutes: ["goal_minutes"],
+  actualMinutes: ["actual_minutes"],
+  frontId: ["front_id"],
+  dueDate: ["due_date"],
+};
+
+function normalizeMinutes(value: unknown) {
+  if (typeof value === "number") return Math.round(value);
+  if (typeof value !== "string") return value;
+  const normalized = value.trim().toLowerCase().replace(",", ".");
+  const hours = normalized.match(/(\d+(?:\.\d+)?)\s*(?:h|hour|hours|hora|horas)\b/);
+  const minutes = normalized.match(/(\d+)\s*(?:m|min|mins|minute|minutes|minuto|minutos)\b/);
+  if (hours || minutes) {
+    return Math.round(Number(hours?.[1] || 0) * 60 + Number(minutes?.[1] || 0));
+  }
+  const numeric = Number(normalized);
+  return Number.isFinite(numeric) ? Math.round(numeric) : value;
+}
+
+function normalizeAssistantReply(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  const reply = value as Record<string, unknown>;
+  if (!Array.isArray(reply.actions)) return value;
+
+  return {
+    ...reply,
+    actions: reply.actions.map((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return item;
+      const action = item as Record<string, unknown>;
+      const rawPayload =
+        action.payload && typeof action.payload === "object" && !Array.isArray(action.payload)
+          ? (action.payload as Record<string, unknown>)
+          : {};
+      const payload = { ...rawPayload };
+
+      Object.entries(payloadAliases).forEach(([canonical, aliases]) => {
+        if (payload[canonical] === undefined) {
+          const alias = aliases.find((candidate) => payload[candidate] !== undefined);
+          if (alias) payload[canonical] = payload[alias];
+        }
+        aliases.forEach((alias) => delete payload[alias]);
+      });
+
+      ["estimatedMinutes", "focusOrder", "targetMinutes", "goalMinutes", "actualMinutes"].forEach(
+        (field) => {
+          if (payload[field] !== undefined && payload[field] !== null) {
+            payload[field] = normalizeMinutes(payload[field]);
+          }
+        }
+      );
+
+      if (typeof payload.scheduledTime === "string") {
+        const match = payload.scheduledTime.match(/(?:^|\s)([01]?\d|2[0-3]):([0-5]\d)/);
+        if (match) payload.scheduledTime = `${match[1].padStart(2, "0")}:${match[2]}`;
+      }
+
+      return { ...action, payload };
+    }),
+  };
+}
+
 function dayOffset(dayIso: string, offset: number) {
   const [year, month, day] = dayIso.split("-").map(Number);
   const base = new Date(Date.UTC(year, month - 1, day, 12));
@@ -348,6 +427,7 @@ function systemInstruction(context: AssistantContext) {
     "DISSERTATION: use front IDs from context when adding a next step or changing a front status.",
     "Allowed actions: create_task, update_task, create_habit, create_area, set_ministry_month_goal, update_ministry_day, add_dissertation_step, update_dissertation_front.",
     'Return only one JSON object shaped as {"message":"short answer","actions":[{"type":"allowed action","title":"short preview title","reason":"brief reason","payload":{}}]}. Use an empty actions array when no change is needed. Never add keys outside this structure.',
+    "For task duration, the payload key is estimatedMinutes (integer minutes). For a fixed task time, use scheduledTime in HH:mm. Never use estimate, duration, or time as payload keys.",
     "Never delete, complete, or mark records missed. Do not alter sensitive metrics. If the requested operation has no supported safe action, explain what is missing instead of pretending.",
     `Dashboard context: ${JSON.stringify(context)}`,
   ].join("\n");
@@ -446,7 +526,17 @@ export async function askAssistant(
       .trim();
     if (!text) throw new Error("AI_EMPTY_RESPONSE");
 
-    const parsed = replySchema.parse(JSON.parse(text));
+    let parsed: z.infer<typeof replySchema>;
+    try {
+      parsed = replySchema.parse(normalizeAssistantReply(JSON.parse(text)));
+    } catch (error) {
+      logServerEvent("error", {
+        endpoint: "Gemini response validation",
+        message: "Orbit received an invalid action payload",
+        error,
+      });
+      throw new Error("AI_INVALID_RESPONSE");
+    }
     return {
       message: parsed.message,
       actions: parsed.actions.map((action) => ({
