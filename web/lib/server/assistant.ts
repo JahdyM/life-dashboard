@@ -29,6 +29,17 @@ const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 const isoTime = /^([01]\d|2[0-3]):[0-5]\d$/;
 const monthKey = /^\d{4}-(0[1-9]|1[0-2])$/;
 
+const taskUpdateSchema = z.object({
+  taskId: z.string().trim().min(1).max(100),
+  title: z.string().trim().min(1).max(200).optional(),
+  scheduledDate: z.union([z.string().regex(isoDate), z.null()]).optional(),
+  scheduledTime: z.union([z.string().regex(isoTime), z.null()]).optional(),
+  estimatedMinutes: z.number().int().min(1).max(480).nullable().optional(),
+  priority: z.enum(["Low", "Medium", "High", "Critical"]).optional(),
+  areaTag: z.string().trim().max(40).nullable().optional(),
+  focusOrder: z.number().int().min(1).max(1000).nullable().optional(),
+});
+
 const actionSchema = z.object({
   id: z.string().trim().min(1).max(80).optional(),
   type: z.enum(ASSISTANT_ACTION_TYPES),
@@ -58,16 +69,17 @@ const actionSchema = z.object({
       frontId: z.string().trim().min(1).max(120).optional(),
       status: z.string().trim().max(500).optional(),
       dueDate: z.union([z.string().regex(isoDate), z.null()]).optional(),
+      taskUpdates: z.array(taskUpdateSchema).min(1).max(500).optional(),
     })
     .strict(),
 });
 
 const replySchema = z.object({
   message: z.string().trim().min(1).max(5000),
-  actions: z.array(actionSchema).max(40).default([]),
+  actions: z.array(actionSchema).max(100).default([]),
 });
 
-const applySchema = z.array(actionSchema).min(1).max(40);
+const applySchema = z.array(actionSchema).min(1).max(100);
 
 type AssistantContext = Awaited<ReturnType<typeof buildAssistantContext>>;
 type EstimationHistoryItem = AssistantContext["completedTaskHistory"][number];
@@ -94,6 +106,7 @@ const payloadAliases: Record<string, string[]> = {
   actualMinutes: ["actual_minutes"],
   frontId: ["front_id"],
   dueDate: ["due_date"],
+  taskUpdates: ["task_updates", "updates", "changes", "tasks"],
 };
 
 function normalizeMinutes(value: unknown) {
@@ -146,6 +159,36 @@ function normalizeAssistantReply(value: unknown) {
         if (match) payload.scheduledTime = `${match[1].padStart(2, "0")}:${match[2]}`;
       }
 
+      if (Array.isArray(payload.taskUpdates)) {
+        payload.taskUpdates = payload.taskUpdates.map((update) => {
+          if (!update || typeof update !== "object" || Array.isArray(update)) return update;
+          const normalized = { ...(update as Record<string, unknown>) };
+          Object.entries(payloadAliases).forEach(([canonical, aliases]) => {
+            if (canonical === "taskUpdates") return;
+            if (normalized[canonical] === undefined) {
+              const alias = aliases.find((candidate) => normalized[candidate] !== undefined);
+              if (alias) normalized[canonical] = normalized[alias];
+            }
+            aliases.forEach((alias) => delete normalized[alias]);
+          });
+          if (normalized.estimatedMinutes !== undefined) {
+            normalized.estimatedMinutes = normalizeMinutes(normalized.estimatedMinutes);
+          }
+          if (normalized.focusOrder !== undefined) {
+            normalized.focusOrder = normalizeMinutes(normalized.focusOrder);
+          }
+          if (typeof normalized.scheduledTime === "string") {
+            const match = normalized.scheduledTime.match(
+              /(?:^|\s)([01]?\d|2[0-3]):([0-5]\d)/
+            );
+            if (match) {
+              normalized.scheduledTime = `${match[1].padStart(2, "0")}:${match[2]}`;
+            }
+          }
+          return normalized;
+        });
+      }
+
       return { ...action, payload };
     }),
   };
@@ -165,7 +208,11 @@ function assistantModel() {
 
 type GeminiPayload = {
   error?: { code?: number; status?: string; message?: string };
-  candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  candidates?: Array<{
+    finishReason?: string;
+    finishMessage?: string;
+    content?: { parts?: Array<{ text?: string }> };
+  }>;
 };
 
 let resolvedFallbackModel: string | null = null;
@@ -323,7 +370,7 @@ async function buildAssistantContext(userEmail: string, scope: AssistantScope) {
 
   const pendingTasks = tasks
     .filter((task) => !task.isDone && !task.missedAt)
-    .slice(0, 80)
+    .slice(0, 500)
     .map((task) => ({
       id: task.id,
       title: task.title,
@@ -420,12 +467,13 @@ function systemInstruction(context: AssistantContext) {
     "Return actions whenever the user asks to create, change, organize, prioritize, tag, estimate, or plan something.",
     "Every action is a preview and requires one user review. Never claim it was already applied.",
     "TASK ESTIMATION: first compare the title and meaning with completedTaskHistory. For repeated or similar work, use real actualMinutes. For new work, infer its steps and complexity, then calibrate with the user's averageRatio and area history. Explain the basis briefly.",
+    'BULK TASK REVIEWS: use one bulk_update_tasks action with payload.taskUpdates. Each item must contain taskId and only changed fields: scheduledDate, scheduledTime, estimatedMinutes, priority, areaTag, or focusOrder. Do not emit one update_task action per task. This supports large reviews while keeping JSON compact.',
     "TASK ORGANIZATION: update existing tasks by ID. Use scheduledTime for real clock scheduling. Use focusOrder for execution order without requiring a time. Avoid overlaps and add realistic breathing room.",
     "TASK TAGS: use an existing taskAreas key. If the requested tag does not exist, propose create_area before assigning it.",
     "PRIORITY: use Low, Medium, High, or Critical based on consequence and deadline, not anxiety.",
     "MINISTRY: daily goals are always manual. You may set a monthly goal and specific daily plans, but never auto-distribute the monthly target unless the user explicitly asks you to create a proposed schedule. Preserve logged actual time unless the user explicitly changes it.",
     "DISSERTATION: use front IDs from context when adding a next step or changing a front status.",
-    "Allowed actions: create_task, update_task, create_habit, create_area, set_ministry_month_goal, update_ministry_day, add_dissertation_step, update_dissertation_front.",
+    "Allowed actions: create_task, update_task, bulk_update_tasks, create_habit, create_area, set_ministry_month_goal, update_ministry_day, add_dissertation_step, update_dissertation_front.",
     'Return only one JSON object shaped as {"message":"short answer","actions":[{"type":"allowed action","title":"short preview title","reason":"brief reason","payload":{}}]}. Use an empty actions array when no change is needed. Never add keys outside this structure.',
     "For task duration, the payload key is estimatedMinutes (integer minutes). For a fixed task time, use scheduledTime in HH:mm. Never use estimate, duration, or time as payload keys.",
     "Never delete, complete, or mark records missed. Do not alter sensitive metrics. If the requested operation has no supported safe action, explain what is missing instead of pretending.",
@@ -453,7 +501,7 @@ export async function askAssistant(
       })),
       generationConfig: {
         temperature: 0.3,
-        maxOutputTokens: 4000,
+        maxOutputTokens: 8192,
         responseMimeType: "application/json",
       },
     });
@@ -530,19 +578,44 @@ export async function askAssistant(
     try {
       parsed = replySchema.parse(normalizeAssistantReply(JSON.parse(text)));
     } catch (error) {
+      const candidate = payload?.candidates?.[0];
       logServerEvent("error", {
         endpoint: "Gemini response validation",
         message: "Orbit received an invalid action payload",
         error,
+        meta: {
+          finishReason: candidate?.finishReason || null,
+          finishMessage: candidate?.finishMessage || null,
+          responseLength: text.length,
+        },
       });
+      if (candidate?.finishReason === "MAX_TOKENS") {
+        throw new Error("AI_RESPONSE_TOO_LARGE");
+      }
       throw new Error("AI_INVALID_RESPONSE");
     }
+    const taskTitles = new Map(
+      context.pendingTasks.map((task) => [task.id, task.title] as const)
+    );
     return {
       message: parsed.message,
-      actions: parsed.actions.map((action) => ({
-        ...calibrateRepeatedTask(action, context.completedTaskHistory),
-        id: action.id || randomUUID(),
-      })) as AssistantAction[],
+      actions: parsed.actions.map((action) => {
+        const calibrated = calibrateRepeatedTask(action, context.completedTaskHistory);
+        return {
+          ...calibrated,
+          id: action.id || randomUUID(),
+          payload:
+            calibrated.type === "bulk_update_tasks" && calibrated.payload.taskUpdates
+              ? {
+                  ...calibrated.payload,
+                  taskUpdates: calibrated.payload.taskUpdates.map((update) => ({
+                    ...update,
+                    title: update.title || taskTitles.get(update.taskId),
+                  })),
+                }
+              : calibrated.payload,
+        };
+      }) as AssistantAction[],
     };
   } finally {
     clearTimeout(timeout);
@@ -553,8 +626,13 @@ export async function applyAssistantActions(userEmail: string, rawActions: unkno
   const actions = applySchema.parse(rawActions);
   const todayIso = await getTodayIsoForUser(userEmail);
   const taskIds = actions
-    .filter((action) => action.type === "update_task")
-    .map((action) => action.payload.taskId)
+    .flatMap((action) => {
+      if (action.type === "update_task") return [action.payload.taskId];
+      if (action.type === "bulk_update_tasks") {
+        return (action.payload.taskUpdates || []).map((update) => update.taskId);
+      }
+      return [];
+    })
     .filter((id): id is string => Boolean(id));
   if (taskIds.length) {
     const owned = await prisma.todoTask.count({ where: { userEmail, id: { in: taskIds } } });
@@ -609,6 +687,31 @@ export async function applyAssistantActions(userEmail: string, rawActions: unkno
         focusOrder: action.payload.focusOrder,
       });
       results.push({ id: task.id, type: action.type, title: task.title });
+      continue;
+    }
+
+    if (action.type === "bulk_update_tasks") {
+      const updates = action.payload.taskUpdates;
+      if (!updates?.length) throw new Error("INVALID_ASSISTANT_ACTION");
+      for (let index = 0; index < updates.length; index += 8) {
+        const batch = updates.slice(index, index + 8);
+        const updatedTasks = await Promise.all(
+          batch.map((update) =>
+            updateTask(userEmail, update.taskId, {
+              scheduledDate: update.scheduledDate,
+              scheduledTime: update.scheduledTime,
+              plannedTime: update.scheduledTime,
+              estimatedMinutes: update.estimatedMinutes,
+              priorityTag: update.priority,
+              areaTag: update.areaTag,
+              focusOrder: update.focusOrder,
+            })
+          )
+        );
+        updatedTasks.forEach((task) => {
+          results.push({ id: task.id, type: action.type, title: task.title });
+        });
+      }
       continue;
     }
 

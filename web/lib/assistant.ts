@@ -1,6 +1,7 @@
 export const ASSISTANT_ACTION_TYPES = [
   "create_task",
   "update_task",
+  "bulk_update_tasks",
   "create_habit",
   "create_area",
   "set_ministry_month_goal",
@@ -52,6 +53,16 @@ export type AssistantAction = {
     frontId?: string;
     status?: string;
     dueDate?: string | null;
+    taskUpdates?: Array<{
+      taskId: string;
+      title?: string;
+      scheduledDate?: string | null;
+      scheduledTime?: string | null;
+      estimatedMinutes?: number | null;
+      priority?: "Low" | "Medium" | "High" | "Critical";
+      areaTag?: string | null;
+      focusOrder?: number | null;
+    }>;
   };
 };
 

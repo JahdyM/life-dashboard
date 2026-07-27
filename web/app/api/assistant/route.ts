@@ -38,7 +38,7 @@ const requestSchema = z.discriminatedUnion("mode", [
   }),
   z.object({
     mode: z.literal("apply"),
-    actions: z.array(z.unknown()).min(1).max(40),
+    actions: z.array(z.unknown()).min(1).max(100),
   }),
 ]);
 
@@ -61,6 +61,9 @@ function assistantError(error: unknown) {
   }
   if (message === "AI_INVALID_RESPONSE") {
     return jsonError("Orbit returned an invalid plan. Try the request again.", 502);
+  }
+  if (message === "AI_RESPONSE_TOO_LARGE") {
+    return jsonError("This review is too large for one response. Try a smaller group.", 413);
   }
   if (message === "AI_REQUEST_FAILED" || message === "AI_EMPTY_RESPONSE") {
     return jsonError("Orbit could not reach Gemini. Try again.", 502);

@@ -7,6 +7,7 @@ function actionLabel(action: AssistantAction) {
   const labels: Record<AssistantAction["type"], string> = {
     create_task: "New task",
     update_task: "Task",
+    bulk_update_tasks: "Bulk review",
     create_habit: "New habit",
     create_area: "New tag",
     set_ministry_month_goal: "Ministry goal",
@@ -29,8 +30,26 @@ function actionMeta(action: AssistantAction) {
     action.payload.priority,
     action.payload.areaTag || action.payload.areaLabel,
     action.payload.dueDate,
+    action.payload.taskUpdates?.length
+      ? `${action.payload.taskUpdates.length} tasks`
+      : null,
   ].filter(Boolean);
   return parts.join(" · ");
+}
+
+function taskUpdateMeta(
+  update: NonNullable<AssistantAction["payload"]["taskUpdates"]>[number]
+) {
+  return [
+    update.scheduledDate,
+    update.scheduledTime,
+    update.estimatedMinutes != null ? `${update.estimatedMinutes} min` : null,
+    update.priority,
+    update.areaTag,
+    update.focusOrder != null ? `#${update.focusOrder}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 export default function AssistantPlanPreview({
@@ -54,6 +73,19 @@ export default function AssistantPlanPreview({
           <strong>{action.title}</strong>
           {actionMeta(action) ? <small>{actionMeta(action)}</small> : null}
           {action.reason ? <small>{action.reason}</small> : null}
+          {action.type === "bulk_update_tasks" && action.payload.taskUpdates?.length ? (
+            <details className="assistant-bulk-review">
+              <summary>Review changes</summary>
+              <div>
+                {action.payload.taskUpdates.map((update) => (
+                  <p key={update.taskId}>
+                    <strong>{update.title || "Task"}</strong>
+                    <small>{taskUpdateMeta(update)}</small>
+                  </p>
+                ))}
+              </div>
+            </details>
+          ) : null}
         </div>
       ))}
       <button
