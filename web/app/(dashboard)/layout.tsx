@@ -4,6 +4,7 @@ import { AppNav, LogoutButton } from "@/components/AppNav";
 import DashboardFreshness from "@/components/DashboardFreshness";
 import YesterdayCatchupModal from "@/components/YesterdayCatchupModal";
 import DissertationDeadlinesWidget from "@/components/DissertationDeadlinesWidget";
+import OrbitDock from "@/components/assistant/OrbitDock";
 import { Providers } from "@/app/providers";
 import { getDashboardShellData } from "@/lib/server/dashboard";
 import { getMoodMeta } from "@/lib/moods";
@@ -122,6 +123,8 @@ export default async function DashboardLayout({
         </section>
 
         <main className="shell-main">{children}</main>
+
+        <OrbitDock />
 
         <YesterdayCatchupModal todayIso={shell.todayIso} sharedHabits={preferences.sharedHabits} />
 

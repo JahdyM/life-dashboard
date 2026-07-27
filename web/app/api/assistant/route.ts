@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { requireUserEmail } from "@/lib/server/auth";
 import { applyAssistantActions, askAssistant } from "@/lib/server/assistant";
+import type { AssistantScope } from "@/lib/assistant";
 import { handleAuthError, jsonError, jsonOk, zodErrorMessage } from "@/lib/server/response";
 import { logServerEvent } from "@/lib/server/logger";
 
@@ -12,14 +13,32 @@ const messageSchema = z.object({
   content: z.string().trim().min(1).max(6000),
 });
 
+const scopeSchema = z.enum([
+  "all",
+  "today",
+  "calendar",
+  "habits",
+  "ministry",
+  "mood",
+  "dissertation",
+  "stats",
+  "finances",
+  "books",
+  "publications",
+  "goals",
+  "spiritual",
+  "couple",
+]);
+
 const requestSchema = z.discriminatedUnion("mode", [
   z.object({
     mode: z.literal("chat"),
-    messages: z.array(messageSchema).min(1).max(12),
+    scope: scopeSchema.default("all"),
+    messages: z.array(messageSchema).min(1).max(16),
   }),
   z.object({
     mode: z.literal("apply"),
-    actions: z.array(z.unknown()).min(1).max(12),
+    actions: z.array(z.unknown()).min(1).max(40),
   }),
 ]);
 
@@ -47,7 +66,13 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) return jsonError(zodErrorMessage(parsed.error), 400);
 
     if (parsed.data.mode === "chat") {
-      return jsonOk(await askAssistant(userEmail, parsed.data.messages));
+      return jsonOk(
+        await askAssistant(
+          userEmail,
+          parsed.data.messages,
+          parsed.data.scope as AssistantScope
+        )
+      );
     }
 
     const items = await applyAssistantActions(userEmail, parsed.data.actions);

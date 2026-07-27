@@ -1,10 +1,11 @@
 "use client";
 
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
-import { Bot, Check, CornerDownLeft, LoaderCircle, Orbit, Sparkles } from "lucide-react";
+import { Bot, CornerDownLeft, LoaderCircle, Orbit, Sparkles } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { fetchJson } from "@/lib/client/api";
+import AssistantPlanPreview from "./AssistantPlanPreview";
 import type {
   AssistantAction,
   AssistantChatMessage,
@@ -18,23 +19,6 @@ type UiMessage = AssistantChatMessage & {
 };
 
 const STORAGE_KEY = "life-dashboard-orbit-chat-v1";
-
-function actionLabel(action: AssistantAction) {
-  if (action.type === "create_task") return "New task";
-  if (action.type === "update_task") return "Update";
-  return "New habit";
-}
-
-function actionMeta(action: AssistantAction) {
-  const parts = [
-    action.payload.scheduledDate,
-    action.payload.scheduledTime,
-    action.payload.estimatedMinutes ? `${action.payload.estimatedMinutes} min` : null,
-    action.payload.priority,
-    action.payload.areaTag,
-  ].filter(Boolean);
-  return parts.join(" · ");
-}
 
 export default function AssistantClient() {
   const router = useRouter();
@@ -90,6 +74,7 @@ export default function AssistantClient() {
         method: "POST",
         body: JSON.stringify({
           mode: "chat",
+          scope: "all",
           messages: nextMessages.slice(-12).map(({ role, content: text }) => ({
             role,
             content: text,
@@ -135,6 +120,9 @@ export default function AssistantClient() {
       );
       await queryClient.invalidateQueries({ queryKey: ["tasks"] });
       await queryClient.invalidateQueries({ queryKey: ["custom-habits"] });
+      await queryClient.invalidateQueries({ queryKey: ["task-areas"] });
+      await queryClient.invalidateQueries({ queryKey: ["ministry-month"] });
+      await queryClient.invalidateQueries({ queryKey: ["dissertation"] });
       router.refresh();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Could not apply plan.");
@@ -170,34 +158,12 @@ export default function AssistantClient() {
               <div className="assistant-message-body">
                 <p>{message.content}</p>
                 {message.actions?.length ? (
-                  <div className="assistant-plan">
-                    {message.actions.map((action) => (
-                      <div key={action.id} className="assistant-plan-item">
-                        <span>{actionLabel(action)}</span>
-                        <strong>{action.title}</strong>
-                        {actionMeta(action) ? <small>{actionMeta(action)}</small> : null}
-                        {action.reason ? <small>{action.reason}</small> : null}
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      className="assistant-apply"
-                      disabled={message.applied || applyingId === message.id}
-                      onClick={() => void applyPlan(message.id, message.actions || [])}
-                    >
-                      {message.applied ? (
-                        <>
-                          <Check size={15} /> Applied
-                        </>
-                      ) : applyingId === message.id ? (
-                        <>
-                          <LoaderCircle size={15} className="spin" /> Applying
-                        </>
-                      ) : (
-                        "Apply plan"
-                      )}
-                    </button>
-                  </div>
+                  <AssistantPlanPreview
+                    actions={message.actions}
+                    applied={Boolean(message.applied)}
+                    applying={applyingId === message.id}
+                    onApply={() => void applyPlan(message.id, message.actions || [])}
+                  />
                 ) : null}
               </div>
             </article>

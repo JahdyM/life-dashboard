@@ -11012,6 +11012,195 @@ input.no-spinner[type="number"] {
   }
 }
 
+/* Contextual Orbit field */
+.orbit-dock {
+  position: fixed;
+  z-index: 85;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  width: min(430px, calc(100vw - 32px));
+  display: grid;
+  gap: 9px;
+  filter: drop-shadow(0 18px 38px rgba(0, 0, 0, 0.38));
+}
+
+.orbit-dock-panel {
+  max-height: min(560px, calc(100vh - 120px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  border: 1px solid rgba(210, 168, 105, 0.22);
+  border-radius: 21px;
+  background:
+    radial-gradient(circle at 100% 0, rgba(103, 139, 170, 0.13), transparent 35%),
+    rgba(20, 18, 18, 0.98);
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.46);
+  animation: orbit-dock-in 0.18s ease-out;
+}
+
+.orbit-dock-panel > header {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px 10px 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.orbit-dock-panel > header > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #efd3a5;
+}
+
+.orbit-dock-panel > header strong {
+  color: var(--text);
+  font-size: 0.86rem;
+}
+
+.orbit-dock-panel > header button {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.orbit-dock-panel > header button:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.orbit-dock-answer {
+  overflow-y: auto;
+  padding: 15px;
+}
+
+.orbit-dock-answer > p {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.5;
+  font-size: 0.9rem;
+}
+
+.orbit-dock-answer .assistant-thinking {
+  padding-left: 0;
+}
+
+.orbit-dock-answer .assistant-error {
+  margin: 10px 0 0;
+}
+
+.assistant-plan.compact {
+  max-height: 330px;
+  overflow-y: auto;
+  padding-right: 3px;
+}
+
+.assistant-plan.compact .assistant-plan-item {
+  padding: 8px 9px;
+}
+
+.assistant-plan.compact .assistant-plan-item small:last-child {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.orbit-dock-full {
+  padding: 10px 15px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.orbit-dock-full:hover {
+  color: var(--text);
+}
+
+.orbit-dock-composer {
+  min-height: 52px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 7px 6px 14px;
+  border: 1px solid rgba(210, 168, 105, 0.28);
+  border-radius: 18px;
+  color: #e7c58d;
+  background: rgba(28, 25, 24, 0.98);
+  backdrop-filter: blur(18px);
+}
+
+.orbit-dock-composer:focus-within {
+  border-color: rgba(210, 168, 105, 0.58);
+  box-shadow: 0 0 0 3px rgba(210, 168, 105, 0.08);
+}
+
+.orbit-dock-composer input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  color: var(--text);
+  background: transparent;
+  font: inherit;
+  font-size: 0.88rem;
+}
+
+.orbit-dock-composer input::placeholder {
+  color: rgba(201, 191, 175, 0.68);
+}
+
+.orbit-dock-composer button {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 12px;
+  color: #1b1611;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.orbit-dock-composer button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+@keyframes orbit-dock-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+}
+
+@media (max-width: 640px) {
+  .orbit-dock {
+    right: 10px;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    width: calc(100vw - 20px);
+  }
+
+  .orbit-dock-panel {
+    max-height: min(68vh, 540px);
+    border-radius: 19px;
+  }
+
+  .orbit-dock-composer {
+    min-height: 50px;
+    border-radius: 16px;
+  }
+}
+
 /* Orbit assistant */
 .assistant-page {
   width: min(980px, 100%);
