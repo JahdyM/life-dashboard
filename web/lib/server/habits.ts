@@ -7,8 +7,42 @@ import {
   isHabitScheduledForWeekday,
   type HabitFieldName,
 } from "../config/habits";
+import type { SpiritualStreakBoardKey } from "../types";
+import { getFixedHabitTaskTitles, syncHabitAgendaTasks } from "./habitTaskSync";
+import { logServerEvent } from "./logger";
 import { getEnabledSharedHabitsForUser } from "./onboarding";
-import { getFamilyWorshipDay, getMeetingDays } from "./settings";
+import { addPointsOnce, POINTS } from "./rewards";
+import {
+  getCustomHabitDone,
+  getCustomHabits,
+  getFamilyWorshipDay,
+  getMeetingDays,
+  setCustomHabitDone,
+} from "./settings";
+import { updateSpiritualStreakEntry } from "./spiritualStreaks";
+
+export const SHARED_HABIT_PATCH_KEYS = new Set([
+  "bible_reading",
+  "bible_study",
+  "dissertation_work",
+  "workout",
+  "general_reading",
+  "shower",
+  "daily_text",
+  "meeting_attended",
+  "prepare_meeting",
+  "family_worship",
+  "writing",
+  "scientific_writing",
+  "prayer_on_waking",
+]);
+
+const HABIT_TO_STREAK_BOARD: Record<string, SpiritualStreakBoardKey> = {
+  bible_reading: "bible_reading",
+  bible_study: "bible_reading",
+  daily_text: "daily_text",
+  prayer_on_waking: "prayer_on_waking",
+};
 
 export function habitKeyToField(key: string) {
   return getHabitField(key);
@@ -103,6 +137,136 @@ export async function updateDailyEntry(
       ...data,
     },
   });
+}
+
+export async function updateDailyEntryWithIntegrations(
+  userEmail: string,
+  dateIso: string,
+  payload: Record<string, unknown>
+) {
+  const habitKeysBeingSetOn = Object.entries(payload)
+    .filter(([key, value]) => SHARED_HABIT_PATCH_KEYS.has(key) && (value === 1 || value === true))
+    .map(([key]) => key);
+  const oldEntry = habitKeysBeingSetOn.length
+    ? await getDailyEntry(userEmail, dateIso)
+    : null;
+  const entry = await updateDailyEntry(userEmail, dateIso, payload);
+
+  if (oldEntry && habitKeysBeingSetOn.length) {
+    await Promise.all(
+      habitKeysBeingSetOn
+        .filter((key) => {
+          const field = getHabitField(key);
+          return field && !oldEntry[field as keyof typeof oldEntry];
+        })
+        .map((key) =>
+          addPointsOnce(
+            userEmail,
+            `habit::shared::${dateIso}::${key}`,
+            POINTS.sharedHabit
+          )
+        )
+    );
+  }
+
+  await Promise.all(
+    Object.entries(payload)
+      .filter(([key]) => key in HABIT_TO_STREAK_BOARD)
+      .map(async ([key, value]) => {
+        const truthy = value === 1 || value === true;
+        const falsy = value === 0 || value === false;
+        if (!truthy && !falsy) return;
+        try {
+          await updateSpiritualStreakEntry({
+            userEmail,
+            boardKey: HABIT_TO_STREAK_BOARD[key],
+            monthKey: dateIso.slice(0, 7),
+            date: dateIso,
+            success: truthy ? true : null,
+          });
+        } catch (error) {
+          logServerEvent("warn", {
+            endpoint: "updateDailyEntryWithIntegrations",
+            message: "Failed to mirror habit into spiritual streak board",
+            error,
+            meta: { habitKey: key, dateIso },
+          });
+        }
+      })
+  );
+
+  await Promise.all(
+    Object.entries(payload)
+      .filter(([key]) => SHARED_HABIT_PATCH_KEYS.has(key))
+      .map(async ([key, value]) => {
+        const truthy = value === 1 || value === true;
+        const falsy = value === 0 || value === false;
+        if (!truthy && !falsy) return;
+        const titles = getFixedHabitTaskTitles(key);
+        if (!titles.length) return;
+        try {
+          await syncHabitAgendaTasks({
+            userEmail,
+            dateIso,
+            titles,
+            done: truthy,
+          });
+        } catch (error) {
+          logServerEvent("warn", {
+            endpoint: "updateDailyEntryWithIntegrations",
+            message: "Failed to sync fixed habit agenda tasks",
+            error,
+            meta: { habitKey: key, dateIso },
+          });
+        }
+      })
+  );
+
+  return entry;
+}
+
+export async function setCustomHabitStatusWithIntegrations(
+  userEmail: string,
+  dateIso: string,
+  habitId: string,
+  completed: boolean
+) {
+  const [habits, previous] = await Promise.all([
+    getCustomHabits(userEmail),
+    getCustomHabitDone(userEmail, dateIso),
+  ]);
+  const habit = habits.find((item) => item.id === habitId);
+  if (!habit) throw new Error("RESOURCE_NOT_FOUND");
+
+  const next = {
+    ...previous,
+    [habitId]: completed ? 1 : 0,
+  };
+  await setCustomHabitDone(userEmail, dateIso, next);
+
+  if (completed && !previous[habitId]) {
+    await addPointsOnce(
+      userEmail,
+      `habit::custom::${dateIso}::${habitId}`,
+      POINTS.customHabit
+    );
+  }
+
+  try {
+    await syncHabitAgendaTasks({
+      userEmail,
+      dateIso,
+      titles: [habit.name],
+      done: completed,
+    });
+  } catch (error) {
+    logServerEvent("warn", {
+      endpoint: "setCustomHabitStatusWithIntegrations",
+      message: "Failed to sync custom habit agenda tasks",
+      error,
+      meta: { habitId, dateIso },
+    });
+  }
 }
 
 export async function listEntries(userEmail: string, startIso: string, endIso: string) {

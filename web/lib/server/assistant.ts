@@ -5,6 +5,11 @@ import { addDays, subDays } from "date-fns";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { BIBLE_BOOKS } from "@/lib/config/bible";
+import { MOOD_DEFINITIONS } from "@/lib/moods";
+import {
+  SPIRITUAL_GOAL_CATEGORY_KEYS,
+  SPIRITUAL_STREAK_BOARD_KEYS,
+} from "@/lib/config/spiritual";
 import {
   ASSISTANT_ACTION_TYPES,
   type AssistantAction,
@@ -13,6 +18,21 @@ import {
   type AssistantScope,
 } from "@/lib/assistant";
 import { applyDissertationAction, loadDissertationProject } from "./dissertation";
+import { syncDissertationStepFromMirrorTask } from "./dissertationMirror";
+import { createBook, getBooksPageData, updateBook, updateBooksGoal } from "./books";
+import {
+  addBucketItem,
+  addCoupleGoal,
+  addSavingsGoal,
+  getBucketList,
+  getCoupleGoals,
+  getMonthlyFinance,
+  getSavingsGoals,
+  saveMonthlyFinance,
+  toggleBucketItem,
+  updateCoupleGoalProgress,
+  updateSavingsGoalAmount,
+} from "./coupleSettings";
 import {
   getMinistryMonthData,
   getMinistryRecurringPlans,
@@ -31,8 +51,31 @@ import {
   getAllCustomHabits,
   getCustomHabits,
   getTodayIsoForUser,
+  getUserTimeZone,
   saveCustomHabits,
 } from "./settings";
+import {
+  getAssistantPreferences,
+  updateAssistantPreferences,
+} from "./assistantPreferences";
+import {
+  getEnergySettings,
+  setLowEnergyMode,
+  setTaskEffort,
+} from "./energy";
+import {
+  setCustomHabitStatusWithIntegrations,
+  SHARED_HABIT_PATCH_KEYS,
+  updateDailyEntryWithIntegrations,
+} from "./habits";
+import { createMoodMoment, getMoodHistory } from "./mood";
+import { getEnabledSharedHabitsForUser } from "./onboarding";
+import { addPointsOnce, POINTS } from "./rewards";
+import { getSpiritualGoalsPageData, applySpiritualGoalAction } from "./spiritualGoals";
+import {
+  getSpiritualStreaksPageData,
+  updateSpiritualStreakEntry,
+} from "./spiritualStreaks";
 import { createTaskArea, getTaskAreas } from "./taskAreas";
 import { createTask, listTasks, updateTask } from "./tasks";
 import { logServerEvent } from "./logger";
@@ -46,10 +89,17 @@ const taskUpdateSchema = z.object({
   title: z.string().trim().min(1).max(200).optional(),
   scheduledDate: z.union([z.string().regex(isoDate), z.null()]).optional(),
   scheduledTime: z.union([z.string().regex(isoTime), z.null()]).optional(),
+  plannedTime: z.union([z.string().regex(isoTime), z.null()]).optional(),
+  startTime: z.union([z.string().regex(isoTime), z.null()]).optional(),
+  endTime: z.union([z.string().regex(isoTime), z.null()]).optional(),
   estimatedMinutes: z.number().int().min(1).max(480).nullable().optional(),
   priority: z.enum(["Low", "Medium", "High", "Critical"]).optional(),
   areaTag: z.string().trim().max(40).nullable().optional(),
   focusOrder: z.number().int().min(1).max(1000).nullable().optional(),
+  effort: z.enum(["low", "medium", "high"]).nullable().optional(),
+  notes: z.string().trim().max(4000).nullable().optional(),
+  scheduleLocked: z.boolean().optional(),
+  completed: z.boolean().optional(),
 });
 
 const readingUpdateSchema = z.discriminatedUnion("kind", [
@@ -109,11 +159,25 @@ const actionSchema = z.object({
       title: z.string().trim().min(1).max(200).optional(),
       scheduledDate: z.union([z.string().regex(isoDate), z.null()]).optional(),
       scheduledTime: z.union([z.string().regex(isoTime), z.null()]).optional(),
+      plannedTime: z.union([z.string().regex(isoTime), z.null()]).optional(),
+      startTime: z.union([z.string().regex(isoTime), z.null()]).optional(),
+      endTime: z.union([z.string().regex(isoTime), z.null()]).optional(),
       estimatedMinutes: z.number().int().min(1).max(480).nullable().optional(),
       priority: z.enum(["Low", "Medium", "High", "Critical"]).optional(),
       areaTag: z.string().trim().max(40).nullable().optional(),
       focusOrder: z.number().int().min(1).max(1000).nullable().optional(),
+      effort: z.enum(["low", "medium", "high"]).nullable().optional(),
+      scheduleLocked: z.boolean().optional(),
       habitName: z.string().trim().min(1).max(60).optional(),
+      habitKey: z.string().trim().min(1).max(80).optional(),
+      completed: z.boolean().optional(),
+      loggedTime: z.string().regex(isoTime).optional(),
+      moodCategory: z.string().trim().min(1).max(80).optional(),
+      sleepHours: z.number().min(0).max(24).nullable().optional(),
+      anxietyLevel: z.number().int().min(0).max(10).nullable().optional(),
+      workHours: z.number().min(0).max(24).nullable().optional(),
+      boredomMinutes: z.number().int().min(0).max(1440).nullable().optional(),
+      enabled: z.boolean().optional(),
       areaLabel: z.string().trim().min(1).max(28).optional(),
       areaColor: z
         .union([z.string().regex(/^#[0-9a-fA-F]{6}$/), z.null()])
@@ -130,9 +194,55 @@ const actionSchema = z.object({
       startDate: z.string().regex(isoDate).optional(),
       endDate: z.union([z.string().regex(isoDate), z.null()]).optional(),
       readingUpdates: z.array(readingUpdateSchema).min(1).max(500).optional(),
+      year: z.number().int().min(2000).max(2100).optional(),
+      yearlyGoal: z.number().int().min(0).max(500).optional(),
+      bookId: z.string().trim().min(1).max(160).optional(),
+      author: z.string().trim().max(200).nullable().optional(),
+      coverUrl: z.string().trim().url().max(2000).nullable().optional(),
+      totalPages: z.number().int().min(1).max(20_000).nullable().optional(),
+      pagesRead: z.number().int().min(0).max(20_000).optional(),
+      bookStatus: z.enum(["planned", "reading", "finished"]).optional(),
+      rating: z.number().int().min(1).max(5).nullable().optional(),
+      boardKey: z.enum(SPIRITUAL_STREAK_BOARD_KEYS).optional(),
+      success: z.boolean().nullable().optional(),
+      spiritualCategory: z.enum(SPIRITUAL_GOAL_CATEGORY_KEYS).optional(),
+      spiritualOperation: z
+        .enum([
+          "complete_current",
+          "move_back",
+          "add_task",
+          "toggle_task",
+          "save_step_notes",
+          "save_general_notes",
+        ])
+        .optional(),
+      stepId: z.string().trim().min(1).max(160).optional(),
+      taskCompleted: z.boolean().optional(),
       frontId: z.string().trim().min(1).max(120).optional(),
       status: z.string().trim().max(500).optional(),
       dueDate: z.union([z.string().regex(isoDate), z.null()]).optional(),
+      askWhenUncertain: z.boolean().optional(),
+      goalId: z.string().trim().min(1).max(160).optional(),
+      category: z.string().trim().min(1).max(80).optional(),
+      size: z.string().trim().min(1).max(80).optional(),
+      emoji: z.string().trim().min(1).max(20).optional(),
+      progress: z.number().min(0).max(100).optional(),
+      targetDate: z.union([z.string().regex(isoDate), z.null()]).optional(),
+      savingsGoalId: z.string().trim().min(1).max(160).optional(),
+      targetAmount: z.number().min(0).max(1_000_000_000).optional(),
+      currentAmount: z.number().min(0).max(1_000_000_000).optional(),
+      bucketItemId: z.string().trim().min(1).max(160).optional(),
+      expenseId: z.string().trim().min(1).max(160).optional(),
+      amount: z.number().min(0).max(1_000_000_000).optional(),
+      paid: z.boolean().optional(),
+      debtKey: z.string().trim().min(1).max(80).optional(),
+      totalAmount: z.number().min(0).max(1_000_000_000).optional(),
+      monthlyAmount: z.number().min(0).max(1_000_000_000).optional(),
+      paidAmount: z.number().min(0).max(1_000_000_000).optional(),
+      incomeKey: z.enum(["gui", "jahdy", "extras"]).optional(),
+      fixedCostId: z.string().trim().min(1).max(160).optional(),
+      budget: z.number().min(0).max(1_000_000_000).optional(),
+      actual: z.number().min(0).max(1_000_000_000).nullable().optional(),
       taskUpdates: z.array(taskUpdateSchema).min(1).max(500).optional(),
     })
     .strict(),
@@ -150,8 +260,12 @@ type EstimationHistoryItem = AssistantContext["completedTaskHistory"][number];
 
 const payloadAliases: Record<string, string[]> = {
   taskId: ["task_id", "id"],
+  title: ["name"],
   scheduledDate: ["scheduled_date"],
-  scheduledTime: ["scheduled_time", "planned_time", "plannedTime", "time"],
+  scheduledTime: ["scheduled_time", "time"],
+  plannedTime: ["planned_time"],
+  startTime: ["start_time", "actual_start_time"],
+  endTime: ["end_time", "actual_end_time"],
   estimatedMinutes: [
     "estimated_minutes",
     "estimate_minutes",
@@ -162,7 +276,16 @@ const payloadAliases: Record<string, string[]> = {
   ],
   areaTag: ["area_tag", "tag"],
   focusOrder: ["focus_order", "order"],
+  effort: ["effort_level", "energy", "energy_level"],
+  scheduleLocked: ["schedule_locked", "fixed_time", "lock_schedule"],
   habitName: ["habit_name"],
+  habitKey: ["habit_key"],
+  loggedTime: ["logged_time"],
+  moodCategory: ["mood_category", "mood"],
+  sleepHours: ["sleep_hours"],
+  anxietyLevel: ["anxiety_level"],
+  workHours: ["work_hours"],
+  boredomMinutes: ["boredom_minutes"],
   areaLabel: ["area_label"],
   areaColor: ["area_color"],
   targetMinutes: ["target_minutes"],
@@ -173,8 +296,37 @@ const payloadAliases: Record<string, string[]> = {
   startDate: ["start_date", "from_date"],
   endDate: ["end_date", "until_date"],
   readingUpdates: ["reading_updates", "reading", "progress_updates"],
+  yearlyGoal: ["yearly_goal"],
+  bookId: ["book_id"],
+  coverUrl: ["cover_url"],
+  totalPages: ["total_pages"],
+  pagesRead: ["pages_read"],
+  bookStatus: ["book_status"],
+  boardKey: ["board_key", "streak_key"],
+  spiritualCategory: ["spiritual_category", "staircase_category"],
+  spiritualOperation: ["spiritual_operation", "operation"],
+  stepId: ["step_id"],
+  taskCompleted: ["task_completed"],
   frontId: ["front_id"],
   dueDate: ["due_date"],
+  askWhenUncertain: [
+    "ask_when_uncertain",
+    "ask_when_ambiguous",
+    "clarify_when_uncertain",
+  ],
+  goalId: ["goal_id"],
+  targetDate: ["target_date"],
+  savingsGoalId: ["savings_goal_id"],
+  targetAmount: ["target_amount"],
+  currentAmount: ["current_amount"],
+  bucketItemId: ["bucket_item_id"],
+  expenseId: ["expense_id"],
+  debtKey: ["debt_key"],
+  totalAmount: ["total_amount"],
+  monthlyAmount: ["monthly_amount"],
+  paidAmount: ["paid_amount"],
+  incomeKey: ["income_key"],
+  fixedCostId: ["fixed_cost_id"],
   taskUpdates: ["task_updates", "updates", "changes", "tasks"],
 };
 
@@ -186,6 +338,22 @@ const actionTypeAliases: Record<string, (typeof ASSISTANT_ACTION_TYPES)[number]>
   update_publication_progress: "update_reading_progress",
   mark_publication: "update_reading_progress",
   mark_bible_chapter: "update_reading_progress",
+  update_assistant_preferences: "set_assistant_preferences",
+  configure_assistant: "set_assistant_preferences",
+  create_mood: "log_mood",
+  log_mood_moment: "log_mood",
+  update_metrics: "update_day_metrics",
+  complete_habit: "set_habit_status",
+  set_habit_completion: "set_habit_status",
+  update_streak: "update_spiritual_streak",
+  set_book_goal: "set_books_goal",
+  create_reading_book: "create_book",
+  update_reading_book: "update_book",
+  spiritual_goal_action: "update_spiritual_goal",
+  create_couple_goal: "add_couple_goal",
+  create_savings_goal: "add_savings_goal",
+  create_bucket_item: "add_bucket_item",
+  set_finance_debt: "upsert_finance_debt",
 };
 
 function normalizeMinutes(value: unknown) {
@@ -199,6 +367,14 @@ function normalizeMinutes(value: unknown) {
   }
   const numeric = Number(normalized);
   return Number.isFinite(numeric) ? Math.round(numeric) : value;
+}
+
+function normalizeNumber(value: unknown) {
+  if (typeof value === "number") return value;
+  if (typeof value !== "string") return value;
+  const normalized = value.trim().replace(/\s/g, "").replace(",", ".");
+  const numeric = Number(normalized);
+  return Number.isFinite(numeric) ? numeric : value;
 }
 
 function normalizeWeekday(value: unknown) {
@@ -233,20 +409,169 @@ function normalizeWeekday(value: unknown) {
   return aliases[normalized] ?? value;
 }
 
+function normalizeClockTime(value: unknown) {
+  if (typeof value !== "string") return value;
+  const match = value.match(/(?:^|\s)([01]?\d|2[0-3]):([0-5]\d)/);
+  return match ? `${match[1].padStart(2, "0")}:${match[2]}` : value;
+}
+
+function normalizeEffort(value: unknown) {
+  if (typeof value !== "string") return value;
+  const normalized = normalizeIntentText(value).trim();
+  const aliases: Record<string, "low" | "medium" | "high"> = {
+    low: "low",
+    light: "low",
+    leve: "low",
+    baixo: "low",
+    baixa: "low",
+    medium: "medium",
+    medio: "medium",
+    media: "medium",
+    moderate: "medium",
+    moderado: "medium",
+    moderada: "medium",
+    high: "high",
+    deep: "high",
+    alto: "high",
+    alta: "high",
+    profundo: "high",
+    profunda: "high",
+  };
+  return aliases[normalized] ?? value;
+}
+
+function normalizeSpiritualStreakKey(value: unknown) {
+  if (typeof value !== "string") return value;
+  const normalized = normalizeIntentText(value)
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const aliases: Record<string, (typeof SPIRITUAL_STREAK_BOARD_KEYS)[number]> = {
+    "daily text": "daily_text",
+    "daily text reading": "daily_text",
+    "texto diario": "daily_text",
+    "bible reading": "bible_reading",
+    "leitura da biblia": "bible_reading",
+    "prayer on waking": "prayer_on_waking",
+    "oracao ao acordar": "prayer_on_waking",
+    "prayer before lunch": "prayer_before_lunch",
+    "oracao antes do almoco": "prayer_before_lunch",
+    "prayer before sleep": "prayer_before_sleep",
+    "oracao antes de dormir": "prayer_before_sleep",
+    pornography: "pornography",
+    pornografia: "pornography",
+    masturbation: "masturbation",
+    masturbacao: "masturbation",
+  };
+  return aliases[normalized] ?? value;
+}
+
+function normalizePriority(value: unknown) {
+  if (typeof value !== "string") return value;
+  const normalized = normalizeIntentText(value).trim();
+  const aliases: Record<string, "Low" | "Medium" | "High" | "Critical"> = {
+    low: "Low",
+    baixa: "Low",
+    baixo: "Low",
+    medium: "Medium",
+    media: "Medium",
+    medio: "Medium",
+    high: "High",
+    alta: "High",
+    alto: "High",
+    critical: "Critical",
+    critica: "Critical",
+    critico: "Critical",
+  };
+  return aliases[normalized] ?? value;
+}
+
+function normalizeBookStatus(value: unknown) {
+  if (typeof value !== "string") return value;
+  const normalized = normalizeIntentText(value).trim();
+  const aliases: Record<string, "planned" | "reading" | "finished"> = {
+    planned: "planned",
+    planeado: "planned",
+    planejado: "planned",
+    reading: "reading",
+    lendo: "reading",
+    finished: "finished",
+    complete: "finished",
+    completed: "finished",
+    terminado: "finished",
+    finalizado: "finished",
+    lido: "finished",
+  };
+  return aliases[normalized] ?? value;
+}
+
+function normalizeSpiritualCategory(value: unknown) {
+  if (typeof value !== "string") return value;
+  const normalized = normalizeIntentText(value)
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const aliases: Record<string, (typeof SPIRITUAL_GOAL_CATEGORY_KEYS)[number]> = {
+    "big goals": "big_goals",
+    "grandes metas": "big_goals",
+    "christian qualities": "christian_qualities",
+    "qualidades cristas": "christian_qualities",
+    "leaving bad habits": "leaving_bad_habits",
+    "deixar maus habitos": "leaving_bad_habits",
+    "ministry skills": "ministry_skills",
+    "habilidades de ministerio": "ministry_skills",
+    prudence: "prudence",
+    prudencia: "prudence",
+  };
+  return aliases[normalized] ?? value;
+}
+
+function normalizeBoolean(value: unknown) {
+  if (typeof value === "boolean" || value === null) return value;
+  if (typeof value !== "string") return value;
+  const normalized = normalizeIntentText(value).trim();
+  if (["true", "yes", "sim", "done", "feito", "pago", "on"].includes(normalized)) {
+    return true;
+  }
+  if (
+    ["false", "no", "nao", "undone", "nao feito", "nao pago", "off"].includes(
+      normalized
+    )
+  ) {
+    return false;
+  }
+  return value;
+}
+
 function normalizeAssistantReply(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return value;
   const reply = value as Record<string, unknown>;
-  if (!Array.isArray(reply.actions)) return value;
+  const actions = Array.isArray(reply.actions) ? reply.actions : [];
+  const message =
+    reply.message ??
+    reply.response ??
+    reply.reply ??
+    reply.text ??
+    reply.content ??
+    (actions.length ? "Review the proposed changes." : undefined);
 
   return {
     ...reply,
-    actions: reply.actions.map((item) => {
+    message,
+    actions: actions.map((item) => {
       if (!item || typeof item !== "object" || Array.isArray(item)) return item;
       const action = item as Record<string, unknown>;
-      const actionType =
-        typeof action.type === "string" && actionTypeAliases[action.type]
-          ? actionTypeAliases[action.type]
+      const normalizedActionType =
+        typeof action.type === "string"
+          ? normalizeIntentText(action.type)
+              .trim()
+              .replace(/[\s-]+/g, "_")
           : action.type;
+      const actionType =
+        typeof normalizedActionType === "string" &&
+        actionTypeAliases[normalizedActionType]
+          ? actionTypeAliases[normalizedActionType]
+          : normalizedActionType;
       const rawPayload =
         action.payload && typeof action.payload === "object" && !Array.isArray(action.payload)
           ? (action.payload as Record<string, unknown>)
@@ -260,6 +585,14 @@ function normalizeAssistantReply(value: unknown) {
         }
         aliases.forEach((alias) => delete payload[alias]);
       });
+      if (
+        (actionType === "create_task" || actionType === "update_task") &&
+        payload.scheduledDate === undefined &&
+        typeof payload.date === "string"
+      ) {
+        payload.scheduledDate = payload.date;
+        delete payload.date;
+      }
 
       ["estimatedMinutes", "focusOrder", "targetMinutes", "goalMinutes", "actualMinutes"].forEach(
         (field) => {
@@ -268,9 +601,63 @@ function normalizeAssistantReply(value: unknown) {
           }
         }
       );
+      [
+        "sleepHours",
+        "anxietyLevel",
+        "workHours",
+        "boredomMinutes",
+        "year",
+        "yearlyGoal",
+        "totalPages",
+        "pagesRead",
+        "rating",
+        "progress",
+        "targetAmount",
+        "currentAmount",
+        "amount",
+        "totalAmount",
+        "monthlyAmount",
+        "paidAmount",
+        "budget",
+        "actual",
+      ].forEach((field) => {
+        if (payload[field] !== undefined && payload[field] !== null) {
+          payload[field] = normalizeNumber(payload[field]);
+        }
+      });
       if (payload.weekday !== undefined) {
         payload.weekday = normalizeWeekday(payload.weekday);
       }
+      if (payload.effort !== undefined && payload.effort !== null) {
+        payload.effort = normalizeEffort(payload.effort);
+      }
+      if (payload.boardKey !== undefined) {
+        payload.boardKey = normalizeSpiritualStreakKey(payload.boardKey);
+      }
+      if (payload.priority !== undefined) {
+        payload.priority = normalizePriority(payload.priority);
+      }
+      if (payload.bookStatus !== undefined) {
+        payload.bookStatus = normalizeBookStatus(payload.bookStatus);
+      }
+      if (payload.spiritualCategory !== undefined) {
+        payload.spiritualCategory = normalizeSpiritualCategory(
+          payload.spiritualCategory
+        );
+      }
+      [
+        "completed",
+        "enabled",
+        "success",
+        "taskCompleted",
+        "paid",
+        "scheduleLocked",
+        "askWhenUncertain",
+      ].forEach((field) => {
+        if (payload[field] !== undefined) {
+          payload[field] = normalizeBoolean(payload[field]);
+        }
+      });
       if (
         actionType === "set_ministry_recurrence" &&
         payload.goalMinutes === undefined &&
@@ -288,12 +675,42 @@ function normalizeAssistantReply(value: unknown) {
         delete payload.label;
       }
       if (
+        payload.title === undefined &&
+        typeof payload.label === "string"
+      ) {
+        payload.title = payload.label;
+        delete payload.label;
+      }
+      if (
         (actionType === "set_ministry_recurrence" ||
           actionType === "remove_ministry_recurrence") &&
         payload.recurrenceId === undefined &&
         typeof payload.taskId === "string"
       ) {
         payload.recurrenceId = payload.taskId;
+        delete payload.taskId;
+      }
+      const entityIdFields: Partial<
+        Record<(typeof ASSISTANT_ACTION_TYPES)[number], string>
+      > = {
+        update_book: "bookId",
+        update_couple_goal: "goalId",
+        update_savings_goal: "savingsGoalId",
+        toggle_bucket_item: "bucketItemId",
+        update_finance_fixed_cost: "fixedCostId",
+      };
+      const entityIdField =
+        typeof actionType === "string"
+          ? entityIdFields[
+              actionType as (typeof ASSISTANT_ACTION_TYPES)[number]
+            ]
+          : undefined;
+      if (
+        entityIdField &&
+        payload[entityIdField] === undefined &&
+        typeof payload.taskId === "string"
+      ) {
+        payload[entityIdField] = payload.taskId;
         delete payload.taskId;
       }
       if (
@@ -305,10 +722,11 @@ function normalizeAssistantReply(value: unknown) {
         delete payload.taskUpdates;
       }
 
-      if (typeof payload.scheduledTime === "string") {
-        const match = payload.scheduledTime.match(/(?:^|\s)([01]?\d|2[0-3]):([0-5]\d)/);
-        if (match) payload.scheduledTime = `${match[1].padStart(2, "0")}:${match[2]}`;
-      }
+      ["scheduledTime", "plannedTime", "startTime", "endTime", "loggedTime"].forEach((field) => {
+        if (payload[field] !== undefined && payload[field] !== null) {
+          payload[field] = normalizeClockTime(payload[field]);
+        }
+      });
 
       if (Array.isArray(payload.taskUpdates)) {
         payload.taskUpdates = payload.taskUpdates.map((update) => {
@@ -322,20 +740,36 @@ function normalizeAssistantReply(value: unknown) {
             }
             aliases.forEach((alias) => delete normalized[alias]);
           });
+          if (
+            normalized.scheduledDate === undefined &&
+            typeof normalized.date === "string"
+          ) {
+            normalized.scheduledDate = normalized.date;
+          }
+          delete normalized.date;
           if (normalized.estimatedMinutes !== undefined) {
             normalized.estimatedMinutes = normalizeMinutes(normalized.estimatedMinutes);
           }
           if (normalized.focusOrder !== undefined) {
             normalized.focusOrder = normalizeMinutes(normalized.focusOrder);
           }
-          if (typeof normalized.scheduledTime === "string") {
-            const match = normalized.scheduledTime.match(
-              /(?:^|\s)([01]?\d|2[0-3]):([0-5]\d)/
-            );
-            if (match) {
-              normalized.scheduledTime = `${match[1].padStart(2, "0")}:${match[2]}`;
-            }
+          if (normalized.effort !== undefined && normalized.effort !== null) {
+            normalized.effort = normalizeEffort(normalized.effort);
           }
+          if (normalized.priority !== undefined) {
+            normalized.priority = normalizePriority(normalized.priority);
+          }
+          if (normalized.scheduleLocked !== undefined) {
+            normalized.scheduleLocked = normalizeBoolean(normalized.scheduleLocked);
+          }
+          if (normalized.completed !== undefined) {
+            normalized.completed = normalizeBoolean(normalized.completed);
+          }
+          ["scheduledTime", "plannedTime", "startTime", "endTime"].forEach((field) => {
+            if (normalized[field] !== undefined && normalized[field] !== null) {
+              normalized[field] = normalizeClockTime(normalized[field]);
+            }
+          });
           return normalized;
         });
       }
@@ -386,7 +820,20 @@ function normalizeAssistantReply(value: unknown) {
         });
       }
 
-      return { ...action, type: actionType, payload };
+      const previewTitle =
+        typeof action.title === "string" && action.title.trim()
+          ? action.title.trim()
+          : typeof action.label === "string" && action.label.trim()
+            ? action.label.trim()
+            : typeof actionType === "string"
+              ? actionType.replace(/_/g, " ")
+              : "Dashboard change";
+      return {
+        ...action,
+        type: actionType,
+        title: previewTitle,
+        payload,
+      };
     }),
   };
 }
@@ -397,6 +844,23 @@ function dayOffset(dayIso: string, offset: number) {
   return (offset >= 0 ? addDays(base, offset) : subDays(base, Math.abs(offset)))
     .toISOString()
     .slice(0, 10);
+}
+
+async function currentTimeForUser(userEmail: string) {
+  const timeZone = (await getUserTimeZone(userEmail)) || "UTC";
+  try {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(new Date());
+    const hour = parts.find((part) => part.type === "hour")?.value;
+    const minute = parts.find((part) => part.type === "minute")?.value;
+    return hour && minute ? `${hour}:${minute}` : new Date().toISOString().slice(11, 16);
+  } catch {
+    return new Date().toISOString().slice(11, 16);
+  }
 }
 
 function assistantModel() {
@@ -535,6 +999,79 @@ function calibrateRepeatedTask(
   };
 }
 
+function clarificationPreferenceFromMessage(value: string): boolean | null {
+  const normalized = normalizeIntentText(value)
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const mentionsQuestions =
+    /\b(pergunt|pergunta|ask|clarif|duvida|ambig|contexto|detalh)/.test(normalized);
+  if (!mentionsQuestions) return null;
+
+  if (
+    /\b(nao pergunte|sem perguntar|nao precisa perguntar|do not ask|dont ask|never ask)\b/.test(
+      normalized
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    /\b(me pergunte|pode perguntar|quero que .*pergunt|caso .*duvida|se .*duvida|ask me|ask when|clarify when)\b/.test(
+      normalized
+    )
+  ) {
+    return true;
+  }
+
+  return null;
+}
+
+function responseTextCandidates(text: string) {
+  const trimmed = text.trim();
+  const unfenced = trimmed
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+  const firstBrace = unfenced.indexOf("{");
+  const lastBrace = unfenced.lastIndexOf("}");
+  return Array.from(
+    new Set(
+      [
+        trimmed,
+        unfenced,
+        firstBrace >= 0 && lastBrace > firstBrace
+          ? unfenced.slice(firstBrace, lastBrace + 1)
+          : "",
+      ].filter(Boolean)
+    )
+  );
+}
+
+function parseAssistantResponseText(text: string) {
+  let validationError: unknown = null;
+  for (const candidate of responseTextCandidates(text)) {
+    try {
+      return replySchema.parse(normalizeAssistantReply(JSON.parse(candidate)));
+    } catch (error) {
+      validationError = error;
+    }
+  }
+
+  const plainText = text
+    .replace(/^```(?:text|markdown)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+  if (plainText && !plainText.startsWith("{") && !plainText.startsWith("[")) {
+    return replySchema.parse({
+      message: plainText.slice(0, 5000),
+      actions: [],
+    });
+  }
+
+  throw validationError || new Error("AI_INVALID_RESPONSE");
+}
+
 async function buildAssistantContext(
   userEmail: string,
   scope: AssistantScope,
@@ -552,6 +1089,11 @@ async function buildAssistantContext(
     "prioridade",
     "reorgan",
     "estim",
+    "esforco",
+    "effort",
+    "duracao",
+    "nota",
+    "tag",
   ]);
   const habitIntent = hasIntent(queryText, ["habit", "habito", "rotina"]);
   const metricIntent = hasIntent(queryText, ["mood", "humor", "sono", "ansiedade", "stat"]);
@@ -566,6 +1108,54 @@ async function buildAssistantContext(
     "mestrado",
     "artigo",
     "defesa",
+  ]);
+  const booksIntent = hasIntent(queryText, [
+    "livro",
+    "book",
+    "meus livros",
+    "livro que estou",
+    "livro lido",
+    "meta de livros",
+    "book tracker",
+    "reading goal",
+    "paginas",
+    "pages read",
+  ]);
+  const spiritualIntent = hasIntent(queryText, [
+    "streak",
+    "oracao",
+    "prayer",
+    "streak espiritual",
+    "spiritual streak",
+    "meta espiritual",
+    "spiritual goal",
+    "escada",
+    "staircase",
+    "pornografia",
+    "masturbacao",
+    "oracao ao",
+    "prayer before",
+    "prayer on",
+  ]);
+  const financeIntent = hasIntent(queryText, [
+    "financa",
+    "finance",
+    "divida",
+    "debt",
+    "despesa",
+    "expense",
+    "renda",
+    "income",
+    "conta paga",
+    "savings",
+    "economia",
+  ]);
+  const coupleIntent = hasIntent(queryText, [
+    "casal",
+    "couple",
+    "bucket",
+    "meta conjunta",
+    "objetivo conjunto",
   ]);
   const readingIntent = hasIntent(queryText, [
     "publica",
@@ -593,6 +1183,10 @@ async function buildAssistantContext(
     metricIntent ||
     ministryIntent ||
     dissertationIntent ||
+    booksIntent ||
+    spiritualIntent ||
+    financeIntent ||
+    coupleIntent ||
     readingIntent;
   const fullDefault = scope === "all" && !hasExplicitIntent;
   const taskContext =
@@ -604,10 +1198,17 @@ async function buildAssistantContext(
   const ministryContext = scope === "ministry" || ministryIntent;
   const dissertationContext = scope === "dissertation" || dissertationIntent;
   const readingContext = scope === "publications" || readingIntent;
+  const booksContext = scope === "books" || booksIntent;
+  const spiritualContext = scope === "spiritual" || spiritualIntent;
+  const financeContext = scope === "finances" || financeIntent;
+  const coupleContext =
+    scope === "couple" || scope === "goals" || coupleIntent || financeContext;
+  const [currentYear, currentMonthNumber] = currentMonth.split("-").map(Number);
 
   const [
     tasks,
     habits,
+    sharedHabits,
     estimation,
     metrics,
     areas,
@@ -615,9 +1216,20 @@ async function buildAssistantContext(
     ministryRecurrences,
     dissertation,
     reading,
+    assistantPreferences,
+    energy,
+    moodHistory,
+    books,
+    spiritualStreaks,
+    spiritualGoals,
+    finance,
+    coupleGoals,
+    savingsGoals,
+    bucketList,
   ] = await Promise.all([
       taskContext ? listTasks(userEmail, todayIso, endIso, true) : Promise.resolve([]),
       habitContext ? getCustomHabits(userEmail) : Promise.resolve([]),
+      habitContext ? getEnabledSharedHabitsForUser(userEmail) : Promise.resolve([]),
       taskContext
         ? getEstimationStats(userEmail, "all")
         : Promise.resolve(null),
@@ -645,6 +1257,26 @@ async function buildAssistantContext(
       readingContext
         ? getReadingAssistantContext(userEmail, queryText)
         : Promise.resolve(null),
+      getAssistantPreferences(userEmail),
+      taskContext ? getEnergySettings(userEmail) : Promise.resolve(null),
+      metricContext || scope === "mood"
+        ? getMoodHistory(userEmail)
+        : Promise.resolve(null),
+      booksContext
+        ? getBooksPageData(userEmail, currentYear)
+        : Promise.resolve(null),
+      spiritualContext
+        ? getSpiritualStreaksPageData(userEmail, currentMonth)
+        : Promise.resolve(null),
+      spiritualContext
+        ? getSpiritualGoalsPageData(userEmail)
+        : Promise.resolve(null),
+      financeContext
+        ? getMonthlyFinance(userEmail, currentYear, currentMonthNumber)
+        : Promise.resolve(null),
+      coupleContext ? getCoupleGoals(userEmail) : Promise.resolve([]),
+      coupleContext ? getSavingsGoals(userEmail) : Promise.resolve([]),
+      coupleContext ? getBucketList(userEmail) : Promise.resolve([]),
     ]);
 
   const pendingTasks = tasks
@@ -655,10 +1287,34 @@ async function buildAssistantContext(
       title: task.title,
       date: task.scheduledDate || null,
       time: task.scheduledTime || null,
+      plannedTime: task.plannedTime || null,
+      startTime: task.startTime || null,
+      endTime: task.endTime || null,
       estimate: task.estimatedMinutes || null,
       priority: task.priorityTag || "Medium",
       area: task.areaTag || null,
       order: task.focusOrder || null,
+      effort: energy?.taskEffort[task.id] || null,
+      scheduleLocked: task.scheduleLocked,
+      notes: task.notes?.slice(0, 500) || null,
+      subtasks: task.subtasks.slice(0, 20).map((subtask) => ({
+        id: subtask.id,
+        title: subtask.title,
+        done: Boolean(subtask.isDone),
+        order: subtask.order,
+      })),
+    }));
+  const recentCompletedTasks = tasks
+    .filter((task) => Boolean(task.isDone))
+    .slice(-100)
+    .map((task) => ({
+      id: task.id,
+      title: task.title,
+      date: task.scheduledDate || null,
+      time: task.scheduledTime || null,
+      estimate: task.estimatedMinutes || null,
+      actual: task.actualMinutes || null,
+      area: task.areaTag || null,
     }));
 
   const historyPoints = estimation?.points.slice(0, 100) || [];
@@ -674,7 +1330,26 @@ async function buildAssistantContext(
     scope,
     today: todayIso,
     currentMonth,
+    assistantPreferences,
+    availableServices: [
+      "today",
+      "calendar",
+      "tasks",
+      "habits",
+      "mood",
+      "ministry",
+      "publications",
+      "books",
+      "dissertation",
+      "spiritual goals",
+      "spiritual streaks",
+      "stats",
+      "finances",
+      "couple",
+      "dashboard settings",
+    ],
     pendingTasks,
+    recentCompletedTasks,
     taskAreas: areas,
     completedTaskHistory: historyPoints.map((point) => ({
       title: point.title,
@@ -683,8 +1358,30 @@ async function buildAssistantContext(
       area: point.areaTag,
       date: point.scheduledDate,
     })),
-    habits: habits.map((habit) => habit.name),
+    habits: {
+      custom: habits.map((habit) => ({ id: habit.id, name: habit.name })),
+      daily: sharedHabits.map((habit) => ({
+        key: habit.key,
+        label: habit.label,
+      })),
+    },
     recentMetrics: metrics,
+    mood: moodHistory
+      ? {
+          definitions: MOOD_DEFINITIONS.map((mood) => ({
+            key: mood.key,
+            label: mood.label,
+            emoji: mood.emoji,
+            group: mood.group,
+          })),
+          recentEntries: moodHistory.entries.slice(-60).map((entry) => ({
+            id: entry.id,
+            date: entry.dayIso,
+            time: entry.loggedAt.slice(11, 16),
+            mood: entry.moodCategory,
+          })),
+        }
+      : null,
     estimation: estimation
       ? {
           samples: estimation.summary.totalSamples,
@@ -739,6 +1436,71 @@ async function buildAssistantContext(
         }
       : null,
     reading,
+    books: books
+      ? {
+          year: books.year,
+          yearlyGoal: books.yearlyGoal,
+          finishedCount: books.finishedCount,
+          items: books.items.slice(0, 100).map((book) => ({
+            id: book.id,
+            title: book.title,
+            author: book.author,
+            pagesRead: book.pagesRead,
+            totalPages: book.totalPages,
+            status: book.status,
+            rating: book.rating,
+          })),
+        }
+      : null,
+    spiritual: spiritualContext
+      ? {
+          streaks: spiritualStreaks?.boards.map((board) => ({
+            key: board.key,
+            title: board.title,
+            currentStreak: board.currentStreak,
+            bestStreak: board.bestStreak,
+            monthEntries: board.cells
+              .filter((cell) => cell.success !== null)
+              .map((cell) => ({ date: cell.date, success: cell.success })),
+          })),
+          goals: spiritualGoals?.items.map((item) => ({
+            category: item.category,
+            title: item.title,
+            ultimateGoal: item.ultimateGoal,
+            currentStepId: item.currentStepId,
+            currentStepTitle: item.currentStepTitle,
+            progressPercent: item.progressPercent,
+            generalNotes: item.generalNotes,
+            steps: item.steps.map((step) => ({
+              id: step.id,
+              title: step.title,
+              state: step.state,
+              notes: step.notes,
+              tasks: step.tasks.map((task) => ({
+                id: task.id,
+                title: task.title,
+                completed: task.completed,
+              })),
+            })),
+          })),
+        }
+      : null,
+    finances: finance
+      ? {
+          month: currentMonth,
+          income: finance.income,
+          fixedCosts: finance.fixedCosts,
+          debts: finance.debts,
+          extraExpenses: finance.extraExpenses,
+        }
+      : null,
+    couple: coupleContext
+      ? {
+          goals: coupleGoals,
+          savingsGoals,
+          bucketList,
+        }
+      : null,
   };
 }
 
@@ -752,21 +1514,40 @@ function systemInstruction(context: AssistantContext) {
     "You are Orbit, an action-oriented assistant inside a private Life Dashboard.",
     "Reply in the same language as the user. Be concise, specific, and collaborative.",
     `Today is ${context.today}. ${scopeRule}`,
+    "You can coordinate any dashboard service represented in the supplied context, even when the user is currently on a different page. Never refuse only because of the current page.",
     "Return actions whenever the user asks to create, change, organize, prioritize, tag, estimate, or plan something.",
     "Every action is a preview and requires one user review. Never claim it was already applied.",
+    context.assistantPreferences.askWhenUncertain
+      ? "CLARIFICATION MODE IS ON: when a task is new or its meaning, deliverable, volume, depth, deadline, or constraints materially affect duration, tag, effort, or schedule, ask 1 to 3 short targeted questions and return actions: []. Do not invent a generic 30-minute estimate. Do not ask when existing task history or the user's wording already provides enough evidence. After the user answers, infer the remaining details and return the concrete preview."
+      : "CLARIFICATION MODE IS OFF: make a best-effort estimate from history and context, state assumptions briefly, and return a preview.",
+    "When asking about an unclear task, prioritize only the missing facts that change the plan: desired outcome, amount/depth, deadline or fixed constraints. Avoid questionnaires.",
     "TASK ESTIMATION: first compare the title and meaning with completedTaskHistory. For repeated or similar work, use real actualMinutes. For new work, infer its steps and complexity, then calibrate with the user's averageRatio and area history. Explain the basis briefly.",
-    'BULK TASK REVIEWS: use one bulk_update_tasks action with payload.taskUpdates. Each item must contain taskId and only changed fields: scheduledDate, scheduledTime, estimatedMinutes, priority, areaTag, or focusOrder. Do not emit one update_task action per task. This supports large reviews while keeping JSON compact.',
+    'BULK TASK REVIEWS: use one bulk_update_tasks action with payload.taskUpdates. Each item must contain taskId and only changed fields: scheduledDate, scheduledTime, plannedTime, startTime, endTime, estimatedMinutes, priority, areaTag, focusOrder, effort, notes, scheduleLocked, or completed. Do not emit one update_task action per task. This supports large reviews while keeping JSON compact.',
     "TASK ORGANIZATION: update existing tasks by ID. Use scheduledTime for real clock scheduling. Use focusOrder for execution order without requiring a time. Avoid overlaps and add realistic breathing room.",
+    "TASK EFFORT: use low for light/quick work, medium for ordinary focused work, and high for cognitively or physically deep work. Keep effort distinct from priority.",
+    "TASK DETAILS: plannedTime is the intended time; startTime and endTime are actual execution facts and must only be changed when the user explicitly gives them. scheduleLocked=true means automatic reordering must preserve that time.",
+    "TASK COMPLETION: only set completed when the user explicitly asks to mark or unmark a task. Never infer completion from planning language.",
     "TASK TAGS: use an existing taskAreas key. If the requested tag does not exist, propose create_area before assigning it.",
     "PRIORITY: use Low, Medium, High, or Critical based on consequence and deadline, not anxiety.",
+    "HABITS AND DAY: use set_habit_status with an exact habits.daily key, a date, and completed. This action keeps Habits, Today, Spiritual Streaks, points, and habit tasks synchronized. Use update_day_metrics for sleepHours, anxietyLevel, workHours, or boredomMinutes.",
+    "MOOD: use log_mood with an exact mood.definitions key, date, and loggedTime. A mood is a moment, not a whole-day replacement. Do not add a note unless the user explicitly asks and the action supports it.",
+    "ENERGY: use set_low_energy_mode for the global low-energy view. Task effort belongs in task actions.",
     "MINISTRY: daily goals are always manual. You may set a monthly goal and specific daily plans, but never auto-distribute the monthly target unless the user explicitly asks you to create a proposed schedule. Preserve logged actual time unless the user explicitly changes it.",
     "MINISTRY RECURRENCE: when the user explicitly says every/each weekday, use set_ministry_recurrence instead of many update_ministry_day actions. Payload keys are recurrenceLabel, weekday (Sunday=0 through Saturday=6), goalMinutes, startDate, and endDate (null means ongoing). Reuse recurrenceId from context to edit an existing rule. Use remove_ministry_recurrence with recurrenceId only when explicitly asked to stop one.",
     "READING: use one update_reading_progress action with payload.readingUpdates. Use only exact IDs/keys supplied in reading candidates. Kinds are despertai_issue, despertai_topic, video, broadcasting, article_series, reading_book, tract, apostila, brochure, watchtower, and bible_chapters. A whole Despertai issue marks every topic; a topic update needs itemId and topicId. Bible updates need bookKey plus a chapters array. read=true marks read; read=false unmarks. If the requested title/topic is ambiguous or absent from candidates, ask a short clarifying question and return no action.",
+    "BOOKS: set_books_goal changes the annual target. create_book adds a personal book. update_book must use an exact books.items ID and may change pagesRead, totalPages, status, rating, title, author, or coverUrl.",
+    "SPIRITUAL STREAKS: use update_spiritual_streak with an exact boardKey, date, and success. true is a positive/clean day, false is a failed day, and null clears the mark.",
+    "SPIRITUAL GOALS: use update_spiritual_goal with an exact category and spiritualOperation. Use exact stepId/taskId from context. Completing the current step uses complete_current; notes and checklist operations must identify the right step.",
     "DISSERTATION: use front IDs from context when adding a next step or changing a front status.",
-    "Allowed actions: create_task, update_task, bulk_update_tasks, create_habit, create_area, set_ministry_month_goal, update_ministry_day, set_ministry_recurrence, remove_ministry_recurrence, update_reading_progress, add_dissertation_step, update_dissertation_front.",
+    "COUPLE AND GOALS: use exact goal IDs when updating progress. New couple goals, savings goals, and bucket items use their dedicated actions.",
+    "FINANCES: use the current finances IDs/keys. add_finance_expense adds one expense; upsert_finance_debt edits one debt; update_finance_income edits one income field; update_finance_fixed_cost edits one fixed-cost row. Monetary values are numbers, never formatted strings. Ask before guessing an amount.",
+    "A direct request to change how Orbit asks questions is already persisted before this prompt; acknowledge it without returning a duplicate action.",
+    `Allowed actions: ${ASSISTANT_ACTION_TYPES.join(", ")}.`,
     'Return only one JSON object shaped as {"message":"short answer","actions":[{"type":"allowed action","title":"short preview title","reason":"brief reason","payload":{}}]}. Use an empty actions array when no change is needed. Never add keys outside this structure.',
-    "For task duration, the payload key is estimatedMinutes (integer minutes). For a fixed task time, use scheduledTime in HH:mm. Never use estimate, duration, or time as payload keys.",
-    "Never delete, complete, or mark TASKS missed. Do not alter sensitive metrics. Reading progress and explicitly requested recurrence removal are supported exceptions. If the requested operation has no supported safe action, explain what is missing instead of pretending.",
+    "The action-level title is only the preview label. Put the actual task, book, goal, expense, debt, or checklist title in payload.title.",
+    "Common payload signatures: set_habit_status={habitKey,date,completed}; log_mood={moodCategory,date,loggedTime}; update_day_metrics={date,sleepHours,anxietyLevel,workHours,boredomMinutes}; update_spiritual_streak={boardKey,date,success}; set_books_goal={year,yearlyGoal}; create_book={title,year,author,totalPages,pagesRead,bookStatus,rating}; update_book={bookId plus changed book fields}; update_spiritual_goal={spiritualCategory,spiritualOperation,stepId,taskId,taskCompleted,notes,title as needed}.",
+    "For task duration, the payload key is estimatedMinutes (integer minutes). For a fixed task time, use scheduledTime in HH:mm. For task effort, use effort. Never use estimate, duration, energy, or time as payload keys.",
+    "Never delete or mark tasks missed. Task completion is allowed only when explicitly requested. Do not alter sensitive metrics without an explicit value. If the requested operation has no supported safe action, explain what is missing instead of pretending.",
     `Dashboard context: ${JSON.stringify(context)}`,
   ].join("\n");
 }
@@ -781,6 +1562,13 @@ export async function askAssistant(
 
   const latestUserMessage =
     [...messages].reverse().find((message) => message.role === "user")?.content || "";
+  const requestedClarificationPreference =
+    clarificationPreferenceFromMessage(latestUserMessage);
+  if (requestedClarificationPreference !== null) {
+    await updateAssistantPreferences(userEmail, {
+      askWhenUncertain: requestedClarificationPreference,
+    });
+  }
   const context = await buildAssistantContext(userEmail, scope, latestUserMessage);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 35_000);
@@ -868,7 +1656,7 @@ export async function askAssistant(
 
     let parsed: z.infer<typeof replySchema>;
     try {
-      parsed = replySchema.parse(normalizeAssistantReply(JSON.parse(text)));
+      parsed = parseAssistantResponseText(text);
     } catch (error) {
       const candidate = payload?.candidates?.[0];
       logServerEvent("error", {
@@ -887,8 +1675,29 @@ export async function askAssistant(
       throw new Error("AI_INVALID_RESPONSE");
     }
     const taskTitles = new Map(
-      context.pendingTasks.map((task) => [task.id, task.title] as const)
+      [...context.pendingTasks, ...context.recentCompletedTasks].map(
+        (task) => [task.id, task.title] as const
+      )
     );
+    const habitKeys = new Map<string, string>();
+    context.habits.daily.forEach((habit) => {
+      habitKeys.set(normalizeIntentText(habit.key), habit.key);
+      habitKeys.set(normalizeIntentText(habit.label), habit.key);
+    });
+    context.habits.custom.forEach((habit) => {
+      habitKeys.set(normalizeIntentText(habit.id), habit.id);
+      habitKeys.set(normalizeIntentText(habit.name), habit.id);
+    });
+    const moodKeys = new Map<string, string>();
+    context.mood?.definitions.forEach((mood) => {
+      moodKeys.set(normalizeIntentText(mood.key), mood.key);
+      moodKeys.set(normalizeIntentText(mood.label), mood.key);
+    });
+    const streakKeys = new Map<string, string>();
+    context.spiritual?.streaks?.forEach((board) => {
+      streakKeys.set(normalizeIntentText(board.key), board.key);
+      streakKeys.set(normalizeIntentText(board.title), board.key);
+    });
     const readingLabels = new Map<string, string>();
     context.reading?.despertai.candidates.forEach((issue) => {
       readingLabels.set(`despertai_issue:${issue.id}`, issue.title);
@@ -913,6 +1722,35 @@ export async function askAssistant(
       actions: parsed.actions.map((action) => {
         const calibrated = calibrateRepeatedTask(action, context.completedTaskHistory);
         let nextPayload = calibrated.payload;
+        if (calibrated.type === "set_habit_status" && calibrated.payload.habitKey) {
+          nextPayload = {
+            ...nextPayload,
+            habitKey:
+              habitKeys.get(normalizeIntentText(calibrated.payload.habitKey)) ||
+              calibrated.payload.habitKey,
+          };
+        }
+        if (calibrated.type === "log_mood" && calibrated.payload.moodCategory) {
+          nextPayload = {
+            ...nextPayload,
+            moodCategory:
+              moodKeys.get(normalizeIntentText(calibrated.payload.moodCategory)) ||
+              calibrated.payload.moodCategory,
+          };
+        }
+        if (
+          calibrated.type === "update_spiritual_streak" &&
+          calibrated.payload.boardKey
+        ) {
+          nextPayload = {
+            ...nextPayload,
+            boardKey:
+              (streakKeys.get(
+                normalizeIntentText(calibrated.payload.boardKey)
+              ) as typeof calibrated.payload.boardKey | undefined) ||
+              calibrated.payload.boardKey,
+          };
+        }
         if (
           calibrated.type === "bulk_update_tasks" &&
           calibrated.payload.taskUpdates
@@ -957,6 +1795,80 @@ export async function askAssistant(
   }
 }
 
+type AssistantTaskChange =
+  NonNullable<AssistantAction["payload"]["taskUpdates"]>[number];
+
+async function updateTaskFromAssistant(
+  userEmail: string,
+  change: AssistantTaskChange
+) {
+  const existing = await prisma.todoTask.findFirst({
+    where: { id: change.taskId, userEmail },
+    select: {
+      id: true,
+      source: true,
+      externalEventKey: true,
+      isDone: true,
+      estimatedMinutes: true,
+    },
+  });
+  if (!existing) throw new Error("RESOURCE_NOT_FOUND");
+
+  const task = await updateTask(userEmail, change.taskId, {
+    title: change.title,
+    scheduledDate: change.scheduledDate,
+    scheduledTime: change.scheduledTime,
+    plannedTime:
+      change.plannedTime !== undefined
+        ? change.plannedTime
+        : change.scheduledTime,
+    startTime: change.startTime,
+    endTime: change.endTime,
+    notes: change.notes,
+    estimatedMinutes: change.estimatedMinutes,
+    priorityTag: change.priority,
+    areaTag: change.areaTag,
+    focusOrder: change.focusOrder,
+    scheduleLocked: change.scheduleLocked,
+    isDone:
+      change.completed === undefined ? undefined : change.completed ? 1 : 0,
+  });
+
+  if (change.effort !== undefined) {
+    await setTaskEffort(userEmail, task.id, change.effort);
+  }
+
+  if (change.completed && !existing.isDone) {
+    const minutes = existing.estimatedMinutes ?? change.estimatedMinutes ?? 0;
+    const points =
+      minutes >= 60
+        ? POINTS.taskDeep
+        : minutes >= 30
+          ? POINTS.taskMedium
+          : POINTS.taskShort;
+    await addPointsOnce(userEmail, `task::done::${task.id}`, points);
+  }
+
+  if (
+    existing.source === "dissertation" &&
+    existing.externalEventKey &&
+    (change.completed !== undefined || change.scheduledDate !== undefined)
+  ) {
+    try {
+      await syncDissertationStepFromMirrorTask(userEmail, task.id);
+    } catch (error) {
+      logServerEvent("warn", {
+        endpoint: "Orbit task integration",
+        message: "Failed to sync an Orbit task change into dissertation",
+        error,
+        meta: { taskId: task.id },
+      });
+    }
+  }
+
+  return task;
+}
+
 export async function applyAssistantActions(userEmail: string, rawActions: unknown) {
   const actions = applySchema.parse(rawActions);
   const todayIso = await getTodayIsoForUser(userEmail);
@@ -999,12 +1911,20 @@ export async function applyAssistantActions(userEmail: string, rawActions: unkno
         source: "assistant",
         scheduledDate: action.payload.scheduledDate ?? todayIso,
         scheduledTime: action.payload.scheduledTime ?? null,
-        plannedTime: action.payload.scheduledTime ?? null,
+        plannedTime:
+          action.payload.plannedTime ?? action.payload.scheduledTime ?? null,
+        startTime: action.payload.startTime ?? null,
+        endTime: action.payload.endTime ?? null,
+        notes: action.payload.notes ?? null,
         estimatedMinutes: action.payload.estimatedMinutes ?? null,
         priorityTag: action.payload.priority || "Medium",
         areaTag: action.payload.areaTag ?? null,
         focusOrder: action.payload.focusOrder ?? null,
+        scheduleLocked: action.payload.scheduleLocked ?? null,
       });
+      if (action.payload.effort !== undefined) {
+        await setTaskEffort(userEmail, task.id, action.payload.effort);
+      }
       results.push({ id: task.id, type: action.type, title: task.title });
       continue;
     }
@@ -1012,14 +1932,22 @@ export async function applyAssistantActions(userEmail: string, rawActions: unkno
     if (action.type === "update_task") {
       const taskId = action.payload.taskId;
       if (!taskId) throw new Error("INVALID_ASSISTANT_ACTION");
-      const task = await updateTask(userEmail, taskId, {
+      const task = await updateTaskFromAssistant(userEmail, {
+        taskId,
+        title: action.payload.title,
         scheduledDate: action.payload.scheduledDate,
         scheduledTime: action.payload.scheduledTime,
-        plannedTime: action.payload.scheduledTime,
+        plannedTime: action.payload.plannedTime,
+        startTime: action.payload.startTime,
+        endTime: action.payload.endTime,
+        notes: action.payload.notes,
         estimatedMinutes: action.payload.estimatedMinutes,
-        priorityTag: action.payload.priority,
+        priority: action.payload.priority,
         areaTag: action.payload.areaTag,
         focusOrder: action.payload.focusOrder,
+        scheduleLocked: action.payload.scheduleLocked,
+        effort: action.payload.effort,
+        completed: action.payload.completed,
       });
       results.push({ id: task.id, type: action.type, title: task.title });
       continue;
@@ -1031,17 +1959,7 @@ export async function applyAssistantActions(userEmail: string, rawActions: unkno
       for (let index = 0; index < updates.length; index += 8) {
         const batch = updates.slice(index, index + 8);
         const updatedTasks = await Promise.all(
-          batch.map((update) =>
-            updateTask(userEmail, update.taskId, {
-              scheduledDate: update.scheduledDate,
-              scheduledTime: update.scheduledTime,
-              plannedTime: update.scheduledTime,
-              estimatedMinutes: update.estimatedMinutes,
-              priorityTag: update.priority,
-              areaTag: update.areaTag,
-              focusOrder: update.focusOrder,
-            })
-          )
+          batch.map((update) => updateTaskFromAssistant(userEmail, update))
         );
         updatedTasks.forEach((task) => {
           results.push({ id: task.id, type: action.type, title: task.title });
@@ -1058,6 +1976,77 @@ export async function applyAssistantActions(userEmail: string, rawActions: unkno
         habitKeys.add(key);
         results.push({ id: key, type: action.type, title: habitName });
       }
+      continue;
+    }
+
+    if (action.type === "set_habit_status") {
+      const habitKey = action.payload.habitKey;
+      const completed = action.payload.completed;
+      const date = action.payload.date || todayIso;
+      if (!habitKey || completed === undefined) {
+        throw new Error("INVALID_ASSISTANT_ACTION");
+      }
+      if (SHARED_HABIT_PATCH_KEYS.has(habitKey)) {
+        await updateDailyEntryWithIntegrations(userEmail, date, {
+          [habitKey]: completed ? 1 : 0,
+        });
+      } else {
+        await setCustomHabitStatusWithIntegrations(
+          userEmail,
+          date,
+          habitKey,
+          completed
+        );
+      }
+      results.push({ id: `${date}:${habitKey}`, type: action.type, title: action.title });
+      continue;
+    }
+
+    if (action.type === "log_mood") {
+      const moodCategory = action.payload.moodCategory;
+      const date = action.payload.date || todayIso;
+      if (!moodCategory) throw new Error("INVALID_ASSISTANT_ACTION");
+      await createMoodMoment(userEmail, {
+        dayIso: date,
+        loggedTime:
+          action.payload.loggedTime || (await currentTimeForUser(userEmail)),
+        moodCategory,
+      });
+      results.push({ id: `${date}:${randomUUID()}`, type: action.type, title: action.title });
+      continue;
+    }
+
+    if (action.type === "update_day_metrics") {
+      const payload: Record<string, unknown> = {};
+      if (action.payload.sleepHours !== undefined) {
+        payload.sleep_hours = action.payload.sleepHours;
+      }
+      if (action.payload.anxietyLevel !== undefined) {
+        payload.anxiety_level = action.payload.anxietyLevel;
+      }
+      if (action.payload.workHours !== undefined) {
+        payload.work_hours = action.payload.workHours;
+      }
+      if (action.payload.boredomMinutes !== undefined) {
+        payload.boredom_minutes = action.payload.boredomMinutes;
+      }
+      if (!Object.keys(payload).length) throw new Error("INVALID_ASSISTANT_ACTION");
+      const date = action.payload.date || todayIso;
+      await updateDailyEntryWithIntegrations(userEmail, date, payload);
+      results.push({ id: date, type: action.type, title: action.title });
+      continue;
+    }
+
+    if (action.type === "set_low_energy_mode") {
+      if (action.payload.enabled === undefined) {
+        throw new Error("INVALID_ASSISTANT_ACTION");
+      }
+      await setLowEnergyMode(userEmail, action.payload.enabled);
+      results.push({
+        id: "low-energy-mode",
+        type: action.type,
+        title: action.title,
+      });
       continue;
     }
 
@@ -1137,6 +2126,118 @@ export async function applyAssistantActions(userEmail: string, rawActions: unkno
       continue;
     }
 
+    if (action.type === "set_books_goal") {
+      const year = action.payload.year || Number(todayIso.slice(0, 4));
+      const yearlyGoal = action.payload.yearlyGoal;
+      if (yearlyGoal === undefined) throw new Error("INVALID_ASSISTANT_ACTION");
+      await updateBooksGoal({ userEmail, year, yearlyGoal });
+      results.push({ id: String(year), type: action.type, title: action.title });
+      continue;
+    }
+
+    if (action.type === "create_book") {
+      const title = action.payload.title?.trim();
+      if (!title) throw new Error("INVALID_ASSISTANT_ACTION");
+      const created = await createBook({
+        userEmail,
+        year: action.payload.year || Number(todayIso.slice(0, 4)),
+        title,
+        author: action.payload.author,
+        coverUrl: action.payload.coverUrl,
+        totalPages: action.payload.totalPages,
+        pagesRead: action.payload.pagesRead,
+        status: action.payload.bookStatus,
+        rating: action.payload.rating,
+      });
+      results.push({ id: created.item.id, type: action.type, title: created.item.title });
+      continue;
+    }
+
+    if (action.type === "update_book") {
+      const bookId = action.payload.bookId;
+      if (!bookId) throw new Error("INVALID_ASSISTANT_ACTION");
+      const updated = await updateBook({
+        userEmail,
+        bookId,
+        patch: {
+          year: action.payload.year,
+          title: action.payload.title,
+          author: action.payload.author,
+          coverUrl: action.payload.coverUrl,
+          totalPages: action.payload.totalPages,
+          pagesRead: action.payload.pagesRead,
+          status: action.payload.bookStatus,
+          rating: action.payload.rating,
+        },
+      });
+      results.push({ id: updated.item.id, type: action.type, title: updated.item.title });
+      continue;
+    }
+
+    if (action.type === "update_spiritual_streak") {
+      const boardKey = action.payload.boardKey;
+      const date = action.payload.date || todayIso;
+      if (!boardKey || action.payload.success === undefined) {
+        throw new Error("INVALID_ASSISTANT_ACTION");
+      }
+      await updateSpiritualStreakEntry({
+        userEmail,
+        boardKey,
+        monthKey: date.slice(0, 7),
+        date,
+        success: action.payload.success,
+      });
+      results.push({ id: `${boardKey}:${date}`, type: action.type, title: action.title });
+      continue;
+    }
+
+    if (action.type === "update_spiritual_goal") {
+      const category = action.payload.spiritualCategory;
+      const operation = action.payload.spiritualOperation;
+      if (!category || !operation) throw new Error("INVALID_ASSISTANT_ACTION");
+
+      if (operation === "complete_current" || operation === "move_back") {
+        await applySpiritualGoalAction(userEmail, category, { type: operation });
+      } else if (operation === "add_task") {
+        if (!action.payload.stepId || !action.payload.title) {
+          throw new Error("INVALID_ASSISTANT_ACTION");
+        }
+        await applySpiritualGoalAction(userEmail, category, {
+          type: operation,
+          step_id: action.payload.stepId,
+          title: action.payload.title,
+        });
+      } else if (operation === "toggle_task") {
+        if (
+          !action.payload.stepId ||
+          !action.payload.taskId ||
+          action.payload.taskCompleted === undefined
+        ) {
+          throw new Error("INVALID_ASSISTANT_ACTION");
+        }
+        await applySpiritualGoalAction(userEmail, category, {
+          type: operation,
+          step_id: action.payload.stepId,
+          task_id: action.payload.taskId,
+          completed: action.payload.taskCompleted,
+        });
+      } else if (operation === "save_step_notes") {
+        if (!action.payload.stepId) throw new Error("INVALID_ASSISTANT_ACTION");
+        await applySpiritualGoalAction(userEmail, category, {
+          type: operation,
+          step_id: action.payload.stepId,
+          notes: action.payload.notes,
+        });
+      } else {
+        await applySpiritualGoalAction(userEmail, category, {
+          type: "save_general_notes",
+          notes: action.payload.notes,
+        });
+      }
+      results.push({ id: category, type: action.type, title: action.title });
+      continue;
+    }
+
     if (action.type === "add_dissertation_step") {
       if (!action.payload.frontId) throw new Error("INVALID_ASSISTANT_ACTION");
       await applyDissertationAction(userEmail, {
@@ -1162,6 +2263,170 @@ export async function applyAssistantActions(userEmail: string, rawActions: unkno
         targetDate: action.payload.dueDate,
       });
       results.push({ id: action.payload.frontId, type: action.type, title: action.title });
+      continue;
+    }
+
+    if (action.type === "add_couple_goal") {
+      const title = action.payload.title?.trim();
+      if (!title) throw new Error("INVALID_ASSISTANT_ACTION");
+      const goal = await addCoupleGoal(userEmail, {
+        title,
+        category: action.payload.category || "Shared",
+        size: action.payload.size || "medium",
+        emoji: action.payload.emoji,
+        targetDate: action.payload.targetDate,
+        createdBy: userEmail,
+      });
+      results.push({ id: goal.id, type: action.type, title: goal.title });
+      continue;
+    }
+
+    if (action.type === "update_couple_goal") {
+      if (
+        !action.payload.goalId ||
+        action.payload.progress === undefined
+      ) {
+        throw new Error("INVALID_ASSISTANT_ACTION");
+      }
+      await updateCoupleGoalProgress(
+        userEmail,
+        action.payload.goalId,
+        action.payload.progress
+      );
+      results.push({
+        id: action.payload.goalId,
+        type: action.type,
+        title: action.title,
+      });
+      continue;
+    }
+
+    if (action.type === "add_savings_goal") {
+      const title = action.payload.title?.trim();
+      if (!title || action.payload.targetAmount === undefined) {
+        throw new Error("INVALID_ASSISTANT_ACTION");
+      }
+      const goal = await addSavingsGoal(userEmail, {
+        title,
+        target: action.payload.targetAmount,
+        emoji: action.payload.emoji,
+      });
+      results.push({ id: goal.id, type: action.type, title: goal.title });
+      continue;
+    }
+
+    if (action.type === "update_savings_goal") {
+      if (
+        !action.payload.savingsGoalId ||
+        action.payload.currentAmount === undefined
+      ) {
+        throw new Error("INVALID_ASSISTANT_ACTION");
+      }
+      await updateSavingsGoalAmount(
+        userEmail,
+        action.payload.savingsGoalId,
+        action.payload.currentAmount
+      );
+      results.push({
+        id: action.payload.savingsGoalId,
+        type: action.type,
+        title: action.title,
+      });
+      continue;
+    }
+
+    if (action.type === "add_bucket_item") {
+      const title = action.payload.title?.trim();
+      if (!title) throw new Error("INVALID_ASSISTANT_ACTION");
+      const item = await addBucketItem(userEmail, title);
+      results.push({ id: item.id, type: action.type, title: item.title });
+      continue;
+    }
+
+    if (action.type === "toggle_bucket_item") {
+      if (!action.payload.bucketItemId) {
+        throw new Error("INVALID_ASSISTANT_ACTION");
+      }
+      await toggleBucketItem(userEmail, action.payload.bucketItemId);
+      results.push({
+        id: action.payload.bucketItemId,
+        type: action.type,
+        title: action.title,
+      });
+      continue;
+    }
+
+    if (
+      action.type === "add_finance_expense" ||
+      action.type === "upsert_finance_debt" ||
+      action.type === "update_finance_income" ||
+      action.type === "update_finance_fixed_cost"
+    ) {
+      const financeMonth = action.payload.month || todayIso.slice(0, 7);
+      const [year, month] = financeMonth.split("-").map(Number);
+      if (!year || !month) throw new Error("INVALID_ASSISTANT_ACTION");
+      const finance = await getMonthlyFinance(userEmail, year, month);
+
+      if (action.type === "add_finance_expense") {
+        const label = action.payload.title?.trim();
+        if (!label || action.payload.amount === undefined) {
+          throw new Error("INVALID_ASSISTANT_ACTION");
+        }
+        finance.extraExpenses.push({
+          id: action.payload.expenseId || randomUUID(),
+          label,
+          amount: action.payload.amount,
+          paid: action.payload.paid ?? false,
+        });
+      } else if (action.type === "upsert_finance_debt") {
+        const debtKey = action.payload.debtKey;
+        if (!debtKey) throw new Error("INVALID_ASSISTANT_ACTION");
+        const current = finance.debts[debtKey] || {
+          label: action.payload.title || debtKey,
+          total: 0,
+          monthly: 0,
+          paid: 0,
+        };
+        finance.debts[debtKey] = {
+          label: action.payload.title?.trim() || current.label,
+          total: action.payload.totalAmount ?? current.total,
+          monthly: action.payload.monthlyAmount ?? current.monthly,
+          paid: action.payload.paidAmount ?? current.paid,
+        };
+      } else if (action.type === "update_finance_income") {
+        if (!action.payload.incomeKey || action.payload.amount === undefined) {
+          throw new Error("INVALID_ASSISTANT_ACTION");
+        }
+        finance.income[action.payload.incomeKey] = action.payload.amount;
+      } else {
+        const fixedCostId = action.payload.fixedCostId;
+        const item = finance.fixedCosts.find((cost) => cost.id === fixedCostId);
+        if (!item) throw new Error("RESOURCE_NOT_FOUND");
+        if (action.payload.title) item.label = action.payload.title;
+        if (action.payload.budget !== undefined) item.budget = action.payload.budget;
+        if (action.payload.actual !== undefined) item.actual = action.payload.actual;
+        if (action.payload.paid !== undefined) {
+          item.paid = action.payload.paid ? "pago" : "nao_pago";
+        }
+      }
+
+      await saveMonthlyFinance(userEmail, year, month, finance);
+      results.push({ id: financeMonth, type: action.type, title: action.title });
+      continue;
+    }
+
+    if (action.type === "set_assistant_preferences") {
+      if (action.payload.askWhenUncertain === undefined) {
+        throw new Error("INVALID_ASSISTANT_ACTION");
+      }
+      await updateAssistantPreferences(userEmail, {
+        askWhenUncertain: action.payload.askWhenUncertain,
+      });
+      results.push({
+        id: action.id || randomUUID(),
+        type: action.type,
+        title: action.title,
+      });
     }
   }
 

@@ -141,10 +141,24 @@ export default function OrbitDock() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["tasks"] }),
         queryClient.invalidateQueries({ queryKey: ["custom-habits"] }),
+        queryClient.invalidateQueries({ queryKey: ["custom-habits-done"] }),
+        queryClient.invalidateQueries({ queryKey: ["day"] }),
+        queryClient.invalidateQueries({ queryKey: ["entries"] }),
+        queryClient.invalidateQueries({ queryKey: ["mood-history"] }),
         queryClient.invalidateQueries({ queryKey: ["task-areas"] }),
+        queryClient.invalidateQueries({ queryKey: ["energy-settings"] }),
         queryClient.invalidateQueries({ queryKey: ["ministry-month"] }),
         queryClient.invalidateQueries({ queryKey: ["reading-progress"] }),
+        queryClient.invalidateQueries({ queryKey: ["books"] }),
+        queryClient.invalidateQueries({ queryKey: ["spiritual-streaks"] }),
+        queryClient.invalidateQueries({ queryKey: ["spiritual-goals"] }),
         queryClient.invalidateQueries({ queryKey: ["dissertation"] }),
+        queryClient.invalidateQueries({ queryKey: ["dissertation-project"] }),
+        queryClient.invalidateQueries({ queryKey: ["couple-goals"] }),
+        queryClient.invalidateQueries({ queryKey: ["bucket-list"] }),
+        queryClient.invalidateQueries({ queryKey: ["finances"] }),
+        queryClient.invalidateQueries({ queryKey: ["finances-savings"] }),
+        queryClient.invalidateQueries({ queryKey: ["rewards"] }),
       ]);
       router.refresh();
     } catch (requestError) {

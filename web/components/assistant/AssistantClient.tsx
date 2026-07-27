@@ -30,7 +30,7 @@ const WELCOME_MESSAGE: UiMessage = {
   id: "welcome",
   role: "assistant",
   content:
-    "Tell me what you need. I can organize tasks, plan routines, and update your reading.",
+    "Tell me what you need anywhere in the dashboard. If a task is unclear, I’ll ask first.",
 };
 
 export default function AssistantClient() {
@@ -133,10 +133,24 @@ export default function AssistantClient() {
       );
       await queryClient.invalidateQueries({ queryKey: ["tasks"] });
       await queryClient.invalidateQueries({ queryKey: ["custom-habits"] });
+      await queryClient.invalidateQueries({ queryKey: ["custom-habits-done"] });
+      await queryClient.invalidateQueries({ queryKey: ["day"] });
+      await queryClient.invalidateQueries({ queryKey: ["entries"] });
+      await queryClient.invalidateQueries({ queryKey: ["mood-history"] });
       await queryClient.invalidateQueries({ queryKey: ["task-areas"] });
+      await queryClient.invalidateQueries({ queryKey: ["energy-settings"] });
       await queryClient.invalidateQueries({ queryKey: ["ministry-month"] });
       await queryClient.invalidateQueries({ queryKey: ["reading-progress"] });
+      await queryClient.invalidateQueries({ queryKey: ["books"] });
+      await queryClient.invalidateQueries({ queryKey: ["spiritual-streaks"] });
+      await queryClient.invalidateQueries({ queryKey: ["spiritual-goals"] });
       await queryClient.invalidateQueries({ queryKey: ["dissertation"] });
+      await queryClient.invalidateQueries({ queryKey: ["dissertation-project"] });
+      await queryClient.invalidateQueries({ queryKey: ["couple-goals"] });
+      await queryClient.invalidateQueries({ queryKey: ["bucket-list"] });
+      await queryClient.invalidateQueries({ queryKey: ["finances"] });
+      await queryClient.invalidateQueries({ queryKey: ["finances-savings"] });
+      await queryClient.invalidateQueries({ queryKey: ["rewards"] });
       router.refresh();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Could not apply plan.");
@@ -154,7 +168,7 @@ export default function AssistantClient() {
         <div>
           <p className="panel-kicker">Life assistant</p>
           <h2>Orbit</h2>
-          <p>Plan, estimate, and notice patterns.</p>
+          <p>Plan and act across the dashboard.</p>
         </div>
         <div className="assistant-hero-actions">
           <button

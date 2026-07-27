@@ -83,6 +83,15 @@ function assistantError(error: unknown) {
   if (message === "INVALID_BIBLE_CHAPTER") {
     return jsonError("One of these Bible chapters is invalid.", 400);
   }
+  if (message === "INVALID_BOOK") {
+    return jsonError("This book change is invalid.", 400);
+  }
+  if (message === "FUTURE_DATE_NOT_ALLOWED") {
+    return jsonError("Future streak days cannot be marked.", 400);
+  }
+  if (message === "INVALID_BOARD_KEY" || message === "INVALID_ACTION") {
+    return jsonError("This dashboard change is invalid.", 400);
+  }
   return null;
 }
 
