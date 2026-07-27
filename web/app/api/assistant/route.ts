@@ -50,6 +50,15 @@ function assistantError(error: unknown) {
   if (message === "AI_QUOTA_REACHED") {
     return jsonError("The free AI limit was reached. Try again later.", 429);
   }
+  if (message === "AI_REQUEST_REJECTED") {
+    return jsonError("Orbit could not understand this request. Try rephrasing it.", 502);
+  }
+  if (message === "AI_AUTH_FAILED") {
+    return jsonError("Orbit could not connect to Gemini. Check the API key.", 503);
+  }
+  if (message === "AI_REQUEST_FAILED" || message === "AI_EMPTY_RESPONSE") {
+    return jsonError("Orbit could not reach Gemini. Try again.", 502);
+  }
   if (message === "RESOURCE_NOT_FOUND") {
     return jsonError("One of these tasks no longer exists.", 404);
   }

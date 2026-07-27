@@ -149,48 +149,66 @@ function calibrateRepeatedTask(
 
 function responseSchema() {
   return {
-    type: "object",
-    additionalProperties: false,
+    type: "OBJECT",
     required: ["message", "actions"],
     properties: {
-      message: { type: "string" },
+      message: { type: "STRING" },
       actions: {
-        type: "array",
+        type: "ARRAY",
         maxItems: 40,
         items: {
-          type: "object",
-          additionalProperties: false,
+          type: "OBJECT",
           required: ["type", "title", "reason", "payload"],
           properties: {
-            type: { type: "string", enum: [...ASSISTANT_ACTION_TYPES] },
-            title: { type: "string" },
-            reason: { type: "string" },
+            type: { type: "STRING", enum: [...ASSISTANT_ACTION_TYPES] },
+            title: { type: "STRING" },
+            reason: { type: "STRING" },
             payload: {
-              type: "object",
+              type: "OBJECT",
               properties: {
-                taskId: { type: "string" },
-                title: { type: "string" },
-                scheduledDate: { type: ["string", "null"], format: "date" },
-                scheduledTime: { type: ["string", "null"] },
-                estimatedMinutes: { type: ["integer", "null"], minimum: 1, maximum: 480 },
+                taskId: { type: "STRING" },
+                title: { type: "STRING" },
+                scheduledDate: { type: "STRING", nullable: true },
+                scheduledTime: { type: "STRING", nullable: true },
+                estimatedMinutes: {
+                  type: "INTEGER",
+                  nullable: true,
+                  minimum: 1,
+                  maximum: 480,
+                },
                 priority: {
-                  type: "string",
+                  type: "STRING",
                   enum: ["Low", "Medium", "High", "Critical"],
                 },
-                areaTag: { type: ["string", "null"] },
-                focusOrder: { type: ["integer", "null"], minimum: 1, maximum: 1000 },
-                habitName: { type: "string" },
-                areaLabel: { type: "string" },
-                areaColor: { type: ["string", "null"] },
-                month: { type: "string" },
-                targetMinutes: { type: ["integer", "null"], minimum: 0 },
-                date: { type: "string", format: "date" },
-                goalMinutes: { type: ["integer", "null"], minimum: 0, maximum: 1440 },
-                actualMinutes: { type: ["integer", "null"], minimum: 0, maximum: 1440 },
-                notes: { type: ["string", "null"] },
-                frontId: { type: "string" },
-                status: { type: "string" },
-                dueDate: { type: ["string", "null"], format: "date" },
+                areaTag: { type: "STRING", nullable: true },
+                focusOrder: {
+                  type: "INTEGER",
+                  nullable: true,
+                  minimum: 1,
+                  maximum: 1000,
+                },
+                habitName: { type: "STRING" },
+                areaLabel: { type: "STRING" },
+                areaColor: { type: "STRING", nullable: true },
+                month: { type: "STRING" },
+                targetMinutes: { type: "INTEGER", nullable: true, minimum: 0 },
+                date: { type: "STRING" },
+                goalMinutes: {
+                  type: "INTEGER",
+                  nullable: true,
+                  minimum: 0,
+                  maximum: 1440,
+                },
+                actualMinutes: {
+                  type: "INTEGER",
+                  nullable: true,
+                  minimum: 0,
+                  maximum: 1440,
+                },
+                notes: { type: "STRING", nullable: true },
+                frontId: { type: "STRING" },
+                status: { type: "STRING" },
+                dueDate: { type: "STRING", nullable: true },
               },
             },
           },
@@ -393,7 +411,11 @@ export async function askAssistant(
     } | null;
     if (!response.ok) {
       if (response.status === 429) throw new Error("AI_QUOTA_REACHED");
-      throw new Error(payload?.error?.message || "AI_REQUEST_FAILED");
+      if (response.status === 400) throw new Error("AI_REQUEST_REJECTED");
+      if (response.status === 401 || response.status === 403) {
+        throw new Error("AI_AUTH_FAILED");
+      }
+      throw new Error("AI_REQUEST_FAILED");
     }
 
     const text = payload?.candidates?.[0]?.content?.parts
