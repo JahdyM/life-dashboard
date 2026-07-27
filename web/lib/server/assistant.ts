@@ -93,6 +93,8 @@ let resolvedFallbackModel: string | null = null;
 
 function modelScore(name: string) {
   let score = 0;
+  const version = name.match(/^gemini-(\d+)(?:\.(\d+))?-/);
+  if (version) score += Number(version[1]) * 100 + Number(version[2] || 0) * 10;
   if (/^gemini-\d+(?:\.\d+)?-flash$/.test(name)) score += 120;
   else if (name.includes("flash-latest")) score += 110;
   else if (name.includes("flash")) score += 90;
@@ -105,9 +107,9 @@ function modelScore(name: string) {
   return score;
 }
 
-async function findAvailableGeminiModel(
+async function findAvailableGeminiModels(
   apiKey: string,
-  excludedModel: string,
+  excludedModels: Set<string>,
   signal: AbortSignal
 ) {
   try {
@@ -115,22 +117,20 @@ async function findAvailableGeminiModel(
       headers: { "x-goog-api-key": apiKey },
       signal,
     });
-    if (!response.ok) return null;
+    if (!response.ok) return [];
     const payload = (await response.json()) as {
       models?: Array<{
         name?: string;
         supportedGenerationMethods?: string[];
       }>;
     };
-    return (
-      (payload.models || [])
-        .filter((model) => model.supportedGenerationMethods?.includes("generateContent"))
-        .map((model) => (model.name || "").replace(/^models\//, ""))
-        .filter((name) => name && name !== excludedModel && modelScore(name) > 0)
-        .sort((left, right) => modelScore(right) - modelScore(left))[0] || null
-    );
+    return (payload.models || [])
+      .filter((model) => model.supportedGenerationMethods?.includes("generateContent"))
+      .map((model) => (model.name || "").replace(/^models\//, ""))
+      .filter((name) => name && !excludedModels.has(name) && modelScore(name) > 0)
+      .sort((left, right) => modelScore(right) - modelScore(left));
   } catch {
-    return null;
+    return [];
   }
 }
 
@@ -463,14 +463,24 @@ export async function askAssistant(
     };
 
     let model = resolvedFallbackModel || assistantModel();
+    const attemptedModels = [model];
     let result = await requestModel(model);
 
-    if (result.response.status === 404) {
-      const fallback = await findAvailableGeminiModel(apiKey, model, controller.signal);
-      if (fallback) {
+    if (result.response.status === 404 || result.response.status === 429) {
+      const fallbacks = await findAvailableGeminiModels(
+        apiKey,
+        new Set(attemptedModels),
+        controller.signal
+      );
+      for (const fallback of fallbacks.slice(0, 4)) {
         model = fallback;
-        resolvedFallbackModel = fallback;
+        attemptedModels.push(fallback);
         result = await requestModel(model);
+        if (result.response.ok) {
+          resolvedFallbackModel = fallback;
+          break;
+        }
+        if (result.response.status !== 404 && result.response.status !== 429) break;
       }
     }
 
@@ -487,6 +497,7 @@ export async function askAssistant(
         meta: {
           status: response.status,
           model,
+          attemptedModels,
           providerStatus: payload?.error?.status || null,
           providerMessage: payload?.error?.message?.slice(0, 600) || null,
         },
