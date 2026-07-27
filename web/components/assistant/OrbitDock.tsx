@@ -143,6 +143,7 @@ export default function OrbitDock() {
         queryClient.invalidateQueries({ queryKey: ["custom-habits"] }),
         queryClient.invalidateQueries({ queryKey: ["task-areas"] }),
         queryClient.invalidateQueries({ queryKey: ["ministry-month"] }),
+        queryClient.invalidateQueries({ queryKey: ["reading-progress"] }),
         queryClient.invalidateQueries({ queryKey: ["dissertation"] }),
       ]);
       router.refresh();

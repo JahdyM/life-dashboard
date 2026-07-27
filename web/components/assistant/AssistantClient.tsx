@@ -30,7 +30,7 @@ const WELCOME_MESSAGE: UiMessage = {
   id: "welcome",
   role: "assistant",
   content:
-    "Tell me what you need. I can organize your day, estimate time, review your rhythm, or draft a routine.",
+    "Tell me what you need. I can organize tasks, plan routines, and update your reading.",
 };
 
 export default function AssistantClient() {
@@ -135,6 +135,7 @@ export default function AssistantClient() {
       await queryClient.invalidateQueries({ queryKey: ["custom-habits"] });
       await queryClient.invalidateQueries({ queryKey: ["task-areas"] });
       await queryClient.invalidateQueries({ queryKey: ["ministry-month"] });
+      await queryClient.invalidateQueries({ queryKey: ["reading-progress"] });
       await queryClient.invalidateQueries({ queryKey: ["dissertation"] });
       router.refresh();
     } catch (requestError) {
@@ -207,7 +208,7 @@ export default function AssistantClient() {
             value={input}
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Organize tomorrow, estimate a task, review my week…"
+            placeholder="Plan Sunday ministry, mark a chapter, organize tomorrow…"
             rows={2}
             maxLength={6000}
             disabled={sending}

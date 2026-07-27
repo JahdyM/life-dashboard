@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { addDays, subDays } from "date-fns";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
+import { BIBLE_BOOKS } from "@/lib/config/bible";
 import {
   ASSISTANT_ACTION_TYPES,
   type AssistantAction,
@@ -12,7 +13,18 @@ import {
   type AssistantScope,
 } from "@/lib/assistant";
 import { applyDissertationAction, loadDissertationProject } from "./dissertation";
-import { getMinistryMonthData, setMinistryDayEntry, setMinistryMonthlyGoal } from "./ministry";
+import {
+  getMinistryMonthData,
+  getMinistryRecurringPlans,
+  removeMinistryRecurringPlan,
+  setMinistryDayEntry,
+  setMinistryMonthlyGoal,
+  upsertMinistryRecurringPlan,
+} from "./ministry";
+import {
+  applyReadingProgressUpdates,
+  getReadingAssistantContext,
+} from "./reading";
 import { getEstimationStats } from "./stats/estimation";
 import {
   canonicalHabitKey,
@@ -40,6 +52,52 @@ const taskUpdateSchema = z.object({
   focusOrder: z.number().int().min(1).max(1000).nullable().optional(),
 });
 
+const readingUpdateSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      kind: z.literal("despertai_issue"),
+      itemId: z.string().trim().min(1).max(160),
+      label: z.string().trim().max(280).optional(),
+      read: z.boolean(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("despertai_topic"),
+      itemId: z.string().trim().min(1).max(160),
+      topicId: z.string().trim().min(1).max(160),
+      label: z.string().trim().max(280).optional(),
+      read: z.boolean(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.enum([
+        "video",
+        "broadcasting",
+        "article_series",
+        "reading_book",
+        "tract",
+        "apostila",
+        "brochure",
+        "watchtower",
+      ]),
+      itemId: z.string().trim().min(1).max(160),
+      label: z.string().trim().max(280).optional(),
+      read: z.boolean(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("bible_chapters"),
+      bookKey: z.string().trim().min(1).max(80),
+      chapters: z.array(z.number().int().min(1).max(200)).min(1).max(200),
+      label: z.string().trim().max(280).optional(),
+      read: z.boolean(),
+    })
+    .strict(),
+]);
+
 const actionSchema = z.object({
   id: z.string().trim().min(1).max(80).optional(),
   type: z.enum(ASSISTANT_ACTION_TYPES),
@@ -66,6 +124,12 @@ const actionSchema = z.object({
       goalMinutes: z.number().int().min(0).max(1440).nullable().optional(),
       actualMinutes: z.number().int().min(0).max(1440).nullable().optional(),
       notes: z.string().trim().max(4000).nullable().optional(),
+      recurrenceId: z.string().trim().min(1).max(120).optional(),
+      recurrenceLabel: z.string().trim().min(1).max(120).optional(),
+      weekday: z.number().int().min(0).max(6).optional(),
+      startDate: z.string().regex(isoDate).optional(),
+      endDate: z.union([z.string().regex(isoDate), z.null()]).optional(),
+      readingUpdates: z.array(readingUpdateSchema).min(1).max(500).optional(),
       frontId: z.string().trim().min(1).max(120).optional(),
       status: z.string().trim().max(500).optional(),
       dueDate: z.union([z.string().regex(isoDate), z.null()]).optional(),
@@ -104,9 +168,24 @@ const payloadAliases: Record<string, string[]> = {
   targetMinutes: ["target_minutes"],
   goalMinutes: ["goal_minutes"],
   actualMinutes: ["actual_minutes"],
+  recurrenceId: ["recurrence_id", "rule_id"],
+  recurrenceLabel: ["recurrence_label"],
+  startDate: ["start_date", "from_date"],
+  endDate: ["end_date", "until_date"],
+  readingUpdates: ["reading_updates", "reading", "progress_updates"],
   frontId: ["front_id"],
   dueDate: ["due_date"],
   taskUpdates: ["task_updates", "updates", "changes", "tasks"],
+};
+
+const actionTypeAliases: Record<string, (typeof ASSISTANT_ACTION_TYPES)[number]> = {
+  create_ministry_recurrence: "set_ministry_recurrence",
+  update_ministry_recurrence: "set_ministry_recurrence",
+  delete_ministry_recurrence: "remove_ministry_recurrence",
+  mark_reading_progress: "update_reading_progress",
+  update_publication_progress: "update_reading_progress",
+  mark_publication: "update_reading_progress",
+  mark_bible_chapter: "update_reading_progress",
 };
 
 function normalizeMinutes(value: unknown) {
@@ -122,6 +201,38 @@ function normalizeMinutes(value: unknown) {
   return Number.isFinite(numeric) ? Math.round(numeric) : value;
 }
 
+function normalizeWeekday(value: unknown) {
+  if (typeof value === "number") return Math.round(value);
+  if (typeof value !== "string") return value;
+  const normalized = value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+  const aliases: Record<string, number> = {
+    sunday: 0,
+    domingo: 0,
+    monday: 1,
+    segunda: 1,
+    "segunda feira": 1,
+    tuesday: 2,
+    terca: 2,
+    "terca feira": 2,
+    wednesday: 3,
+    quarta: 3,
+    "quarta feira": 3,
+    thursday: 4,
+    quinta: 4,
+    "quinta feira": 4,
+    friday: 5,
+    sexta: 5,
+    "sexta feira": 5,
+    saturday: 6,
+    sabado: 6,
+  };
+  return aliases[normalized] ?? value;
+}
+
 function normalizeAssistantReply(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return value;
   const reply = value as Record<string, unknown>;
@@ -132,6 +243,10 @@ function normalizeAssistantReply(value: unknown) {
     actions: reply.actions.map((item) => {
       if (!item || typeof item !== "object" || Array.isArray(item)) return item;
       const action = item as Record<string, unknown>;
+      const actionType =
+        typeof action.type === "string" && actionTypeAliases[action.type]
+          ? actionTypeAliases[action.type]
+          : action.type;
       const rawPayload =
         action.payload && typeof action.payload === "object" && !Array.isArray(action.payload)
           ? (action.payload as Record<string, unknown>)
@@ -153,6 +268,42 @@ function normalizeAssistantReply(value: unknown) {
           }
         }
       );
+      if (payload.weekday !== undefined) {
+        payload.weekday = normalizeWeekday(payload.weekday);
+      }
+      if (
+        actionType === "set_ministry_recurrence" &&
+        payload.goalMinutes === undefined &&
+        payload.estimatedMinutes !== undefined
+      ) {
+        payload.goalMinutes = payload.estimatedMinutes;
+        delete payload.estimatedMinutes;
+      }
+      if (
+        actionType === "set_ministry_recurrence" &&
+        payload.recurrenceLabel === undefined &&
+        typeof payload.label === "string"
+      ) {
+        payload.recurrenceLabel = payload.label;
+        delete payload.label;
+      }
+      if (
+        (actionType === "set_ministry_recurrence" ||
+          actionType === "remove_ministry_recurrence") &&
+        payload.recurrenceId === undefined &&
+        typeof payload.taskId === "string"
+      ) {
+        payload.recurrenceId = payload.taskId;
+        delete payload.taskId;
+      }
+      if (
+        actionType === "update_reading_progress" &&
+        payload.readingUpdates === undefined &&
+        Array.isArray(payload.taskUpdates)
+      ) {
+        payload.readingUpdates = payload.taskUpdates;
+        delete payload.taskUpdates;
+      }
 
       if (typeof payload.scheduledTime === "string") {
         const match = payload.scheduledTime.match(/(?:^|\s)([01]?\d|2[0-3]):([0-5]\d)/);
@@ -189,7 +340,53 @@ function normalizeAssistantReply(value: unknown) {
         });
       }
 
-      return { ...action, payload };
+      if (Array.isArray(payload.readingUpdates)) {
+        payload.readingUpdates = payload.readingUpdates.map((update) => {
+          if (!update || typeof update !== "object" || Array.isArray(update)) return update;
+          const normalized = { ...(update as Record<string, unknown>) };
+          const kindAliases: Record<string, string> = {
+            bible_chapter: "bible_chapters",
+            reading_video: "video",
+            broadcasting_video: "broadcasting",
+            despertai: "despertai_issue",
+            topic: "despertai_topic",
+          };
+          if (typeof normalized.kind === "string" && kindAliases[normalized.kind]) {
+            normalized.kind = kindAliases[normalized.kind];
+          }
+          const aliases: Record<string, string[]> = {
+            itemId: ["item_id", "issue_id", "video_id"],
+            topicId: ["topic_id"],
+            bookKey: ["book_key"],
+          };
+          Object.entries(aliases).forEach(([canonical, candidates]) => {
+            if (normalized[canonical] === undefined) {
+              const alias = candidates.find(
+                (candidate) => normalized[candidate] !== undefined
+              );
+              if (alias) normalized[canonical] = normalized[alias];
+            }
+            candidates.forEach((alias) => delete normalized[alias]);
+          });
+          if (!Array.isArray(normalized.chapters) && normalized.chapter !== undefined) {
+            normalized.chapters = [normalized.chapter];
+          }
+          delete normalized.chapter;
+          if (typeof normalized.read === "string") {
+            const read = normalizeIntentText(normalized.read);
+            if (["true", "yes", "sim", "read", "lido", "lida"].includes(read)) {
+              normalized.read = true;
+            } else if (
+              ["false", "no", "nao", "unread", "nao lido", "nao lida"].includes(read)
+            ) {
+              normalized.read = false;
+            }
+          }
+          return normalized;
+        });
+      }
+
+      return { ...action, type: actionType, payload };
     }),
   };
 }
@@ -266,8 +463,16 @@ function geminiEndpoint(model: string) {
   )}:generateContent`;
 }
 
-function needs(scope: AssistantScope, ...scopes: AssistantScope[]) {
-  return scope === "all" || scopes.includes(scope);
+function normalizeIntentText(value: string) {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function hasIntent(value: string, terms: string[]) {
+  const normalized = normalizeIntentText(value);
+  return terms.some((term) => normalized.includes(term));
 }
 
 function normalizeWords(value: string) {
@@ -330,17 +535,87 @@ function calibrateRepeatedTask(
   };
 }
 
-async function buildAssistantContext(userEmail: string, scope: AssistantScope) {
+async function buildAssistantContext(
+  userEmail: string,
+  scope: AssistantScope,
+  queryText: string
+) {
   const todayIso = await getTodayIsoForUser(userEmail);
   const startIso = dayOffset(todayIso, -14);
   const endIso = dayOffset(todayIso, 14);
   const currentMonth = todayIso.slice(0, 7);
-  const taskContext = needs(scope, "today", "calendar", "dissertation", "ministry");
-  const habitContext = needs(scope, "today", "calendar", "habits");
-  const metricContext = needs(scope, "today", "mood", "stats");
+  const taskIntent = hasIntent(queryText, [
+    "task",
+    "tarefa",
+    "agenda",
+    "horario",
+    "prioridade",
+    "reorgan",
+    "estim",
+  ]);
+  const habitIntent = hasIntent(queryText, ["habit", "habito", "rotina"]);
+  const metricIntent = hasIntent(queryText, ["mood", "humor", "sono", "ansiedade", "stat"]);
+  const ministryIntent = hasIntent(queryText, [
+    "minister",
+    "campo",
+    "field service",
+    "horas de servico",
+  ]);
+  const dissertationIntent = hasIntent(queryText, [
+    "dissert",
+    "mestrado",
+    "artigo",
+    "defesa",
+  ]);
+  const readingIntent = hasIntent(queryText, [
+    "publica",
+    "despertai",
+    "sentinela",
+    "watchtower",
+    "biblia",
+    "bible",
+    "capitulo",
+    "topico",
+    "video",
+    "broadcasting",
+    "apostila",
+    "brochura",
+    "livreto",
+    "folheto",
+    "serie de artigos",
+  ]) ||
+    BIBLE_BOOKS.some((book) =>
+      normalizeIntentText(queryText).includes(normalizeIntentText(book.name))
+    );
+  const hasExplicitIntent =
+    taskIntent ||
+    habitIntent ||
+    metricIntent ||
+    ministryIntent ||
+    dissertationIntent ||
+    readingIntent;
+  const fullDefault = scope === "all" && !hasExplicitIntent;
+  const taskContext =
+    ["today", "calendar"].includes(scope) || taskIntent || fullDefault;
+  const habitContext =
+    ["today", "calendar", "habits"].includes(scope) || habitIntent || fullDefault;
+  const metricContext =
+    ["today", "mood", "stats"].includes(scope) || metricIntent || fullDefault;
+  const ministryContext = scope === "ministry" || ministryIntent;
+  const dissertationContext = scope === "dissertation" || dissertationIntent;
+  const readingContext = scope === "publications" || readingIntent;
 
-  const [tasks, habits, estimation, metrics, areas, ministry, dissertation] =
-    await Promise.all([
+  const [
+    tasks,
+    habits,
+    estimation,
+    metrics,
+    areas,
+    ministry,
+    ministryRecurrences,
+    dissertation,
+    reading,
+  ] = await Promise.all([
       taskContext ? listTasks(userEmail, todayIso, endIso, true) : Promise.resolve([]),
       habitContext ? getCustomHabits(userEmail) : Promise.resolve([]),
       taskContext
@@ -360,11 +635,15 @@ async function buildAssistantContext(userEmail: string, scope: AssistantScope) {
           })
         : Promise.resolve([]),
       taskContext ? getTaskAreas(userEmail) : Promise.resolve([]),
-      needs(scope, "ministry")
+      ministryContext
         ? getMinistryMonthData(userEmail, currentMonth)
         : Promise.resolve(null),
-      needs(scope, "dissertation")
+      ministryContext ? getMinistryRecurringPlans(userEmail) : Promise.resolve([]),
+      dissertationContext
         ? loadDissertationProject(userEmail)
+        : Promise.resolve(null),
+      readingContext
+        ? getReadingAssistantContext(userEmail, queryText)
         : Promise.resolve(null),
     ]);
 
@@ -432,6 +711,14 @@ async function buildAssistantContext(userEmail: string, scope: AssistantScope) {
             actualMinutes: entry.actualMinutes,
             notes: entry.notes,
           })),
+          recurrences: ministryRecurrences.map((plan) => ({
+            id: plan.id,
+            label: plan.label,
+            weekday: plan.weekday,
+            goalMinutes: plan.goalMinutes,
+            startDate: plan.startDate,
+            endDate: plan.endDate,
+          })),
         }
       : null,
     dissertation: dissertation
@@ -451,6 +738,7 @@ async function buildAssistantContext(userEmail: string, scope: AssistantScope) {
           })),
         }
       : null,
+    reading,
   };
 }
 
@@ -472,11 +760,13 @@ function systemInstruction(context: AssistantContext) {
     "TASK TAGS: use an existing taskAreas key. If the requested tag does not exist, propose create_area before assigning it.",
     "PRIORITY: use Low, Medium, High, or Critical based on consequence and deadline, not anxiety.",
     "MINISTRY: daily goals are always manual. You may set a monthly goal and specific daily plans, but never auto-distribute the monthly target unless the user explicitly asks you to create a proposed schedule. Preserve logged actual time unless the user explicitly changes it.",
+    "MINISTRY RECURRENCE: when the user explicitly says every/each weekday, use set_ministry_recurrence instead of many update_ministry_day actions. Payload keys are recurrenceLabel, weekday (Sunday=0 through Saturday=6), goalMinutes, startDate, and endDate (null means ongoing). Reuse recurrenceId from context to edit an existing rule. Use remove_ministry_recurrence with recurrenceId only when explicitly asked to stop one.",
+    "READING: use one update_reading_progress action with payload.readingUpdates. Use only exact IDs/keys supplied in reading candidates. Kinds are despertai_issue, despertai_topic, video, broadcasting, article_series, reading_book, tract, apostila, brochure, watchtower, and bible_chapters. A whole Despertai issue marks every topic; a topic update needs itemId and topicId. Bible updates need bookKey plus a chapters array. read=true marks read; read=false unmarks. If the requested title/topic is ambiguous or absent from candidates, ask a short clarifying question and return no action.",
     "DISSERTATION: use front IDs from context when adding a next step or changing a front status.",
-    "Allowed actions: create_task, update_task, bulk_update_tasks, create_habit, create_area, set_ministry_month_goal, update_ministry_day, add_dissertation_step, update_dissertation_front.",
+    "Allowed actions: create_task, update_task, bulk_update_tasks, create_habit, create_area, set_ministry_month_goal, update_ministry_day, set_ministry_recurrence, remove_ministry_recurrence, update_reading_progress, add_dissertation_step, update_dissertation_front.",
     'Return only one JSON object shaped as {"message":"short answer","actions":[{"type":"allowed action","title":"short preview title","reason":"brief reason","payload":{}}]}. Use an empty actions array when no change is needed. Never add keys outside this structure.',
     "For task duration, the payload key is estimatedMinutes (integer minutes). For a fixed task time, use scheduledTime in HH:mm. Never use estimate, duration, or time as payload keys.",
-    "Never delete, complete, or mark records missed. Do not alter sensitive metrics. If the requested operation has no supported safe action, explain what is missing instead of pretending.",
+    "Never delete, complete, or mark TASKS missed. Do not alter sensitive metrics. Reading progress and explicitly requested recurrence removal are supported exceptions. If the requested operation has no supported safe action, explain what is missing instead of pretending.",
     `Dashboard context: ${JSON.stringify(context)}`,
   ].join("\n");
 }
@@ -489,7 +779,9 @@ export async function askAssistant(
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) throw new Error("AI_NOT_CONFIGURED");
 
-  const context = await buildAssistantContext(userEmail, scope);
+  const latestUserMessage =
+    [...messages].reverse().find((message) => message.role === "user")?.content || "";
+  const context = await buildAssistantContext(userEmail, scope, latestUserMessage);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 35_000);
   try {
@@ -597,23 +889,66 @@ export async function askAssistant(
     const taskTitles = new Map(
       context.pendingTasks.map((task) => [task.id, task.title] as const)
     );
+    const readingLabels = new Map<string, string>();
+    context.reading?.despertai.candidates.forEach((issue) => {
+      readingLabels.set(`despertai_issue:${issue.id}`, issue.title);
+      issue.topicCandidates.forEach((topic) => {
+        readingLabels.set(
+          `despertai_topic:${issue.id}:${topic.id}`,
+          `${issue.title} — ${topic.title}`
+        );
+      });
+    });
+    context.reading?.collections.forEach((collection) => {
+      collection.candidates.forEach((item) => {
+        readingLabels.set(`${collection.kind}:${item.id}`, item.title);
+      });
+    });
+    context.reading?.bible.bookIndex.forEach((book) => {
+      readingLabels.set(`bible_chapters:${book.key}`, book.name);
+    });
+
     return {
       message: parsed.message,
       actions: parsed.actions.map((action) => {
         const calibrated = calibrateRepeatedTask(action, context.completedTaskHistory);
+        let nextPayload = calibrated.payload;
+        if (
+          calibrated.type === "bulk_update_tasks" &&
+          calibrated.payload.taskUpdates
+        ) {
+          nextPayload = {
+            ...calibrated.payload,
+            taskUpdates: calibrated.payload.taskUpdates.map((update) => ({
+              ...update,
+              title: update.title || taskTitles.get(update.taskId),
+            })),
+          };
+        }
+        if (
+          calibrated.type === "update_reading_progress" &&
+          calibrated.payload.readingUpdates
+        ) {
+          nextPayload = {
+            ...calibrated.payload,
+            readingUpdates: calibrated.payload.readingUpdates.map((update) => {
+              const key =
+                update.kind === "despertai_topic"
+                  ? `${update.kind}:${update.itemId}:${update.topicId}`
+                  : update.kind === "bible_chapters"
+                    ? `${update.kind}:${update.bookKey}`
+                    : `${update.kind}:${update.itemId}`;
+              return {
+                ...update,
+                label: update.label || readingLabels.get(key),
+              };
+            }),
+          };
+        }
         return {
           ...calibrated,
           id: action.id || randomUUID(),
-          payload:
-            calibrated.type === "bulk_update_tasks" && calibrated.payload.taskUpdates
-              ? {
-                  ...calibrated.payload,
-                  taskUpdates: calibrated.payload.taskUpdates.map((update) => ({
-                    ...update,
-                    title: update.title || taskTitles.get(update.taskId),
-                  })),
-                }
-              : calibrated.payload,
+          payload: nextPayload,
         };
       }) as AssistantAction[],
     };
@@ -752,6 +1087,53 @@ export async function applyAssistantActions(userEmail: string, rawActions: unkno
           action.payload.notes === undefined ? existing?.notes ?? null : action.payload.notes,
       });
       results.push({ id: date, type: action.type, title: action.title });
+      continue;
+    }
+
+    if (action.type === "set_ministry_recurrence") {
+      const weekday = action.payload.weekday;
+      const goalMinutes = action.payload.goalMinutes;
+      const label = action.payload.recurrenceLabel || action.title;
+      if (weekday === undefined || goalMinutes == null || goalMinutes <= 0) {
+        throw new Error("INVALID_ASSISTANT_ACTION");
+      }
+      const recurrence = await upsertMinistryRecurringPlan(userEmail, {
+        id: action.payload.recurrenceId,
+        label,
+        weekday,
+        goalMinutes,
+        startDate: action.payload.startDate || todayIso,
+        endDate: action.payload.endDate ?? null,
+      });
+      results.push({
+        id: recurrence.id,
+        type: action.type,
+        title: recurrence.label,
+      });
+      continue;
+    }
+
+    if (action.type === "remove_ministry_recurrence") {
+      const recurrenceId = action.payload.recurrenceId;
+      if (!recurrenceId) throw new Error("INVALID_ASSISTANT_ACTION");
+      const recurrence = await removeMinistryRecurringPlan(userEmail, recurrenceId);
+      results.push({
+        id: recurrence.id,
+        type: action.type,
+        title: recurrence.label,
+      });
+      continue;
+    }
+
+    if (action.type === "update_reading_progress") {
+      const updates = action.payload.readingUpdates;
+      if (!updates?.length) throw new Error("INVALID_ASSISTANT_ACTION");
+      await applyReadingProgressUpdates(userEmail, updates);
+      results.push({
+        id: action.id || randomUUID(),
+        type: action.type,
+        title: action.title,
+      });
       continue;
     }
 

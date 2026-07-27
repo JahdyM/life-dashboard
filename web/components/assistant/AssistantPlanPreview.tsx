@@ -12,6 +12,9 @@ function actionLabel(action: AssistantAction) {
     create_area: "New tag",
     set_ministry_month_goal: "Ministry goal",
     update_ministry_day: "Ministry day",
+    set_ministry_recurrence: "Ministry routine",
+    remove_ministry_recurrence: "Stop routine",
+    update_reading_progress: "Reading progress",
     add_dissertation_step: "Next step",
     update_dissertation_front: "Research front",
   };
@@ -27,11 +30,21 @@ function actionMeta(action: AssistantAction) {
       ? `${action.payload.targetMinutes} min target`
       : null,
     action.payload.goalMinutes != null ? `${action.payload.goalMinutes} min planned` : null,
+    action.payload.weekday != null
+      ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][action.payload.weekday]
+      : null,
+    action.payload.startDate,
+    action.type === "set_ministry_recurrence" && action.payload.endDate == null
+      ? "ongoing"
+      : action.payload.endDate,
     action.payload.priority,
     action.payload.areaTag || action.payload.areaLabel,
     action.payload.dueDate,
     action.payload.taskUpdates?.length
       ? `${action.payload.taskUpdates.length} tasks`
+      : null,
+    action.payload.readingUpdates?.length
+      ? `${action.payload.readingUpdates.length} changes`
       : null,
   ].filter(Boolean);
   return parts.join(" · ");
@@ -50,6 +63,16 @@ function taskUpdateMeta(
   ]
     .filter(Boolean)
     .join(" · ");
+}
+
+function readingUpdateLabel(
+  update: NonNullable<AssistantAction["payload"]["readingUpdates"]>[number]
+) {
+  const state = update.read ? "Read" : "Unread";
+  if (update.kind === "bible_chapters") {
+    return `${update.label || update.bookKey} ${update.chapters.join(", ")} · ${state}`;
+  }
+  return `${update.label || "Publication"} · ${state}`;
 }
 
 export default function AssistantPlanPreview({
@@ -81,6 +104,25 @@ export default function AssistantPlanPreview({
                   <p key={update.taskId}>
                     <strong>{update.title || "Task"}</strong>
                     <small>{taskUpdateMeta(update)}</small>
+                  </p>
+                ))}
+              </div>
+            </details>
+          ) : null}
+          {action.type === "update_reading_progress" &&
+          action.payload.readingUpdates?.length ? (
+            <details className="assistant-bulk-review">
+              <summary>Review reading changes</summary>
+              <div>
+                {action.payload.readingUpdates.map((update, index) => (
+                  <p
+                    key={
+                      update.kind === "bible_chapters"
+                        ? `${update.bookKey}-${update.chapters.join("-")}-${index}`
+                        : `${update.kind}-${update.itemId}-${index}`
+                    }
+                  >
+                    <strong>{readingUpdateLabel(update)}</strong>
                   </p>
                 ))}
               </div>

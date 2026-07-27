@@ -10,6 +10,7 @@ import watchtowerCatalog from "@/lib/config/watchtowerPublications.json";
 import videoCatalog from "@/lib/config/readingVideos.json";
 import { BIBLE_BOOK_BY_KEY, BIBLE_SECTIONS, BIBLE_TOTAL_CHAPTERS } from "@/lib/config/bible";
 import { getSetting, setSetting } from "@/lib/server/settings";
+import type { AssistantReadingUpdate } from "@/lib/assistant";
 import type { DespertaiIssue, DespertaiTopic, ReadingPageData, ReadingVideo } from "@/lib/types";
 
 type StoredDespertaiTopic = {
@@ -691,6 +692,206 @@ export async function getReadingPageData(userEmail: string) {
   return toPageData(await getState(userEmail));
 }
 
+function normalizeAssistantSearch(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+const ASSISTANT_SEARCH_STOP_WORDS = new Set([
+  "a",
+  "as",
+  "ao",
+  "aos",
+  "como",
+  "da",
+  "das",
+  "de",
+  "do",
+  "dos",
+  "e",
+  "eu",
+  "ja",
+  "ler",
+  "lida",
+  "lido",
+  "marcar",
+  "marque",
+  "na",
+  "nas",
+  "no",
+  "nos",
+  "o",
+  "os",
+  "para",
+  "por",
+  "quero",
+  "the",
+  "to",
+  "read",
+  "mark",
+  "publication",
+  "publicacao",
+  "publicacoes",
+  "revista",
+  "topico",
+  "topicos",
+  "video",
+  "videos",
+  "biblia",
+  "bible",
+  "capitulo",
+  "capitulos",
+]);
+
+function assistantSearchTerms(query: string) {
+  return normalizeAssistantSearch(query)
+    .split(/\s+/)
+    .filter((term) => term && !ASSISTANT_SEARCH_STOP_WORDS.has(term));
+}
+
+function assistantMatchScore(value: string, terms: string[]) {
+  if (!terms.length) return 0;
+  const normalized = normalizeAssistantSearch(value);
+  return terms.reduce((score, term) => {
+    if (normalized === term) return score + 8;
+    if (normalized.includes(term)) return score + (term.length >= 5 ? 4 : 2);
+    return score;
+  }, 0);
+}
+
+function pickAssistantCandidates<T>(
+  items: T[],
+  queryTerms: string[],
+  text: (item: T) => string,
+  fallback: (item: T) => number,
+  limit = 8
+) {
+  const ranked = items
+    .map((item) => ({
+      item,
+      score: assistantMatchScore(text(item), queryTerms),
+      fallback: fallback(item),
+    }))
+    .sort((left, right) => right.score - left.score || right.fallback - left.fallback);
+  const matching = ranked.filter((entry) => entry.score > 0);
+  return (matching.length ? matching : ranked).slice(0, limit).map((entry) => entry.item);
+}
+
+export async function getReadingAssistantContext(userEmail: string, query: string) {
+  const data = toPageData(await getState(userEmail));
+  const terms = assistantSearchTerms(query);
+  const allIssues = [
+    ...data.despertai.pendingIssues,
+    ...data.despertai.finishedIssuesList,
+  ];
+  const issueCandidates = pickAssistantCandidates(
+    allIssues,
+    terms,
+    (issue) =>
+      [
+        issue.title,
+        issue.year,
+        issue.dateLabel,
+        ...issue.topics.map((topic) => topic.title),
+      ].join(" "),
+    (issue) => issue.readCount * 10 + issue.year,
+    8
+  ).map((issue) => {
+    const topicMatches = pickAssistantCandidates(
+      issue.topics,
+      terms,
+      (topic) => topic.title,
+      (topic) => (topic.read ? 0 : 1),
+      12
+    );
+    return {
+      id: issue.id,
+      title: issue.title,
+      year: issue.year,
+      dateLabel: issue.dateLabel,
+      readCount: issue.readCount,
+      totalTopics: issue.totalTopics,
+      topicCandidates: topicMatches.map((topic) => ({
+        id: topic.id,
+        title: topic.title,
+        read: topic.read,
+      })),
+    };
+  });
+
+  const publicationSections = [
+    ["video", "Videos", data.videos],
+    ["broadcasting", "Broadcasting", data.broadcasting],
+    ["article_series", "Article series", data.articleSeries],
+    ["reading_book", "Books", data.books],
+    ["tract", "Tracts and Kingdom News", data.tracts],
+    ["apostila", "Apostilas", data.apostilas],
+    ["brochure", "Brochures and booklets", data.brochures],
+    ["watchtower", "Watchtower", data.watchtower],
+  ] as const;
+  const collections = publicationSections.map(([kind, label, section]) => {
+    const allItems = [...section.pendingVideosList, ...section.finishedVideosList];
+    const candidates = pickAssistantCandidates(
+      allItems,
+      terms,
+      (item) => [item.title, item.naturalKey, item.documentId].join(" "),
+      (item) => (item.read ? 0 : 1),
+      8
+    );
+    return {
+      kind,
+      label,
+      total: section.totalVideos,
+      finished: section.finishedVideos,
+      candidates: candidates.map((item) => ({
+        id: item.id,
+        title: item.title,
+        naturalKey: item.naturalKey,
+        read: item.read,
+      })),
+    };
+  });
+
+  const bibleBooks = data.bible.sections.flatMap((section) => section.books);
+  const bibleCandidates = pickAssistantCandidates(
+    bibleBooks,
+    terms,
+    (book) => `${book.name} ${book.key}`,
+    (book) => book.readCount,
+    6
+  );
+
+  return {
+    despertai: {
+      totalIssues: data.despertai.totalIssues,
+      finishedIssues: data.despertai.finishedIssues,
+      readTopics: data.despertai.readTopics,
+      totalTopics: data.despertai.totalTopics,
+      candidates: issueCandidates,
+    },
+    collections,
+    bible: {
+      readChapters: data.bible.readChapters,
+      totalChapters: data.bible.totalChapters,
+      bookIndex: bibleBooks.map((book) => ({
+        key: book.key,
+        name: book.name,
+        chapters: book.chapters,
+      })),
+      candidates: bibleCandidates.map((book) => ({
+        key: book.key,
+        name: book.name,
+        chapters: book.chapters,
+        readChapters: book.readChapters,
+      })),
+    },
+  };
+}
+
 export async function importDespertaiIssues(userEmail: string, raw: string) {
   const incoming = parseDespertaiImport(raw);
   const state = await getState(userEmail);
@@ -867,4 +1068,97 @@ export async function setBibleChapterRead(
   const nextState = { ...state, bible_read_chapters: bibleReadChapters };
   await saveState(userEmail, nextState);
   return toPageData(nextState);
+}
+
+function updateStoredReadingItem(
+  items: StoredReadingVideo[],
+  itemId: string,
+  read: boolean,
+  nowIso: string
+) {
+  const index = items.findIndex((item) => item.id === itemId);
+  if (index < 0) throw new Error("READING_ITEM_NOT_FOUND");
+  items[index] = { ...items[index], read, updated_at: nowIso };
+}
+
+export async function applyReadingProgressUpdates(
+  userEmail: string,
+  updates: AssistantReadingUpdate[]
+) {
+  const state = await getState(userEmail);
+  const nowIso = new Date().toISOString();
+
+  updates.forEach((update) => {
+    if (update.kind === "despertai_issue") {
+      const issue = state.despertai_issues.find((item) => item.id === update.itemId);
+      if (!issue) throw new Error("READING_ITEM_NOT_FOUND");
+      issue.topics = issue.topics.map((topic) => ({ ...topic, read: update.read }));
+      issue.updated_at = nowIso;
+      return;
+    }
+
+    if (update.kind === "despertai_topic") {
+      const issue = state.despertai_issues.find((item) => item.id === update.itemId);
+      const topic = issue?.topics.find((item) => item.id === update.topicId);
+      if (!issue || !topic) throw new Error("READING_ITEM_NOT_FOUND");
+      topic.read = update.read;
+      issue.updated_at = nowIso;
+      return;
+    }
+
+    if (update.kind === "bible_chapters") {
+      const book = BIBLE_BOOK_BY_KEY.get(update.bookKey);
+      if (!book || !update.chapters.length) throw new Error("READING_ITEM_NOT_FOUND");
+      const chapters = new Set(state.bible_read_chapters[update.bookKey] || []);
+      update.chapters.forEach((chapter) => {
+        if (!Number.isInteger(chapter) || chapter < 1 || chapter > book.chapters) {
+          throw new Error("INVALID_BIBLE_CHAPTER");
+        }
+        if (update.read) chapters.add(chapter);
+        else chapters.delete(chapter);
+      });
+      const next = Array.from(chapters).sort((left, right) => left - right);
+      if (next.length) state.bible_read_chapters[update.bookKey] = next;
+      else delete state.bible_read_chapters[update.bookKey];
+      return;
+    }
+
+    if (update.kind === "video") {
+      updateStoredReadingItem(state.videos, update.itemId, update.read, nowIso);
+      return;
+    }
+    if (update.kind === "broadcasting") {
+      updateStoredReadingItem(
+        state.broadcasting_videos,
+        update.itemId,
+        update.read,
+        nowIso
+      );
+      return;
+    }
+    if (update.kind === "article_series") {
+      updateStoredReadingItem(state.article_series, update.itemId, update.read, nowIso);
+      return;
+    }
+    if (update.kind === "reading_book") {
+      updateStoredReadingItem(state.books, update.itemId, update.read, nowIso);
+      return;
+    }
+    if (update.kind === "tract") {
+      updateStoredReadingItem(state.tracts, update.itemId, update.read, nowIso);
+      return;
+    }
+    if (update.kind === "apostila") {
+      updateStoredReadingItem(state.apostilas, update.itemId, update.read, nowIso);
+      return;
+    }
+    if (update.kind === "brochure") {
+      updateStoredReadingItem(state.brochures, update.itemId, update.read, nowIso);
+      return;
+    }
+    updateStoredReadingItem(state.watchtower, update.itemId, update.read, nowIso);
+  });
+
+  await saveState(userEmail, state);
+  return toPageData(state);
 }

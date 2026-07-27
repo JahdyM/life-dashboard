@@ -6,6 +6,9 @@ export const ASSISTANT_ACTION_TYPES = [
   "create_area",
   "set_ministry_month_goal",
   "update_ministry_day",
+  "set_ministry_recurrence",
+  "remove_ministry_recurrence",
+  "update_reading_progress",
   "add_dissertation_step",
   "update_dissertation_front",
 ] as const;
@@ -50,6 +53,12 @@ export type AssistantAction = {
     goalMinutes?: number | null;
     actualMinutes?: number | null;
     notes?: string | null;
+    recurrenceId?: string;
+    recurrenceLabel?: string;
+    weekday?: number;
+    startDate?: string;
+    endDate?: string | null;
+    readingUpdates?: AssistantReadingUpdate[];
     frontId?: string;
     status?: string;
     dueDate?: string | null;
@@ -75,3 +84,39 @@ export type AssistantChatMessage = {
   role: "user" | "assistant";
   content: string;
 };
+
+export type AssistantReadingUpdate =
+  | {
+      kind: "despertai_issue";
+      itemId: string;
+      label?: string;
+      read: boolean;
+    }
+  | {
+      kind: "despertai_topic";
+      itemId: string;
+      topicId: string;
+      label?: string;
+      read: boolean;
+    }
+  | {
+      kind:
+        | "video"
+        | "broadcasting"
+        | "article_series"
+        | "reading_book"
+        | "tract"
+        | "apostila"
+        | "brochure"
+        | "watchtower";
+      itemId: string;
+      label?: string;
+      read: boolean;
+    }
+  | {
+      kind: "bible_chapters";
+      bookKey: string;
+      chapters: number[];
+      label?: string;
+      read: boolean;
+    };

@@ -74,6 +74,15 @@ function assistantError(error: unknown) {
   if (message === "INVALID_ASSISTANT_ACTION") {
     return jsonError("The proposed plan contains an invalid change.", 400);
   }
+  if (message === "INVALID_MINISTRY_RECURRENCE") {
+    return jsonError("This ministry routine has invalid dates or time.", 400);
+  }
+  if (message === "READING_ITEM_NOT_FOUND") {
+    return jsonError("This publication is no longer available.", 404);
+  }
+  if (message === "INVALID_BIBLE_CHAPTER") {
+    return jsonError("One of these Bible chapters is invalid.", 400);
+  }
   return null;
 }
 
