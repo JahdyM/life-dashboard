@@ -33,9 +33,13 @@ function actionLabel(action: AssistantAction) {
     add_bucket_item: "Bucket list",
     toggle_bucket_item: "Bucket list",
     add_finance_expense: "Expense",
+    update_finance_expense: "Expense",
     upsert_finance_debt: "Debt",
     update_finance_income: "Income",
     update_finance_fixed_cost: "Fixed cost",
+    add_finance_fixed_cost: "New fixed cost",
+    remove_finance_item: "Remove finance item",
+    refresh_word_of_day: "New research word",
     set_assistant_preferences: "Orbit preference",
   };
   return labels[action.type];
@@ -78,6 +82,7 @@ function actionMeta(action: AssistantAction) {
     action.payload.boardKey,
     action.payload.progress != null ? `${action.payload.progress}%` : null,
     action.payload.amount != null ? `${action.payload.amount}` : null,
+    action.payload.financeItemType,
     action.payload.scheduleLocked ? "fixed" : null,
     action.payload.dueDate,
     action.payload.taskUpdates?.length

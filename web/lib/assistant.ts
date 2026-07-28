@@ -27,9 +27,13 @@ export const ASSISTANT_ACTION_TYPES = [
   "add_bucket_item",
   "toggle_bucket_item",
   "add_finance_expense",
+  "update_finance_expense",
   "upsert_finance_debt",
   "update_finance_income",
   "update_finance_fixed_cost",
+  "add_finance_fixed_cost",
+  "remove_finance_item",
+  "refresh_word_of_day",
   "set_assistant_preferences",
 ] as const;
 
@@ -149,6 +153,7 @@ export type AssistantAction = {
     paidAmount?: number;
     incomeKey?: "gui" | "jahdy" | "extras";
     fixedCostId?: string;
+    financeItemType?: "extra_expense" | "debt" | "fixed_cost";
     budget?: number;
     actual?: number | null;
     taskUpdates?: Array<{

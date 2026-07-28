@@ -784,6 +784,7 @@ function pickAssistantCandidates<T>(
 export async function getReadingAssistantContext(userEmail: string, query: string) {
   const data = toPageData(await getState(userEmail));
   const terms = assistantSearchTerms(query);
+  const wantsWheel = /(?:roleta|sortear|sorteio|aleat[oó]ri)/i.test(query);
   const allIssues = [
     ...data.despertai.pendingIssues,
     ...data.despertai.finishedIssuesList,
@@ -874,6 +875,42 @@ export async function getReadingAssistantContext(userEmail: string, query: strin
       candidates: issueCandidates,
     },
     collections,
+    wheel: wantsWheel
+      ? {
+          despertai: data.despertai.pendingIssues.length
+            ? (() => {
+                const issue =
+                  data.despertai.pendingIssues[
+                    Math.floor(Math.random() * data.despertai.pendingIssues.length)
+                  ];
+                return {
+                  kind: "despertai_issue" as const,
+                  id: issue.id,
+                  title: issue.title,
+                  year: issue.year,
+                  dateLabel: issue.dateLabel,
+                };
+              })()
+            : null,
+          collections: publicationSections.map(([kind, label, section]) => {
+            const items = section.pendingVideosList;
+            const item = items.length
+              ? items[Math.floor(Math.random() * items.length)]
+              : null;
+            return {
+              kind,
+              label,
+              result: item
+                ? {
+                    id: item.id,
+                    title: item.title,
+                    naturalKey: item.naturalKey,
+                  }
+                : null,
+            };
+          }),
+        }
+      : null,
     bible: {
       readChapters: data.bible.readChapters,
       totalChapters: data.bible.totalChapters,

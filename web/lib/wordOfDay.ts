@@ -207,13 +207,17 @@ async function enrichWithDictionary(item: WordOfDayItem) {
   }
 }
 
-export async function getWordOfTheDay(dateIso?: string): Promise<WordOfDayPayload> {
+export async function getWordOfTheDay(
+  dateIso?: string,
+  variant = 0
+): Promise<WordOfDayPayload> {
   const resolvedDate = resolveDateIso(dateIso);
+  const selectionKey = `${resolvedDate}:${Math.max(0, Math.trunc(variant))}`;
 
   try {
     const apiPool = await fetchScienceWordPool();
     if (apiPool.length > 0) {
-      const picked = pickByDate(apiPool, resolvedDate) || apiPool[0];
+      const picked = pickByDate(apiPool, selectionKey) || apiPool[0];
       const enriched = await enrichWithDictionary(picked);
       return {
         item: {
@@ -229,7 +233,7 @@ export async function getWordOfTheDay(dateIso?: string): Promise<WordOfDayPayloa
     // fall through to fallback list
   }
 
-  const fallbackItem = pickByDate(FALLBACK_WORDS, resolvedDate) || FALLBACK_WORDS[0];
+  const fallbackItem = pickByDate(FALLBACK_WORDS, selectionKey) || FALLBACK_WORDS[0];
   return {
     item: fallbackItem,
     poolSize: FALLBACK_WORDS.length,

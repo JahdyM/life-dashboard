@@ -199,7 +199,7 @@ export default async function TodayPage() {
         />
 
         <Suspense>
-          <WordOfDay />
+          <WordOfDay userEmail={userEmail} dateIso={overview.todayIso} />
         </Suspense>
       </section>
 

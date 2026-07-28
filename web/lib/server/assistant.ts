@@ -29,6 +29,7 @@ import {
   getMonthlyFinance,
   getSavingsGoals,
   saveMonthlyFinance,
+  computeFinanceSummary,
   toggleBucketItem,
   updateCoupleGoalProgress,
   updateSavingsGoalAmount,
@@ -47,11 +48,21 @@ import {
 } from "./reading";
 import { getEstimationStats } from "./stats/estimation";
 import {
+  getAnxietyTrend,
+  getLifeBalanceScore,
+  getMoodHabitCorrelations,
+  getProductivityHeatmap,
+  getSleepScore,
+  getWeeklyReport,
+} from "./stats/behavior";
+import {
   canonicalHabitKey,
   getAllCustomHabits,
   getCustomHabits,
   getTodayIsoForUser,
   getUserTimeZone,
+  getSetting,
+  setSetting,
   saveCustomHabits,
 } from "./settings";
 import {
@@ -241,6 +252,9 @@ const actionSchema = z.object({
       paidAmount: z.number().min(0).max(1_000_000_000).optional(),
       incomeKey: z.enum(["gui", "jahdy", "extras"]).optional(),
       fixedCostId: z.string().trim().min(1).max(160).optional(),
+      financeItemType: z
+        .enum(["extra_expense", "debt", "fixed_cost"])
+        .optional(),
       budget: z.number().min(0).max(1_000_000_000).optional(),
       actual: z.number().min(0).max(1_000_000_000).nullable().optional(),
       taskUpdates: z.array(taskUpdateSchema).min(1).max(500).optional(),
@@ -327,6 +341,7 @@ const payloadAliases: Record<string, string[]> = {
   paidAmount: ["paid_amount"],
   incomeKey: ["income_key"],
   fixedCostId: ["fixed_cost_id"],
+  financeItemType: ["finance_item_type", "item_type"],
   taskUpdates: ["task_updates", "updates", "changes", "tasks"],
 };
 
@@ -354,6 +369,9 @@ const actionTypeAliases: Record<string, (typeof ASSISTANT_ACTION_TYPES)[number]>
   create_savings_goal: "add_savings_goal",
   create_bucket_item: "add_bucket_item",
   set_finance_debt: "upsert_finance_debt",
+  edit_finance_expense: "update_finance_expense",
+  delete_finance_item: "remove_finance_item",
+  change_word_of_day: "refresh_word_of_day",
 };
 
 function normalizeMinutes(value: unknown) {
@@ -697,6 +715,7 @@ function normalizeAssistantReply(value: unknown) {
         update_couple_goal: "goalId",
         update_savings_goal: "savingsGoalId",
         toggle_bucket_item: "bucketItemId",
+        update_finance_expense: "expenseId",
         update_finance_fixed_cost: "fixedCostId",
       };
       const entityIdField =
@@ -939,6 +958,29 @@ function hasIntent(value: string, terms: string[]) {
   return terms.some((term) => normalized.includes(term));
 }
 
+function weightedRandomItem<T>(items: T[], weightFor: (item: T) => number) {
+  const weighted = items.map((item) => ({
+    item,
+    weight: Math.max(0, weightFor(item)),
+  }));
+  const total = weighted.reduce((sum, entry) => sum + entry.weight, 0);
+  if (total <= 0) return items[0] || null;
+  let cursor = Math.random() * total;
+  for (const entry of weighted) {
+    cursor -= entry.weight;
+    if (cursor <= 0) return entry.item;
+  }
+  return weighted.at(-1)?.item || null;
+}
+
+function taskPriorityWeight(priority: string | null | undefined) {
+  const normalized = String(priority || "").toLowerCase();
+  if (normalized === "critical") return 4;
+  if (normalized === "high") return 3;
+  if (normalized === "medium") return 2;
+  return 1;
+}
+
 function normalizeWords(value: string) {
   return new Set(
     value
@@ -1094,9 +1136,38 @@ async function buildAssistantContext(
     "duracao",
     "nota",
     "tag",
+    "proxima atividade",
+    "proxima tarefa",
+    "o que fazer",
+    "roleta de task",
+    "roleta de tarefa",
   ]);
   const habitIntent = hasIntent(queryText, ["habit", "habito", "rotina"]);
   const metricIntent = hasIntent(queryText, ["mood", "humor", "sono", "ansiedade", "stat"]);
+  const statsIntent = hasIntent(queryText, [
+    "estatistica",
+    "statistics",
+    "relatorio",
+    "report",
+    "tendencia",
+    "analise dos dados",
+    "correlacao",
+    "produtividade",
+  ]);
+  const wheelIntent = hasIntent(queryText, [
+    "roleta",
+    "sortear",
+    "sorteio",
+    "aleatoria",
+    "aleatorio",
+  ]);
+  const nextChoiceIntent = hasIntent(queryText, [
+    "proxima atividade",
+    "proxima tarefa",
+    "o que fazer agora",
+    "o que eu faco agora",
+    "escolha uma tarefa",
+  ]);
   const ministryIntent = hasIntent(queryText, [
     "minister",
     "campo",
@@ -1187,14 +1258,15 @@ async function buildAssistantContext(
     spiritualIntent ||
     financeIntent ||
     coupleIntent ||
-    readingIntent;
+    readingIntent ||
+    statsIntent;
   const fullDefault = scope === "all" && !hasExplicitIntent;
   const taskContext =
     ["today", "calendar"].includes(scope) || taskIntent || fullDefault;
   const habitContext =
     ["today", "calendar", "habits"].includes(scope) || habitIntent || fullDefault;
   const metricContext =
-    ["today", "mood", "stats"].includes(scope) || metricIntent || fullDefault;
+    ["today", "mood", "stats"].includes(scope) || metricIntent || statsIntent || fullDefault;
   const ministryContext = scope === "ministry" || ministryIntent;
   const dissertationContext = scope === "dissertation" || dissertationIntent;
   const readingContext = scope === "publications" || readingIntent;
@@ -1203,6 +1275,9 @@ async function buildAssistantContext(
   const financeContext = scope === "finances" || financeIntent;
   const coupleContext =
     scope === "couple" || scope === "goals" || coupleIntent || financeContext;
+  const taskWheelRequested =
+    (wheelIntent && (taskIntent || scope === "calendar" || scope === "today")) ||
+    (taskIntent && nextChoiceIntent);
   const [currentYear, currentMonthNumber] = currentMonth.split("-").map(Number);
 
   const [
@@ -1304,6 +1379,34 @@ async function buildAssistantContext(
         order: subtask.order,
       })),
     }));
+
+  const taskWheelPool = pendingTasks.filter(
+    (task) => task.date === todayIso || task.date === null
+  );
+  const lowEnergyRequest = hasIntent(queryText, [
+    "cansad",
+    "exaust",
+    "sem energia",
+    "baixa energia",
+    "leve",
+    "ansios",
+    "sobrecarreg",
+  ]);
+  const energyMatchedPool = lowEnergyRequest
+    ? taskWheelPool.filter(
+        (task) =>
+          task.effort === "low" ||
+          task.effort === null ||
+          (task.estimate !== null && task.estimate <= 30)
+      )
+    : taskWheelPool;
+  const taskWheelPick =
+    taskWheelRequested
+      ? weightedRandomItem(
+          energyMatchedPool.length ? energyMatchedPool : taskWheelPool,
+          (task) => taskPriorityWeight(task.priority)
+        )
+      : null;
   const recentCompletedTasks = tasks
     .filter((task) => Boolean(task.isDone))
     .slice(-100)
@@ -1325,6 +1428,30 @@ async function buildAssistantContext(
     values.push(point.ratio);
     ratiosByArea.set(key, values);
   });
+
+  const statsResults =
+    scope === "stats" || statsIntent
+      ? await Promise.allSettled([
+          getWeeklyReport(userEmail),
+          getSleepScore(userEmail),
+          getLifeBalanceScore(userEmail),
+          getAnxietyTrend(userEmail, 90),
+          getMoodHabitCorrelations(userEmail, "all"),
+          getProductivityHeatmap(userEmail, "all"),
+        ])
+      : null;
+  const statistic = <T,>(index: number): T | null => {
+    const result = statsResults?.[index];
+    return result?.status === "fulfilled" ? (result.value as T) : null;
+  };
+  const weeklyStats = statistic<Awaited<ReturnType<typeof getWeeklyReport>>>(0);
+  const sleepStats = statistic<Awaited<ReturnType<typeof getSleepScore>>>(1);
+  const balanceStats = statistic<Awaited<ReturnType<typeof getLifeBalanceScore>>>(2);
+  const anxietyStats = statistic<Awaited<ReturnType<typeof getAnxietyTrend>>>(3);
+  const correlationStats =
+    statistic<Awaited<ReturnType<typeof getMoodHabitCorrelations>>>(4);
+  const productivityStats =
+    statistic<Awaited<ReturnType<typeof getProductivityHeatmap>>>(5);
 
   return {
     scope,
@@ -1349,6 +1476,15 @@ async function buildAssistantContext(
       "dashboard settings",
     ],
     pendingTasks,
+    taskWheel:
+      taskWheelRequested
+        ? {
+            poolSize: taskWheelPool.length,
+            lowEnergyFiltered: lowEnergyRequest,
+            selected: taskWheelPick,
+            rule: "weighted random: default/Low=1, Medium=2, High=3, Critical=4",
+          }
+        : null,
     recentCompletedTasks,
     taskAreas: areas,
     completedTaskHistory: historyPoints.map((point) => ({
@@ -1395,6 +1531,48 @@ async function buildAssistantContext(
                 (ratios.reduce((sum, value) => sum + value, 0) / ratios.length) * 100
               ) / 100,
           })),
+        }
+      : null,
+    statistics: statsResults
+      ? {
+          weekly: weeklyStats,
+          sleep: sleepStats
+            ? {
+                score: sleepStats.score,
+                components: sleepStats.components,
+                insight: sleepStats.insight,
+              }
+            : null,
+          lifeBalance: balanceStats
+            ? {
+                score: balanceStats.score,
+                breakdown: balanceStats.breakdown,
+                insight: balanceStats.insight,
+              }
+            : null,
+          anxiety90Days: anxietyStats
+            ? {
+                samples: anxietyStats.points.length,
+                latest: anxietyStats.points.at(-1) || null,
+                highAnxietyCurrentStreak: anxietyStats.highAnxietyCurrentStreak,
+                highAnxietyMaxStreak: anxietyStats.highAnxietyMaxStreak,
+                sleepCorrelation: anxietyStats.sleepCorrelation,
+                alert: anxietyStats.alert,
+              }
+            : null,
+          moodHabitCorrelations: correlationStats
+            ? {
+                insight: correlationStats.insight,
+                strongest: correlationStats.rows.slice(0, 5),
+              }
+            : null,
+          productivityAllHistory: productivityStats
+            ? {
+                weeksWithData: productivityStats.weeks.length,
+                weekdays: productivityStats.weekdays,
+                insight: productivityStats.insight,
+              }
+            : null,
         }
       : null,
     ministry: ministry
@@ -1492,6 +1670,7 @@ async function buildAssistantContext(
           fixedCosts: finance.fixedCosts,
           debts: finance.debts,
           extraExpenses: finance.extraExpenses,
+          summary: computeFinanceSummary(finance),
         }
       : null,
     couple: coupleContext
@@ -1529,6 +1708,8 @@ function systemInstruction(context: AssistantContext) {
     "TASK COMPLETION: only set completed when the user explicitly asks to mark or unmark a task. Never infer completion from planning language.",
     "TASK TAGS: use an existing taskAreas key. If the requested tag does not exist, propose create_area before assigning it.",
     "PRIORITY: use Low, Medium, High, or Critical based on consequence and deadline, not anxiety.",
+    "ROULETTES: when taskWheel.selected exists, that is the actual server-side weighted draw. Report that exact task; do not invent or redraw it. If the user asks for a publication draw, use the exact result under reading.wheel for the requested collection. A draw is read-only and needs no action. If the user asks to make the drawn task next, then propose update_task with focusOrder=1. If the requested wheel is ambiguous, ask which wheel.",
+    "NEXT TASK BY FEELING: if the user asks what to do next but has not described current energy or mood in the conversation, ask one short question about how they feel and return no actions. Once answered, use taskWheel.selected and explain the fit in one sentence. Low-energy requests already receive a lighter filtered draw.",
     "HABITS AND DAY: use set_habit_status with an exact habits.daily key, a date, and completed. This action keeps Habits, Today, Spiritual Streaks, points, and habit tasks synchronized. Use update_day_metrics for sleepHours, anxietyLevel, workHours, or boredomMinutes.",
     "MOOD: use log_mood with an exact mood.definitions key, date, and loggedTime. A mood is a moment, not a whole-day replacement. Do not add a note unless the user explicitly asks and the action supports it.",
     "ENERGY: use set_low_energy_mode for the global low-energy view. Task effort belongs in task actions.",
@@ -1540,12 +1721,15 @@ function systemInstruction(context: AssistantContext) {
     "SPIRITUAL GOALS: use update_spiritual_goal with an exact category and spiritualOperation. Use exact stepId/taskId from context. Completing the current step uses complete_current; notes and checklist operations must identify the right step.",
     "DISSERTATION: use front IDs from context when adding a next step or changing a front status.",
     "COUPLE AND GOALS: use exact goal IDs when updating progress. New couple goals, savings goals, and bucket items use their dedicated actions.",
-    "FINANCES: use the current finances IDs/keys. add_finance_expense adds one expense; upsert_finance_debt edits one debt; update_finance_income edits one income field; update_finance_fixed_cost edits one fixed-cost row. Monetary values are numbers, never formatted strings. Ask before guessing an amount.",
+    "FINANCES: use the current finances IDs/keys. add_finance_expense adds one expense; update_finance_expense edits an existing expense by expenseId; upsert_finance_debt edits one debt; update_finance_income edits one income field; update_finance_fixed_cost edits one fixed-cost row. Monetary values are numbers, never formatted strings. Ask before guessing an amount.",
+    "FINANCE STRUCTURE: add_finance_fixed_cost creates a recurring cost row. remove_finance_item removes an extra expense, debt, or fixed cost only when explicitly requested, using financeItemType and the exact expenseId, debtKey, or fixedCostId. Use finances.summary for totals, paid, pending, surplus, and debt analysis.",
+    "STATISTICS: statistics contains live dashboard summaries when requested. Analyze only those values, mention weak/missing samples, and never invent precision. Read-only analysis needs no action.",
+    "WORD OF THE DAY: refresh_word_of_day selects another technical science term for today. Use it when the user explicitly asks to change, refresh, or draw another word.",
     "A direct request to change how Orbit asks questions is already persisted before this prompt; acknowledge it without returning a duplicate action.",
     `Allowed actions: ${ASSISTANT_ACTION_TYPES.join(", ")}.`,
     'Return only one JSON object shaped as {"message":"short answer","actions":[{"type":"allowed action","title":"short preview title","reason":"brief reason","payload":{}}]}. Use an empty actions array when no change is needed. Never add keys outside this structure.',
     "The action-level title is only the preview label. Put the actual task, book, goal, expense, debt, or checklist title in payload.title.",
-    "Common payload signatures: set_habit_status={habitKey,date,completed}; log_mood={moodCategory,date,loggedTime}; update_day_metrics={date,sleepHours,anxietyLevel,workHours,boredomMinutes}; update_spiritual_streak={boardKey,date,success}; set_books_goal={year,yearlyGoal}; create_book={title,year,author,totalPages,pagesRead,bookStatus,rating}; update_book={bookId plus changed book fields}; update_spiritual_goal={spiritualCategory,spiritualOperation,stepId,taskId,taskCompleted,notes,title as needed}.",
+    "Common payload signatures: set_habit_status={habitKey,date,completed}; log_mood={moodCategory,date,loggedTime}; update_day_metrics={date,sleepHours,anxietyLevel,workHours,boredomMinutes}; update_spiritual_streak={boardKey,date,success}; set_books_goal={year,yearlyGoal}; create_book={title,year,author,totalPages,pagesRead,bookStatus,rating}; update_book={bookId plus changed book fields}; update_spiritual_goal={spiritualCategory,spiritualOperation,stepId,taskId,taskCompleted,notes,title as needed}; add_finance_fixed_cost={month,title,budget,actual,paid}; remove_finance_item={month,financeItemType plus exact expenseId/debtKey/fixedCostId}; refresh_word_of_day={date}.",
     "For task duration, the payload key is estimatedMinutes (integer minutes). For a fixed task time, use scheduledTime in HH:mm. For task effort, use effort. Never use estimate, duration, energy, or time as payload keys.",
     "Never delete or mark tasks missed. Task completion is allowed only when explicitly requested. Do not alter sensitive metrics without an explicit value. If the requested operation has no supported safe action, explain what is missing instead of pretending.",
     `Dashboard context: ${JSON.stringify(context)}`,
@@ -1562,6 +1746,11 @@ export async function askAssistant(
 
   const latestUserMessage =
     [...messages].reverse().find((message) => message.role === "user")?.content || "";
+  const contextQuery = messages
+    .filter((message) => message.role === "user")
+    .slice(-4)
+    .map((message) => message.content)
+    .join("\n");
   const requestedClarificationPreference =
     clarificationPreferenceFromMessage(latestUserMessage);
   if (requestedClarificationPreference !== null) {
@@ -1569,7 +1758,11 @@ export async function askAssistant(
       askWhenUncertain: requestedClarificationPreference,
     });
   }
-  const context = await buildAssistantContext(userEmail, scope, latestUserMessage);
+  const context = await buildAssistantContext(
+    userEmail,
+    scope,
+    contextQuery || latestUserMessage
+  );
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 35_000);
   try {
@@ -2358,9 +2551,12 @@ export async function applyAssistantActions(userEmail: string, rawActions: unkno
 
     if (
       action.type === "add_finance_expense" ||
+      action.type === "update_finance_expense" ||
       action.type === "upsert_finance_debt" ||
       action.type === "update_finance_income" ||
-      action.type === "update_finance_fixed_cost"
+      action.type === "update_finance_fixed_cost" ||
+      action.type === "add_finance_fixed_cost" ||
+      action.type === "remove_finance_item"
     ) {
       const financeMonth = action.payload.month || todayIso.slice(0, 7);
       const [year, month] = financeMonth.split("-").map(Number);
@@ -2378,6 +2574,13 @@ export async function applyAssistantActions(userEmail: string, rawActions: unkno
           amount: action.payload.amount,
           paid: action.payload.paid ?? false,
         });
+      } else if (action.type === "update_finance_expense") {
+        const expenseId = action.payload.expenseId;
+        const item = finance.extraExpenses.find((expense) => expense.id === expenseId);
+        if (!item) throw new Error("RESOURCE_NOT_FOUND");
+        if (action.payload.title) item.label = action.payload.title.trim();
+        if (action.payload.amount !== undefined) item.amount = action.payload.amount;
+        if (action.payload.paid !== undefined) item.paid = action.payload.paid;
       } else if (action.type === "upsert_finance_debt") {
         const debtKey = action.payload.debtKey;
         if (!debtKey) throw new Error("INVALID_ASSISTANT_ACTION");
@@ -2398,7 +2601,7 @@ export async function applyAssistantActions(userEmail: string, rawActions: unkno
           throw new Error("INVALID_ASSISTANT_ACTION");
         }
         finance.income[action.payload.incomeKey] = action.payload.amount;
-      } else {
+      } else if (action.type === "update_finance_fixed_cost") {
         const fixedCostId = action.payload.fixedCostId;
         const item = finance.fixedCosts.find((cost) => cost.id === fixedCostId);
         if (!item) throw new Error("RESOURCE_NOT_FOUND");
@@ -2408,10 +2611,57 @@ export async function applyAssistantActions(userEmail: string, rawActions: unkno
         if (action.payload.paid !== undefined) {
           item.paid = action.payload.paid ? "pago" : "nao_pago";
         }
+      } else if (action.type === "add_finance_fixed_cost") {
+        const label = action.payload.title?.trim();
+        if (!label || action.payload.budget === undefined) {
+          throw new Error("INVALID_ASSISTANT_ACTION");
+        }
+        finance.fixedCosts.push({
+          id: action.payload.fixedCostId || randomUUID(),
+          label,
+          budget: action.payload.budget,
+          actual: action.payload.actual ?? null,
+          paid: action.payload.paid ? "pago" : "nao_pago",
+        });
+      } else {
+        const itemType = action.payload.financeItemType;
+        if (itemType === "extra_expense" && action.payload.expenseId) {
+          const before = finance.extraExpenses.length;
+          finance.extraExpenses = finance.extraExpenses.filter(
+            (expense) => expense.id !== action.payload.expenseId
+          );
+          if (before === finance.extraExpenses.length) {
+            throw new Error("RESOURCE_NOT_FOUND");
+          }
+        } else if (itemType === "debt" && action.payload.debtKey) {
+          if (!finance.debts[action.payload.debtKey]) {
+            throw new Error("RESOURCE_NOT_FOUND");
+          }
+          delete finance.debts[action.payload.debtKey];
+        } else if (itemType === "fixed_cost" && action.payload.fixedCostId) {
+          const before = finance.fixedCosts.length;
+          finance.fixedCosts = finance.fixedCosts.filter(
+            (cost) => cost.id !== action.payload.fixedCostId
+          );
+          if (before === finance.fixedCosts.length) {
+            throw new Error("RESOURCE_NOT_FOUND");
+          }
+        } else {
+          throw new Error("INVALID_ASSISTANT_ACTION");
+        }
       }
 
       await saveMonthlyFinance(userEmail, year, month, finance);
       results.push({ id: financeMonth, type: action.type, title: action.title });
+      continue;
+    }
+
+    if (action.type === "refresh_word_of_day") {
+      const date = action.payload.date || todayIso;
+      const key = `word_of_day_variant::${date}`;
+      const current = Number.parseInt((await getSetting(userEmail, key)) || "0", 10) || 0;
+      await setSetting(userEmail, key, String(current + 1));
+      results.push({ id: date, type: action.type, title: action.title });
       continue;
     }
 
