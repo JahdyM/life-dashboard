@@ -1533,7 +1533,7 @@ function systemInstruction(context: AssistantContext) {
     "MOOD: use log_mood with an exact mood.definitions key, date, and loggedTime. A mood is a moment, not a whole-day replacement. Do not add a note unless the user explicitly asks and the action supports it.",
     "ENERGY: use set_low_energy_mode for the global low-energy view. Task effort belongs in task actions.",
     "MINISTRY: daily goals are always manual. You may set a monthly goal and specific daily plans, but never auto-distribute the monthly target unless the user explicitly asks you to create a proposed schedule. Preserve logged actual time unless the user explicitly changes it.",
-    "MINISTRY RECURRENCE: when the user explicitly says every/each weekday, use set_ministry_recurrence instead of many update_ministry_day actions. Payload keys are recurrenceLabel, weekday (Sunday=0 through Saturday=6), goalMinutes, startDate, and endDate (null means ongoing). Reuse recurrenceId from context to edit an existing rule. Use remove_ministry_recurrence with recurrenceId only when explicitly asked to stop one.",
+    "MINISTRY RECURRENCE: when the user explicitly says every/each weekday, use set_ministry_recurrence instead of many update_ministry_day actions. Payload keys are recurrenceLabel, weekday (Sunday=0 through Saturday=6), goalMinutes, startDate, and endDate (null means ongoing). A weekly routine contributes to planned ministry from the beginning of its start month. Reuse recurrenceId from context to edit an existing rule. Use remove_ministry_recurrence with recurrenceId only when explicitly asked to stop one.",
     "READING: use one update_reading_progress action with payload.readingUpdates. Use only exact IDs/keys supplied in reading candidates. Kinds are despertai_issue, despertai_topic, video, broadcasting, article_series, reading_book, tract, apostila, brochure, watchtower, and bible_chapters. A whole Despertai issue marks every topic; a topic update needs itemId and topicId. Bible updates need bookKey plus a chapters array. read=true marks read; read=false unmarks. If the requested title/topic is ambiguous or absent from candidates, ask a short clarifying question and return no action.",
     "BOOKS: set_books_goal changes the annual target. create_book adds a personal book. update_book must use an exact books.items ID and may change pagesRead, totalPages, status, rating, title, author, or coverUrl.",
     "SPIRITUAL STREAKS: use update_spiritual_streak with an exact boardKey, date, and success. true is a positive/clean day, false is a failed day, and null clears the mark.",
@@ -2091,7 +2091,7 @@ export async function applyAssistantActions(userEmail: string, rawActions: unkno
         label,
         weekday,
         goalMinutes,
-        startDate: action.payload.startDate || todayIso,
+        startDate: action.payload.startDate || `${todayIso.slice(0, 7)}-01`,
         endDate: action.payload.endDate ?? null,
       });
       results.push({

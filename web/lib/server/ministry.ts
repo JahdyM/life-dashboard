@@ -20,6 +20,10 @@ export type MinistryRecurringPlan = {
 const MINISTRY_RECURRING_PLANS_KEY = "ministry_recurring_plans_v1";
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
+function monthStartForIsoDate(date: string) {
+  return `${date.slice(0, 7)}-01`;
+}
+
 function normalizeGoalMinutes(value: number | null) {
   if (value == null || value <= 0) return null;
   return value;
@@ -82,7 +86,7 @@ function normalizeRecurringPlan(raw: Partial<MinistryRecurringPlan>) {
   const weekday = Number(raw.weekday);
   const goalMinutes = Math.trunc(Number(raw.goalMinutes));
   const label = String(raw.label || "").trim().slice(0, 120);
-  const startDate = String(raw.startDate || "");
+  const rawStartDate = String(raw.startDate || "");
   const endDate = raw.endDate ? String(raw.endDate) : null;
   if (
     !raw.id ||
@@ -93,13 +97,16 @@ function normalizeRecurringPlan(raw: Partial<MinistryRecurringPlan>) {
     !Number.isInteger(goalMinutes) ||
     goalMinutes < 1 ||
     goalMinutes > 1440 ||
-    !ISO_DATE_PATTERN.test(startDate) ||
+    !ISO_DATE_PATTERN.test(rawStartDate) ||
     (endDate !== null && !ISO_DATE_PATTERN.test(endDate)) ||
-    (endDate !== null && endDate < startDate)
+    (endDate !== null && endDate < rawStartDate)
   ) {
     return null;
   }
 
+  // Weekly ministry routines are monthly planning rules. Applying them from the
+  // first day of their start month keeps that month's planned total complete.
+  const startDate = monthStartForIsoDate(rawStartDate);
   const nowIso = new Date().toISOString();
   return {
     id: String(raw.id),
