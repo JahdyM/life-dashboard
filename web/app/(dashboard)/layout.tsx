@@ -21,15 +21,10 @@ export default async function DashboardLayout({
   if (!userEmail) {
     return (
       <div className="shell-layout shell-layout-public">
-        <div className="space-backdrop" aria-hidden="true">
-          <span className="space-backdrop-stars" />
-          <span className="space-backdrop-planet space-backdrop-planet-large" />
-          <span className="space-backdrop-planet space-backdrop-planet-small" />
-        </div>
         <header className="shell-topbar">
           <div className="shell-brand">
             <h1>Life Dashboard</h1>
-            <p className="shell-copy">Private observatory.</p>
+            <p className="shell-copy">Private journal.</p>
           </div>
           <div className="shell-public-actions">
             <Link href="/" prefetch={false} className="page-link">
@@ -56,15 +51,10 @@ export default async function DashboardLayout({
     <Providers>
       <DashboardFreshness />
       <div className="shell-layout">
-        <div className="space-backdrop" aria-hidden="true">
-          <span className="space-backdrop-stars" />
-          <span className="space-backdrop-planet space-backdrop-planet-large" />
-          <span className="space-backdrop-planet space-backdrop-planet-small" />
-        </div>
         <header className="shell-topbar">
           <div className="shell-brand">
             <h1>Life Dashboard</h1>
-            <p className="shell-copy">Daily observatory.</p>
+            <p className="shell-copy">Quiet daily rhythms.</p>
           </div>
           <div className="shell-user">
             <div>

@@ -51,10 +51,10 @@ export default function SignInClient({
   return (
     <div className="signin-shell">
       <section className="signin-hero">
-        <p className="signin-chip">Private study desk</p>
+        <p className="signin-chip">Private journal</p>
         <h1>Life Dashboard</h1>
         <p className="signin-copy">
-          A calm observatory for habits, tasks, mood, and reflection.
+          A quiet place for daily rhythms, reading, and reflection.
         </p>
         <ul className="signin-list">
           <li>One sign in for your full workspace.</li>

@@ -1,12 +1,12 @@
 import "../styles/globals.css";
 import { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
-import AtomCursor from "@/components/AtomCursor";
+import QuietLifeBackdrop from "@/components/QuietLifeBackdrop";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 
 export const metadata: Metadata = {
   title: "Life Dashboard",
-  description: "Private personal control center for habits, tasks, mood, and shared life rhythms.",
+  description: "A private journal for daily rhythms, reading, tasks, and reflection.",
   applicationName: "Life Dashboard",
   manifest: "/manifest.webmanifest",
   // Note: icon.svg, icon0.tsx and apple-icon.tsx in app/ are auto-injected by Next.
@@ -34,8 +34,8 @@ export const viewport: Viewport = {
   maximumScale: 5,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#12100f" },
-    { media: "(prefers-color-scheme: dark)", color: "#12100f" },
+    { media: "(prefers-color-scheme: light)", color: "#241a13" },
+    { media: "(prefers-color-scheme: dark)", color: "#241a13" },
   ],
 };
 
@@ -43,8 +43,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
+        <QuietLifeBackdrop />
         {children}
-        <AtomCursor />
         <ServiceWorkerRegistration />
       </body>
     </html>

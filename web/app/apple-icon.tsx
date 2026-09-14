@@ -10,7 +10,7 @@ export default function AppleIcon() {
         style={{
           width: "100%",
           height: "100%",
-          background: "#101215",
+          background: "#241A13",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -23,7 +23,7 @@ export default function AppleIcon() {
           viewBox="0 0 256 256"
           xmlns="http://www.w3.org/2000/svg"
         >
-          <rect x="14" y="14" width="228" height="228" rx="56" fill="#101215" />
+          <rect x="14" y="14" width="228" height="228" rx="56" fill="#241A13" />
           <rect
             x="16.5"
             y="16.5"
@@ -31,27 +31,14 @@ export default function AppleIcon() {
             height="223"
             rx="53.5"
             fill="none"
-            stroke="#2C3138"
-            strokeWidth="5"
+            stroke="#A77445"
+            strokeWidth="6"
           />
-
-          <g fill="#FFF7EA">
-            <ellipse cx="128" cy="62" rx="20" ry="38" />
-            <ellipse cx="128" cy="62" rx="20" ry="38" transform="rotate(30 128 128)" />
-            <ellipse cx="128" cy="62" rx="20" ry="38" transform="rotate(60 128 128)" />
-            <ellipse cx="128" cy="62" rx="20" ry="38" transform="rotate(90 128 128)" />
-            <ellipse cx="128" cy="62" rx="20" ry="38" transform="rotate(120 128 128)" />
-            <ellipse cx="128" cy="62" rx="20" ry="38" transform="rotate(150 128 128)" />
-            <ellipse cx="128" cy="62" rx="20" ry="38" transform="rotate(180 128 128)" />
-            <ellipse cx="128" cy="62" rx="20" ry="38" transform="rotate(210 128 128)" />
-            <ellipse cx="128" cy="62" rx="20" ry="38" transform="rotate(240 128 128)" />
-            <ellipse cx="128" cy="62" rx="20" ry="38" transform="rotate(270 128 128)" />
-            <ellipse cx="128" cy="62" rx="20" ry="38" transform="rotate(300 128 128)" />
-            <ellipse cx="128" cy="62" rx="20" ry="38" transform="rotate(330 128 128)" />
-          </g>
-
-          <circle cx="128" cy="128" r="36" fill="#F7B941" />
-          <circle cx="128" cy="128" r="16" fill="#DE9430" />
+          <path d="M48 74c29-8 55-1 80 18v112c-24-17-51-23-80-16V74Z" fill="#F4E4C4" />
+          <path d="M208 74c-29-8-55-1-80 18v112c24-17 51-23 80-16V74Z" fill="#E9CF9E" />
+          <path d="M128 92v112M63 99c18-2 34 2 49 12M63 124c18-2 34 2 49 12M193 99c-18-2-34 2-49 12M193 124c-18-2-34 2-49 12" fill="none" stroke="#7A5132" strokeWidth="6" strokeLinecap="round" />
+          <path d="M154 53c34-20 57-9 55 25-29 10-49 2-55-25Z" fill="#7F8C5E" />
+          <path d="M154 53c16 9 27 17 38 28" fill="none" stroke="#405039" strokeWidth="5" strokeLinecap="round" />
         </svg>
       </div>
     ),

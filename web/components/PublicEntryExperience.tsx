@@ -163,8 +163,8 @@ export default function PublicEntryExperience({
     <div className="landing-shell">
       <section className="landing-hero">
         <div className="landing-copy">
-          <p className="landing-kicker">Private dashboard</p>
-          <h1>See what matters today.</h1>
+          <p className="landing-kicker">Quiet daily journal</p>
+          <h1>Make room for what matters.</h1>
           <p className="landing-description">Tasks, habits, mood, notes, shared rhythm.</p>
           <div className="landing-actions">
             <Link href="/today" prefetch={false} className="page-link primary">

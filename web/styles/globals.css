@@ -11584,3 +11584,576 @@ input.no-spinner[type="number"] {
     padding: 11px 13px;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Quiet life / autumn design system
+   Original woodland-study styling: warm paper, walnut, moss and lamplight.
+   -------------------------------------------------------------------------- */
+
+:root {
+  --font-body: "Avenir Next", "Gill Sans", "Trebuchet MS", sans-serif;
+  --font-heading: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --bg: #1b140f;
+  --bg-elevated: #2b2018;
+  --bg-panel: rgba(47, 35, 26, 0.94);
+  --bg-soft: rgba(248, 226, 187, 0.07);
+  --text: #f7ead2;
+  --text-muted: #cdbb9e;
+  --text-soft: #a79377;
+  --accent: #d58a43;
+  --accent-strong: #ecaa5c;
+  --accent-soft: rgba(213, 138, 67, 0.18);
+  --success: #99aa73;
+  --warning: #dfad5f;
+  --danger: #c36f53;
+  --border: rgba(239, 208, 160, 0.18);
+  --border-strong: rgba(239, 208, 160, 0.34);
+  --shadow: 0 22px 55px rgba(10, 6, 3, 0.34);
+  --autumn-cream: #f4e4c4;
+  --autumn-paper: #e8cf9f;
+  --autumn-honey: #dda34f;
+  --autumn-rust: #b86138;
+  --autumn-rosewood: #7c4034;
+  --autumn-moss: #7e8960;
+  --autumn-sage: #aab28a;
+  --autumn-walnut: #2b1e16;
+  --autumn-ink: #3c2a20;
+}
+
+html {
+  background: #1b140f;
+}
+
+body {
+  color: var(--text);
+  background:
+    radial-gradient(circle at 12% 7%, rgba(196, 112, 48, 0.16), transparent 27rem),
+    radial-gradient(circle at 88% 18%, rgba(112, 127, 79, 0.12), transparent 32rem),
+    linear-gradient(145deg, #1b140f 0%, #211811 46%, #17110d 100%);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -5;
+  pointer-events: none;
+  opacity: 0.16;
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 4px, rgba(255, 247, 226, 0.025) 4px 5px),
+    repeating-linear-gradient(90deg, transparent 0 7px, rgba(81, 48, 25, 0.04) 7px 8px);
+  mix-blend-mode: soft-light;
+}
+
+.quiet-life-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.quiet-life-wash {
+  position: absolute;
+  width: 38rem;
+  height: 38rem;
+  border-radius: 48% 52% 64% 36%;
+  filter: blur(2px);
+  opacity: 0.28;
+}
+
+.quiet-life-wash-amber {
+  left: -17rem;
+  bottom: -23rem;
+  background: radial-gradient(circle, rgba(179, 90, 43, 0.35), transparent 68%);
+}
+
+.quiet-life-wash-moss {
+  right: -16rem;
+  top: -20rem;
+  background: radial-gradient(circle, rgba(107, 124, 77, 0.28), transparent 67%);
+}
+
+.quiet-life-branch {
+  position: absolute;
+  top: -26px;
+  right: -55px;
+  width: min(39vw, 520px);
+  color: #5d3925;
+  opacity: 0.42;
+  filter: drop-shadow(0 8px 18px rgba(7, 4, 2, 0.28));
+}
+
+.quiet-life-ink,
+.quiet-life-twig,
+.quiet-life-acorns path,
+.quiet-life-desk-line,
+.quiet-life-mug path,
+.quiet-life-books path,
+.quiet-life-leaf-sprig path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.quiet-life-twig {
+  stroke-width: 5;
+}
+
+.quiet-life-leaves path {
+  fill: #899265;
+  stroke: #4b5339;
+  stroke-width: 3;
+}
+
+.quiet-life-leaves path:nth-child(2n) {
+  fill: #a95b36;
+}
+
+.quiet-life-leaves path:nth-child(3n) {
+  fill: #d08b42;
+}
+
+.quiet-life-acorns path:first-child,
+.quiet-life-acorns path:nth-child(3) {
+  fill: #9e643c;
+  stroke: #4d3021;
+  stroke-width: 3;
+}
+
+.quiet-life-desk-scene {
+  position: absolute;
+  left: -55px;
+  bottom: -35px;
+  width: min(36vw, 500px);
+  color: #795038;
+  opacity: 0.3;
+  filter: drop-shadow(0 8px 24px rgba(7, 4, 2, 0.32));
+}
+
+.quiet-life-books path:nth-child(1) { fill: #6f7652; }
+.quiet-life-books path:nth-child(2) { fill: #9d5136; }
+.quiet-life-books path:nth-child(3) { fill: #bb7b3c; }
+.quiet-life-books path:nth-child(-n + 3) { stroke: #4c3123; stroke-width: 5; }
+.quiet-life-mug path:first-child { fill: #d1b682; stroke: #62412c; }
+.quiet-life-mug path:nth-child(2) { stroke: #62412c; }
+.quiet-life-mug path:nth-child(3),
+.quiet-life-mug path:nth-child(4),
+.quiet-life-mug path:nth-child(5) { stroke: #c79a59; stroke-width: 5; }
+.quiet-life-mug path:last-child { fill: #7d8a62; stroke: #566043; stroke-width: 3; }
+.quiet-life-leaf-sprig path:last-child { fill: #7f8b61; stroke: #4c563b; stroke-width: 3; }
+
+.shell-layout {
+  position: relative;
+  isolation: isolate;
+  width: min(1440px, 100%);
+}
+
+.landing-shell,
+.signin-page,
+.shell-layout {
+  position: relative;
+  z-index: 1;
+}
+
+.shell-layout::before {
+  display: none;
+}
+
+.shell-topbar,
+.app-nav,
+.shell-summary-card,
+.shell-streak-panel,
+.shell-study-strip,
+.card,
+.today-panel,
+.today-hero,
+.calendar-panel,
+.habits-panel,
+.mood-panel,
+.ministry-panel,
+.stats-panel,
+.couple-panel,
+.spiritual-overview-card,
+.spiritual-detail-card,
+.books-summary-card,
+.books-book-card,
+.publication-card,
+.assistant-chat,
+.assistant-hero {
+  border-color: var(--border);
+  box-shadow: var(--shadow);
+}
+
+.shell-topbar {
+  background:
+    linear-gradient(135deg, rgba(64, 45, 32, 0.94), rgba(37, 28, 21, 0.96)),
+    var(--bg-panel);
+  border: 1px solid var(--border);
+  border-top-color: rgba(244, 220, 180, 0.28);
+  border-radius: 26px;
+  box-shadow: 0 18px 45px rgba(9, 5, 2, 0.26);
+}
+
+.shell-brand h1,
+.page-intro h1,
+.landing-copy h1,
+.signin-panel h1,
+.today-hero h1,
+.assistant-hero h1 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: var(--autumn-cream);
+  text-wrap: balance;
+}
+
+.shell-brand h1::after {
+  content: "";
+  display: inline-block;
+  width: 21px;
+  height: 12px;
+  margin-left: 9px;
+  border-radius: 100% 0 100% 0;
+  background: var(--autumn-moss);
+  transform: rotate(-20deg) translateY(-2px);
+  box-shadow: 8px 5px 0 -2px var(--autumn-rust);
+}
+
+.shell-copy,
+.shell-user-label,
+.shell-summary-label,
+.landing-kicker,
+.signin-chip,
+.eyebrow {
+  color: var(--autumn-sage);
+  letter-spacing: 0.08em;
+}
+
+.app-nav {
+  background: rgba(41, 31, 23, 0.92);
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 34px rgba(10, 6, 3, 0.26);
+  backdrop-filter: blur(18px);
+}
+
+.app-nav a,
+.app-nav button,
+.app-nav-link {
+  color: var(--text-muted);
+}
+
+.app-nav a:hover,
+.app-nav button:hover,
+.app-nav-link:hover {
+  color: var(--autumn-cream);
+  background: rgba(224, 171, 92, 0.1);
+}
+
+.app-nav a[aria-current="page"],
+.app-nav-link.active,
+.app-nav-link[aria-current="page"] {
+  color: #fff3dc;
+  background: linear-gradient(135deg, rgba(181, 95, 52, 0.38), rgba(116, 128, 83, 0.28));
+  border-color: rgba(226, 174, 94, 0.36);
+}
+
+.shell-summary-card {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(145deg, rgba(69, 50, 36, 0.88), rgba(41, 31, 24, 0.94));
+  border: 1px solid var(--border);
+}
+
+.shell-summary-card::after {
+  content: "";
+  position: absolute;
+  right: -25px;
+  bottom: -28px;
+  width: 82px;
+  height: 82px;
+  border: 1px solid rgba(223, 173, 95, 0.1);
+  border-radius: 58% 42% 66% 34%;
+  transform: rotate(23deg);
+}
+
+.shell-summary-card:nth-child(2)::after { background: rgba(126, 137, 96, 0.08); }
+.shell-summary-card:nth-child(3)::after { background: rgba(184, 97, 56, 0.08); }
+.shell-summary-card:nth-child(4)::after { background: rgba(221, 163, 79, 0.08); }
+
+.shell-summary-value,
+.shell-user-name,
+.task-title,
+.agenda-task-title,
+.remembered-task-title {
+  color: var(--text);
+}
+
+.shell-summary-meta,
+.task-metadata,
+.task-meta,
+.muted,
+.helper,
+.field-help {
+  color: var(--text-muted);
+}
+
+.card,
+.today-panel,
+.calendar-panel,
+.habits-panel,
+.mood-panel,
+.ministry-panel,
+.stats-panel,
+.couple-panel,
+.spiritual-overview-card,
+.spiritual-detail-card,
+.books-summary-card,
+.books-book-card,
+.publication-card {
+  background:
+    linear-gradient(145deg, rgba(55, 41, 31, 0.92), rgba(38, 29, 22, 0.96));
+  border: 1px solid var(--border);
+  backdrop-filter: blur(14px);
+}
+
+.today-hero,
+.landing-preview-card,
+.signin-card,
+.assistant-hero {
+  background:
+    radial-gradient(circle at 88% 12%, rgba(211, 142, 67, 0.16), transparent 20rem),
+    linear-gradient(135deg, rgba(68, 47, 33, 0.96), rgba(36, 29, 22, 0.97));
+  border-color: rgba(229, 190, 130, 0.24);
+}
+
+button,
+.button,
+.page-link.primary,
+.primary-action {
+  font-family: var(--font-body);
+}
+
+button:not(.unstyled):not(.icon-button),
+.button,
+.page-link,
+.primary-action {
+  border-radius: 12px;
+}
+
+.page-link.primary,
+.button.primary,
+.primary-action,
+button.primary {
+  color: #26170e;
+  background: linear-gradient(135deg, #e6b66e, #cf7c3b);
+  border-color: rgba(255, 226, 177, 0.44);
+  box-shadow: 0 9px 24px rgba(125, 63, 29, 0.25);
+}
+
+.page-link.primary:hover,
+.button.primary:hover,
+.primary-action:hover,
+button.primary:hover {
+  background: linear-gradient(135deg, #efc582, #dc8d49);
+  transform: translateY(-1px);
+}
+
+input,
+textarea,
+select {
+  color: var(--text);
+  background: rgba(29, 21, 16, 0.8);
+  border-color: var(--border);
+  caret-color: var(--autumn-honey);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #927f68;
+}
+
+input:focus,
+textarea:focus,
+select:focus,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--autumn-honey);
+  outline-offset: 3px;
+  border-color: rgba(225, 172, 88, 0.68);
+}
+
+.tag,
+.badge,
+.status-badge,
+.task-tag,
+.pill {
+  color: #eadbbf;
+  background: rgba(126, 137, 96, 0.16);
+  border-color: rgba(170, 178, 138, 0.28);
+}
+
+.task-row,
+.agenda-task,
+.remembered-task,
+.completed-task,
+.habit-row,
+.subtask-row {
+  background: rgba(37, 28, 21, 0.72);
+  border-color: rgba(232, 202, 154, 0.14);
+}
+
+.task-row:hover,
+.agenda-task:hover,
+.remembered-task:hover,
+.habit-row:hover {
+  background: rgba(66, 47, 33, 0.8);
+  border-color: rgba(225, 170, 90, 0.34);
+}
+
+input[type="checkbox"] {
+  accent-color: var(--autumn-moss);
+}
+
+.progress-track,
+.progress-bar,
+.streak-track {
+  background: rgba(18, 13, 10, 0.66);
+}
+
+.progress-fill,
+.streak-fill {
+  background: linear-gradient(90deg, var(--autumn-moss), var(--autumn-honey));
+}
+
+.fc {
+  --fc-border-color: rgba(230, 199, 151, 0.14);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: rgba(36, 27, 20, 0.72);
+  --fc-today-bg-color: rgba(217, 139, 67, 0.12);
+  --fc-list-event-hover-bg-color: rgba(126, 137, 96, 0.12);
+  color: var(--text);
+}
+
+.fc .fc-button-primary {
+  background: #4c392a;
+  border-color: rgba(229, 190, 130, 0.24);
+}
+
+.fc .fc-button-primary:hover,
+.fc .fc-button-primary:not(:disabled).fc-button-active {
+  background: #77503a;
+  border-color: rgba(225, 172, 88, 0.52);
+}
+
+.fc .fc-day-today {
+  box-shadow: inset 0 0 0 1px rgba(221, 163, 79, 0.25);
+}
+
+.mood-day.success,
+.streak-day.success,
+.status-complete {
+  background: rgba(126, 151, 94, 0.34);
+  border-color: rgba(164, 187, 126, 0.5);
+}
+
+.streak-day.failure,
+.status-failed {
+  background: rgba(161, 76, 57, 0.28);
+  border-color: rgba(200, 105, 77, 0.42);
+}
+
+.shell-streak-panel,
+.shell-study-strip {
+  background: rgba(42, 32, 24, 0.9);
+  border: 1px solid var(--border);
+}
+
+.shell-streak-card {
+  background: rgba(68, 49, 34, 0.56);
+  border-color: rgba(232, 201, 153, 0.14);
+}
+
+.assistant-launcher {
+  color: #291910;
+  background: linear-gradient(145deg, #e2b76e, #b96639);
+  border-color: rgba(255, 230, 184, 0.42);
+  box-shadow: 0 14px 34px rgba(74, 35, 17, 0.42);
+}
+
+.assistant-chat {
+  background:
+    radial-gradient(circle at 90% 0%, rgba(126, 137, 96, 0.12), transparent 22rem),
+    rgba(38, 28, 21, 0.98);
+}
+
+.assistant-message.assistant .assistant-message-body {
+  background: rgba(73, 53, 37, 0.84);
+  border-color: var(--border);
+}
+
+.assistant-message.user .assistant-message-body {
+  background: rgba(126, 137, 96, 0.22);
+  border-color: rgba(170, 178, 138, 0.28);
+}
+
+::selection {
+  color: #24160d;
+  background: #dca45d;
+}
+
+@media (max-width: 900px) {
+  .quiet-life-branch {
+    width: 310px;
+    right: -95px;
+    opacity: 0.28;
+  }
+
+  .quiet-life-desk-scene {
+    width: 300px;
+    left: -105px;
+    opacity: 0.2;
+  }
+}
+
+@media (max-width: 640px) {
+  .shell-topbar {
+    border-radius: 20px;
+  }
+
+  .quiet-life-branch {
+    width: 245px;
+    right: -105px;
+    top: -45px;
+    opacity: 0.22;
+  }
+
+  .quiet-life-desk-scene {
+    display: none;
+  }
+
+  .card,
+  .today-panel,
+  .calendar-panel,
+  .habits-panel,
+  .mood-panel,
+  .ministry-panel,
+  .stats-panel,
+  .couple-panel,
+  .spiritual-overview-card,
+  .spiritual-detail-card {
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quiet-life-backdrop *,
+  .page-link,
+  button {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}
