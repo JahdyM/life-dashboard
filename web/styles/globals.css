@@ -6297,6 +6297,183 @@ button.icon-only {
   }
 }
 
+/* Quiet life v2: icon language and tactile controls ---------------------- */
+
+.app-nav-link-icon,
+.app-nav svg,
+.icon-btn svg,
+.books-icon-action svg,
+.overflow-menu-trigger svg,
+.task-row-menu-action svg,
+.task-row-mobile-action svg,
+.assistant-launcher svg {
+  stroke: currentColor;
+}
+
+.app-nav-link-icon {
+  color: #e3c18b;
+  filter: drop-shadow(0 1px 2px rgba(38, 28, 19, 0.18));
+  transition: color 160ms ease, transform 160ms ease, filter 160ms ease;
+}
+
+.app-nav [data-module="today"] .app-nav-link-icon { color: #f0c66f; }
+.app-nav [data-module="assistant"] .app-nav-link-icon { color: #bdcf9a; }
+.app-nav [data-module="calendar"] .app-nav-link-icon { color: #e99a69; }
+.app-nav [data-module="habits"] .app-nav-link-icon { color: #b8c78f; }
+.app-nav [data-module="dissertation"] .app-nav-link-icon { color: #efcf9f; }
+.app-nav [data-module="ministry"] .app-nav-link-icon { color: #dbc49b; }
+.app-nav [data-module="mood"] .app-nav-link-icon { color: #d7b7c3; }
+.app-nav [data-module="books"] .app-nav-link-icon { color: #e8be77; }
+.app-nav [data-module="despertai"] .app-nav-link-icon { color: #d8c391; }
+.app-nav [data-module="spiritual_goals"] .app-nav-link-icon { color: #b8c99c; }
+.app-nav [data-module="spiritual_streaks"] .app-nav-link-icon { color: #d8a9a0; }
+.app-nav [data-module="stats"] .app-nav-link-icon { color: #aabf9b; }
+.app-nav [data-module="couple"] .app-nav-link-icon { color: #dcaaa5; }
+.app-nav [data-module="finances"] .app-nav-link-icon { color: #e3bd70; }
+.app-nav [data-module="goals"] .app-nav-link-icon { color: #d8895e; }
+
+.app-nav-popover {
+  color: #f7ecd7;
+  border: 1px solid rgba(255, 236, 202, 0.22);
+  background:
+    radial-gradient(circle at top right, rgba(204, 139, 76, 0.16), transparent 48%),
+    linear-gradient(145deg, #4b4d38, #493729);
+  box-shadow: 0 20px 42px rgba(67, 43, 26, 0.26);
+}
+
+.app-nav-popover-links {
+  background: transparent;
+}
+
+.app-nav-popover-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #eadfc9;
+}
+
+.app-nav-popover-link:hover,
+.app-nav-popover-link.active {
+  color: #fff9ec;
+  background: rgba(255, 237, 203, 0.12);
+}
+
+.app-nav-link:hover .app-nav-link-icon,
+.app-nav-link.active .app-nav-link-icon,
+.app-nav-popover-link:hover .app-nav-link-icon,
+.app-nav-popover-link.active .app-nav-link-icon {
+  color: #fff6df;
+  transform: translateY(-1px);
+  filter: drop-shadow(0 2px 4px rgba(35, 24, 16, 0.3));
+}
+
+.icon-btn,
+.books-icon-action,
+.overflow-menu-trigger,
+.task-row-miss-toggle,
+.task-row-mobile-action {
+  color: #6e5845;
+  border-color: rgba(98, 67, 43, 0.2);
+  background: rgba(255, 249, 237, 0.62);
+}
+
+.icon-btn:hover:not(:disabled),
+.books-icon-action:hover:not(:disabled),
+.overflow-menu-trigger:hover,
+.task-row-miss-toggle:hover,
+.task-row-mobile-action:hover {
+  color: #994c2a;
+  border-color: rgba(164, 82, 41, 0.34);
+  background: rgba(255, 251, 242, 0.94);
+  box-shadow: 0 5px 13px rgba(89, 52, 27, 0.09);
+}
+
+.overflow-menu.active .overflow-menu-trigger,
+.overflow-menu.open .overflow-menu-trigger {
+  color: #fff7e8;
+  border-color: #a9532c;
+  background: #b96134;
+}
+
+.overflow-menu-panel:not(.app-nav-popover) {
+  color: #443025;
+  border-color: rgba(97, 66, 42, 0.22);
+  background: rgba(255, 247, 231, 0.98);
+  box-shadow: 0 20px 42px rgba(74, 46, 25, 0.2);
+}
+
+.task-row-menu-action {
+  color: #5d4939;
+}
+
+.task-row-menu-action:hover:not(:disabled) {
+  color: #3f2c21;
+  background: rgba(112, 131, 82, 0.11);
+}
+
+.icon-btn.danger,
+.books-icon-action.danger,
+.task-row-menu-action.danger,
+.task-row-menu-action.subtle-danger {
+  color: #9e4939;
+}
+
+.task-row-menu-action.danger:hover:not(:disabled),
+.task-row-menu-action.subtle-danger:hover:not(:disabled) {
+  color: #7f3027;
+  background: rgba(169, 79, 62, 0.11);
+}
+
+.task-row-quick-field select,
+.task-row-quick-create input {
+  color: #443025;
+  border-color: rgba(98, 67, 42, 0.22);
+  background: rgba(255, 250, 240, 0.78);
+}
+
+.task-row-overflow .overflow-menu-trigger {
+  color: #6e5845;
+  border-color: rgba(98, 67, 42, 0.2);
+}
+
+.task-row-missed .task-title {
+  color: #8b7460;
+  text-decoration-color: rgba(157, 72, 54, 0.5);
+}
+
+.page-intro svg,
+.panel-kicker svg,
+.study-widget-kicker svg,
+.books-empty svg {
+  color: var(--autumn-rust);
+}
+
+.status-success svg,
+.status-complete svg,
+.done svg {
+  color: var(--autumn-moss);
+}
+
+.status-warning svg,
+.warning svg {
+  color: var(--autumn-honey);
+}
+
+.status-error svg,
+.danger svg {
+  color: var(--danger);
+}
+
+@media (max-width: 760px) {
+  .app-nav-link-icon {
+    color: #ead2a2;
+  }
+
+  .app-nav-popover-link .app-nav-link-icon {
+    width: 24px;
+  }
+}
+
 /* Observatory design system override */
 :root {
   --font-body: "Avenir Next", "Manrope", "Segoe UI", system-ui, sans-serif;

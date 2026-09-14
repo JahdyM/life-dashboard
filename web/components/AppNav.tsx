@@ -33,27 +33,33 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+const iconMap: Record<DashboardModuleIconKey, JSX.Element> = {
+  sparkles: <Sparkles size={15} strokeWidth={1.9} />,
+  bot: <Bot size={15} strokeWidth={1.9} />,
+  calendar: <CalendarDays size={15} strokeWidth={1.9} />,
+  timer: <TimerReset size={15} strokeWidth={1.9} />,
+  ministry: <BookOpenText size={15} strokeWidth={1.9} />,
+  moon: <MoonStar size={15} strokeWidth={1.9} />,
+  book: <BookOpen size={15} strokeWidth={1.9} />,
+  newspaper: <Newspaper size={15} strokeWidth={1.9} />,
+  telescope: <Telescope size={15} strokeWidth={1.9} />,
+  book_heart: <BookHeart size={15} strokeWidth={1.9} />,
+  chart: <ChartNoAxesCombined size={15} strokeWidth={1.9} />,
+  heart: <HeartHandshake size={15} strokeWidth={1.9} />,
+  wallet: <Wallet size={15} strokeWidth={1.9} />,
+  target: <Target size={15} strokeWidth={1.9} />,
+  graduation_cap: <GraduationCap size={15} strokeWidth={1.9} />,
+};
+
 function NavLink({ item, active }: { item: DashboardModuleConfig; active: boolean }) {
-  const iconMap: Record<DashboardModuleIconKey, JSX.Element> = {
-    sparkles: <Sparkles size={14} />,
-    bot: <Bot size={14} />,
-    calendar: <CalendarDays size={14} />,
-    timer: <TimerReset size={14} />,
-    ministry: <BookOpenText size={14} />,
-    moon: <MoonStar size={14} />,
-    book: <BookOpen size={14} />,
-    newspaper: <Newspaper size={14} />,
-    telescope: <Telescope size={14} />,
-    book_heart: <BookHeart size={14} />,
-    chart: <ChartNoAxesCombined size={14} />,
-    heart: <HeartHandshake size={14} />,
-    wallet: <Wallet size={14} />,
-    target: <Target size={14} />,
-    graduation_cap: <GraduationCap size={14} />,
-  };
 
   return (
-    <Link href={item.href} prefetch={false} className={`app-nav-link ${active ? "active" : ""}`}>
+    <Link
+      href={item.href}
+      prefetch={false}
+      className={`app-nav-link ${active ? "active" : ""}`}
+      data-module={item.key}
+    >
       <span className="app-nav-link-icon" aria-hidden="true">
         {iconMap[item.icon]}
       </span>
@@ -101,7 +107,11 @@ export function AppNav({ modules }: { modules?: DashboardModuleView[] }) {
               href={item.href}
               prefetch={false}
               className={`app-nav-popover-link ${isActivePath(pathname, item.href) ? "active" : ""}`}
+              data-module={item.key}
             >
+              <span className="app-nav-link-icon" aria-hidden="true">
+                {iconMap[item.icon]}
+              </span>
               {item.label}
             </Link>
           ))}
