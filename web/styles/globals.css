@@ -13018,3 +13018,44 @@ body {
     backdrop-filter: none !important;
   }
 }
+
+/* Today is a single reading column; the legacy two-column hero rule must not
+   create a narrow side track for the progressive-disclosure panel. */
+.route-stack > .today-panel-hero,
+.route-stack > .today-minimal-grid,
+.route-stack > .today-more-panel {
+  grid-column: 1 / -1 !important;
+}
+
+.today-more-panel {
+  width: 100%;
+  color: #3d2b20 !important;
+  background: linear-gradient(145deg, rgba(255, 249, 237, 0.96), rgba(235, 215, 181, 0.93)) !important;
+  border-color: rgba(91, 62, 40, 0.2) !important;
+  box-shadow: 0 11px 25px rgba(78, 48, 25, 0.09) !important;
+}
+
+.today-more-panel > summary,
+.today-more-panel > summary::after {
+  color: #70462d !important;
+}
+
+.today-progress-strip {
+  color: #3d2b20 !important;
+  background: rgba(255, 248, 232, 0.62) !important;
+  border-color: rgba(91, 62, 40, 0.18) !important;
+}
+
+.today-progress-item strong,
+.today-progress-item span {
+  color: #4c382a !important;
+}
+
+.today-progress-bar {
+  background: rgba(91, 69, 47, 0.16) !important;
+  border-color: rgba(91, 62, 40, 0.14) !important;
+}
+
+.today-progress-bar span {
+  background: linear-gradient(90deg, #6c7d50, #c27942) !important;
+}
