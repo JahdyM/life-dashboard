@@ -6474,6 +6474,194 @@ button.icon-only {
   }
 }
 
+/* Quiet life v2: remove stacked white sheets ---------------------------- */
+
+.quiet-life-paper-light {
+  background:
+    linear-gradient(90deg, rgba(244, 224, 190, 0.18), rgba(255, 248, 232, 0.3) 48%, rgba(239, 216, 179, 0.14)),
+    radial-gradient(circle at 50% 28%, rgba(255, 250, 239, 0.3), transparent 50%);
+}
+
+.shell-topbar {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.shell-brand,
+.shell-user {
+  border: 1px solid rgba(87, 59, 39, 0.3);
+  background: rgba(244, 226, 194, 0.84);
+  box-shadow: 0 12px 28px rgba(76, 46, 24, 0.14), inset 0 1px rgba(255, 252, 242, 0.72);
+  backdrop-filter: blur(10px) saturate(0.85);
+}
+
+.shell-brand {
+  padding: 13px 18px;
+  border-radius: 20px;
+}
+
+.shell-user {
+  color: #f7ead3;
+  border-color: rgba(255, 235, 201, 0.18);
+  background: linear-gradient(140deg, rgba(70, 72, 50, 0.96), rgba(69, 50, 37, 0.96));
+}
+
+.shell-user .shell-user-name,
+.shell-user .shell-user-label {
+  color: #f5e8d0;
+}
+
+.shell-user .page-link,
+.shell-user .header-logout {
+  color: #e7bd89;
+}
+
+.shell-summary-card,
+.card,
+.today-panel,
+.habits-panel,
+.mood-panel,
+.ministry-panel,
+.stats-panel,
+.couple-panel,
+.spiritual-overview-card,
+.spiritual-detail-card,
+.books-summary-card,
+.books-book-card,
+.publication-card,
+.task-composer,
+.calendar-section,
+.calendar-secondary-panel,
+.ministry-summary-card,
+.mood-summary-card,
+.stats-chart-card {
+  border-color: rgba(87, 59, 39, 0.3);
+  background: linear-gradient(145deg, rgba(247, 231, 201, 0.91), rgba(229, 202, 160, 0.88));
+  box-shadow: 0 13px 30px rgba(75, 45, 23, 0.13), inset 0 1px rgba(255, 252, 242, 0.68);
+}
+
+.shell-summary-card.primary {
+  color: #4b3022;
+  border-color: rgba(142, 70, 38, 0.38);
+  background:
+    radial-gradient(circle at 90% 10%, rgba(187, 103, 54, 0.18), transparent 38%),
+    linear-gradient(145deg, rgba(237, 205, 157, 0.96), rgba(217, 170, 112, 0.92));
+}
+
+.shell-summary-card.primary .shell-summary-label,
+.shell-summary-card.primary .shell-summary-value,
+.shell-summary-card.primary .shell-summary-meta {
+  color: #513123;
+}
+
+/* These are layout wrappers, not cards. Keeping them transparent prevents
+   a square sheet from appearing behind the real rounded surface. */
+.shell-study-strip {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.study-widget-card {
+  border: 1px solid rgba(92, 63, 42, 0.34);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 94% 8%, rgba(126, 143, 91, 0.13), transparent 38%),
+    linear-gradient(145deg, rgba(244, 224, 188, 0.94), rgba(224, 194, 151, 0.91));
+  box-shadow: 0 14px 32px rgba(75, 45, 23, 0.15), inset 0 1px rgba(255, 251, 238, 0.72);
+}
+
+.study-widget-card::before,
+.study-widget-card::after {
+  opacity: 0.14;
+}
+
+.study-widget-activity-card {
+  color: #453126;
+  border-color: rgba(83, 64, 46, 0.25);
+  background: rgba(248, 235, 211, 0.72);
+}
+
+.study-widget-activity-card strong,
+.study-widget-activity-card h3,
+.study-widget-activity-card p,
+.study-widget-activity-card span {
+  color: inherit;
+}
+
+.calendar-panel {
+  overflow: hidden;
+  border: 1px solid rgba(87, 59, 39, 0.32);
+  border-radius: 26px;
+  background: linear-gradient(155deg, rgba(240, 219, 183, 0.9), rgba(220, 188, 143, 0.84));
+  box-shadow: 0 16px 36px rgba(70, 42, 22, 0.15), inset 0 1px rgba(255, 250, 237, 0.7);
+}
+
+.focus-timer-card,
+.activity-wheel,
+.calendar-tag-stats,
+.calendar-tag-bars-card,
+.quick-note-block {
+  color: #463328;
+  border-color: rgba(88, 61, 42, 0.27);
+  background:
+    radial-gradient(circle at 88% 8%, rgba(112, 130, 80, 0.09), transparent 34%),
+    rgba(249, 237, 214, 0.72);
+  box-shadow: 0 8px 20px rgba(73, 46, 25, 0.09);
+}
+
+.focus-timer-card h2,
+.focus-timer-card h3,
+.activity-wheel h2,
+.activity-wheel h3,
+.calendar-tag-stats h2,
+.calendar-tag-stats h3,
+.quick-note-block h2,
+.quick-note-block h3 {
+  color: #443025;
+}
+
+.shell-streak-panel {
+  border-color: rgba(87, 59, 39, 0.3);
+  background: linear-gradient(145deg, rgba(240, 218, 180, 0.9), rgba(224, 194, 151, 0.86));
+}
+
+.shell-streak-card,
+.task-row,
+.agenda-task,
+.remembered-task,
+.completed-task,
+.habit-row,
+.subtask-row {
+  border-color: rgba(91, 64, 43, 0.24);
+  background: rgba(252, 242, 222, 0.72);
+}
+
+@media (max-width: 760px) {
+  .shell-brand,
+  .shell-user {
+    background: rgba(244, 226, 194, 0.94);
+    backdrop-filter: none;
+  }
+
+  .shell-user {
+    background: linear-gradient(140deg, #4f533a, #4a382b);
+  }
+
+  .shell-summary-card,
+  .study-widget-card,
+  .calendar-panel,
+  .shell-streak-panel,
+  .card,
+  .today-panel {
+    background-color: rgba(240, 216, 177, 0.96);
+  }
+}
+
 /* Observatory design system override */
 :root {
   --font-body: "Avenir Next", "Manrope", "Segoe UI", system-ui, sans-serif;
