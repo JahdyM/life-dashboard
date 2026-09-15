@@ -397,7 +397,7 @@ export default function StatsTab({ userEmail: _userEmail }: { userEmail: string 
   }, [sleepQuery.data]);
 
   return (
-    <div className="card">
+    <div className="stats-page">
       <div className="stats-header">
         <h2>Charts</h2>
         <div className="stats-controls">

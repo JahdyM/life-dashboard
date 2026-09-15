@@ -74,7 +74,7 @@ export default function CoupleTab({ userEmail }: { userEmail: string }) {
   const latestPartnerMood = getLatestMood(z?.[1]);
 
   return (
-    <div className="card">
+    <div className="couple-page">
       <h2>Mood board</h2>
       <div className="form-row">
         <label htmlFor="couple-month">Month</label>

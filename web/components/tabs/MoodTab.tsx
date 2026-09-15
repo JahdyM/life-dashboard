@@ -41,7 +41,7 @@ const MoodCell = memo(function MoodCell({
   showDayNumber = false,
   onPick,
 }: MoodCellProps) {
-  const isInteractive = Boolean(onPick) && !empty;
+  const isInteractive = Boolean(onPick);
 
   return (
     <button
@@ -242,7 +242,7 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
   );
 
   return (
-    <div className="card mood-page">
+    <div className="mood-page">
       <div className="mood-toolbar">
         <div className="form-row">
           <label htmlFor="mood-month">Month</label>
@@ -295,6 +295,7 @@ export default function MoodTab({ userEmail: _userEmail }: { userEmail: string }
                   }
                   moodColor={mood?.color || "#2E2A26"}
                   moodEmoji={mood?.emoji}
+                  empty={!summary}
                   selected={selectedDay === dayIso}
                   muted={dayIso > todayIso}
                   showDayNumber

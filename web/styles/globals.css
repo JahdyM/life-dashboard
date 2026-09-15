@@ -13159,3 +13159,241 @@ body {
     padding: 4px 2px !important;
   }
 }
+
+/* Content belongs on cards; pages themselves remain an open canvas. */
+.mood-page,
+.despertai-shell,
+.despertai-tab-panel,
+.books-shell,
+.stats-page,
+.couple-page,
+.dissertation-academic,
+.shell-study-strip,
+.study-widget-card {
+  width: 100%;
+  min-width: 0;
+  padding: 0 !important;
+  color: var(--text) !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.mood-page,
+.despertai-shell,
+.books-shell,
+.stats-page,
+.couple-page,
+.dissertation-academic {
+  display: grid;
+  gap: clamp(14px, 1.7vw, 22px);
+}
+
+.study-widget-card::before,
+.study-widget-card::after {
+  display: none !important;
+}
+
+.study-widget-head,
+.study-widget-footer {
+  padding-inline: 2px;
+}
+
+.study-widget-activity-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 420px));
+  gap: 10px;
+}
+
+.study-widget-activity-card {
+  min-height: 88px;
+  padding: 13px 14px !important;
+  border-radius: 18px !important;
+}
+
+/* Reusable inner surfaces use one radius and one restrained depth level. */
+.mood-month-section,
+.mood-day-section,
+.mood-history-board,
+.stats-page > .section,
+.chart-card.line,
+.estimation-card,
+.couple-page > .section,
+.couple-page > .mood-board,
+.books-summary-card,
+.books-add-card,
+.books-book-card,
+.reading-summary-card,
+.despertai-import-card,
+.despertai-wheel-card,
+.despertai-issue-card,
+.reading-video-card,
+.reading-wheel-filters,
+.bible-section-card,
+.spiritual-overview-card,
+.spiritual-detail-shell,
+.spiritual-visual-card,
+.spiritual-detail-panel,
+.spiritual-support-card,
+.spiritual-config-card,
+.spiritual-streaks-toolbar,
+.spiritual-streak-board {
+  color: var(--text) !important;
+  background: linear-gradient(145deg, rgba(255, 248, 233, 0.93), rgba(231, 208, 169, 0.88)) !important;
+  border: 1px solid rgba(91, 62, 40, 0.19) !important;
+  border-radius: clamp(18px, 1.8vw, 24px) !important;
+  box-shadow: 0 10px 24px rgba(78, 48, 25, 0.09) !important;
+  backdrop-filter: blur(8px) saturate(0.9);
+}
+
+.mood-month-section,
+.mood-day-section,
+.stats-page > .section,
+.couple-page > .section,
+.couple-page > .mood-board,
+.books-add-card,
+.despertai-wheel-card,
+.reading-wheel-filters,
+.bible-section-card,
+.spiritual-visual-card,
+.spiritual-detail-panel,
+.spiritual-support-card,
+.spiritual-streaks-toolbar,
+.spiritual-streak-board {
+  padding: clamp(14px, 1.65vw, 22px) !important;
+}
+
+/* Nested controls should be quieter than their parent surface. */
+.mood-log-card,
+.mood-timeline,
+.suggestion-card,
+.streak-card,
+.books-cover-stage,
+.despertai-tabs,
+.reading-search-field,
+.despertai-issue-toggle,
+.despertai-count-field,
+.despertai-topic,
+.bible-book-card,
+.bible-chapter,
+.spiritual-streak-metric-pill,
+.spiritual-streak-board .secondary.subtle {
+  color: var(--text) !important;
+  background: rgba(255, 249, 237, 0.58) !important;
+  border-color: rgba(91, 62, 40, 0.16) !important;
+  box-shadow: none !important;
+}
+
+.stats-page .chart-grid {
+  gap: clamp(12px, 1.5vw, 18px);
+}
+
+.chart-card.line {
+  min-height: 280px;
+  padding: clamp(14px, 1.5vw, 20px);
+}
+
+.couple-page > h2,
+.couple-page > .form-row,
+.couple-page > .mood-legend {
+  margin-inline: 2px;
+}
+
+.books-cover-stage {
+  min-height: 210px;
+}
+
+.despertai-tabs {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+}
+
+.reading-summary-grid {
+  grid-template-columns: minmax(260px, 1.35fr) repeat(2, minmax(130px, 0.55fr));
+}
+
+.reading-summary-card {
+  min-height: 96px;
+  padding: 14px 16px;
+}
+
+.dissertation-academic-hero,
+.dissertation-today-panel,
+.dissertation-front-card,
+.dissertation-deadlines-panel,
+.dissertation-completed-section,
+.dissertation-general-notes {
+  border-radius: clamp(18px, 2vw, 26px) !important;
+}
+
+.dissertation-academic-stats {
+  gap: 10px;
+}
+
+.dissertation-academic-stats article {
+  min-height: 84px;
+  box-shadow: 0 7px 18px rgba(78, 48, 25, 0.07) !important;
+}
+
+/* Empty mood days use paper, never the legacy near-black fallback. */
+.mood-calendar-grid .mood-cell:not([style*="background"]),
+.mood-calendar-grid .mood-cell[style*="rgb(46, 42, 38)"],
+.mood-calendar-grid .mood-cell[style*="#2E2A26"] {
+  background: rgba(238, 221, 190, 0.74) !important;
+}
+
+@media (max-width: 980px) {
+  .mood-layout,
+  .calendar-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-panel {
+    position: static;
+    max-width: none;
+    justify-self: stretch;
+  }
+
+  .spiritual-overview-grid,
+  .spiritual-streaks-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .shell-layout {
+    width: min(100% - 20px, 1320px);
+    padding-top: 14px;
+    gap: 14px;
+  }
+
+  .shell-summary-grid,
+  .tab-grid,
+  .chart-grid,
+  .reading-summary-grid,
+  .spiritual-overview-grid,
+  .spiritual-streaks-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .shell-summary-card {
+    min-height: 0;
+    padding: 14px;
+  }
+
+  .study-widget-activity-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .study-widget-activity-card {
+    min-height: 0;
+  }
+
+  .spiritual-streaks-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

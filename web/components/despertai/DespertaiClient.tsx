@@ -2000,7 +2000,7 @@ export default function DespertaiClient({ initialData }: DespertaiClientProps) {
   };
 
   return (
-    <div className="card despertai-shell">
+    <div className="despertai-shell">
       <div ref={tabsRef} className="despertai-tabs" role="tablist" aria-label="Reading sections">
         <button
           type="button"

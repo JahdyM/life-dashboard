@@ -287,7 +287,7 @@ export default function BooksClient({ initialData }: { initialData: BooksPageDat
   }, [closeBookEditor, editDraft, editingBookId, patchBookMutation]);
 
   return (
-    <div className="card books-shell">
+    <div className="books-shell">
       <section className="books-toolbar">
         <button type="button" className="chip" onClick={() => setYear((value) => value - 1)}>
           ←
