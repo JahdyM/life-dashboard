@@ -12427,3 +12427,594 @@ input[type="checkbox"] {
     backdrop-filter: none;
   }
 }
+
+/* Warm daylight surfaces --------------------------------------------------
+   Legacy modules were built against the original dark palette. Keep this
+   final layer explicit so nested tools cannot fall back to black panels. */
+:root {
+  --bg: #ead9b9;
+  --bg-panel: rgba(250, 239, 216, 0.96);
+  --bg-soft: rgba(255, 249, 236, 0.74);
+  --text: #3d2b20;
+  --text-muted: #725f4d;
+  --accent: #a95732;
+  --accent-soft: rgba(169, 87, 50, 0.14);
+  --border: rgba(91, 62, 40, 0.24);
+  --border-soft: rgba(91, 62, 40, 0.15);
+  --success: #5f7548;
+  --warning: #b87831;
+  --danger: #a94f43;
+}
+
+body {
+  color: var(--text);
+  background-color: #ead9b9;
+}
+
+/* Shell, account and navigation */
+.shell-user {
+  color: #3d2b20 !important;
+  background: linear-gradient(145deg, rgba(245, 229, 198, 0.98), rgba(218, 194, 153, 0.96)) !important;
+  border-color: rgba(91, 62, 40, 0.24) !important;
+  box-shadow: 0 9px 20px rgba(83, 50, 26, 0.12), inset 0 1px rgba(255, 255, 255, 0.64) !important;
+}
+
+.shell-user .shell-user-label,
+.shell-user .shell-user-name {
+  color: #493326 !important;
+}
+
+.shell-user .page-link,
+.shell-user .header-logout {
+  color: #5b4636 !important;
+  background: rgba(255, 249, 237, 0.52) !important;
+  border-color: rgba(91, 62, 40, 0.2) !important;
+}
+
+.app-nav {
+  color: #3d2b20 !important;
+  background: linear-gradient(135deg, rgba(223, 207, 172, 0.98), rgba(196, 190, 148, 0.97)) !important;
+  border-color: rgba(81, 72, 48, 0.28) !important;
+  box-shadow: 0 12px 26px rgba(78, 55, 31, 0.14), inset 0 1px rgba(255, 255, 255, 0.6) !important;
+}
+
+.app-nav a,
+.app-nav button,
+.app-nav-link,
+.app-nav-more-label {
+  color: #4d3a2c !important;
+}
+
+.app-nav a:hover,
+.app-nav button:hover,
+.app-nav-link:hover {
+  color: #36261d !important;
+  background: rgba(255, 248, 231, 0.62) !important;
+}
+
+.app-nav a[aria-current="page"],
+.app-nav-link.active,
+.app-nav-link[aria-current="page"],
+.app-nav-more.active > button {
+  color: #fff9ec !important;
+  background: linear-gradient(135deg, #a95935, #8f4c31) !important;
+  border-color: rgba(112, 52, 29, 0.32) !important;
+  box-shadow: 0 6px 13px rgba(113, 57, 31, 0.18) !important;
+}
+
+.app-nav-link-icon,
+.app-nav svg {
+  color: #6b5a3f !important;
+}
+
+.app-nav-link.active .app-nav-link-icon,
+.app-nav-link.active svg,
+.app-nav a[aria-current="page"] svg {
+  color: #fff4df !important;
+}
+
+.app-nav-popover,
+.app-nav-popover-links {
+  color: #3d2b20 !important;
+  background: #f3e3c4 !important;
+  border-color: rgba(91, 62, 40, 0.24) !important;
+  box-shadow: 0 18px 38px rgba(74, 49, 27, 0.2) !important;
+}
+
+.shell-summary-card.primary {
+  color: #3d2b20 !important;
+  background: linear-gradient(145deg, rgba(230, 190, 130, 0.98), rgba(206, 151, 91, 0.94)) !important;
+  border-color: rgba(128, 75, 39, 0.28) !important;
+}
+
+.shell-summary-card.primary .shell-summary-label,
+.shell-summary-card.primary .shell-summary-value,
+.shell-summary-card.primary .shell-summary-meta,
+.shell-summary-card.primary strong {
+  color: #3f2b1f !important;
+}
+
+/* Today and general page surfaces */
+.today-hero,
+.today-panel,
+.today-task,
+.today-empty,
+.today-compact-list li,
+.today-streak-item,
+.shell-streak-panel,
+.shell-streak-card,
+.shell-study-strip,
+.study-widget-card {
+  color: #3d2b20 !important;
+  background: linear-gradient(145deg, rgba(255, 248, 233, 0.96), rgba(236, 215, 180, 0.93)) !important;
+  border-color: rgba(91, 62, 40, 0.19) !important;
+  box-shadow: 0 12px 28px rgba(80, 49, 25, 0.1) !important;
+}
+
+.today-task-title,
+.today-mood-value,
+.today-panel h2,
+.today-panel h3,
+.today-compact-list li span,
+.today-streak-item strong {
+  color: #3d2b20 !important;
+}
+
+/* Calendar, tasks, Pomodoro, tags, backlog and done */
+.calendar-panel,
+.calendar-primary-section,
+.calendar-secondary-panel,
+.calendar-completed,
+.calendar-completed-item,
+.calendar-tag-stats,
+.calendar-tag-bars-card,
+.focus-timer-card,
+.focus-timer-panel,
+.focus-timer-review,
+.activity-wheel,
+.activity-wheel-result-card,
+.activity-wheel-summary-card,
+.quick-note-block,
+.task-composer,
+.task-row,
+.task-row-menu-list,
+.task-detail-sheet {
+  color: #3d2b20 !important;
+  background: linear-gradient(145deg, rgba(255, 249, 237, 0.97), rgba(235, 215, 181, 0.94)) !important;
+  border-color: rgba(91, 62, 40, 0.2) !important;
+  box-shadow: 0 12px 28px rgba(75, 47, 26, 0.1) !important;
+}
+
+.calendar-secondary-panel[open],
+.calendar-completed,
+.focus-timer-review,
+.activity-wheel-result-card,
+.activity-wheel-summary-card,
+.calendar-tag-bars-card {
+  background: rgba(255, 249, 237, 0.78) !important;
+}
+
+.calendar-secondary-panel summary,
+.calendar-secondary-title,
+.calendar-completed h3,
+.calendar-completed-title,
+.activity-wheel h3,
+.activity-wheel-summary-title,
+.activity-wheel-task-list li,
+.activity-wheel-result-card strong,
+.focus-timer-card h3,
+.focus-timer-review strong,
+.task-title,
+.task-row-menu-action {
+  color: #453126 !important;
+}
+
+.calendar-completed-time,
+.calendar-completed-badge,
+.activity-wheel-copy,
+.activity-wheel-placeholder,
+.activity-wheel-tip,
+.activity-wheel-more,
+.activity-wheel-task-list li small,
+.focus-timer-meta,
+.focus-timer-field,
+.focus-timer-ring small,
+.calendar-tag-bars-label {
+  color: #725f4d !important;
+}
+
+.focus-timer-ring {
+  background:
+    radial-gradient(circle, #f5e5c6 0 55%, transparent 57%),
+    conic-gradient(#a95a35 var(--timer-progress), rgba(101, 116, 75, 0.18) 0) !important;
+  box-shadow: inset 0 0 0 1px rgba(91, 62, 40, 0.17), 0 13px 28px rgba(79, 49, 25, 0.14) !important;
+}
+
+.focus-timer-ring span {
+  color: #493326 !important;
+}
+
+.focus-timer-status,
+.night-owl-end-control,
+.calendar-view-toggle,
+.activity-wheel-toggle,
+.activity-wheel-shuffle-count,
+.activity-wheel-tag-chip {
+  color: #5e4a39 !important;
+  background: rgba(255, 248, 231, 0.72) !important;
+  border-color: rgba(91, 62, 40, 0.2) !important;
+}
+
+.activity-wheel-tag-chip.selected {
+  color: #fff8e9 !important;
+  background: #68794f !important;
+  border-color: #586843 !important;
+}
+
+.activity-wheel-dial {
+  filter: drop-shadow(0 15px 24px rgba(85, 53, 29, 0.2)) !important;
+}
+
+.activity-wheel-slice {
+  stroke: rgba(71, 47, 31, 0.42) !important;
+}
+
+.activity-wheel-slice-label {
+  fill: #fffaf0 !important;
+  stroke: rgba(69, 42, 26, 0.66) !important;
+}
+
+.activity-wheel-rim {
+  stroke: #ead2a8 !important;
+}
+
+.activity-wheel-hub {
+  fill: #f1dfbd !important;
+  stroke: #a95a35 !important;
+}
+
+.activity-wheel-hub-dot {
+  fill: #a95a35 !important;
+}
+
+.activity-wheel-hub-button {
+  color: #fff9ed !important;
+  background: radial-gradient(circle at 35% 25%, #c9794a, #9d4d2d) !important;
+  border-color: rgba(105, 50, 28, 0.38) !important;
+  box-shadow: 0 7px 18px rgba(101, 51, 28, 0.24), inset 0 1px rgba(255, 255, 255, 0.24) !important;
+}
+
+.task-area-badge {
+  color: color-mix(in srgb, var(--task-area-color) 66%, #33251c) !important;
+  background: color-mix(in srgb, var(--task-area-color) 18%, #fff5df) !important;
+  border-color: color-mix(in srgb, var(--task-area-color) 42%, #d9c29a) !important;
+}
+
+.task-focus-badge,
+.task-progress-badge,
+.task-ready-badge,
+.task-share-badge {
+  color: #4c5e39 !important;
+  background: rgba(104, 121, 79, 0.13) !important;
+  border-color: rgba(82, 101, 59, 0.27) !important;
+}
+
+.task-row-quick-field select,
+.task-row-quick-create input,
+.night-owl-end-control input,
+.completed-actual-input {
+  color: #3d2b20 !important;
+  background: rgba(255, 250, 239, 0.9) !important;
+  border-color: rgba(91, 62, 40, 0.23) !important;
+}
+
+.task-row-overflow .overflow-menu-trigger,
+.task-row-order-button,
+.task-row-next-button,
+.task-row-mobile-action {
+  color: #5c4736 !important;
+  background: rgba(255, 249, 237, 0.64) !important;
+  border-color: rgba(91, 62, 40, 0.2) !important;
+}
+
+.task-detail-backdrop {
+  background: rgba(67, 48, 33, 0.36) !important;
+}
+
+/* Mood: parchment calendar with legible colored observations */
+.mood-page,
+.mood-day-section,
+.mood-month-section,
+.mood-log-card,
+.mood-timeline,
+.mood-history-board,
+.mood-editor,
+.mood-legend-item {
+  color: #3d2b20 !important;
+  background: linear-gradient(145deg, rgba(255, 249, 237, 0.96), rgba(237, 218, 184, 0.92)) !important;
+  border-color: rgba(91, 62, 40, 0.19) !important;
+}
+
+.mood-calendar-head span,
+.mood-day-summary-line,
+.mood-day-count,
+.mood-empty-line,
+.mood-save-state,
+.mood-timeline-time,
+.mood-history-head,
+.mood-history-label,
+.mood-legend-item {
+  color: #725f4d !important;
+}
+
+.mood-cell {
+  border-color: rgba(91, 62, 40, 0.24) !important;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.24) !important;
+}
+
+.mood-cell.empty,
+.mood-calendar-blank {
+  background: rgba(255, 248, 232, 0.66) !important;
+}
+
+.mood-cell-day {
+  color: #3f2d22 !important;
+  text-shadow: 0 1px rgba(255, 255, 255, 0.54) !important;
+}
+
+.mood-timeline-item {
+  border-color: rgba(91, 62, 40, 0.14) !important;
+}
+
+.mood-timeline-body p {
+  color: #594434 !important;
+}
+
+/* Publications, Bible and every reading roulette */
+.despertai-shell,
+.despertai-tab-panel,
+.reading-summary-card,
+.despertai-import-card,
+.despertai-wheel-card,
+.despertai-issue-card,
+.reading-video-card,
+.reading-selected-callout,
+.reading-wheel-filters,
+.bible-section-card,
+.bible-book-card {
+  color: #3d2b20 !important;
+  background: linear-gradient(145deg, rgba(255, 249, 237, 0.97), rgba(236, 216, 181, 0.93)) !important;
+  border-color: rgba(91, 62, 40, 0.2) !important;
+  box-shadow: 0 11px 25px rgba(78, 48, 25, 0.09) !important;
+}
+
+.despertai-tabs,
+.reading-search-field,
+.despertai-issue-toggle,
+.despertai-count-field,
+.despertai-topic,
+.bible-chapter {
+  color: #493426 !important;
+  background: rgba(255, 249, 237, 0.76) !important;
+  border-color: rgba(91, 62, 40, 0.18) !important;
+}
+
+.despertai-tabs button {
+  color: #66513f !important;
+}
+
+.despertai-tabs button.active {
+  color: #fff8e9 !important;
+  background: #a95a35 !important;
+  box-shadow: none !important;
+}
+
+.reading-wheel-filter-field input,
+.despertai-import-card textarea,
+.reading-search-field input {
+  color: #3d2b20 !important;
+  background: rgba(255, 250, 240, 0.9) !important;
+  border-color: rgba(91, 62, 40, 0.21) !important;
+}
+
+.reading-donut {
+  background:
+    radial-gradient(circle at center, #f4e2c0 0 54%, transparent 55%),
+    conic-gradient(#687b50 var(--progress-angle), rgba(102, 77, 50, 0.15) 0) !important;
+  box-shadow: 0 10px 22px rgba(83, 51, 27, 0.13), inset 0 0 0 1px rgba(91, 62, 40, 0.12) !important;
+}
+
+.reading-donut strong,
+.reading-summary-card h3,
+.reading-summary-card strong,
+.despertai-wheel-result-card strong,
+.despertai-issue-title-block h3,
+.reading-video-main h4,
+.bible-section-card > h3,
+.bible-book-head h4,
+.reading-selected-callout strong {
+  color: #3d2b20 !important;
+}
+
+.despertai-topic.read,
+.bible-chapter.read,
+.reading-video-card.finished,
+.despertai-issue-card.finished {
+  color: #40502f !important;
+  background: rgba(105, 126, 77, 0.14) !important;
+  border-color: rgba(83, 105, 60, 0.3) !important;
+}
+
+.reading-video-card.wheel-selected,
+.despertai-issue-card.wheel-selected,
+.reading-selected-callout {
+  background: linear-gradient(145deg, #f3d9a8, #e8bf7e) !important;
+  border-color: #a75a34 !important;
+  box-shadow: 0 0 0 3px rgba(169, 90, 53, 0.13), 0 13px 27px rgba(95, 55, 29, 0.14) !important;
+}
+
+.reading-selected-badge {
+  color: #fff9ed !important;
+  background: #9c5332 !important;
+  border-color: #844328 !important;
+}
+
+/* Dissertation: remove the remaining corporate black control-center layer */
+.dissertation-academic,
+.dissertation-academic-hero,
+.dissertation-academic-stats article,
+.dissertation-today-panel,
+.dissertation-front-card,
+.dissertation-deadlines-panel,
+.dissertation-completed-section,
+.dissertation-general-notes,
+.dissertation-today-row,
+.dissertation-step-row,
+.dissertation-done-steps,
+.dissertation-deadline-list-simple article,
+.dissertation-front-archive-note,
+.dissertation-academic .dissertation-sync-state {
+  color: #3d2b20 !important;
+  background: linear-gradient(145deg, rgba(255, 249, 237, 0.97), rgba(235, 214, 179, 0.93)) !important;
+  border-color: rgba(91, 62, 40, 0.2) !important;
+  box-shadow: 0 12px 28px rgba(78, 47, 24, 0.1) !important;
+}
+
+.dissertation-academic-hero {
+  background: linear-gradient(135deg, #d7c997, #e4bb7a) !important;
+}
+
+.dissertation-academic h2,
+.dissertation-academic h3,
+.dissertation-academic strong,
+.dissertation-academic-hero h2,
+.dissertation-section-title h3,
+.dissertation-today-label strong,
+.dissertation-front-card h3,
+.dissertation-deadline-list-simple strong,
+.dissertation-academic-progress strong,
+.dissertation-academic-date strong,
+.dissertation-academic-stats strong {
+  color: #3d2b20 !important;
+}
+
+.dissertation-academic-hero p,
+.dissertation-section-title p,
+.dissertation-front-status span,
+.dissertation-front-date span,
+.dissertation-front-notes span,
+.dissertation-general-notes span,
+.dissertation-step-list > p,
+.dissertation-academic-stats span {
+  color: #7a4d2f !important;
+}
+
+.dissertation-academic-progress,
+.dissertation-academic-date {
+  color: #3d2b20 !important;
+  background: rgba(255, 248, 231, 0.64) !important;
+  border-color: rgba(91, 62, 40, 0.2) !important;
+}
+
+.dissertation-academic input,
+.dissertation-academic textarea,
+.dissertation-academic button:not(.task-check) {
+  color: #3d2b20 !important;
+  background: rgba(255, 250, 239, 0.88) !important;
+  border-color: rgba(91, 62, 40, 0.22) !important;
+}
+
+.dissertation-academic .task-check {
+  background: #fff8e9 !important;
+  border-color: rgba(74, 91, 52, 0.54) !important;
+}
+
+.dissertation-front-complete-note,
+.dissertation-front-archive-note span,
+.dissertation-today-celebration {
+  color: #40502f !important;
+  background: rgba(104, 126, 77, 0.13) !important;
+  border-color: rgba(82, 105, 60, 0.27) !important;
+}
+
+/* Orbit dock and full assistant */
+.orbit-dock {
+  filter: drop-shadow(0 18px 34px rgba(81, 49, 25, 0.2)) !important;
+}
+
+.orbit-dock-panel,
+.orbit-dock-composer,
+.assistant-chat,
+.assistant-message.assistant .assistant-message-body,
+.assistant-plan,
+.assistant-plan-item,
+.assistant-composer {
+  color: #3d2b20 !important;
+  background: linear-gradient(145deg, rgba(255, 249, 237, 0.98), rgba(231, 208, 169, 0.97)) !important;
+  border-color: rgba(91, 62, 40, 0.22) !important;
+  box-shadow: 0 16px 36px rgba(77, 47, 25, 0.15) !important;
+}
+
+.orbit-dock-panel > header,
+.orbit-dock-full {
+  border-color: rgba(91, 62, 40, 0.14) !important;
+}
+
+.orbit-dock-panel > header > div,
+.orbit-dock-panel > header strong,
+.orbit-dock-answer,
+.orbit-dock-full,
+.orbit-dock-composer input,
+.assistant-message-body,
+.assistant-plan-item,
+.assistant-chat strong {
+  color: #3d2b20 !important;
+}
+
+.orbit-dock-panel > header button,
+.assistant-clear {
+  color: #66503d !important;
+  background: rgba(255, 249, 237, 0.5) !important;
+}
+
+.orbit-dock-panel > header button:hover,
+.assistant-clear:hover {
+  color: #3d2b20 !important;
+  background: rgba(255, 250, 239, 0.88) !important;
+}
+
+.orbit-dock-composer input::placeholder,
+.assistant-hint,
+.assistant-thinking {
+  color: #7b6855 !important;
+}
+
+.orbit-dock-composer button,
+.assistant-composer button {
+  color: #fff9ed !important;
+  background: #68794f !important;
+}
+
+.assistant-hero {
+  color: #3d2b20 !important;
+  background: linear-gradient(135deg, #e7d4ae, #d8c58f) !important;
+  border-color: rgba(91, 62, 40, 0.22) !important;
+  box-shadow: 0 15px 32px rgba(78, 48, 25, 0.12) !important;
+}
+
+@media (max-width: 760px) {
+  .app-nav,
+  .shell-user,
+  .orbit-dock-panel,
+  .orbit-dock-composer,
+  .focus-timer-card,
+  .activity-wheel,
+  .despertai-wheel-card,
+  .dissertation-academic-hero,
+  .dissertation-today-panel,
+  .dissertation-front-card,
+  .mood-day-section,
+  .mood-month-section {
+    backdrop-filter: none !important;
+  }
+}

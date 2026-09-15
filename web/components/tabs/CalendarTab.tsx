@@ -173,14 +173,14 @@ const ALL_TAG_FILTER = "__all__";
 const NO_TAG_FILTER = "__none__";
 
 const WHEEL_SLICE_COLORS = [
-  "#81623a",
-  "#54677a",
-  "#77558a",
-  "#4f745e",
-  "#9a6a56",
-  "#5e6f90",
-  "#8a5d73",
-  "#627854",
+  "#b86b42",
+  "#72805b",
+  "#d19a55",
+  "#8b7058",
+  "#9a665f",
+  "#7d8c72",
+  "#c17c4f",
+  "#9c8459",
 ];
 const WHEEL_CENTER = 130;
 const WHEEL_RADIUS = 118;
