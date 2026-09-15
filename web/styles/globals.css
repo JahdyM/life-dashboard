@@ -13059,3 +13059,103 @@ body {
 .today-progress-bar span {
   background: linear-gradient(90deg, #6c7d50, #c27942) !important;
 }
+
+/* Header: one composition, not a card nested inside another card. */
+.shell-topbar {
+  padding: 8px 2px !important;
+  color: #3d2b20 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.shell-brand {
+  padding: 8px 4px !important;
+  color: #3d2b20 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.shell-brand h1 {
+  color: #3d2b20 !important;
+  text-shadow: 0 1px rgba(255, 250, 237, 0.7), 0 3px 18px rgba(91, 55, 29, 0.12) !important;
+}
+
+.shell-brand .shell-copy {
+  color: #66513f !important;
+}
+
+/* The dissertation strip still carried an old observatory-black child card. */
+.study-widget-activity-card {
+  color: #3d2b20 !important;
+  background: linear-gradient(145deg, rgba(255, 248, 232, 0.92), rgba(225, 204, 166, 0.9)) !important;
+  border-color: rgba(91, 62, 40, 0.2) !important;
+  box-shadow: 0 7px 17px rgba(78, 48, 25, 0.08) !important;
+}
+
+.study-widget-activity-title,
+.study-widget-activity-copy,
+.study-widget-activity-side small {
+  color: #4a372a !important;
+}
+
+.study-widget-tag {
+  color: #5d4938 !important;
+  background: rgba(255, 249, 237, 0.58) !important;
+  border-color: rgba(91, 62, 40, 0.18) !important;
+}
+
+.study-widget-deadline-pill,
+.study-widget-deadline-pill.urgency-later,
+.study-widget-deadline-pill.urgency-none {
+  color: #5a4636 !important;
+  background: rgba(255, 249, 237, 0.62) !important;
+  border-color: rgba(91, 62, 40, 0.2) !important;
+}
+
+.study-widget-deadline-pill.urgency-overdue {
+  color: #7d382f !important;
+  background: rgba(169, 79, 62, 0.13) !important;
+  border-color: rgba(155, 66, 52, 0.3) !important;
+}
+
+.study-widget-deadline-pill.urgency-soon {
+  color: #80521f !important;
+  background: rgba(183, 119, 46, 0.14) !important;
+  border-color: rgba(167, 102, 35, 0.3) !important;
+}
+
+.study-widget-deadline-pill.urgency-near {
+  color: #40542f !important;
+  background: rgba(98, 120, 73, 0.14) !important;
+  border-color: rgba(76, 99, 53, 0.3) !important;
+}
+
+.shell-streak-person-metrics strong,
+.shell-streak-person-name,
+.shell-streak-label {
+  color: #4b372a !important;
+}
+
+.assistant-error,
+.orbit-dock-answer .assistant-error {
+  color: #8e3f35 !important;
+  background: rgba(169, 79, 62, 0.09) !important;
+  border: 1px solid rgba(155, 66, 52, 0.18) !important;
+  border-radius: 11px !important;
+  padding: 8px 10px !important;
+}
+
+@media (max-width: 760px) {
+  .shell-topbar {
+    padding-inline: 0 !important;
+  }
+
+  .shell-brand {
+    padding: 4px 2px !important;
+  }
+}

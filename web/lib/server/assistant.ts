@@ -897,6 +897,21 @@ type GeminiPayload = {
 
 let resolvedFallbackModel: string | null = null;
 
+const GEMINI_STATIC_FALLBACKS = [
+  "gemini-2.5-flash-lite",
+  "gemini-2.5-flash",
+  "gemini-flash-latest",
+] as const;
+
+const GEMINI_RETRYABLE_STATUSES = new Set([408, 500, 502, 503, 504]);
+
+function waitForGeminiRetry(attempt: number) {
+  const jitter = Math.floor(Math.random() * 180);
+  return new Promise((resolve) =>
+    setTimeout(resolve, 550 * 2 ** attempt + jitter)
+  );
+}
+
 function modelScore(name: string) {
   let score = 0;
   const version = name.match(/^gemini-(\d+)(?:\.(\d+))?-/);
@@ -1356,7 +1371,7 @@ async function buildAssistantContext(
 
   const pendingTasks = tasks
     .filter((task) => !task.isDone && !task.missedAt)
-    .slice(0, 500)
+    .slice(0, 220)
     .map((task) => ({
       id: task.id,
       title: task.title,
@@ -1371,8 +1386,8 @@ async function buildAssistantContext(
       order: task.focusOrder || null,
       effort: energy?.taskEffort[task.id] || null,
       scheduleLocked: task.scheduleLocked,
-      notes: task.notes?.slice(0, 500) || null,
-      subtasks: task.subtasks.slice(0, 20).map((subtask) => ({
+      notes: task.notes?.slice(0, 240) || null,
+      subtasks: task.subtasks.slice(0, 12).map((subtask) => ({
         id: subtask.id,
         title: subtask.title,
         done: Boolean(subtask.isDone),
@@ -1764,7 +1779,7 @@ export async function askAssistant(
     contextQuery || latestUserMessage
   );
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 35_000);
+  const timeout = setTimeout(() => controller.abort(), 45_000);
   try {
     const requestBody = JSON.stringify({
       systemInstruction: { parts: [{ text: systemInstruction(context) }] },
@@ -1779,30 +1794,55 @@ export async function askAssistant(
       },
     });
     const requestModel = async (model: string) => {
-      const response = await fetch(geminiEndpoint(model), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        body: requestBody,
-        signal: controller.signal,
-      });
-      const payload = (await response.json().catch(() => null)) as GeminiPayload | null;
-      return { response, payload };
+      let latest: { response: Response; payload: GeminiPayload | null } | null = null;
+
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          const response = await fetch(geminiEndpoint(model), {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-goog-api-key": apiKey,
+            },
+            body: requestBody,
+            signal: controller.signal,
+          });
+          const payload = (await response.json().catch(() => null)) as GeminiPayload | null;
+          latest = { response, payload };
+
+          if (response.ok || !GEMINI_RETRYABLE_STATUSES.has(response.status)) {
+            return latest;
+          }
+        } catch (error) {
+          if (controller.signal.aborted || attempt === 2) throw error;
+        }
+
+        if (attempt < 2) await waitForGeminiRetry(attempt);
+      }
+
+      if (!latest) throw new Error("AI_REQUEST_FAILED");
+      return latest;
     };
 
     let model = resolvedFallbackModel || assistantModel();
     const attemptedModels = [model];
     let result = await requestModel(model);
 
-    if (result.response.status === 404 || result.response.status === 429) {
-      const fallbacks = await findAvailableGeminiModels(
+    if (
+      result.response.status === 404 ||
+      result.response.status === 429 ||
+      result.response.status >= 500
+    ) {
+      const discoveredFallbacks = await findAvailableGeminiModels(
         apiKey,
         new Set(attemptedModels),
         controller.signal
       );
-      for (const fallback of fallbacks.slice(0, 4)) {
+      const fallbacks = Array.from(
+        new Set([...GEMINI_STATIC_FALLBACKS, ...discoveredFallbacks])
+      ).filter((fallback) => !attemptedModels.includes(fallback));
+
+      for (const fallback of fallbacks.slice(0, 6)) {
         model = fallback;
         attemptedModels.push(fallback);
         result = await requestModel(model);
@@ -1810,13 +1850,14 @@ export async function askAssistant(
           resolvedFallbackModel = fallback;
           break;
         }
-        if (result.response.status !== 404 && result.response.status !== 429) break;
+        if (
+          result.response.status < 500 &&
+          result.response.status !== 404 &&
+          result.response.status !== 429
+        ) {
+          break;
+        }
       }
-    }
-
-    if (result.response.status >= 500) {
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      result = await requestModel(model);
     }
 
     const { response, payload } = result;
