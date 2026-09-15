@@ -2632,24 +2632,24 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       );
       const end = format(endDate, "yyyy-MM-dd'T'HH:mm:ss");
       let backgroundColor = draft.isDone
-        ? "rgba(127, 211, 165, 0.76)"
-        : "rgba(143, 123, 179, 0.64)";
+        ? "rgba(101, 126, 77, 0.82)"
+        : "rgba(169, 88, 51, 0.84)";
       let borderColor = draft.isDone
-        ? "rgba(127, 211, 165, 0.95)"
-        : "rgba(143, 123, 179, 0.95)";
-      let textColor = draft.isDone ? "#102418" : "#F5F1EA";
+        ? "rgba(79, 103, 58, 0.98)"
+        : "rgba(133, 62, 34, 0.98)";
+      let textColor = "#fff9ed";
       if (isSharedReceived) {
-        backgroundColor = "rgba(76, 153, 226, 0.72)";
-        borderColor = "rgba(76, 153, 226, 0.95)";
-        textColor = "#f7fbff";
+        backgroundColor = "rgba(83, 111, 92, 0.84)";
+        borderColor = "rgba(61, 88, 70, 0.98)";
+        textColor = "#fff9ed";
       } else if (isSharedPending) {
         backgroundColor = "rgba(231, 178, 76, 0.72)";
         borderColor = "rgba(231, 178, 76, 0.95)";
         textColor = "#1f1606";
       } else if (isSharedAccepted) {
-        backgroundColor = "rgba(76, 153, 226, 0.66)";
-        borderColor = "rgba(76, 153, 226, 0.9)";
-        textColor = "#f7fbff";
+        backgroundColor = "rgba(83, 111, 92, 0.8)";
+        borderColor = "rgba(61, 88, 70, 0.96)";
+        textColor = "#fff9ed";
       } else if (isStarted) {
         backgroundColor = "rgba(221, 169, 82, 0.72)";
         borderColor = "rgba(235, 194, 116, 0.98)";

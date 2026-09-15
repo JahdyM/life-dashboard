@@ -13397,3 +13397,153 @@ body {
     flex-direction: column;
   }
 }
+
+/* Calendar: quiet paper workspace without stacked outer cards. */
+.calendar-primary-section,
+.calendar-panel {
+  color: #3d2b20 !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.calendar-panel {
+  overflow: visible !important;
+  padding: 0 !important;
+}
+
+.calendar-header {
+  margin-bottom: 12px;
+  padding: 8px 2px;
+  color: #493428;
+}
+
+.calendar-header > button,
+.calendar-view-toggle .chip,
+.night-owl-end-control,
+.activity-wheel-toggle,
+.activity-wheel-shuffle-count {
+  color: #5c4736 !important;
+  background: rgba(250, 239, 216, 0.78) !important;
+  border-color: rgba(91, 62, 40, 0.2) !important;
+}
+
+.calendar-list-filter select,
+.activity-wheel-shuffle-count input,
+.focus-timer-field select,
+.focus-timer-field input {
+  color: #3d2b20 !important;
+  background: rgba(255, 250, 239, 0.92) !important;
+  border-color: rgba(91, 62, 40, 0.24) !important;
+}
+
+/* Priority and area remain in the detail sheet; rows only show the useful badge. */
+.task-row-quick-tags {
+  display: none !important;
+}
+
+.task-row {
+  gap: 3px;
+  padding: 7px 10px !important;
+  border-radius: 13px !important;
+  background: rgba(252, 242, 222, 0.72) !important;
+  border-color: rgba(91, 64, 43, 0.2) !important;
+  box-shadow: 0 4px 12px rgba(73, 46, 25, 0.045) !important;
+}
+
+.task-row:hover {
+  background: rgba(255, 248, 233, 0.92) !important;
+  border-color: rgba(145, 77, 39, 0.3) !important;
+  box-shadow: 0 7px 16px rgba(73, 46, 25, 0.08) !important;
+}
+
+.task-row:focus-within,
+.task-row.active {
+  background: rgba(249, 232, 201, 0.96) !important;
+  border-color: rgba(145, 77, 39, 0.38) !important;
+}
+
+.task-row-compact-head {
+  min-height: 34px;
+}
+
+.task-row-compact-head > input[type="checkbox"],
+.task-subtask-row input[type="checkbox"] {
+  outline-color: rgba(78, 60, 43, 0.42) !important;
+  accent-color: #68794f !important;
+}
+
+.task-subtask-toggle,
+.task-row-lock-toggle,
+.task-row-drag-handle,
+.task-row-order-button,
+.task-row-next-button,
+.task-row-miss-toggle,
+.task-row-overflow .overflow-menu-trigger {
+  color: #66503d !important;
+  background: rgba(255, 250, 239, 0.48) !important;
+  border-color: rgba(91, 62, 40, 0.17) !important;
+  box-shadow: none !important;
+}
+
+/* FullCalendar is the one deliberate calendar surface in the right column. */
+.calendar-panel .fc {
+  --fc-border-color: rgba(102, 70, 43, 0.18);
+  --fc-page-bg-color: rgba(250, 239, 216, 0.82);
+  --fc-neutral-bg-color: rgba(229, 207, 170, 0.52);
+  --fc-neutral-text-color: #725f4d;
+  --fc-event-bg-color: rgba(169, 88, 51, 0.84);
+  --fc-event-border-color: rgba(133, 62, 34, 0.98);
+  color: #493428 !important;
+  overflow: hidden;
+  padding: 10px;
+  border: 1px solid rgba(91, 62, 40, 0.22);
+  border-radius: 20px;
+  background: linear-gradient(145deg, rgba(255, 249, 237, 0.96), rgba(235, 215, 181, 0.91));
+  box-shadow: 0 10px 24px rgba(75, 47, 26, 0.09);
+}
+
+.calendar-panel .fc .fc-scrollgrid,
+.calendar-panel .fc-theme-standard td,
+.calendar-panel .fc-theme-standard th {
+  border-color: rgba(102, 70, 43, 0.18) !important;
+}
+
+.calendar-panel .fc .fc-col-header-cell,
+.calendar-panel .fc .fc-timegrid-axis,
+.calendar-panel .fc .fc-timegrid-slot-label {
+  color: #5d4939 !important;
+  background: rgba(240, 221, 189, 0.5) !important;
+}
+
+.calendar-panel .fc .fc-timegrid-col,
+.calendar-panel .fc .fc-timegrid-slot,
+.calendar-panel .fc .fc-scrollgrid-section-body td {
+  background-color: rgba(255, 250, 239, 0.38) !important;
+}
+
+.calendar-panel .fc .fc-event {
+  color: #fff9ed !important;
+  text-shadow: 0 1px 1px rgba(64, 36, 22, 0.35);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.16);
+}
+
+.calendar-panel .fc .fc-timegrid-now-indicator-line {
+  border-color: #b45e35 !important;
+}
+
+.calendar-panel .fc .fc-timegrid-now-indicator-arrow {
+  border-color: #b45e35 !important;
+}
+
+@media (max-width: 760px) {
+  .calendar-panel {
+    background: transparent !important;
+  }
+
+  .calendar-panel .fc {
+    padding: 7px;
+    border-radius: 16px;
+  }
+}
