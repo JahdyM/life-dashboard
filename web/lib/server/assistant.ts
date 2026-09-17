@@ -89,6 +89,8 @@ import {
 } from "./spiritualStreaks";
 import { createTaskArea, getTaskAreas } from "./taskAreas";
 import { createTask, listTasks, updateTask } from "./tasks";
+import { deleteTaskWithIntegrations } from "./taskDeletion";
+import { ensureTaskCompletionColumns } from "./dbCompat";
 import { logServerEvent } from "./logger";
 
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;
@@ -167,6 +169,9 @@ const actionSchema = z.object({
   payload: z
     .object({
       taskId: z.string().trim().min(1).max(100).optional(),
+      taskIds: z.array(z.string().trim().min(1).max(100)).min(1).max(500).optional(),
+      taskTitles: z.array(z.string().trim().min(1).max(200)).max(500).optional(),
+      deleteCompletedDate: z.string().regex(isoDate).optional(),
       title: z.string().trim().min(1).max(200).optional(),
       scheduledDate: z.union([z.string().regex(isoDate), z.null()]).optional(),
       scheduledTime: z.union([z.string().regex(isoTime), z.null()]).optional(),
@@ -274,6 +279,7 @@ type EstimationHistoryItem = AssistantContext["completedTaskHistory"][number];
 
 const payloadAliases: Record<string, string[]> = {
   taskId: ["task_id", "id"],
+  taskIds: ["task_ids", "ids"],
   title: ["name"],
   scheduledDate: ["scheduled_date"],
   scheduledTime: ["scheduled_time", "time"],
@@ -371,6 +377,9 @@ const actionTypeAliases: Record<string, (typeof ASSISTANT_ACTION_TYPES)[number]>
   set_finance_debt: "upsert_finance_debt",
   edit_finance_expense: "update_finance_expense",
   delete_finance_item: "remove_finance_item",
+  delete_task: "delete_tasks",
+  remove_task: "delete_tasks",
+  bulk_delete_tasks: "delete_tasks",
   change_word_of_day: "refresh_word_of_day",
 };
 
@@ -610,6 +619,10 @@ function normalizeAssistantReply(value: unknown) {
       ) {
         payload.scheduledDate = payload.date;
         delete payload.date;
+      }
+      if (actionType === "delete_tasks" && !payload.taskIds && payload.taskId) {
+        payload.taskIds = [payload.taskId];
+        delete payload.taskId;
       }
 
       ["estimatedMinutes", "focusOrder", "targetMinutes", "goalMinutes", "actualMinutes"].forEach(
@@ -971,6 +984,16 @@ function normalizeIntentText(value: string) {
 function hasIntent(value: string, terms: string[]) {
   const normalized = normalizeIntentText(value);
   return terms.some((term) => normalized.includes(term));
+}
+
+function requestsDeletingTodaysDoneTasks(value: string) {
+  const normalized = normalizeIntentText(value);
+  const deletion = normalized.match(/\b(exclu|apag|delet|remov|limp)/);
+  if (!deletion || /\b(nao|never|don't|dont)\b/.test(normalized.slice(0, deletion.index))) {
+    return false;
+  }
+  return /\b(done|concluid|finalizad|tarefas? feitas?|tasks? done)/.test(normalized) &&
+    /\b(hoje|today)\b/.test(normalized);
 }
 
 function weightedRandomItem<T>(items: T[], weightFor: (item: T) => number) {
@@ -1434,6 +1457,15 @@ async function buildAssistantContext(
       actual: task.actualMinutes || null,
       area: task.areaTag || null,
     }));
+  const completedTasksToday = tasks
+    .filter(
+      (task) =>
+        task.scheduledDate === todayIso &&
+        Boolean(task.isDone) &&
+        task.source !== "habit" &&
+        !task.missedAt
+    )
+    .map((task) => ({ id: task.id, title: task.title }));
 
   const historyPoints = estimation?.points.slice(0, 100) || [];
   const ratiosByArea = new Map<string, number[]>();
@@ -1501,6 +1533,7 @@ async function buildAssistantContext(
           }
         : null,
     recentCompletedTasks,
+    completedTasksToday,
     taskAreas: areas,
     completedTaskHistory: historyPoints.map((point) => ({
       title: point.title,
@@ -1709,6 +1742,7 @@ function systemInstruction(context: AssistantContext) {
     "Reply in the same language as the user. Be concise, specific, and collaborative.",
     `Today is ${context.today}. ${scopeRule}`,
     "You can coordinate any dashboard service represented in the supplied context, even when the user is currently on a different page. Never refuse only because of the current page.",
+    "Do not invent permission or history-integrity restrictions for supported user-requested changes. The signed-in user may delete their own tasks; use the supported action and show an exact preview instead of refusing.",
     "Return actions whenever the user asks to create, change, organize, prioritize, tag, estimate, or plan something.",
     "Every action is a preview and requires one user review. Never claim it was already applied.",
     context.assistantPreferences.askWhenUncertain
@@ -1721,6 +1755,7 @@ function systemInstruction(context: AssistantContext) {
     "TASK EFFORT: use low for light/quick work, medium for ordinary focused work, and high for cognitively or physically deep work. Keep effort distinct from priority.",
     "TASK DETAILS: plannedTime is the intended time; startTime and endTime are actual execution facts and must only be changed when the user explicitly gives them. scheduleLocked=true means automatic reordering must preserve that time.",
     "TASK COMPLETION: only set completed when the user explicitly asks to mark or unmark a task. Never infer completion from planning language.",
+    "TASK DELETION: when the user explicitly asks to remove tasks, use delete_tasks with exact taskIds from context. For 'Done today', use completedTasksToday only, never habits. This is a hard delete, not an uncheck. The UI previews the exact list and requires one Apply confirmation. Ask only if the target is ambiguous.",
     "TASK TAGS: use an existing taskAreas key. If the requested tag does not exist, propose create_area before assigning it.",
     "PRIORITY: use Low, Medium, High, or Critical based on consequence and deadline, not anxiety.",
     "ROULETTES: when taskWheel.selected exists, that is the actual server-side weighted draw. Report that exact task; do not invent or redraw it. If the user asks for a publication draw, use the exact result under reading.wheel for the requested collection. A draw is read-only and needs no action. If the user asks to make the drawn task next, then propose update_task with focusOrder=1. If the requested wheel is ambiguous, ask which wheel.",
@@ -1744,9 +1779,9 @@ function systemInstruction(context: AssistantContext) {
     `Allowed actions: ${ASSISTANT_ACTION_TYPES.join(", ")}.`,
     'Return only one JSON object shaped as {"message":"short answer","actions":[{"type":"allowed action","title":"short preview title","reason":"brief reason","payload":{}}]}. Use an empty actions array when no change is needed. Never add keys outside this structure.',
     "The action-level title is only the preview label. Put the actual task, book, goal, expense, debt, or checklist title in payload.title.",
-    "Common payload signatures: set_habit_status={habitKey,date,completed}; log_mood={moodCategory,date,loggedTime}; update_day_metrics={date,sleepHours,anxietyLevel,workHours,boredomMinutes}; update_spiritual_streak={boardKey,date,success}; set_books_goal={year,yearlyGoal}; create_book={title,year,author,totalPages,pagesRead,bookStatus,rating}; update_book={bookId plus changed book fields}; update_spiritual_goal={spiritualCategory,spiritualOperation,stepId,taskId,taskCompleted,notes,title as needed}; add_finance_fixed_cost={month,title,budget,actual,paid}; remove_finance_item={month,financeItemType plus exact expenseId/debtKey/fixedCostId}; refresh_word_of_day={date}.",
+    "Common payload signatures: delete_tasks={taskIds}; set_habit_status={habitKey,date,completed}; log_mood={moodCategory,date,loggedTime}; update_day_metrics={date,sleepHours,anxietyLevel,workHours,boredomMinutes}; update_spiritual_streak={boardKey,date,success}; set_books_goal={year,yearlyGoal}; create_book={title,year,author,totalPages,pagesRead,bookStatus,rating}; update_book={bookId plus changed book fields}; update_spiritual_goal={spiritualCategory,spiritualOperation,stepId,taskId,taskCompleted,notes,title as needed}; add_finance_fixed_cost={month,title,budget,actual,paid}; remove_finance_item={month,financeItemType plus exact expenseId/debtKey/fixedCostId}; refresh_word_of_day={date}.",
     "For task duration, the payload key is estimatedMinutes (integer minutes). For a fixed task time, use scheduledTime in HH:mm. For task effort, use effort. Never use estimate, duration, energy, or time as payload keys.",
-    "Never delete or mark tasks missed. Task completion is allowed only when explicitly requested. Do not alter sensitive metrics without an explicit value. If the requested operation has no supported safe action, explain what is missing instead of pretending.",
+    "Do not mark tasks missed unless the user explicitly asks. Do not alter sensitive metrics without an explicit value. If the requested operation has no supported action, explain what is missing instead of pretending.",
     `Dashboard context: ${JSON.stringify(context)}`,
   ].join("\n");
 }
@@ -1756,11 +1791,42 @@ export async function askAssistant(
   messages: AssistantChatMessage[],
   scope: AssistantScope = "all"
 ): Promise<AssistantReply> {
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
-  if (!apiKey) throw new Error("AI_NOT_CONFIGURED");
-
   const latestUserMessage =
     [...messages].reverse().find((message) => message.role === "user")?.content || "";
+  if (requestsDeletingTodaysDoneTasks(latestUserMessage)) {
+    const todayIso = await getTodayIsoForUser(userEmail);
+    await ensureTaskCompletionColumns();
+    const tasks = await prisma.todoTask.findMany({
+      where: {
+        userEmail,
+        scheduledDate: todayIso,
+        isDone: 1,
+        source: { not: "habit" },
+        missedAt: null,
+      },
+      select: { id: true, title: true },
+      orderBy: { createdAt: "asc" },
+    });
+    if (!tasks.length) {
+      return { message: "Não há tarefas concluídas hoje para excluir.", actions: [] };
+    }
+    return {
+      message: `Encontrei ${tasks.length} ${tasks.length === 1 ? "tarefa concluída" : "tarefas concluídas"} hoje. Revise a lista e aplique para excluir. Hábitos permanecem intactos.`,
+      actions: [{
+        id: randomUUID(),
+        type: "delete_tasks",
+        title: `Excluir ${tasks.length} ${tasks.length === 1 ? "tarefa" : "tarefas"} do Done de hoje`,
+        reason: "Exclusão permanente das tarefas listadas; hábitos não são afetados.",
+        payload: {
+          taskIds: tasks.map((task) => task.id),
+          taskTitles: tasks.map((task) => task.title),
+          deleteCompletedDate: todayIso,
+        },
+      }],
+    };
+  }
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  if (!apiKey) throw new Error("AI_NOT_CONFIGURED");
   const contextQuery = messages
     .filter((message) => message.role === "user")
     .slice(-4)
@@ -1997,6 +2063,14 @@ export async function askAssistant(
             })),
           };
         }
+        if (calibrated.type === "delete_tasks" && calibrated.payload.taskIds) {
+          nextPayload = {
+            ...nextPayload,
+            taskTitles: calibrated.payload.taskIds.map(
+              (taskId) => taskTitles.get(taskId) || "Task"
+            ),
+          };
+        }
         if (
           calibrated.type === "update_reading_progress" &&
           calibrated.payload.readingUpdates
@@ -2106,9 +2180,13 @@ async function updateTaskFromAssistant(
 export async function applyAssistantActions(userEmail: string, rawActions: unknown) {
   const actions = applySchema.parse(rawActions);
   const todayIso = await getTodayIsoForUser(userEmail);
+  if (actions.some((action) => action.type === "delete_tasks")) {
+    await ensureTaskCompletionColumns();
+  }
   const taskIds = actions
     .flatMap((action) => {
       if (action.type === "update_task") return [action.payload.taskId];
+      if (action.type === "delete_tasks") return action.payload.taskIds || [];
       if (action.type === "bulk_update_tasks") {
         return (action.payload.taskUpdates || []).map((update) => update.taskId);
       }
@@ -2116,8 +2194,23 @@ export async function applyAssistantActions(userEmail: string, rawActions: unkno
     })
     .filter((id): id is string => Boolean(id));
   if (taskIds.length) {
-    const owned = await prisma.todoTask.count({ where: { userEmail, id: { in: taskIds } } });
-    if (owned !== new Set(taskIds).size) throw new Error("RESOURCE_NOT_FOUND");
+    const owned = await prisma.todoTask.findMany({
+      where: { userEmail, id: { in: taskIds } },
+      select: { id: true, source: true, scheduledDate: true, isDone: true },
+    });
+    if (owned.length !== new Set(taskIds).size) throw new Error("RESOURCE_NOT_FOUND");
+    for (const action of actions.filter((item) => item.type === "delete_tasks")) {
+      const targets = new Set(action.payload.taskIds || []);
+      if (owned.some((task) => targets.has(task.id) && task.source === "habit")) {
+        throw new Error("INVALID_ASSISTANT_ACTION");
+      }
+      if (action.payload.deleteCompletedDate && owned.some(
+        (task) => targets.has(task.id) &&
+          (task.scheduledDate !== action.payload.deleteCompletedDate || !task.isDone)
+      )) {
+        throw new Error("INVALID_ASSISTANT_ACTION");
+      }
+    }
   }
 
   const allHabits = await getAllCustomHabits(userEmail);
@@ -2198,6 +2291,16 @@ export async function applyAssistantActions(userEmail: string, rawActions: unkno
         updatedTasks.forEach((task) => {
           results.push({ id: task.id, type: action.type, title: task.title });
         });
+      }
+      continue;
+    }
+
+    if (action.type === "delete_tasks") {
+      const ids = [...new Set(action.payload.taskIds || [])];
+      if (!ids.length) throw new Error("INVALID_ASSISTANT_ACTION");
+      for (const taskId of ids) {
+        const task = await deleteTaskWithIntegrations(userEmail, taskId);
+        results.push({ id: taskId, type: action.type, title: task.title });
       }
       continue;
     }

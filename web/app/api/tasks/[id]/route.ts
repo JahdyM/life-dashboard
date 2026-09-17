@@ -6,16 +6,16 @@ import {
   jsonOk,
   zodErrorMessage,
 } from "@/lib/server/response";
-import { updateTask, deleteTask } from "@/lib/server/tasks";
+import { updateTask } from "@/lib/server/tasks";
+import { deleteTaskWithIntegrations } from "@/lib/server/taskDeletion";
 import { prisma } from "@/lib/db/prisma";
 import { addPointsOnce, POINTS } from "@/lib/server/rewards";
 import {
   DISSERTATION_TASK_AREA_TAG,
   syncDissertationStepFromMirrorTask,
 } from "@/lib/server/dissertationMirror";
-import { updateGoogleEvent, deleteGoogleEvent } from "@/lib/server/googleCalendar";
+import { updateGoogleEvent } from "@/lib/server/googleCalendar";
 import { getUserTimeZone } from "@/lib/server/settings";
-import { rememberDeletedGoogleTask } from "@/lib/server/taskTombstones";
 import { DEFAULT_TIME_ZONE } from "@/lib/constants";
 import { taskIdSchema, taskPatchSchema } from "@/lib/server/schemas";
 import { logServerEvent } from "@/lib/server/logger";
@@ -170,27 +170,7 @@ export async function DELETE(
     const idParsed = taskIdSchema.safeParse(context.params.id);
     if (!idParsed.success) return jsonError(zodErrorMessage(idParsed.error), 400);
     const taskId = idParsed.data;
-    const existing = await prisma.todoTask.findUnique({ where: { id: taskId } });
-    if (!existing || existing.userEmail !== userEmail) return jsonError("Task not found", 404);
-    if (existing.googleEventId && existing.source !== "google_shared") {
-      try {
-        await deleteGoogleEvent(
-          userEmail,
-          existing.googleCalendarId || "primary",
-          existing.googleEventId
-        );
-      } catch (error) {
-        logServerEvent("warn", {
-          endpoint: "DELETE /api/tasks/[id]",
-          userEmail,
-          message: "Google event delete failed; task will still be removed locally",
-          error,
-          meta: { taskId, googleEventId: existing.googleEventId },
-        });
-      }
-    }
-    await rememberDeletedGoogleTask(userEmail, existing);
-    await deleteTask(userEmail, taskId);
+    await deleteTaskWithIntegrations(userEmail, taskId);
     return jsonOk({ ok: true });
   } catch (err) {
     logServerEvent("error", {

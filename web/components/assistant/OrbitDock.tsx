@@ -140,6 +140,8 @@ export default function OrbitDock() {
       );
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["tasks"] }),
+        queryClient.invalidateQueries({ queryKey: ["tasks-overdue"] }),
+        queryClient.invalidateQueries({ queryKey: ["stats-estimation"] }),
         queryClient.invalidateQueries({ queryKey: ["custom-habits"] }),
         queryClient.invalidateQueries({ queryKey: ["custom-habits-done"] }),
         queryClient.invalidateQueries({ queryKey: ["day"] }),

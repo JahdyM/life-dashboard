@@ -132,6 +132,8 @@ export default function AssistantClient() {
         )
       );
       await queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      await queryClient.invalidateQueries({ queryKey: ["tasks-overdue"] });
+      await queryClient.invalidateQueries({ queryKey: ["stats-estimation"] });
       await queryClient.invalidateQueries({ queryKey: ["custom-habits"] });
       await queryClient.invalidateQueries({ queryKey: ["custom-habits-done"] });
       await queryClient.invalidateQueries({ queryKey: ["day"] });

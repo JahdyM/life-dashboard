@@ -8,6 +8,7 @@ function actionLabel(action: AssistantAction) {
     create_task: "New task",
     update_task: "Task",
     bulk_update_tasks: "Bulk review",
+    delete_tasks: "Delete tasks",
     create_habit: "New habit",
     create_area: "New tag",
     set_habit_status: "Habit",
@@ -88,6 +89,9 @@ function actionMeta(action: AssistantAction) {
     action.payload.taskUpdates?.length
       ? `${action.payload.taskUpdates.length} tasks`
       : null,
+    action.payload.taskIds?.length
+      ? `${action.payload.taskIds.length} tasks`
+      : null,
     action.payload.readingUpdates?.length
       ? `${action.payload.readingUpdates.length} changes`
       : null,
@@ -161,6 +165,18 @@ export default function AssistantPlanPreview({
                   <p key={update.taskId}>
                     <strong>{update.title || "Task"}</strong>
                     <small>{taskUpdateMeta(update)}</small>
+                  </p>
+                ))}
+              </div>
+            </details>
+          ) : null}
+          {action.type === "delete_tasks" && action.payload.taskIds?.length ? (
+            <details className="assistant-bulk-review" open={action.payload.taskIds.length <= 8}>
+              <summary>Tasks to delete ({action.payload.taskIds.length})</summary>
+              <div>
+                {action.payload.taskIds.map((taskId, index) => (
+                  <p key={taskId}>
+                    <strong>{action.payload.taskTitles?.[index] || "Task"}</strong>
                   </p>
                 ))}
               </div>

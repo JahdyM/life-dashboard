@@ -2,6 +2,7 @@ export const ASSISTANT_ACTION_TYPES = [
   "create_task",
   "update_task",
   "bulk_update_tasks",
+  "delete_tasks",
   "create_habit",
   "create_area",
   "set_habit_status",
@@ -61,6 +62,9 @@ export type AssistantAction = {
   reason: string;
   payload: {
     taskId?: string;
+    taskIds?: string[];
+    taskTitles?: string[];
+    deleteCompletedDate?: string;
     title?: string;
     scheduledDate?: string | null;
     scheduledTime?: string | null;
