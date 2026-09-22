@@ -2,6 +2,10 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { requireUserEmail } from "@/lib/server/auth";
 import { applyAssistantActions, askAssistant } from "@/lib/server/assistant";
+import {
+  advanceTaskReviewForAppliedActions,
+  stopAssistantTaskReview,
+} from "@/lib/server/assistantTaskReview";
 import type { AssistantScope } from "@/lib/assistant";
 import { handleAuthError, jsonError, jsonOk, zodErrorMessage } from "@/lib/server/response";
 import { logServerEvent } from "@/lib/server/logger";
@@ -39,6 +43,9 @@ const requestSchema = z.discriminatedUnion("mode", [
   z.object({
     mode: z.literal("apply"),
     actions: z.array(z.unknown()).min(1).max(100),
+  }),
+  z.object({
+    mode: z.literal("cancel_task_review"),
   }),
 ]);
 
@@ -110,9 +117,26 @@ export async function POST(request: NextRequest) {
         )
       );
     }
+    if (parsed.data.mode === "cancel_task_review") {
+      await stopAssistantTaskReview(userEmail);
+      return jsonOk({ ok: true });
+    }
 
     const items = await applyAssistantActions(userEmail, parsed.data.actions);
-    return jsonOk({ items });
+    let followUp: string | null = null;
+    try {
+      followUp = await advanceTaskReviewForAppliedActions(
+        userEmail,
+        parsed.data.actions
+      );
+    } catch (error) {
+      logServerEvent("warn", {
+        endpoint: "POST /api/assistant",
+        message: "Could not advance guided task review",
+        error,
+      });
+    }
+    return jsonOk({ items, followUp });
   } catch (error) {
     const known = assistantError(error);
     if (known) return known;

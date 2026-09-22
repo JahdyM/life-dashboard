@@ -92,6 +92,15 @@ import { createTask, listTasks, updateTask } from "./tasks";
 import { deleteTaskWithIntegrations } from "./taskDeletion";
 import { ensureTaskCompletionColumns } from "./dbCompat";
 import { logServerEvent } from "./logger";
+import {
+  advanceAssistantTaskReview,
+  getAssistantTaskCalibrations,
+  getAssistantTaskReview,
+  startAssistantTaskReview,
+  stopAssistantTaskReview,
+  taskReviewPrompt,
+  type AssistantTaskReview,
+} from "./assistantTaskReview";
 
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;
 const isoTime = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -181,6 +190,7 @@ const actionSchema = z.object({
       estimatedMinutes: z.number().int().min(1).max(480).nullable().optional(),
       priority: z.enum(["Low", "Medium", "High", "Critical"]).optional(),
       areaTag: z.string().trim().max(40).nullable().optional(),
+      calibrationContext: z.string().trim().min(1).max(500).optional(),
       focusOrder: z.number().int().min(1).max(1000).nullable().optional(),
       effort: z.enum(["low", "medium", "high"]).nullable().optional(),
       scheduleLocked: z.boolean().optional(),
@@ -996,6 +1006,96 @@ function requestsDeletingTodaysDoneTasks(value: string) {
     /\b(hoje|today)\b/.test(normalized);
 }
 
+function requestsStartingTaskReview(value: string) {
+  const normalized = normalizeIntentText(value);
+  const mentionsTasks = /\b(tasks?|tarefas?)\b/.test(normalized);
+  const oneByOne = /\b(cada|uma por uma|um por um|task por task|tarefa por tarefa|passar em|percorrer)\b/.test(
+    normalized
+  );
+  const fields = /\b(tempo|duracao|estim|tag|area)\b/.test(normalized);
+  return mentionsTasks && fields && oneByOne;
+}
+
+function requestsSkippingTaskReview(value: string) {
+  const normalized = normalizeIntentText(value);
+  return /^(pular|pula|skip|proxima|proximo|next|passa)(\b|\s)/.test(normalized);
+}
+
+function requestsResumingTaskReview(value: string) {
+  const normalized = normalizeIntentText(value);
+  return /\b(continuar|retomar|resume|continue).*(revis|tarefas?|tasks?)\b/.test(
+    normalized
+  );
+}
+
+function requestsStoppingTaskReview(value: string) {
+  const normalized = normalizeIntentText(value);
+  return /\b(parar|pare|encerra|cancelar|sair|stop|cancel).*(revis|tarefas?|tasks?)\b/.test(
+    normalized
+  );
+}
+
+function explicitTaskReviewUpdate(
+  value: string,
+  review: AssistantTaskReview
+): AssistantAction | null {
+  const normalized = normalizeIntentText(value).replace(",", ".");
+  const hourMatch = normalized.match(
+    /\b(\d+(?:\.\d+)?)\s*(?:h|hora|horas)(?:\s*(?:e\s*)?(\d{1,2})\s*(?:m|min|mins|minuto|minutos))?\b/
+  );
+  const minuteMatch = normalized.match(
+    /\b(\d{1,3})\s*(?:m|min|mins|minuto|minutos)\b/
+  );
+  let estimatedMinutes: number | null = null;
+  if (hourMatch) {
+    estimatedMinutes = Math.round(Number(hourMatch[1]) * 60) + Number(hourMatch[2] || 0);
+  } else if (minuteMatch) {
+    estimatedMinutes = Number(minuteMatch[1]);
+  } else if (
+    review.current.estimatedMinutes &&
+    /\b(tempo|duracao|estimativa).*(certo|correto|manter|mantem|igual)\b/.test(normalized)
+  ) {
+    estimatedMinutes = review.current.estimatedMinutes;
+  }
+
+  const selectedArea = review.availableAreas.find((area) => {
+    const candidates = [area.key, area.label].map((candidate) =>
+      normalizeIntentText(candidate).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    );
+    if (normalizeIntentText(area.key) === "eu") {
+      return candidates.some((candidate) =>
+        new RegExp(`\\b(?:tag|area)\\s*[:=-]?\\s*${candidate}\\b`).test(normalized)
+      );
+    }
+    return candidates.some((candidate) =>
+      new RegExp(`(^|[^a-z0-9])${candidate}([^a-z0-9]|$)`).test(normalized)
+    );
+  });
+  const areaTag =
+    selectedArea?.key ||
+    (/\b(tag|area).*(certa|certo|correta|correto|manter|mantem|igual)\b/.test(
+      normalized
+    )
+      ? review.current.areaTag
+      : null);
+  if (!estimatedMinutes || estimatedMinutes < 1 || estimatedMinutes > 480 || !areaTag) {
+    return null;
+  }
+  return {
+    id: randomUUID(),
+    type: "update_task",
+    title: `Revisar ${review.current.title}`,
+    reason: "Atualizar o tempo estimado e a tag confirmados nesta revisão.",
+    payload: {
+      taskId: review.current.id,
+      title: review.current.title,
+      estimatedMinutes,
+      areaTag,
+      calibrationContext: value.trim().slice(0, 500),
+    },
+  };
+}
+
 function weightedRandomItem<T>(items: T[], weightFor: (item: T) => number) {
   const weighted = items.map((item) => ({
     item,
@@ -1155,7 +1255,8 @@ function parseAssistantResponseText(text: string) {
 async function buildAssistantContext(
   userEmail: string,
   scope: AssistantScope,
-  queryText: string
+  queryText: string,
+  taskReview: AssistantTaskReview | null = null
 ) {
   const todayIso = await getTodayIsoForUser(userEmail);
   const startIso = dayOffset(todayIso, -14);
@@ -1300,7 +1401,7 @@ async function buildAssistantContext(
     statsIntent;
   const fullDefault = scope === "all" && !hasExplicitIntent;
   const taskContext =
-    ["today", "calendar"].includes(scope) || taskIntent || fullDefault;
+    ["today", "calendar"].includes(scope) || taskIntent || fullDefault || Boolean(taskReview);
   const habitContext =
     ["today", "calendar", "habits"].includes(scope) || habitIntent || fullDefault;
   const metricContext =
@@ -1391,6 +1492,10 @@ async function buildAssistantContext(
       coupleContext ? getSavingsGoals(userEmail) : Promise.resolve([]),
       coupleContext ? getBucketList(userEmail) : Promise.resolve([]),
     ]);
+
+  const taskCalibrations = taskContext
+    ? await getAssistantTaskCalibrations(userEmail)
+    : [];
 
   const pendingTasks = tasks
     .filter((task) => !task.isDone && !task.missedAt)
@@ -1505,6 +1610,8 @@ async function buildAssistantContext(
     today: todayIso,
     currentMonth,
     assistantPreferences,
+    taskReview,
+    taskCalibrations,
     availableServices: [
       "today",
       "calendar",
@@ -1749,7 +1856,12 @@ function systemInstruction(context: AssistantContext) {
       ? "CLARIFICATION MODE IS ON: when a task is new or its meaning, deliverable, volume, depth, deadline, or constraints materially affect duration, tag, effort, or schedule, ask 1 to 3 short targeted questions and return actions: []. Do not invent a generic 30-minute estimate. Do not ask when existing task history or the user's wording already provides enough evidence. After the user answers, infer the remaining details and return the concrete preview."
       : "CLARIFICATION MODE IS OFF: make a best-effort estimate from history and context, state assumptions briefly, and return a preview.",
     "When asking about an unclear task, prioritize only the missing facts that change the plan: desired outcome, amount/depth, deadline or fixed constraints. Avoid questionnaires.",
+    context.taskReview
+      ? `GUIDED TASK REVIEW IS ACTIVE (${context.taskReview.position}/${context.taskReview.total}). Review only task ID ${context.taskReview.current.id}, titled “${context.taskReview.current.title}”. Use the user's answer to infer a realistic estimatedMinutes and an exact areaTag from taskReview.availableAreas. If one material detail is still missing, ask one short question and return actions: []. When enough is known, return exactly one update_task action for this task; include both estimatedMinutes and areaTag, preserving all unrelated fields. Never use bulk_update_tasks in this flow and never choose another task yourself. The server advances after Apply. If the user clearly asks for something unrelated, handle that request normally without changing the review task.`
+      : "GUIDED TASK REVIEW IS NOT ACTIVE. Start it when the user explicitly asks to review tasks one by one.",
+    "TASK REVIEW INTENT: understand natural phrasing instead of requiring a command. If the user wants to walk through, calibrate, or discuss pending tasks one at a time and no review is active, propose start_task_review. If they want to end that process, propose stop_task_review. Do not demand special keywords.",
     "TASK ESTIMATION: first compare the title and meaning with completedTaskHistory. For repeated or similar work, use real actualMinutes. For new work, infer its steps and complexity, then calibrate with the user's averageRatio and area history. Explain the basis briefly.",
+    "TASK LEARNING: taskCalibrations contains time and tag decisions previously taught by the user. Treat them as durable examples, use semantic similarity rather than exact command phrases, and prefer them over generic defaults. Completed actual-time history remains stronger evidence for duration when enough samples exist.",
     'BULK TASK REVIEWS: use one bulk_update_tasks action with payload.taskUpdates. Each item must contain taskId and only changed fields: scheduledDate, scheduledTime, plannedTime, startTime, endTime, estimatedMinutes, priority, areaTag, focusOrder, effort, notes, scheduleLocked, or completed. Do not emit one update_task action per task. This supports large reviews while keeping JSON compact.',
     "TASK ORGANIZATION: update existing tasks by ID. Use scheduledTime for real clock scheduling. Use focusOrder for execution order without requiring a time. Avoid overlaps and add realistic breathing room.",
     "TASK EFFORT: use low for light/quick work, medium for ordinary focused work, and high for cognitively or physically deep work. Keep effort distinct from priority.",
@@ -1825,6 +1937,36 @@ export async function askAssistant(
       }],
     };
   }
+  if (requestsStoppingTaskReview(latestUserMessage)) {
+    await stopAssistantTaskReview(userEmail);
+    return { message: "Revisão de tarefas encerrada.", actions: [] };
+  }
+  if (requestsStartingTaskReview(latestUserMessage)) {
+    const review = await startAssistantTaskReview(userEmail);
+    return {
+      message: review
+        ? taskReviewPrompt(review)
+        : "Não há tarefas pendentes para revisar.",
+      actions: [],
+    };
+  }
+  let taskReview = await getAssistantTaskReview(userEmail);
+  if (taskReview && requestsResumingTaskReview(latestUserMessage)) {
+    return { message: taskReviewPrompt(taskReview), actions: [] };
+  }
+  if (taskReview && requestsSkippingTaskReview(latestUserMessage)) {
+    taskReview = await advanceAssistantTaskReview(userEmail);
+    return { message: taskReviewPrompt(taskReview), actions: [] };
+  }
+  if (taskReview) {
+    const explicitUpdate = explicitTaskReviewUpdate(latestUserMessage, taskReview);
+    if (explicitUpdate) {
+      return {
+        message: `Vou ajustar “${taskReview.current.title}” e seguir para a próxima após aplicar.`,
+        actions: [explicitUpdate],
+      };
+    }
+  }
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) throw new Error("AI_NOT_CONFIGURED");
   const contextQuery = messages
@@ -1842,7 +1984,8 @@ export async function askAssistant(
   const context = await buildAssistantContext(
     userEmail,
     scope,
-    contextQuery || latestUserMessage
+    contextQuery || latestUserMessage,
+    taskReview
   );
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45_000);
@@ -2017,9 +2160,7 @@ export async function askAssistant(
       readingLabels.set(`bible_chapters:${book.key}`, book.name);
     });
 
-    return {
-      message: parsed.message,
-      actions: parsed.actions.map((action) => {
+    const normalizedActions = parsed.actions.map((action) => {
         const calibrated = calibrateRepeatedTask(action, context.completedTaskHistory);
         let nextPayload = calibrated.payload;
         if (calibrated.type === "set_habit_status" && calibrated.payload.habitKey) {
@@ -2096,8 +2237,58 @@ export async function askAssistant(
           id: action.id || randomUUID(),
           payload: nextPayload,
         };
-      }) as AssistantAction[],
-    };
+      }) as AssistantAction[];
+    if (taskReview && normalizedActions.length) {
+      const hasTaskChange = normalizedActions.some((action) =>
+        ["create_task", "update_task", "bulk_update_tasks", "delete_tasks"].includes(
+          action.type
+        )
+      );
+      if (!hasTaskChange) {
+        return { message: parsed.message, actions: normalizedActions };
+      }
+      const taskAction = normalizedActions.find(
+        (action) => action.type === "update_task"
+      );
+      if (!taskAction) {
+        return {
+          message: "Vamos manter esta revisão em uma tarefa por vez. Conte um pouco mais sobre a tarefa atual.",
+          actions: [],
+        };
+      }
+      const selectedArea = taskReview.availableAreas.find(
+        (area) =>
+          normalizeIntentText(area.key) ===
+            normalizeIntentText(taskAction.payload.areaTag || "") ||
+          normalizeIntentText(area.label) ===
+            normalizeIntentText(taskAction.payload.areaTag || "")
+      );
+      if (
+        taskAction.payload.estimatedMinutes == null ||
+        taskAction.payload.estimatedMinutes <= 0 ||
+        !selectedArea
+      ) {
+        return {
+          message: "Preciso fechar duas coisas desta tarefa antes de seguir: tempo estimado e tag. O que ela envolve?",
+          actions: [],
+        };
+      }
+      return {
+        message: parsed.message,
+        actions: [{
+          ...taskAction,
+          title: `Revisar ${taskReview.current.title}`,
+          payload: {
+            taskId: taskReview.current.id,
+            title: taskReview.current.title,
+            estimatedMinutes: taskAction.payload.estimatedMinutes,
+            areaTag: selectedArea.key,
+            calibrationContext: latestUserMessage.trim().slice(0, 500),
+          },
+        }],
+      };
+    }
+    return { message: parsed.message, actions: normalizedActions };
   } finally {
     clearTimeout(timeout);
   }
@@ -2302,6 +2493,26 @@ export async function applyAssistantActions(userEmail: string, rawActions: unkno
         const task = await deleteTaskWithIntegrations(userEmail, taskId);
         results.push({ id: taskId, type: action.type, title: task.title });
       }
+      continue;
+    }
+
+    if (action.type === "start_task_review") {
+      const review = await startAssistantTaskReview(userEmail);
+      results.push({
+        id: review?.current.id || action.id || randomUUID(),
+        type: action.type,
+        title: action.title,
+      });
+      continue;
+    }
+
+    if (action.type === "stop_task_review") {
+      await stopAssistantTaskReview(userEmail);
+      results.push({
+        id: action.id || randomUUID(),
+        type: action.type,
+        title: action.title,
+      });
       continue;
     }
 

@@ -3,6 +3,8 @@ export const ASSISTANT_ACTION_TYPES = [
   "update_task",
   "bulk_update_tasks",
   "delete_tasks",
+  "start_task_review",
+  "stop_task_review",
   "create_habit",
   "create_area",
   "set_habit_status",
@@ -74,6 +76,7 @@ export type AssistantAction = {
     estimatedMinutes?: number | null;
     priority?: "Low" | "Medium" | "High" | "Critical";
     areaTag?: string | null;
+    calibrationContext?: string;
     focusOrder?: number | null;
     effort?: "low" | "medium" | "high" | null;
     scheduleLocked?: boolean;

@@ -129,15 +129,28 @@ export default function OrbitDock() {
     setApplyingId(messageId);
     setError(null);
     try {
-      await fetchJson("/api/assistant", {
+      const result = await fetchJson<{
+        items: Array<{ id: string }>;
+        followUp?: string | null;
+      }>("/api/assistant", {
         method: "POST",
         body: JSON.stringify({ mode: "apply", actions }),
       });
-      setMessages((current) =>
-        current.map((message) =>
+      setMessages((current) => {
+        const updated = current.map((message) =>
           message.id === messageId ? { ...message, applied: true } : message
-        )
-      );
+        );
+        return result.followUp
+          ? [
+              ...updated,
+              {
+                id: crypto.randomUUID(),
+                role: "assistant" as const,
+                content: result.followUp,
+              },
+            ]
+          : updated;
+      });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["tasks"] }),
         queryClient.invalidateQueries({ queryKey: ["tasks-overdue"] }),
@@ -171,6 +184,10 @@ export default function OrbitDock() {
   }
 
   function clearConversation() {
+    void fetchJson("/api/assistant", {
+      method: "POST",
+      body: JSON.stringify({ mode: "cancel_task_review" }),
+    }).catch(() => undefined);
     setMessages([]);
     setInput("");
     setError(null);

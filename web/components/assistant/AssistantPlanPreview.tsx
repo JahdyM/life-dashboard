@@ -9,6 +9,8 @@ function actionLabel(action: AssistantAction) {
     update_task: "Task",
     bulk_update_tasks: "Bulk review",
     delete_tasks: "Delete tasks",
+    start_task_review: "Review tasks",
+    stop_task_review: "End review",
     create_habit: "New habit",
     create_area: "New tag",
     set_habit_status: "Habit",

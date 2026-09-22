@@ -111,6 +111,10 @@ export default function AssistantClient() {
   }
 
   function clearConversation() {
+    void fetchJson("/api/assistant", {
+      method: "POST",
+      body: JSON.stringify({ mode: "cancel_task_review" }),
+    }).catch(() => undefined);
     window.localStorage.removeItem(STORAGE_KEY);
     setMessages([WELCOME_MESSAGE]);
     setInput("");
@@ -122,15 +126,28 @@ export default function AssistantClient() {
     setApplyingId(messageId);
     setError(null);
     try {
-      await fetchJson<{ items: Array<{ id: string }> }>("/api/assistant", {
+      const result = await fetchJson<{
+        items: Array<{ id: string }>;
+        followUp?: string | null;
+      }>("/api/assistant", {
         method: "POST",
         body: JSON.stringify({ mode: "apply", actions }),
       });
-      setMessages((current) =>
-        current.map((message) =>
+      setMessages((current) => {
+        const updated = current.map((message) =>
           message.id === messageId ? { ...message, applied: true } : message
-        )
-      );
+        );
+        return result.followUp
+          ? [
+              ...updated,
+              {
+                id: crypto.randomUUID(),
+                role: "assistant" as const,
+                content: result.followUp,
+              },
+            ]
+          : updated;
+      });
       await queryClient.invalidateQueries({ queryKey: ["tasks"] });
       await queryClient.invalidateQueries({ queryKey: ["tasks-overdue"] });
       await queryClient.invalidateQueries({ queryKey: ["stats-estimation"] });
