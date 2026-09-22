@@ -5,6 +5,7 @@ export const ASSISTANT_ACTION_TYPES = [
   "delete_tasks",
   "start_task_review",
   "stop_task_review",
+  "skip_task_review",
   "create_habit",
   "create_area",
   "set_habit_status",

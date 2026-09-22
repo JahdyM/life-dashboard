@@ -325,7 +325,7 @@ export async function advanceTaskReviewForAppliedActions(
   if (actionTypes.includes("stop_task_review")) {
     return "Revisão de tarefas encerrada.";
   }
-  if (actionTypes.includes("start_task_review")) {
+  if (actionTypes.includes("start_task_review") || actionTypes.includes("skip_task_review")) {
     return taskReviewPrompt(await getAssistantTaskReview(userEmail));
   }
   const review = await getAssistantTaskReview(userEmail);

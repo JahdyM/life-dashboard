@@ -11,6 +11,7 @@ function actionLabel(action: AssistantAction) {
     delete_tasks: "Delete tasks",
     start_task_review: "Review tasks",
     stop_task_review: "End review",
+    skip_task_review: "Next task",
     create_habit: "New habit",
     create_area: "New tag",
     set_habit_status: "Habit",

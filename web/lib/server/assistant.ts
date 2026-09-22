@@ -1006,96 +1006,6 @@ function requestsDeletingTodaysDoneTasks(value: string) {
     /\b(hoje|today)\b/.test(normalized);
 }
 
-function requestsStartingTaskReview(value: string) {
-  const normalized = normalizeIntentText(value);
-  const mentionsTasks = /\b(tasks?|tarefas?)\b/.test(normalized);
-  const oneByOne = /\b(cada|uma por uma|um por um|task por task|tarefa por tarefa|passar em|percorrer)\b/.test(
-    normalized
-  );
-  const fields = /\b(tempo|duracao|estim|tag|area)\b/.test(normalized);
-  return mentionsTasks && fields && oneByOne;
-}
-
-function requestsSkippingTaskReview(value: string) {
-  const normalized = normalizeIntentText(value);
-  return /^(pular|pula|skip|proxima|proximo|next|passa)(\b|\s)/.test(normalized);
-}
-
-function requestsResumingTaskReview(value: string) {
-  const normalized = normalizeIntentText(value);
-  return /\b(continuar|retomar|resume|continue).*(revis|tarefas?|tasks?)\b/.test(
-    normalized
-  );
-}
-
-function requestsStoppingTaskReview(value: string) {
-  const normalized = normalizeIntentText(value);
-  return /\b(parar|pare|encerra|cancelar|sair|stop|cancel).*(revis|tarefas?|tasks?)\b/.test(
-    normalized
-  );
-}
-
-function explicitTaskReviewUpdate(
-  value: string,
-  review: AssistantTaskReview
-): AssistantAction | null {
-  const normalized = normalizeIntentText(value).replace(",", ".");
-  const hourMatch = normalized.match(
-    /\b(\d+(?:\.\d+)?)\s*(?:h|hora|horas)(?:\s*(?:e\s*)?(\d{1,2})\s*(?:m|min|mins|minuto|minutos))?\b/
-  );
-  const minuteMatch = normalized.match(
-    /\b(\d{1,3})\s*(?:m|min|mins|minuto|minutos)\b/
-  );
-  let estimatedMinutes: number | null = null;
-  if (hourMatch) {
-    estimatedMinutes = Math.round(Number(hourMatch[1]) * 60) + Number(hourMatch[2] || 0);
-  } else if (minuteMatch) {
-    estimatedMinutes = Number(minuteMatch[1]);
-  } else if (
-    review.current.estimatedMinutes &&
-    /\b(tempo|duracao|estimativa).*(certo|correto|manter|mantem|igual)\b/.test(normalized)
-  ) {
-    estimatedMinutes = review.current.estimatedMinutes;
-  }
-
-  const selectedArea = review.availableAreas.find((area) => {
-    const candidates = [area.key, area.label].map((candidate) =>
-      normalizeIntentText(candidate).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-    );
-    if (normalizeIntentText(area.key) === "eu") {
-      return candidates.some((candidate) =>
-        new RegExp(`\\b(?:tag|area)\\s*[:=-]?\\s*${candidate}\\b`).test(normalized)
-      );
-    }
-    return candidates.some((candidate) =>
-      new RegExp(`(^|[^a-z0-9])${candidate}([^a-z0-9]|$)`).test(normalized)
-    );
-  });
-  const areaTag =
-    selectedArea?.key ||
-    (/\b(tag|area).*(certa|certo|correta|correto|manter|mantem|igual)\b/.test(
-      normalized
-    )
-      ? review.current.areaTag
-      : null);
-  if (!estimatedMinutes || estimatedMinutes < 1 || estimatedMinutes > 480 || !areaTag) {
-    return null;
-  }
-  return {
-    id: randomUUID(),
-    type: "update_task",
-    title: `Revisar ${review.current.title}`,
-    reason: "Atualizar o tempo estimado e a tag confirmados nesta revisão.",
-    payload: {
-      taskId: review.current.id,
-      title: review.current.title,
-      estimatedMinutes,
-      areaTag,
-      calibrationContext: value.trim().slice(0, 500),
-    },
-  };
-}
-
 function weightedRandomItem<T>(items: T[], weightFor: (item: T) => number) {
   const weighted = items.map((item) => ({
     item,
@@ -1857,9 +1767,9 @@ function systemInstruction(context: AssistantContext) {
       : "CLARIFICATION MODE IS OFF: make a best-effort estimate from history and context, state assumptions briefly, and return a preview.",
     "When asking about an unclear task, prioritize only the missing facts that change the plan: desired outcome, amount/depth, deadline or fixed constraints. Avoid questionnaires.",
     context.taskReview
-      ? `GUIDED TASK REVIEW IS ACTIVE (${context.taskReview.position}/${context.taskReview.total}). Review only task ID ${context.taskReview.current.id}, titled “${context.taskReview.current.title}”. Use the user's answer to infer a realistic estimatedMinutes and an exact areaTag from taskReview.availableAreas. If one material detail is still missing, ask one short question and return actions: []. When enough is known, return exactly one update_task action for this task; include both estimatedMinutes and areaTag, preserving all unrelated fields. Never use bulk_update_tasks in this flow and never choose another task yourself. The server advances after Apply. If the user clearly asks for something unrelated, handle that request normally without changing the review task.`
+      ? `GUIDED TASK REVIEW IS ACTIVE (${context.taskReview.position}/${context.taskReview.total}). The current conversational focus is task ID ${context.taskReview.current.id}, titled “${context.taskReview.current.title}”. Use the user's answer to infer a realistic estimatedMinutes and an exact areaTag from taskReview.availableAreas. If one material detail is still missing, ask one short question and return actions: []. When enough is known, propose update_task for the current task with only the fields the user wants changed. Preserve explicit durations supplied by the user. If the user switches topic or names another task, follow that intent and its exact ID. Bulk changes are allowed when explicitly requested. The server advances after Apply. If the user clearly asks for something unrelated, handle that request normally without changing the review task.`
       : "GUIDED TASK REVIEW IS NOT ACTIVE. Start it when the user explicitly asks to review tasks one by one.",
-    "TASK REVIEW INTENT: understand natural phrasing instead of requiring a command. If the user wants to walk through, calibrate, or discuss pending tasks one at a time and no review is active, propose start_task_review. If they want to end that process, propose stop_task_review. Do not demand special keywords.",
+    "TASK REVIEW INTENT: understand natural phrasing instead of requiring a command. If the user wants to walk through, calibrate, or discuss pending tasks one at a time and no review is active, propose start_task_review. If they want to end that process, propose stop_task_review. To keep the current values and move on, propose skip_task_review. These conversation controls need no data-edit confirmation; return them alone. To resume an active review, describe its current task. Do not demand special keywords.",
     "TASK ESTIMATION: first compare the title and meaning with completedTaskHistory. For repeated or similar work, use real actualMinutes. For new work, infer its steps and complexity, then calibrate with the user's averageRatio and area history. Explain the basis briefly.",
     "TASK LEARNING: taskCalibrations contains time and tag decisions previously taught by the user. Treat them as durable examples, use semantic similarity rather than exact command phrases, and prefer them over generic defaults. Completed actual-time history remains stronger evidence for duration when enough samples exist.",
     'BULK TASK REVIEWS: use one bulk_update_tasks action with payload.taskUpdates. Each item must contain taskId and only changed fields: scheduledDate, scheduledTime, plannedTime, startTime, endTime, estimatedMinutes, priority, areaTag, focusOrder, effort, notes, scheduleLocked, or completed. Do not emit one update_task action per task. This supports large reviews while keeping JSON compact.',
@@ -1937,36 +1847,7 @@ export async function askAssistant(
       }],
     };
   }
-  if (requestsStoppingTaskReview(latestUserMessage)) {
-    await stopAssistantTaskReview(userEmail);
-    return { message: "Revisão de tarefas encerrada.", actions: [] };
-  }
-  if (requestsStartingTaskReview(latestUserMessage)) {
-    const review = await startAssistantTaskReview(userEmail);
-    return {
-      message: review
-        ? taskReviewPrompt(review)
-        : "Não há tarefas pendentes para revisar.",
-      actions: [],
-    };
-  }
-  let taskReview = await getAssistantTaskReview(userEmail);
-  if (taskReview && requestsResumingTaskReview(latestUserMessage)) {
-    return { message: taskReviewPrompt(taskReview), actions: [] };
-  }
-  if (taskReview && requestsSkippingTaskReview(latestUserMessage)) {
-    taskReview = await advanceAssistantTaskReview(userEmail);
-    return { message: taskReviewPrompt(taskReview), actions: [] };
-  }
-  if (taskReview) {
-    const explicitUpdate = explicitTaskReviewUpdate(latestUserMessage, taskReview);
-    if (explicitUpdate) {
-      return {
-        message: `Vou ajustar “${taskReview.current.title}” e seguir para a próxima após aplicar.`,
-        actions: [explicitUpdate],
-      };
-    }
-  }
+  const taskReview = await getAssistantTaskReview(userEmail);
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) throw new Error("AI_NOT_CONFIGURED");
   const contextQuery = messages
@@ -2161,7 +2042,7 @@ export async function askAssistant(
     });
 
     const normalizedActions = parsed.actions.map((action) => {
-        const calibrated = calibrateRepeatedTask(action, context.completedTaskHistory);
+        const calibrated = taskReview ? action : calibrateRepeatedTask(action, context.completedTaskHistory);
         let nextPayload = calibrated.payload;
         if (calibrated.type === "set_habit_status" && calibrated.payload.habitKey) {
           nextPayload = {
@@ -2238,55 +2119,26 @@ export async function askAssistant(
           payload: nextPayload,
         };
       }) as AssistantAction[];
-    if (taskReview && normalizedActions.length) {
-      const hasTaskChange = normalizedActions.some((action) =>
-        ["create_task", "update_task", "bulk_update_tasks", "delete_tasks"].includes(
-          action.type
-        )
-      );
-      if (!hasTaskChange) {
-        return { message: parsed.message, actions: normalizedActions };
+    const reviewControl = normalizedActions.find((action) =>
+      ["start_task_review", "stop_task_review", "skip_task_review"].includes(action.type)
+    );
+    if (reviewControl && normalizedActions.length === 1) {
+      if (reviewControl.type === "stop_task_review") {
+        await stopAssistantTaskReview(userEmail);
+        return { message: "Revisão encerrada. Os ajustes salvos permanecem.", actions: [] };
       }
-      const taskAction = normalizedActions.find(
-        (action) => action.type === "update_task"
-      );
-      if (!taskAction) {
-        return {
-          message: "Vamos manter esta revisão em uma tarefa por vez. Conte um pouco mais sobre a tarefa atual.",
-          actions: [],
-        };
+      const nextReview = reviewControl.type === "skip_task_review"
+        ? await advanceAssistantTaskReview(userEmail)
+        : taskReview || await startAssistantTaskReview(userEmail);
+      return { message: taskReviewPrompt(nextReview), actions: [] };
+    }
+    for (const action of normalizedActions) {
+      if (taskReview && action.type === "update_task" &&
+          action.payload.taskId === taskReview.current.id) {
+        action.payload.calibrationContext = messages
+          .filter((message) => message.role === "user")
+          .slice(-3).map((message) => message.content).join("\n").slice(-500);
       }
-      const selectedArea = taskReview.availableAreas.find(
-        (area) =>
-          normalizeIntentText(area.key) ===
-            normalizeIntentText(taskAction.payload.areaTag || "") ||
-          normalizeIntentText(area.label) ===
-            normalizeIntentText(taskAction.payload.areaTag || "")
-      );
-      if (
-        taskAction.payload.estimatedMinutes == null ||
-        taskAction.payload.estimatedMinutes <= 0 ||
-        !selectedArea
-      ) {
-        return {
-          message: "Preciso fechar duas coisas desta tarefa antes de seguir: tempo estimado e tag. O que ela envolve?",
-          actions: [],
-        };
-      }
-      return {
-        message: parsed.message,
-        actions: [{
-          ...taskAction,
-          title: `Revisar ${taskReview.current.title}`,
-          payload: {
-            taskId: taskReview.current.id,
-            title: taskReview.current.title,
-            estimatedMinutes: taskAction.payload.estimatedMinutes,
-            areaTag: selectedArea.key,
-            calibrationContext: latestUserMessage.trim().slice(0, 500),
-          },
-        }],
-      };
     }
     return { message: parsed.message, actions: normalizedActions };
   } finally {
@@ -2493,6 +2345,12 @@ export async function applyAssistantActions(userEmail: string, rawActions: unkno
         const task = await deleteTaskWithIntegrations(userEmail, taskId);
         results.push({ id: taskId, type: action.type, title: task.title });
       }
+      continue;
+    }
+
+    if (action.type === "skip_task_review") {
+      const review = await advanceAssistantTaskReview(userEmail);
+      results.push({ id: review?.current.id || action.id || randomUUID(), type: action.type, title: action.title });
       continue;
     }
 
