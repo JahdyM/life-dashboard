@@ -64,6 +64,7 @@ export type AssistantAction = {
   title: string;
   reason: string;
   payload: {
+    reviewScope?: "today" | "date" | "backlog" | "all";
     taskId?: string;
     taskIds?: string[];
     taskTitles?: string[];

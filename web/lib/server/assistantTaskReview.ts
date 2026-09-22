@@ -10,13 +10,19 @@ const TASK_CALIBRATION_KEY = "orbit_task_calibration_v1";
 const MAX_REVIEW_TASKS = 500;
 const MAX_CALIBRATIONS = 120;
 
+export type TaskReviewScope = "today" | "date" | "backlog" | "all";
+
 type TaskReviewSession = {
+  scope: TaskReviewScope;
+  date: string | null;
   taskIds: string[];
   index: number;
   startedAt: string;
 };
 
 export type AssistantTaskReview = {
+  scope: TaskReviewScope;
+  date: string | null;
   current: {
     id: string;
     title: string;
@@ -108,6 +114,9 @@ function parseSession(raw: string | null): TaskReviewSession | null {
       .slice(0, MAX_REVIEW_TASKS);
     if (!taskIds.length) return null;
     return {
+      scope: ["today", "date", "backlog", "all"].includes(String(value.scope))
+        ? value.scope as TaskReviewScope : "today",
+      date: typeof value.date === "string" ? value.date : null,
       taskIds,
       index: Math.max(0, Math.floor(value.index)),
       startedAt: String(value.startedAt || new Date().toISOString()),
@@ -149,12 +158,19 @@ function compareReviewTasks(
   return left.createdAt.localeCompare(right.createdAt);
 }
 
-export async function startAssistantTaskReview(userEmail: string) {
+export async function startAssistantTaskReview(
+  userEmail: string,
+  options: { reviewScope?: TaskReviewScope; date?: string } = {}
+) {
   await ensureTaskCompletionColumns();
   const todayIso = await getTodayIsoForUser(userEmail);
+  const scope = options.reviewScope || (options.date ? "date" : "today");
+  const date = scope === "today" ? todayIso : scope === "date" ? options.date : null;
+  if (scope === "date" && !date) throw new Error("INVALID_ASSISTANT_ACTION");
   const tasks = await prisma.todoTask.findMany({
     where: {
       userEmail,
+      ...(scope === "all" ? {} : { scheduledDate: scope === "backlog" ? null : date }),
       source: { not: "habit" },
       missedAt: null,
       OR: [{ isDone: 0 }, { isDone: null }],
@@ -175,6 +191,8 @@ export async function startAssistantTaskReview(userEmail: string) {
     return null;
   }
   await saveSession(userEmail, {
+    scope,
+    date: date || null,
     taskIds,
     index: 0,
     startedAt: new Date().toISOString(),
@@ -192,6 +210,10 @@ export async function getAssistantTaskReview(
   const session = await loadSession(userEmail);
   if (!session) return null;
   await ensureTaskCompletionColumns();
+  // Older sessions had no date filter. Rebuild them, and refresh "today" at midnight.
+  if (session.scope === "today" && session.date !== await getTodayIsoForUser(userEmail)) {
+    return startAssistantTaskReview(userEmail, { reviewScope: "today" });
+  }
 
   let index = session.index;
   while (index < session.taskIds.length) {
@@ -200,6 +222,9 @@ export async function getAssistantTaskReview(
       where: {
         id: taskId,
         userEmail,
+        ...(session.scope === "all" ? {} : {
+          scheduledDate: session.scope === "backlog" ? null : session.date,
+        }),
         source: { not: "habit" },
         missedAt: null,
         OR: [{ isDone: 0 }, { isDone: null }],
@@ -224,6 +249,8 @@ export async function getAssistantTaskReview(
       getTaskAreas(userEmail),
     ]);
     return {
+      scope: session.scope,
+      date: session.date,
       current: {
         ...task,
         areaTag: areaMap.get(task.id) || null,
@@ -246,12 +273,14 @@ export async function advanceAssistantTaskReview(userEmail: string) {
 }
 
 export function taskReviewPrompt(review: AssistantTaskReview | null) {
-  if (!review) return "Revisão concluída. Todas as tarefas pendentes foram percorridas.";
+  if (!review) return "Revisão concluída. As tarefas desta seleção foram percorridas.";
   const minutes = review.current.estimatedMinutes
     ? `${review.current.estimatedMinutes} min`
     : "sem tempo";
   const area = review.current.areaTag || "sem tag";
-  return `Tarefa ${review.position}/${review.total}: “${review.current.title}” — ${minutes}, ${area}. O que ela envolve? Você também pode responder diretamente com o tempo e a tag. Diga “pular” para seguir sem alterar.`;
+  const selection = review.scope === "all" ? "Todas as pendentes"
+    : review.scope === "backlog" ? "Sem data" : review.date;
+  return `${selection} · Tarefa ${review.position}/${review.total}: “${review.current.title}” — ${minutes}, ${area}. O que ela envolve? Você também pode responder diretamente com o tempo e a tag. Diga “pular” para seguir sem alterar.`;
 }
 
 function appliedReviewTaskIds(rawActions: unknown) {

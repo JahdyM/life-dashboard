@@ -177,6 +177,7 @@ const actionSchema = z.object({
   reason: z.string().trim().max(300).default(""),
   payload: z
     .object({
+      reviewScope: z.enum(["today", "date", "backlog", "all"]).optional(),
       taskId: z.string().trim().min(1).max(100).optional(),
       taskIds: z.array(z.string().trim().min(1).max(100)).min(1).max(500).optional(),
       taskTitles: z.array(z.string().trim().min(1).max(200)).max(500).optional(),
@@ -1770,6 +1771,7 @@ function systemInstruction(context: AssistantContext) {
       ? `GUIDED TASK REVIEW IS ACTIVE (${context.taskReview.position}/${context.taskReview.total}). The current conversational focus is task ID ${context.taskReview.current.id}, titled “${context.taskReview.current.title}”. Use the user's answer to infer a realistic estimatedMinutes and an exact areaTag from taskReview.availableAreas. If one material detail is still missing, ask one short question and return actions: []. When enough is known, propose update_task for the current task with only the fields the user wants changed. Preserve explicit durations supplied by the user. If the user switches topic or names another task, follow that intent and its exact ID. Bulk changes are allowed when explicitly requested. The server advances after Apply. If the user clearly asks for something unrelated, handle that request normally without changing the review task.`
       : "GUIDED TASK REVIEW IS NOT ACTIVE. Start it when the user explicitly asks to review tasks one by one.",
     "TASK REVIEW INTENT: understand natural phrasing instead of requiring a command. If the user wants to walk through, calibrate, or discuss pending tasks one at a time and no review is active, propose start_task_review. If they want to end that process, propose stop_task_review. To keep the current values and move on, propose skip_task_review. These conversation controls need no data-edit confirmation; return them alone. To resume an active review, describe its current task. Do not demand special keywords.",
+    "TASK REVIEW SCOPE: start_task_review accepts payload.reviewScope: today, date, backlog, or all; date requires payload.date (YYYY-MM-DD). Default to today in the user timezone. Never use all unless the user explicitly requests all dates and backlog. When the user narrows or changes an existing review (e.g. only today), return start_task_review with the new scope, even when a review is already active. To resume the same scope, describe its current task without restarting. The review count applies only to the selected scope, not to all pendingTasks in context.",
     "TASK ESTIMATION: first compare the title and meaning with completedTaskHistory. For repeated or similar work, use real actualMinutes. For new work, infer its steps and complexity, then calibrate with the user's averageRatio and area history. Explain the basis briefly.",
     "TASK LEARNING: taskCalibrations contains time and tag decisions previously taught by the user. Treat them as durable examples, use semantic similarity rather than exact command phrases, and prefer them over generic defaults. Completed actual-time history remains stronger evidence for duration when enough samples exist.",
     'BULK TASK REVIEWS: use one bulk_update_tasks action with payload.taskUpdates. Each item must contain taskId and only changed fields: scheduledDate, scheduledTime, plannedTime, startTime, endTime, estimatedMinutes, priority, areaTag, focusOrder, effort, notes, scheduleLocked, or completed. Do not emit one update_task action per task. This supports large reviews while keeping JSON compact.',
@@ -2129,7 +2131,7 @@ export async function askAssistant(
       }
       const nextReview = reviewControl.type === "skip_task_review"
         ? await advanceAssistantTaskReview(userEmail)
-        : taskReview || await startAssistantTaskReview(userEmail);
+        : await startAssistantTaskReview(userEmail, reviewControl.payload);
       return { message: taskReviewPrompt(nextReview), actions: [] };
     }
     for (const action of normalizedActions) {
@@ -2355,7 +2357,7 @@ export async function applyAssistantActions(userEmail: string, rawActions: unkno
     }
 
     if (action.type === "start_task_review") {
-      const review = await startAssistantTaskReview(userEmail);
+      const review = await startAssistantTaskReview(userEmail, action.payload);
       results.push({
         id: review?.current.id || action.id || randomUUID(),
         type: action.type,
