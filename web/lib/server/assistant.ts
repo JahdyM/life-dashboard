@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "crypto";
-import { withAssistantFallback } from "./assistantTransport";
+import { AssistantFallbackError, withAssistantFallback } from "./assistantTransport";
 import { callOrbitCandidate, configuredProviderIds, resolveOrbitCandidates } from "./aiProviders";
 import { addDays, subDays } from "date-fns";
 import { z } from "zod";
@@ -1803,11 +1803,24 @@ export async function askAssistant(
       content: message.content,
     }));
     const candidates = await resolveOrbitCandidates(resolvedFallbackCandidate);
-    const { model: candidate, result, attemptedModels } = await withAssistantFallback(
-      candidates,
-      (nextCandidate) => callOrbitCandidate(nextCandidate, systemInstructionText, chatMessages, controller.signal),
-      controller.signal
-    );
+    let fallback: Awaited<ReturnType<typeof withAssistantFallback<Awaited<ReturnType<typeof callOrbitCandidate>>>>>;
+    try {
+      fallback = await withAssistantFallback(
+        candidates,
+        (nextCandidate) => callOrbitCandidate(nextCandidate, systemInstructionText, chatMessages, controller.signal),
+        controller.signal
+      );
+    } catch (error) {
+      if (error instanceof AssistantFallbackError) {
+        logServerEvent("error", {
+          endpoint: "AI provider generateContent",
+          message: "Every configured AI provider failed before returning a response",
+          meta: { attemptedModels: error.attemptedModels, attempts: error.attempts },
+        });
+      }
+      throw error;
+    }
+    const { model: candidate, result, attemptedModels } = fallback;
     if (result.response.ok && candidate !== candidates[0]) resolvedFallbackCandidate = candidate;
 
     const { response, normalized, providerId, model } = result;
@@ -1834,7 +1847,14 @@ export async function askAssistant(
     }
 
     const text = normalized.text;
-    if (!text) throw new Error("AI_EMPTY_RESPONSE");
+    if (!text) {
+      logServerEvent("error", {
+        endpoint: "AI provider generateContent",
+        message: "The AI provider returned an ok response with no text content",
+        meta: { providerId, model, truncated: normalized.truncated, attemptedModels },
+      });
+      throw new Error("AI_EMPTY_RESPONSE");
+    }
 
     let parsed: z.infer<typeof replySchema>;
     try {
