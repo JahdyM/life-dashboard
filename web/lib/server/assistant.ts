@@ -1,11 +1,8 @@
 import "server-only";
 
 import { randomUUID } from "crypto";
-import {
-  discoverGeminiModels,
-  requestAssistantModel,
-  withAssistantFallback,
-} from "./assistantTransport";
+import { withAssistantFallback } from "./assistantTransport";
+import { callOrbitCandidate, configuredProviderIds, resolveOrbitCandidates } from "./aiProviders";
 import { addDays, subDays } from "date-fns";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
@@ -911,32 +908,7 @@ async function currentTimeForUser(userEmail: string) {
   }
 }
 
-function assistantModel() {
-  return process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
-}
-
-type GeminiPayload = {
-  error?: { code?: number; status?: string; message?: string };
-  candidates?: Array<{
-    finishReason?: string;
-    finishMessage?: string;
-    content?: { parts?: Array<{ text?: string }> };
-  }>;
-};
-
-let resolvedFallbackModel: string | null = null;
-
-const GEMINI_STATIC_FALLBACKS = [
-  "gemini-2.5-flash-lite",
-  "gemini-2.5-flash",
-  "gemini-flash-latest",
-] as const;
-
-function geminiEndpoint(model: string) {
-  return `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
-    model
-  )}:generateContent`;
-}
+let resolvedFallbackCandidate: string | null = null;
 
 function normalizeIntentText(value: string) {
   return value
@@ -1803,8 +1775,7 @@ export async function askAssistant(
     };
   }
   const taskReview = await getAssistantTaskReview(userEmail);
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
-  if (!apiKey) throw new Error("AI_NOT_CONFIGURED");
+  if (!configuredProviderIds().length) throw new Error("AI_NOT_CONFIGURED");
   const contextQuery = messages
     .filter((message) => message.role === "user")
     .slice(-4)
@@ -1826,49 +1797,31 @@ export async function askAssistant(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45_000);
   try {
-    const requestBody = JSON.stringify({
-      systemInstruction: { parts: [{ text: systemInstruction(context) }] },
-      contents: messages.slice(-16).map((message) => ({
-        role: message.role === "assistant" ? "model" : "user",
-        parts: [{ text: message.content }],
-      })),
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 8192,
-        responseMimeType: "application/json",
-      },
-    });
-    const discoveredModels = (await discoverGeminiModels(apiKey).catch(() => [])).slice(0, 4);
-    const { model, result, attemptedModels } = await withAssistantFallback(
-      [
-        resolvedFallbackModel || assistantModel(),
-        ...discoveredModels,
-        ...GEMINI_STATIC_FALLBACKS,
-      ],
-      (candidate) => requestAssistantModel<GeminiPayload>(
-        geminiEndpoint(candidate),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-          body: requestBody,
-        },
-        controller.signal
-      ),
+    const systemInstructionText = systemInstruction(context);
+    const chatMessages = messages.slice(-16).map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
+    const candidates = await resolveOrbitCandidates(resolvedFallbackCandidate);
+    const { model: candidate, result, attemptedModels } = await withAssistantFallback(
+      candidates,
+      (nextCandidate) => callOrbitCandidate(nextCandidate, systemInstructionText, chatMessages, controller.signal),
       controller.signal
     );
-    if (result.response.ok && model !== assistantModel()) resolvedFallbackModel = model;
+    if (result.response.ok && candidate !== candidates[0]) resolvedFallbackCandidate = candidate;
 
-    const { response, payload } = result;
+    const { response, normalized, providerId, model } = result;
     if (!response.ok) {
       logServerEvent("error", {
-        endpoint: "Gemini generateContent",
-        message: "Gemini rejected the Orbit request",
+        endpoint: "AI provider generateContent",
+        message: "The AI provider rejected the Orbit request",
         meta: {
           status: response.status,
+          providerId,
           model,
           attemptedModels,
-          providerStatus: payload?.error?.status || null,
-          providerMessage: payload?.error?.message?.slice(0, 600) || null,
+          providerStatus: normalized.errorStatus,
+          providerMessage: normalized.errorMessage?.slice(0, 600) || null,
         },
       });
       if (response.status === 429) throw new Error("AI_QUOTA_REACHED");
@@ -1880,28 +1833,25 @@ export async function askAssistant(
       throw new Error("AI_REQUEST_FAILED");
     }
 
-    const text = payload?.candidates?.[0]?.content?.parts
-      ?.map((part) => part.text || "")
-      .join("")
-      .trim();
+    const text = normalized.text;
     if (!text) throw new Error("AI_EMPTY_RESPONSE");
 
     let parsed: z.infer<typeof replySchema>;
     try {
       parsed = parseAssistantResponseText(text);
     } catch (error) {
-      const candidate = payload?.candidates?.[0];
       logServerEvent("error", {
-        endpoint: "Gemini response validation",
+        endpoint: "AI provider response validation",
         message: "Orbit received an invalid action payload",
         error,
         meta: {
-          finishReason: candidate?.finishReason || null,
-          finishMessage: candidate?.finishMessage || null,
+          providerId,
+          model,
+          truncated: normalized.truncated,
           responseLength: text.length,
         },
       });
-      if (candidate?.finishReason === "MAX_TOKENS") {
+      if (normalized.truncated) {
         throw new Error("AI_RESPONSE_TOO_LARGE");
       }
       throw new Error("AI_INVALID_RESPONSE");

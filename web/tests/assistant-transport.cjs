@@ -26,14 +26,28 @@ const reply = (status) => ({ response: new Response('{}', { status }), payload: 
   assert.equal(result.model, 'fast');
   assert.equal(result.result.payload.message, 'Volei 19:00-23:00');
   assert.deepEqual(calls, ['slow', 'fast']);
+
   calls = [];
-  await api.withAssistantFallback(['bad-key', 'other'], async (model) => {
-    calls.push(model); return reply(403);
+  const crossProvider = await api.withAssistantFallback(
+    ['groq::bad-key', 'cerebras::other'],
+    async (candidate) => {
+      calls.push(candidate);
+      return reply(candidate === 'groq::bad-key' ? 401 : 200);
+    },
+    signal
+  );
+  assert.deepEqual(calls, ['groq::bad-key', 'cerebras::other'],
+    'a rejection from one provider must not block trying the next provider');
+  assert.equal(crossProvider.model, 'cerebras::other');
+
+  calls = [];
+  await api.withAssistantFallback(['quota-a', 'quota-b'], async (model) => {
+    calls.push(model);
+    return reply(429);
   }, signal);
-  assert.deepEqual(calls, ['bad-key'], 'authentication failures must not be retried');
-  const fallback = await api.withAssistantFallback(['quota', 'available'], async (model) =>
-    reply(model === 'quota' ? 429 : 200), signal);
-  assert.equal(fallback.model, 'available');
+  assert.deepEqual(calls, ['quota-a', 'quota-b'],
+    'every candidate is tried before giving up when all are rate-limited');
+
   mockFetch = async () => { throw new Error('network unavailable'); };
   await assert.rejects(api.requestAssistantModel('offline', {}, signal, 15), /AI_REQUEST_FAILED/);
   const controller = new AbortController(); controller.abort();
@@ -41,28 +55,5 @@ const reply = (status) => ({ response: new Response('{}', { status }), payload: 
     throw new Error('must not call');
   }, controller.signal), /AI_REQUEST_TIMEOUT/);
 
-  mockFetch = async (url) => {
-    assert.ok(String(url).endsWith('/v1beta/models'));
-    return new Response(JSON.stringify({
-      models: [
-        { name: 'models/gemini-2.5-flash', supportedGenerationMethods: ['generateContent'] },
-        { name: 'models/gemini-2.5-pro', supportedGenerationMethods: ['generateContent'] },
-        { name: 'models/gemini-2.5-flash-image', supportedGenerationMethods: ['generateContent'] },
-        { name: 'models/embedding-001', supportedGenerationMethods: ['embedContent'] },
-      ],
-    }));
-  };
-  const discovered = await api.discoverGeminiModels('key-a');
-  assert.deepEqual(discovered, ['gemini-2.5-flash', 'gemini-2.5-pro'],
-    'discovery must rank text-capable models and drop image/embedding-only ones');
-
-  mockFetch = async () => { throw new Error('must use cache, not network'); };
-  assert.deepEqual(await api.discoverGeminiModels('key-a'), discovered,
-    'a repeat call for the same key must be served from cache');
-
-  const freshKeyResult = await api.discoverGeminiModels('key-b');
-  assert.equal(freshKeyResult.length, 0,
-    'discovery failure for a different key must not leak another key\'s cached models');
-
-  console.log('PASS: slow model fallback, auth stop, quota fallback, network failure, cancellation, model discovery');
+  console.log('PASS: slow model fallback, cross-provider fallback, exhausted quota, network failure, cancellation');
 })().catch((error) => { console.error(error); process.exitCode = 1; });

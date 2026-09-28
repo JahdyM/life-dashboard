@@ -55,7 +55,7 @@ const requestSchema = z.discriminatedUnion("mode", [
 function assistantError(error: unknown) {
   const message = error instanceof Error ? error.message : "";
   if (message === "AI_REQUEST_TIMEOUT") {
-    return jsonError("Gemini took too long to respond. No proposed changes were applied. Try again.", 504);
+    return jsonError("Orbit's AI took too long to respond. No proposed changes were applied. Try again.", 504);
   }
   if (error instanceof z.ZodError) {
     return jsonError("Orbit proposed an invalid change. Ask it to revise the plan.", 400);
@@ -64,19 +64,22 @@ function assistantError(error: unknown) {
     return jsonError("The request could not be read. Please send it again.", 400);
   }
   if (message === "AI_NOT_CONFIGURED") {
-    return jsonError("Orbit is not configured yet. Add GEMINI_API_KEY in Vercel.", 503);
+    return jsonError(
+      "Orbit is not configured yet. Add GROQ_API_KEY, CEREBRAS_API_KEY, or GEMINI_API_KEY in Vercel.",
+      503
+    );
   }
   if (message === "AI_QUOTA_REACHED") {
-    return jsonError("The free AI limit was reached. Try again later.", 429);
+    return jsonError("The free AI limit was reached on every configured provider. Try again later.", 429);
   }
   if (message === "AI_REQUEST_REJECTED") {
     return jsonError("Orbit could not understand this request. Try rephrasing it.", 502);
   }
   if (message === "AI_AUTH_FAILED") {
-    return jsonError("Orbit could not connect to Gemini. Check the API key.", 503);
+    return jsonError("Orbit could not authenticate with its AI provider. Check the API key.", 503);
   }
   if (message === "AI_MODEL_UNAVAILABLE") {
-    return jsonError("Orbit could not find an available Gemini model.", 503);
+    return jsonError("Orbit could not find an available AI model among its configured providers.", 503);
   }
   if (message === "AI_INVALID_RESPONSE") {
     return jsonError("Orbit returned an invalid plan. Try the request again.", 502);
@@ -85,7 +88,7 @@ function assistantError(error: unknown) {
     return jsonError("This review is too large for one response. Try a smaller group.", 413);
   }
   if (message === "AI_REQUEST_FAILED" || message === "AI_EMPTY_RESPONSE") {
-    return jsonError("Orbit could not reach Gemini. Try again.", 502);
+    return jsonError("Orbit could not reach any of its configured AI providers. Try again.", 502);
   }
   if (message === "RESOURCE_NOT_FOUND") {
     return jsonError("One of these tasks no longer exists.", 404);

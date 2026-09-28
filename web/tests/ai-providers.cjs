@@ -1,0 +1,134 @@
+// Run: node web/tests/ai-providers.cjs
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const ts = require('typescript');
+const path = require('node:path');
+
+let mockFetch;
+const sandbox = {
+  AbortController,
+  setTimeout,
+  clearTimeout,
+  Response,
+  process: { env: {} },
+  fetch: (...args) => mockFetch(...args),
+};
+vm.createContext(sandbox);
+
+function loadModule(relPath, requireMap) {
+  const src = ts.transpileModule(
+    fs.readFileSync(path.join(__dirname, relPath), 'utf8'),
+    { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }
+  ).outputText;
+  const moduleExports = {};
+  sandbox.exports = moduleExports;
+  sandbox.module = { exports: moduleExports };
+  sandbox.require = (id) => {
+    if (id in requireMap) return requireMap[id];
+    throw new Error(`unexpected require: ${id}`);
+  };
+  vm.runInContext(src, sandbox);
+  return sandbox.module.exports;
+}
+
+const transport = loadModule('../lib/server/assistantTransport.ts', {});
+const providers = loadModule('../lib/server/aiProviders.ts', { './assistantTransport': transport });
+
+// Arrays returned from the vm sandbox are a different realm than this file's,
+// which trips assert.deepEqual's reference-equality check on structurally
+// identical arrays. Comparing serialized forms sidesteps that harmlessly.
+function assertArrayEqual(actual, expected, message) {
+  assert.equal(JSON.stringify(actual), JSON.stringify(expected), message);
+}
+
+(async () => {
+  // No provider configured: nothing to try.
+  sandbox.process.env = {};
+  assert.equal(providers.configuredProviderIds().length, 0);
+  assert.equal((await providers.resolveOrbitCandidates(null)).length, 0);
+
+  // Groq only: discovery filters out non-chat models and ranks by size; statics fill in the rest.
+  sandbox.process.env = { GROQ_API_KEY: 'groq-key' };
+  mockFetch = async (url) => {
+    assert.equal(url, 'https://api.groq.com/openai/v1/models');
+    return new Response(JSON.stringify({
+      data: [
+        { id: 'llama-3.3-70b-versatile' },
+        { id: 'whisper-large-v3' },
+        { id: 'llama-guard-3-8b' },
+      ],
+    }));
+  };
+  const groqOnly = await providers.resolveOrbitCandidates(null);
+  assertArrayEqual(groqOnly, [
+    'groq::llama-3.3-70b-versatile',
+    'groq::llama-3.1-8b-instant',
+    'groq::gemma2-9b-it',
+  ], 'whisper/guard models must be excluded and statics appended without duplicates');
+
+  // Groq + Gemini configured: groq (higher priority) candidates come first, gemini's after.
+  sandbox.process.env = { GROQ_API_KEY: 'groq-key', GEMINI_API_KEY: 'gemini-key' };
+  mockFetch = async (url) => {
+    if (url.includes('groq.com')) return new Response(JSON.stringify({ data: [] }));
+    return new Response(JSON.stringify({ models: [] }));
+  };
+  const cascadeOrder = await providers.resolveOrbitCandidates(null);
+  assert.ok(cascadeOrder[0].startsWith('groq::'), 'groq must be tried before gemini');
+  assert.ok(cascadeOrder.some((c) => c.startsWith('gemini::')), 'gemini must still be in the cascade');
+
+  // A previously-resolved candidate is retried first on the next call.
+  const withPreferred = await providers.resolveOrbitCandidates('gemini::gemini-2.5-flash');
+  assert.equal(withPreferred[0], 'gemini::gemini-2.5-flash');
+
+  // callOrbitCandidate: Groq (OpenAI-compatible) success parsing.
+  mockFetch = async (url, init) => {
+    assert.equal(url, 'https://api.groq.com/openai/v1/chat/completions');
+    const body = JSON.parse(init.body);
+    assert.equal(body.messages[0].role, 'system');
+    return new Response(JSON.stringify({
+      choices: [{ message: { content: '{"message":"oi"}' }, finish_reason: 'stop' }],
+    }));
+  };
+  const groqCall = await providers.callOrbitCandidate(
+    'groq::llama-3.3-70b-versatile', 'You are Orbit.', [{ role: 'user', content: 'oi' }],
+    new AbortController().signal
+  );
+  assert.equal(groqCall.normalized.text, '{"message":"oi"}');
+  assert.equal(groqCall.normalized.truncated, false);
+  assert.equal(groqCall.providerId, 'groq');
+
+  // callOrbitCandidate: Gemini success parsing.
+  mockFetch = async (url) => {
+    assert.ok(url.includes(':generateContent'));
+    return new Response(JSON.stringify({
+      candidates: [{ content: { parts: [{ text: '{"message":"oi"}' }] }, finishReason: 'STOP' }],
+    }));
+  };
+  const geminiCall = await providers.callOrbitCandidate(
+    'gemini::gemini-2.5-flash', 'You are Orbit.', [{ role: 'user', content: 'oi' }],
+    new AbortController().signal
+  );
+  assert.equal(geminiCall.normalized.text, '{"message":"oi"}');
+
+  // callOrbitCandidate: truncation and error surfaces are normalized the same way across providers.
+  mockFetch = async () => new Response(JSON.stringify({
+    choices: [{ message: { content: 'cut off' }, finish_reason: 'length' }],
+  }));
+  const truncated = await providers.callOrbitCandidate(
+    'groq::llama-3.3-70b-versatile', 'sys', [], new AbortController().signal
+  );
+  assert.equal(truncated.normalized.truncated, true);
+
+  mockFetch = async () => new Response(
+    JSON.stringify({ error: { message: 'invalid api key', type: 'invalid_request_error' } }),
+    { status: 401 }
+  );
+  const authFailure = await providers.callOrbitCandidate(
+    'groq::llama-3.3-70b-versatile', 'sys', [], new AbortController().signal
+  );
+  assert.equal(authFailure.response.status, 401);
+  assert.equal(authFailure.normalized.errorMessage, 'invalid api key');
+
+  console.log('PASS: provider cascade ordering, discovery filtering, request/response normalization');
+})().catch((error) => { console.error(error); process.exitCode = 1; });
