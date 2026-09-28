@@ -1,6 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "crypto";
+import { requestAssistantModel, withAssistantFallback } from "./assistantTransport";
 import { addDays, subDays } from "date-fns";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
@@ -927,58 +928,6 @@ const GEMINI_STATIC_FALLBACKS = [
   "gemini-flash-latest",
 ] as const;
 
-const GEMINI_RETRYABLE_STATUSES = new Set([408, 500, 502, 503, 504]);
-
-function waitForGeminiRetry(attempt: number) {
-  const jitter = Math.floor(Math.random() * 180);
-  return new Promise((resolve) =>
-    setTimeout(resolve, 550 * 2 ** attempt + jitter)
-  );
-}
-
-function modelScore(name: string) {
-  let score = 0;
-  const version = name.match(/^gemini-(\d+)(?:\.(\d+))?-/);
-  if (version) score += Number(version[1]) * 100 + Number(version[2] || 0) * 10;
-  if (/^gemini-\d+(?:\.\d+)?-flash$/.test(name)) score += 120;
-  else if (name.includes("flash-latest")) score += 110;
-  else if (name.includes("flash")) score += 90;
-  else if (name.includes("pro")) score += 50;
-  if (name.includes("lite")) score -= 5;
-  if (/(preview|experimental|exp-)/.test(name)) score -= 25;
-  if (/(image|audio|tts|live|embedding|robotics|computer-use)/.test(name)) {
-    score -= 200;
-  }
-  return score;
-}
-
-async function findAvailableGeminiModels(
-  apiKey: string,
-  excludedModels: Set<string>,
-  signal: AbortSignal
-) {
-  try {
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models", {
-      headers: { "x-goog-api-key": apiKey },
-      signal,
-    });
-    if (!response.ok) return [];
-    const payload = (await response.json()) as {
-      models?: Array<{
-        name?: string;
-        supportedGenerationMethods?: string[];
-      }>;
-    };
-    return (payload.models || [])
-      .filter((model) => model.supportedGenerationMethods?.includes("generateContent"))
-      .map((model) => (model.name || "").replace(/^models\//, ""))
-      .filter((name) => name && !excludedModels.has(name) && modelScore(name) > 0)
-      .sort((left, right) => modelScore(right) - modelScore(left));
-  } catch {
-    return [];
-  }
-}
-
 function geminiEndpoint(model: string) {
   return `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
     model
@@ -1885,74 +1834,20 @@ export async function askAssistant(
         responseMimeType: "application/json",
       },
     });
-    const requestModel = async (model: string) => {
-      let latest: { response: Response; payload: GeminiPayload | null } | null = null;
-
-      for (let attempt = 0; attempt < 3; attempt += 1) {
-        try {
-          const response = await fetch(geminiEndpoint(model), {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-goog-api-key": apiKey,
-            },
-            body: requestBody,
-            signal: controller.signal,
-          });
-          const payload = (await response.json().catch(() => null)) as GeminiPayload | null;
-          if (controller.signal.aborted) throw new Error("AI_REQUEST_TIMEOUT");
-          latest = { response, payload };
-
-          if (response.ok || !GEMINI_RETRYABLE_STATUSES.has(response.status)) {
-            return latest;
-          }
-        } catch (error) {
-          if (controller.signal.aborted) throw new Error("AI_REQUEST_TIMEOUT");
-          if (attempt === 2) throw new Error("AI_REQUEST_FAILED");
-        }
-
-        if (attempt < 2) await waitForGeminiRetry(attempt);
-      }
-
-      if (!latest) throw new Error("AI_REQUEST_FAILED");
-      return latest;
-    };
-
-    let model = resolvedFallbackModel || assistantModel();
-    const attemptedModels = [model];
-    let result = await requestModel(model);
-
-    if (
-      result.response.status === 404 ||
-      result.response.status === 429 ||
-      result.response.status >= 500
-    ) {
-      const discoveredFallbacks = await findAvailableGeminiModels(
-        apiKey,
-        new Set(attemptedModels),
+    const { model, result, attemptedModels } = await withAssistantFallback(
+      [resolvedFallbackModel || assistantModel(), ...GEMINI_STATIC_FALLBACKS],
+      (candidate) => requestAssistantModel<GeminiPayload>(
+        geminiEndpoint(candidate),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+          body: requestBody,
+        },
         controller.signal
-      );
-      const fallbacks = Array.from(
-        new Set([...GEMINI_STATIC_FALLBACKS, ...discoveredFallbacks])
-      ).filter((fallback) => !attemptedModels.includes(fallback));
-
-      for (const fallback of fallbacks.slice(0, 6)) {
-        model = fallback;
-        attemptedModels.push(fallback);
-        result = await requestModel(model);
-        if (result.response.ok) {
-          resolvedFallbackModel = fallback;
-          break;
-        }
-        if (
-          result.response.status < 500 &&
-          result.response.status !== 404 &&
-          result.response.status !== 429
-        ) {
-          break;
-        }
-      }
-    }
+      ),
+      controller.signal
+    );
+    if (result.response.ok && model !== assistantModel()) resolvedFallbackModel = model;
 
     const { response, payload } = result;
     if (!response.ok) {
