@@ -1,3 +1,64 @@
+const MODEL_LIST_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+const MODEL_CACHE_TTL_MS = 60 * 60 * 1000;
+const MODEL_DISCOVERY_TIMEOUT_MS = 3_000;
+
+let modelCache: { apiKey: string; models: string[]; expiresAt: number } | null = null;
+
+const NON_TEXT_MODEL = /(image|audio|tts|live|embedding|robotics|computer-use)/;
+
+/** Ranks candidate model names so newer, cheaper, text-capable models are tried first. */
+function modelScore(name: string) {
+  if (NON_TEXT_MODEL.test(name)) return -1;
+  let score = 0;
+  const version = name.match(/^gemini-(\d+)(?:\.(\d+))?-/);
+  if (version) score += Number(version[1]) * 100 + Number(version[2] || 0) * 10;
+  if (/^gemini-\d+(?:\.\d+)?-flash$/.test(name)) score += 120;
+  else if (name.includes("flash-latest")) score += 110;
+  else if (name.includes("flash")) score += 90;
+  else if (name.includes("pro")) score += 50;
+  if (name.includes("lite")) score -= 5;
+  if (/(preview|experimental|exp-)/.test(name)) score -= 25;
+  return score;
+}
+
+/**
+ * Fetches the Gemini models actually available for this API key, so the fallback
+ * chain stays generic instead of hardcoded to model names that Google can rename
+ * or retire at any time. Cached in memory for an hour; on any failure it silently
+ * returns the last known list (or none) rather than throwing.
+ */
+export async function discoverGeminiModels(apiKey: string): Promise<string[]> {
+  const now = Date.now();
+  if (modelCache && modelCache.apiKey === apiKey && modelCache.expiresAt > now) {
+    return modelCache.models;
+  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), MODEL_DISCOVERY_TIMEOUT_MS);
+  try {
+    const response = await fetch(MODEL_LIST_URL, {
+      headers: { "x-goog-api-key": apiKey },
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      return modelCache?.apiKey === apiKey ? modelCache.models : [];
+    }
+    const payload = (await response.json()) as {
+      models?: Array<{ name?: string; supportedGenerationMethods?: string[] }>;
+    };
+    const models = (payload.models || [])
+      .filter((model) => model.supportedGenerationMethods?.includes("generateContent"))
+      .map((model) => (model.name || "").replace(/^models\//, ""))
+      .filter((name) => name && modelScore(name) > 0)
+      .sort((left, right) => modelScore(right) - modelScore(left));
+    modelCache = { apiKey, models, expiresAt: now + MODEL_CACHE_TTL_MS };
+    return models;
+  } catch {
+    return modelCache?.apiKey === apiKey ? modelCache.models : [];
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 /** Each model gets its own deadline, leaving time for another model to answer. */
 export async function requestAssistantModel<T>(
   url: string,

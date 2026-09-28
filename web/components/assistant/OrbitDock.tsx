@@ -88,6 +88,7 @@ export default function OrbitDock() {
     try {
       const reply = await fetchJson<AssistantReply>("/api/assistant", {
         method: "POST",
+        timeoutMs: 65_000,
         body: JSON.stringify({
           mode: "chat",
           scope: context.scope,
@@ -134,6 +135,7 @@ export default function OrbitDock() {
         followUp?: string | null;
       }>("/api/assistant", {
         method: "POST",
+        timeoutMs: 20_000,
         body: JSON.stringify({ mode: "apply", actions }),
       });
       setMessages((current) => {

@@ -40,5 +40,29 @@ const reply = (status) => ({ response: new Response('{}', { status }), payload: 
   await assert.rejects(api.withAssistantFallback(['unused'], async () => {
     throw new Error('must not call');
   }, controller.signal), /AI_REQUEST_TIMEOUT/);
-  console.log('PASS: slow model fallback, auth stop, quota fallback, network failure, cancellation');
+
+  mockFetch = async (url) => {
+    assert.ok(String(url).endsWith('/v1beta/models'));
+    return new Response(JSON.stringify({
+      models: [
+        { name: 'models/gemini-2.5-flash', supportedGenerationMethods: ['generateContent'] },
+        { name: 'models/gemini-2.5-pro', supportedGenerationMethods: ['generateContent'] },
+        { name: 'models/gemini-2.5-flash-image', supportedGenerationMethods: ['generateContent'] },
+        { name: 'models/embedding-001', supportedGenerationMethods: ['embedContent'] },
+      ],
+    }));
+  };
+  const discovered = await api.discoverGeminiModels('key-a');
+  assert.deepEqual(discovered, ['gemini-2.5-flash', 'gemini-2.5-pro'],
+    'discovery must rank text-capable models and drop image/embedding-only ones');
+
+  mockFetch = async () => { throw new Error('must use cache, not network'); };
+  assert.deepEqual(await api.discoverGeminiModels('key-a'), discovered,
+    'a repeat call for the same key must be served from cache');
+
+  const freshKeyResult = await api.discoverGeminiModels('key-b');
+  assert.equal(freshKeyResult.length, 0,
+    'discovery failure for a different key must not leak another key\'s cached models');
+
+  console.log('PASS: slow model fallback, auth stop, quota fallback, network failure, cancellation, model discovery');
 })().catch((error) => { console.error(error); process.exitCode = 1; });

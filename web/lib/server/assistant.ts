@@ -1,7 +1,11 @@
 import "server-only";
 
 import { randomUUID } from "crypto";
-import { requestAssistantModel, withAssistantFallback } from "./assistantTransport";
+import {
+  discoverGeminiModels,
+  requestAssistantModel,
+  withAssistantFallback,
+} from "./assistantTransport";
 import { addDays, subDays } from "date-fns";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
@@ -1266,14 +1270,14 @@ async function buildAssistantContext(
     ["today", "calendar", "habits"].includes(scope) || habitIntent || fullDefault;
   const metricContext =
     ["today", "mood", "stats"].includes(scope) || metricIntent || statsIntent || fullDefault;
-  const ministryContext = scope === "ministry" || ministryIntent;
-  const dissertationContext = scope === "dissertation" || dissertationIntent;
-  const readingContext = scope === "publications" || readingIntent;
-  const booksContext = scope === "books" || booksIntent;
-  const spiritualContext = scope === "spiritual" || spiritualIntent;
-  const financeContext = scope === "finances" || financeIntent;
+  const ministryContext = scope === "ministry" || ministryIntent || fullDefault;
+  const dissertationContext = scope === "dissertation" || dissertationIntent || fullDefault;
+  const readingContext = scope === "publications" || readingIntent || fullDefault;
+  const booksContext = scope === "books" || booksIntent || fullDefault;
+  const spiritualContext = scope === "spiritual" || spiritualIntent || fullDefault;
+  const financeContext = scope === "finances" || financeIntent || fullDefault;
   const coupleContext =
-    scope === "couple" || scope === "goals" || coupleIntent || financeContext;
+    scope === "couple" || scope === "goals" || coupleIntent || financeContext || fullDefault;
   const taskWheelRequested =
     (wheelIntent && (taskIntent || scope === "calendar" || scope === "today")) ||
     (taskIntent && nextChoiceIntent);
@@ -1834,8 +1838,13 @@ export async function askAssistant(
         responseMimeType: "application/json",
       },
     });
+    const discoveredModels = (await discoverGeminiModels(apiKey).catch(() => [])).slice(0, 4);
     const { model, result, attemptedModels } = await withAssistantFallback(
-      [resolvedFallbackModel || assistantModel(), ...GEMINI_STATIC_FALLBACKS],
+      [
+        resolvedFallbackModel || assistantModel(),
+        ...discoveredModels,
+        ...GEMINI_STATIC_FALLBACKS,
+      ],
       (candidate) => requestAssistantModel<GeminiPayload>(
         geminiEndpoint(candidate),
         {
