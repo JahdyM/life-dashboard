@@ -64,8 +64,7 @@ function assertArrayEqual(actual, expected, message) {
   assertArrayEqual(groqOnly, [
     'groq::llama-3.3-70b-versatile',
     'groq::llama-3.1-8b-instant',
-    'groq::gemma2-9b-it',
-  ], 'whisper/guard models must be excluded and statics appended without duplicates');
+  ], 'whisper/guard models must be excluded, and at most 2 models tried per provider');
 
   // Groq + Gemini configured: groq (higher priority) candidates come first, gemini's after.
   sandbox.process.env = { GROQ_API_KEY: 'groq-key', GEMINI_API_KEY: 'gemini-key' };

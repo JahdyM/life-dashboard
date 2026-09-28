@@ -236,6 +236,17 @@ export function configuredProviderIds(): ProviderId[] {
 }
 
 /**
+ * A rate limit or invalid key is almost always account-wide, not per-model, so
+ * a second or third model of the *same* provider is very unlikely to succeed
+ * where the first one just failed — it only burns another slice of that
+ * provider's quota. Two per provider (the best discovered model, plus one
+ * backup in case that specific model was renamed or retired) keeps the model-
+ * rename safety net without multiplying requests against an already-failing
+ * provider before falling through to the next one.
+ */
+const MAX_MODELS_PER_PROVIDER = 2;
+
+/**
  * Builds the full "provider::model" candidate list across every configured
  * provider, most-preferred provider first. Exhausting one provider's free
  * quota falls through to the next provider entirely, not just the next model.
@@ -249,7 +260,10 @@ export async function resolveOrbitCandidates(preferred: string | null): Promise<
     const provider = PROVIDERS[id];
     const apiKey = process.env[provider.envKey]!.trim();
     const discovered = await discoverProviderModels(provider, apiKey).catch(() => []);
-    const models = Array.from(new Set([...discovered.slice(0, 4), ...provider.staticModels]));
+    const models = Array.from(new Set([...discovered.slice(0, 1), ...provider.staticModels])).slice(
+      0,
+      MAX_MODELS_PER_PROVIDER
+    );
     models.forEach((model) => candidates.push(encodeCandidate(id, model)));
   }
   return candidates;
