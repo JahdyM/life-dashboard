@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { randomUUID } from "crypto";
 import { z } from "zod";
 import { requireUserEmail } from "@/lib/server/auth";
 import { applyAssistantActions, askAssistant } from "@/lib/server/assistant";
@@ -11,6 +12,8 @@ import { handleAuthError, jsonError, jsonOk, zodErrorMessage } from "@/lib/serve
 import { logServerEvent } from "@/lib/server/logger";
 
 export const dynamic = "force-dynamic";
+// Leave room for data loading and response validation around the 45s AI budget.
+export const maxDuration = 120;
 
 const messageSchema = z.object({
   role: z.enum(["user", "assistant"]),
@@ -51,6 +54,15 @@ const requestSchema = z.discriminatedUnion("mode", [
 
 function assistantError(error: unknown) {
   const message = error instanceof Error ? error.message : "";
+  if (message === "AI_REQUEST_TIMEOUT") {
+    return jsonError("Gemini took too long to respond. No proposed changes were applied. Try again.", 504);
+  }
+  if (error instanceof z.ZodError) {
+    return jsonError("Orbit proposed an invalid change. Ask it to revise the plan.", 400);
+  }
+  if (error instanceof SyntaxError) {
+    return jsonError("The request could not be read. Please send it again.", 400);
+  }
   if (message === "AI_NOT_CONFIGURED") {
     return jsonError("Orbit is not configured yet. Add GEMINI_API_KEY in Vercel.", 503);
   }
@@ -103,10 +115,13 @@ function assistantError(error: unknown) {
 }
 
 export async function POST(request: NextRequest) {
+  const requestId = randomUUID();
+  let mode = "validation";
   try {
     const userEmail = await requireUserEmail(request);
     const parsed = requestSchema.safeParse(await request.json());
     if (!parsed.success) return jsonError(zodErrorMessage(parsed.error), 400);
+    mode = parsed.data.mode;
 
     if (parsed.data.mode === "chat") {
       return jsonOk(
@@ -138,15 +153,16 @@ export async function POST(request: NextRequest) {
     }
     return jsonOk({ items, followUp });
   } catch (error) {
-    const known = assistantError(error);
-    if (known) return known;
     logServerEvent("error", {
       endpoint: "POST /api/assistant",
       message: "Assistant request failed",
       error,
+      meta: { requestId, mode },
     });
     const authError = handleAuthError(error);
     if (authError) return authError;
-    return jsonError("Orbit could not complete this request.", 500);
+    const known = assistantError(error);
+    if (known) return known;
+    return jsonError(`Orbit could not load or update dashboard data. Refresh to check what was saved before trying again. Reference: ${requestId}`, 500);
   }
 }

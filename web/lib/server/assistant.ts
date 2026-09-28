@@ -1900,13 +1900,15 @@ export async function askAssistant(
             signal: controller.signal,
           });
           const payload = (await response.json().catch(() => null)) as GeminiPayload | null;
+          if (controller.signal.aborted) throw new Error("AI_REQUEST_TIMEOUT");
           latest = { response, payload };
 
           if (response.ok || !GEMINI_RETRYABLE_STATUSES.has(response.status)) {
             return latest;
           }
         } catch (error) {
-          if (controller.signal.aborted || attempt === 2) throw error;
+          if (controller.signal.aborted) throw new Error("AI_REQUEST_TIMEOUT");
+          if (attempt === 2) throw new Error("AI_REQUEST_FAILED");
         }
 
         if (attempt < 2) await waitForGeminiRetry(attempt);

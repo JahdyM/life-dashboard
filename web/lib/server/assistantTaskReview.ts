@@ -215,32 +215,37 @@ export async function getAssistantTaskReview(
     return startAssistantTaskReview(userEmail, { reviewScope: "today" });
   }
 
-  let index = session.index;
-  while (index < session.taskIds.length) {
-    const taskId = session.taskIds[index];
-    const task = await prisma.todoTask.findFirst({
-      where: {
-        id: taskId,
-        userEmail,
-        ...(session.scope === "all" ? {} : {
-          scheduledDate: session.scope === "backlog" ? null : session.date,
-        }),
-        source: { not: "habit" },
-        missedAt: null,
-        OR: [{ isDone: 0 }, { isDone: null }],
-      },
-      select: {
-        id: true,
-        title: true,
-        estimatedMinutes: true,
-        scheduledDate: true,
-        scheduledTime: true,
-      },
-    });
-    if (!task) {
-      index += 1;
-      continue;
-    }
+  // Fetch the remaining queue once, preserving its stored order below.
+  const remainingIds = session.taskIds.slice(session.index);
+  if (!remainingIds.length) {
+    await saveSession(userEmail, null);
+    return null;
+  }
+  const tasks = await prisma.todoTask.findMany({
+    where: {
+      id: { in: remainingIds },
+      userEmail,
+      ...(session.scope === "all" ? {} : {
+        scheduledDate: session.scope === "backlog" ? null : session.date,
+      }),
+      source: { not: "habit" },
+      missedAt: null,
+      OR: [{ isDone: 0 }, { isDone: null }],
+    },
+    select: {
+      id: true,
+      title: true,
+      estimatedMinutes: true,
+      scheduledDate: true,
+      scheduledTime: true,
+    },
+  });
+  const tasksById = new Map(tasks.map((task) => [task.id, task]));
+  const index = session.taskIds.findIndex((id, position) =>
+    position >= session.index && tasksById.has(id)
+  );
+  const task = index >= 0 ? tasksById.get(session.taskIds[index]) : undefined;
+  if (task) {
     if (index !== session.index) {
       await saveSession(userEmail, { ...session, index });
     }
