@@ -249,7 +249,7 @@ export async function resolveOrbitCandidates(preferred: string | null): Promise<
   const groups = await Promise.all(ids.map(async (id) => {
     const provider = PROVIDERS[id];
     const apiKey = process.env[provider.envKey]!.trim();
-    const discovered = await discoverProviderModels(provider, apiKey).catch(() => []);
+    const discovered: string[] = await discoverProviderModels(provider, apiKey).catch((): string[] => []);
     const configuredModel = process.env[`${id.toUpperCase()}_MODEL`]?.trim();
     const preferredModel = activePreferred && preferredProvider?.id === id
       ? decodeCandidate(activePreferred).model : null;
