@@ -55,6 +55,7 @@ function assertArrayEqual(actual, expected, message) {
     return new Response(JSON.stringify({
       data: [
         { id: 'llama-3.3-70b-versatile' },
+        { id: 'new-chat-model' },
         { id: 'whisper-large-v3' },
         { id: 'llama-guard-3-8b' },
       ],
@@ -63,7 +64,7 @@ function assertArrayEqual(actual, expected, message) {
   const groqOnly = await providers.resolveOrbitCandidates(null);
   assertArrayEqual(groqOnly, [
     'groq::llama-3.3-70b-versatile',
-    'groq::llama-3.1-8b-instant',
+    'groq::new-chat-model',
   ], 'whisper/guard models must be excluded, and at most 2 models tried per provider');
 
   // Groq + Gemini configured: groq (higher priority) candidates come first, gemini's after.
@@ -79,6 +80,25 @@ function assertArrayEqual(actual, expected, message) {
   // A previously-resolved candidate is retried first on the next call.
   const withPreferred = await providers.resolveOrbitCandidates('gemini::gemini-2.5-flash');
   assert.equal(withPreferred[0], 'gemini::gemini-2.5-flash');
+
+  // Every provider must get a turn before the 45s shared budget is exhausted.
+  sandbox.process.env.CEREBRAS_API_KEY = 'cerebras-key';
+  const threeProviders = await providers.resolveOrbitCandidates(null);
+  assertArrayEqual(threeProviders.slice(0, 3).map((c) => c.split('::')[0]),
+    ['groq', 'cerebras', 'gemini']);
+  const preferredOrder = await providers.resolveOrbitCandidates('gemini::gemini-2.5-flash');
+  assertArrayEqual(preferredOrder.slice(0, 3).map((c) => c.split('::')[0]),
+    ['gemini', 'groq', 'cerebras']);
+  delete sandbox.process.env.GEMINI_API_KEY;
+  const removedProvider = await providers.resolveOrbitCandidates('gemini::gemini-2.5-flash');
+  assert.ok(removedProvider.every((c) => !c.startsWith('gemini::')));
+  sandbox.process.env.GROQ_MODEL = 'explicit-model';
+  assert.equal((await providers.resolveOrbitCandidates(null))[0], 'groq::llama-3.3-70b-versatile',
+    'stale configured models must not displace discovered models');
+  const stalePreferred = await providers.resolveOrbitCandidates('groq::retired-model');
+  assert.ok(stalePreferred.every((c) => !c.includes('retired-model')));
+  delete sandbox.process.env.GROQ_MODEL;
+  sandbox.process.env.GEMINI_API_KEY = 'gemini-key';
 
   // callOrbitCandidate: Groq (OpenAI-compatible) success parsing.
   mockFetch = async (url, init) => {
