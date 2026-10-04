@@ -75,6 +75,12 @@ function parseOpenAiCompatibleResponse(payload: RawPayload): NormalizedAiRespons
   };
 }
 
+// Groq and Cerebras count prompt + max_tokens against a per-minute budget, so
+// asking for 8192 up front rejects requests that would have fit. A plan that
+// really needs more gets cut off (finish_reason "length") and is retried on
+// the next candidate, which has the larger Gemini limit.
+const OPENAI_COMPATIBLE_MAX_OUTPUT_TOKENS = 3072;
+
 function buildOpenAiCompatibleRequest(
   baseUrl: string,
   model: string,
@@ -94,7 +100,7 @@ function buildOpenAiCompatibleRequest(
         model,
         messages: [{ role: "system", content: systemInstruction }, ...messages],
         temperature: 0.3,
-        max_tokens: 8192,
+        max_tokens: OPENAI_COMPATIBLE_MAX_OUTPUT_TOKENS,
         response_format: { type: "json_object" },
       }),
     } satisfies RequestInit,

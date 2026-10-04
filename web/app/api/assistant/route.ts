@@ -87,7 +87,13 @@ function assistantError(error: unknown) {
   if (message === "AI_RESPONSE_TOO_LARGE") {
     return jsonError("This review is too large for one response. Try a smaller group.", 413);
   }
-  if (message === "AI_REQUEST_FAILED" || message === "AI_EMPTY_RESPONSE") {
+  if (message === "AI_EMPTY_RESPONSE") {
+    return jsonError("The AI service replied without an answer. No proposed changes were applied. Try again.", 502);
+  }
+  if (message === "AI_CONTEXT_TOO_LARGE") {
+    return jsonError("The AI service could not accept the amount of dashboard data in this request. No proposed changes were applied.", 413);
+  }
+  if (message === "AI_REQUEST_FAILED") {
     return jsonError("Orbit could not reach any of its configured AI providers. Try again.", 502);
   }
   if (message === "RESOURCE_NOT_FOUND") {

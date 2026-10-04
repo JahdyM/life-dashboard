@@ -40,6 +40,17 @@ const reply = (status) => ({ response: new Response('{}', { status }), payload: 
     'a rejection from one provider must not block trying the next provider');
   assert.equal(crossProvider.model, 'cerebras::other');
 
+  for (const code of ['AI_EMPTY_RESPONSE', 'AI_INVALID_RESPONSE', 'AI_RESPONSE_TOO_LARGE']) {
+    const recovered = await api.withAssistantFallback(['unusable', 'valid'], async (candidate) => {
+      if (candidate === 'unusable') throw new Error(code);
+      return reply(200);
+    }, signal);
+    assert.equal(recovered.model, 'valid', `${code} must not end the fallback chain`);
+    await assert.rejects(api.withAssistantFallback(['unusable'], async () => {
+      throw new Error(code);
+    }, signal), new RegExp(code));
+  }
+
   calls = [];
   await api.withAssistantFallback(['quota-a', 'quota-b'], async (model) => {
     calls.push(model);

@@ -3,6 +3,7 @@ import "server-only";
 import { randomUUID } from "crypto";
 import { AssistantFallbackError, withAssistantFallback } from "./assistantTransport";
 import { callOrbitCandidate, configuredProviderIds, resolveOrbitCandidates } from "./aiProviders";
+import { fitContextToBudget, type TrimRule } from "./assistantContextBudget";
 import { addDays, subDays } from "date-fns";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
@@ -1238,6 +1239,8 @@ async function buildAssistantContext(
   const fullDefault = scope === "all" && !hasExplicitIntent;
   const taskContext =
     ["today", "calendar"].includes(scope) || taskIntent || fullDefault || Boolean(taskReview);
+  const estimationContext = taskContext && (fullDefault || Boolean(taskReview) || statsIntent ||
+    hasIntent(queryText, ["estim", "duracao", "tempo", "time", "duration", "horario", "schedule", "quanto demora"]));
   const habitContext =
     ["today", "calendar", "habits"].includes(scope) || habitIntent || fullDefault;
   const metricContext =
@@ -1280,7 +1283,7 @@ async function buildAssistantContext(
       taskContext ? listTasks(userEmail, todayIso, endIso, true) : Promise.resolve([]),
       habitContext ? getCustomHabits(userEmail) : Promise.resolve([]),
       habitContext ? getEnabledSharedHabitsForUser(userEmail) : Promise.resolve([]),
-      taskContext
+      estimationContext
         ? getEstimationStats(userEmail, "all")
         : Promise.resolve(null),
       metricContext
@@ -1674,6 +1677,18 @@ async function buildAssistantContext(
   };
 }
 
+// Free-tier providers cap tokens per request (Groq counts prompt + reply
+// against ~12k/min) and the fixed instructions below already take ~3.5k, so
+// the live dashboard data has to stay small. Tasks are listed soonest-first,
+// so trimming from the end keeps today's tasks.
+const CONTEXT_CHAR_BUDGET = 10_000;
+const CONTEXT_TRIM_RULES: TrimRule[] = [
+  { key: "completedTaskHistory", keep: "first", floor: 10 },
+  { key: "recentCompletedTasks", keep: "last", floor: 5 },
+  { key: "taskCalibrations", keep: "first", floor: 10 },
+  { key: "pendingTasks", keep: "first", floor: 20 },
+];
+
 function systemInstruction(context: AssistantContext) {
   const scopeRule =
     context.scope === "all"
@@ -1731,7 +1746,10 @@ function systemInstruction(context: AssistantContext) {
     "Common payload signatures: delete_tasks={taskIds}; set_habit_status={habitKey,date,completed}; log_mood={moodCategory,date,loggedTime}; update_day_metrics={date,sleepHours,anxietyLevel,workHours,boredomMinutes}; update_spiritual_streak={boardKey,date,success}; set_books_goal={year,yearlyGoal}; create_book={title,year,author,totalPages,pagesRead,bookStatus,rating}; update_book={bookId plus changed book fields}; update_spiritual_goal={spiritualCategory,spiritualOperation,stepId,taskId,taskCompleted,notes,title as needed}; add_finance_fixed_cost={month,title,budget,actual,paid}; remove_finance_item={month,financeItemType plus exact expenseId/debtKey/fixedCostId}; refresh_word_of_day={date}.",
     "For task duration, the payload key is estimatedMinutes (integer minutes). For a fixed task time, use scheduledTime in HH:mm. For task effort, use effort. Never use estimate, duration, energy, or time as payload keys.",
     "Do not mark tasks missed unless the user explicitly asks. Do not alter sensitive metrics without an explicit value. If the requested operation has no supported action, explain what is missing instead of pretending.",
-    `Dashboard context: ${JSON.stringify(context)}`,
+    "contextTrimmed, when present, lists supplied data that was cut for size (e.g. pendingTasks: '40 of 130 shown', soonest first). Never claim to have reviewed items you were not given; say what was left out and suggest a narrower request.",
+    `Dashboard context: ${JSON.stringify(
+      fitContextToBudget(context, CONTEXT_CHAR_BUDGET, CONTEXT_TRIM_RULES)
+    )}`,
   ].join("\n");
 }
 
@@ -1803,79 +1821,66 @@ export async function askAssistant(
       content: message.content,
     }));
     const candidates = await resolveOrbitCandidates(resolvedFallbackCandidate);
-    let fallback: Awaited<ReturnType<typeof withAssistantFallback<Awaited<ReturnType<typeof callOrbitCandidate>>>>>;
+    const requestValidatedCandidate = async (candidate: string) => {
+      const startedAt = Date.now();
+      const result = await callOrbitCandidate(candidate, systemInstructionText, chatMessages, controller.signal);
+      let parsed: z.infer<typeof replySchema> | null = null;
+      let validationError: string | null = null;
+      if (result.response.ok) {
+        if (result.normalized.truncated) validationError = "AI_RESPONSE_TOO_LARGE";
+        else if (!result.normalized.text) validationError = "AI_EMPTY_RESPONSE";
+        else {
+          try {
+            parsed = parseAssistantResponseText(result.normalized.text);
+          } catch {
+            validationError = "AI_INVALID_RESPONSE";
+          }
+        }
+      }
+      if (!result.response.ok || validationError) {
+        logServerEvent("warn", {
+          endpoint: "AI provider generateContent",
+          message: "Orbit candidate did not return a usable plan",
+          meta: {
+            candidate,
+            status: result.response.status,
+            validationError,
+            providerStatus: result.normalized.errorStatus,
+            elapsedMs: Date.now() - startedAt,
+            inputCharacters: systemInstructionText.length + chatMessages.reduce((sum, message) => sum + message.content.length, 0),
+            outputCharacters: result.normalized.text?.length || 0,
+          },
+        });
+      }
+      if (validationError) throw new Error(validationError);
+      return { ...result, parsed };
+    };
+    let fallback: Awaited<ReturnType<typeof withAssistantFallback<Awaited<ReturnType<typeof requestValidatedCandidate>>>>>;
     try {
-      fallback = await withAssistantFallback(
-        candidates,
-        (nextCandidate) => callOrbitCandidate(nextCandidate, systemInstructionText, chatMessages, controller.signal),
-        controller.signal
-      );
+      fallback = await withAssistantFallback(candidates, requestValidatedCandidate, controller.signal);
     } catch (error) {
       if (error instanceof AssistantFallbackError) {
         logServerEvent("error", {
           endpoint: "AI provider generateContent",
-          message: "Every configured AI provider failed before returning a response",
+          message: "No AI candidate returned a usable plan",
           meta: { attemptedModels: error.attemptedModels, attempts: error.attempts },
         });
       }
       throw error;
     }
-    const { model: candidate, result, attemptedModels } = fallback;
-    if (result.response.ok && candidate !== candidates[0]) resolvedFallbackCandidate = candidate;
-
-    const { response, normalized, providerId, model } = result;
+    const { model: candidate, result } = fallback;
+    const { response, parsed } = result;
     if (!response.ok) {
-      logServerEvent("error", {
-        endpoint: "AI provider generateContent",
-        message: "The AI provider rejected the Orbit request",
-        meta: {
-          status: response.status,
-          providerId,
-          model,
-          attemptedModels,
-          providerStatus: normalized.errorStatus,
-          providerMessage: normalized.errorMessage?.slice(0, 600) || null,
-        },
-      });
       if (response.status === 429) throw new Error("AI_QUOTA_REACHED");
+      if (response.status === 413) throw new Error("AI_CONTEXT_TOO_LARGE");
       if (response.status === 400) throw new Error("AI_REQUEST_REJECTED");
-      if (response.status === 401 || response.status === 403) {
-        throw new Error("AI_AUTH_FAILED");
-      }
+      if (response.status === 401 || response.status === 403) throw new Error("AI_AUTH_FAILED");
       if (response.status === 404) throw new Error("AI_MODEL_UNAVAILABLE");
       throw new Error("AI_REQUEST_FAILED");
     }
-
-    const text = normalized.text;
-    if (!text) {
-      logServerEvent("error", {
-        endpoint: "AI provider generateContent",
-        message: "The AI provider returned an ok response with no text content",
-        meta: { providerId, model, truncated: normalized.truncated, attemptedModels },
-      });
-      throw new Error("AI_EMPTY_RESPONSE");
-    }
-
-    let parsed: z.infer<typeof replySchema>;
-    try {
-      parsed = parseAssistantResponseText(text);
-    } catch (error) {
-      logServerEvent("error", {
-        endpoint: "AI provider response validation",
-        message: "Orbit received an invalid action payload",
-        error,
-        meta: {
-          providerId,
-          model,
-          truncated: normalized.truncated,
-          responseLength: text.length,
-        },
-      });
-      if (normalized.truncated) {
-        throw new Error("AI_RESPONSE_TOO_LARGE");
-      }
-      throw new Error("AI_INVALID_RESPONSE");
-    }
+    if (!parsed) throw new Error("AI_INVALID_RESPONSE");
+    // Cache only candidates that produced a complete, validated plan.
+    resolvedFallbackCandidate = candidate;
     const taskTitles = new Map(
       [...context.pendingTasks, ...context.recentCompletedTasks].map(
         (task) => [task.id, task.title] as const
