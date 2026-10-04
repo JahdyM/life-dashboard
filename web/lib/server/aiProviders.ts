@@ -127,6 +127,13 @@ function parseOpenAiCompatibleDiscovery(payload: RawPayload): string[] {
     .sort((left, right) => scoreOpenAiCompatibleModel(right) - scoreOpenAiCompatibleModel(left));
 }
 
+// Gemini 3.x models "think" before answering and those tokens count against
+// maxOutputTokens, which makes a simple plan slow and can cut it off. Asking
+// for the lowest level keeps replies fast. Not every model accepts the field,
+// so one that rejects it is sent without it from then on (see callOrbitCandidate).
+const thinkingRejectedModels = new Set<string>();
+const usesThinkingLevel = (model: string) => /^gemini-3/.test(model) && !thinkingRejectedModels.has(model);
+
 const MISTRAL_MODEL = /^(mistral-(small|medium|large)|ministral-\d+b)-latest$/;
 const MISTRAL_PREFERENCE = ["mistral-small-latest", "mistral-medium-latest", "mistral-large-latest"];
 
@@ -224,6 +231,7 @@ const PROVIDERS: Record<ProviderId, ProviderDef> = {
             temperature: 0.3,
             maxOutputTokens: maxTokens,
             responseMimeType: "application/json",
+            ...(usesThinkingLevel(model) ? { thinkingConfig: { thinkingLevel: "low" } } : {}),
           },
         }),
       },
@@ -370,10 +378,16 @@ export async function callOrbitCandidate(
   const { provider, model } = decodeCandidate(candidate);
   if (!provider) throw new Error("AI_REQUEST_FAILED");
   const apiKey = process.env[provider.envKey]?.trim() || "";
-  const { url, init } = provider.buildRequest(
-    model, apiKey, systemInstruction, messages, maxOutputTokens ?? provider.maxOutputTokens);
-  const { response, payload } = await requestAssistantModel<RawPayload>(
-    url, init, signal, provider.requestTimeoutMs);
+  const send = () => {
+    const { url, init } = provider.buildRequest(
+      model, apiKey, systemInstruction, messages, maxOutputTokens ?? provider.maxOutputTokens);
+    return requestAssistantModel<RawPayload>(url, init, signal, provider.requestTimeoutMs);
+  };
+  let { response, payload } = await send();
+  if (response.status === 400 && usesThinkingLevel(model) && /think/i.test(JSON.stringify(payload))) {
+    thinkingRejectedModels.add(model);
+    ({ response, payload } = await send());
+  }
   if (response.status === 404) quarantinedCandidates.set(candidate, Date.now() + QUARANTINE_MS);
   return { response, normalized: provider.parseResponse(payload), providerId: provider.id, model };
 }

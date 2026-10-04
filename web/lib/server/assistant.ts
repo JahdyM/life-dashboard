@@ -1697,6 +1697,12 @@ const CONTEXT_TRIM_RULES: TrimRule[] = [
   { key: "pendingTasks", keep: "first", floor: 20 },
 ];
 
+// Whole-request deadline (data loading + AI) and the most the AI phase may use.
+const REQUEST_DEADLINE_MS = 55_000;
+const AI_MAX_BUDGET_MS = 45_000;
+
+const secondsSince = (startedAt: number) => `${((Date.now() - startedAt) / 1000).toFixed(1)}s`;
+
 function describeAttempt(status: number, providerMessage: string | null, validationError: string | null) {
   if (validationError) return validationError;
   const message = (providerMessage || "").replace(/\s+/g, " ");
@@ -1798,6 +1804,7 @@ export async function askAssistant(
   messages: AssistantChatMessage[],
   scope: AssistantScope = "all"
 ): Promise<AssistantReply> {
+  const requestStartedAt = Date.now();
   const latestUserMessage =
     [...messages].reverse().find((message) => message.role === "user")?.content || "";
   if (requestsDeletingTodaysDoneTasks(latestUserMessage)) {
@@ -1852,8 +1859,13 @@ export async function askAssistant(
     contextQuery || latestUserMessage,
     taskReview
   );
+  // The browser gives up at 85s, so the server must answer (even with a
+  // failure that explains itself) well before that: the AI phase gets what is
+  // left of the request deadline after loading the data, never less than 8s.
+  const contextMs = Date.now() - requestStartedAt;
+  const aiBudgetMs = Math.min(AI_MAX_BUDGET_MS, Math.max(8_000, REQUEST_DEADLINE_MS - contextMs));
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 50_000);
+  const timeout = setTimeout(() => controller.abort(), aiBudgetMs);
   try {
     // Providers differ a lot in how much they accept per request (Groq's free
     // tier is ~8k tokens/min in total, Gemini takes far more), so the prompt
@@ -1871,10 +1883,13 @@ export async function askAssistant(
       role: message.role,
       content: message.content,
     }));
+    const discoveryStartedAt = Date.now();
     const candidates = await resolveOrbitCandidates(resolvedFallbackCandidate);
-    // What each attempt answered, so a total failure can say why instead of
-    // hiding behind one generic message.
-    const attemptLog: string[] = [];
+    // What each attempt answered (and how long it took), so a total failure can
+    // say why instead of hiding behind one generic message.
+    const attemptLog: string[] = [
+      `data ${(contextMs / 1000).toFixed(1)}s, models ${secondsSince(discoveryStartedAt)}, budget ${(aiBudgetMs / 1000).toFixed(0)}s`,
+    ];
     const failedStatuses: number[] = [];
     const failure = (code: string) => withAttemptDetail(new Error(code), attemptLog);
     const requestValidatedCandidate = async (candidate: string) => {
@@ -1898,7 +1913,9 @@ export async function askAssistant(
           }
         );
       } catch (error) {
-        attemptLog.push(`${label}: ${error instanceof Error ? error.message : "request error"}`);
+        attemptLog.push(
+          `${label}: ${error instanceof Error ? error.message : "request error"} after ${secondsSince(startedAt)}`
+        );
         throw error;
       }
       let parsed: z.infer<typeof replySchema> | null = null;
@@ -1917,7 +1934,7 @@ export async function askAssistant(
       if (!result.response.ok) failedStatuses.push(result.response.status);
       if (!result.response.ok || validationError) {
         attemptLog.push(
-          `${label}: ${describeAttempt(result.response.status, result.normalized.errorMessage, validationError)}`
+          `${label}: ${describeAttempt(result.response.status, result.normalized.errorMessage, validationError)} (${secondsSince(startedAt)})`
         );
         logServerEvent("warn", {
           endpoint: "AI provider generateContent",

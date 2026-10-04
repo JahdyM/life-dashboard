@@ -78,7 +78,7 @@ export default function AssistantClient() {
     try {
       const payload = await fetchJson<AssistantReply>("/api/assistant", {
         method: "POST",
-        timeoutMs: 65_000,
+        timeoutMs: 85_000,
         body: JSON.stringify({
           mode: "chat",
           scope: "all",

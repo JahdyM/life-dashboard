@@ -283,5 +283,42 @@ function assertArrayEqual(actual, expected, message) {
   await assert.rejects(providers.sendWithAdaptation(async () => { throw new Error('AI_REQUEST_FAILED'); }, start),
     /AI_REQUEST_FAILED/, 'network errors reach the caller untouched');
 
-  console.log('PASS: provider cascade ordering, discovery filtering, request/response normalization, per-provider limits, quarantine, Mistral, 413 shrinking, retry policy');
+  // --- Gemini 3.x: lowest thinking level, dropped for a model that refuses it ---
+  sandbox.process.env = { GEMINI_API_KEY: 'g' };
+  const reply = (body, status = 200) => new Response(JSON.stringify(body), { status });
+  const geminiBodies = [];
+  let rejectThinking = false;
+  mockFetch = async (url, init) => {
+    const body = JSON.parse(init.body);
+    geminiBodies.push({ url: String(url), thinking: body.generationConfig.thinkingConfig });
+    if (rejectThinking && body.generationConfig.thinkingConfig) {
+      return reply({ error: { status: 'INVALID_ARGUMENT', message: 'Thinking level low is not supported for this model' } }, 400);
+    }
+    return reply({ candidates: [{ content: { parts: [{ text: '{}' }] }, finishReason: 'STOP' }] });
+  };
+  const signal = new AbortController().signal;
+  await providers.callOrbitCandidate('gemini::gemini-3.8-flash', 's', [], signal);
+  assert.equal(geminiBodies[0].thinking.thinkingLevel, 'low', 'Gemini 3.x is asked to think as little as possible');
+  await providers.callOrbitCandidate('gemini::gemini-2.5-flash', 's', [], signal);
+  assert.equal(geminiBodies[1].thinking, undefined, 'older models do not get the 3.x-only field');
+
+  rejectThinking = true;
+  geminiBodies.length = 0;
+  const recovered = await providers.callOrbitCandidate('gemini::gemini-3.5-flash-lite', 's', [], signal);
+  assert.equal(recovered.response.status, 200, 'a model that refuses the field is resent without it');
+  assert.equal(geminiBodies.length, 2);
+  assert.equal(geminiBodies[1].thinking, undefined);
+  geminiBodies.length = 0;
+  await providers.callOrbitCandidate('gemini::gemini-3.5-flash-lite', 's', [], signal);
+  assert.equal(geminiBodies.length, 1, 'and the refusal is remembered, so there is no wasted call next time');
+  assert.equal(geminiBodies[0].thinking, undefined);
+
+  // an unrelated 400 is not blamed on thinking and not retried
+  rejectThinking = false;
+  mockFetch = async () => reply({ error: { status: 'INVALID_ARGUMENT', message: 'bad request' } }, 400);
+  geminiBodies.length = 0;
+  const bad = await providers.callOrbitCandidate('gemini::gemini-3.8-flash', 's', [], signal);
+  assert.equal(bad.response.status, 400);
+
+  console.log('PASS: provider cascade ordering, discovery filtering, request/response normalization, per-provider limits, quarantine, Mistral, 413 shrinking, retry policy, Gemini thinking level');
 })().catch((error) => { console.error(error); process.exitCode = 1; });
