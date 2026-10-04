@@ -6,7 +6,9 @@ import {
   callOrbitCandidate,
   configuredProviderIds,
   contextBudgetFor,
+  maxOutputTokensFor,
   resolveOrbitCandidates,
+  sendWithAdaptation,
 } from "./aiProviders";
 import { fitContextToBudget, type TrimRule } from "./assistantContextBudget";
 import { addDays, subDays } from "date-fns";
@@ -1338,7 +1340,12 @@ async function buildAssistantContext(
     ]);
 
   const taskCalibrations = taskContext
-    ? await getAssistantTaskCalibrations(userEmail)
+    ? (await getAssistantTaskCalibrations(userEmail)).map((item) => ({
+        title: item.title,
+        estimatedMinutes: item.estimatedMinutes,
+        areaTag: item.areaTag,
+        context: item.context?.slice(0, 120) || null,
+      }))
     : [];
 
   const pendingTasks = tasks
@@ -1690,12 +1697,26 @@ const CONTEXT_TRIM_RULES: TrimRule[] = [
   { key: "pendingTasks", keep: "first", floor: 20 },
 ];
 
-const TRANSIENT_STATUSES = new Set([500, 502, 503, 504]);
-
 function describeAttempt(status: number, providerMessage: string | null, validationError: string | null) {
   if (validationError) return validationError;
-  const note = providerMessage?.replace(/org_\w+/g, "org").replace(/\s+/g, " ").slice(0, 110);
+  const message = (providerMessage || "").replace(/\s+/g, " ");
+  const tokens = message.match(/Limit (\d+)\D+?Requested (\d+)/i);
+  const note = tokens
+    ? `limit ${tokens[1]} tokens, requested ${tokens[2]}`
+    : message
+        .replace(/ in organization `[^`]*`( service tier `[^`]*`)?/i, "")
+        .replace(/org_\w+/g, "org")
+        .slice(0, 140);
   return note ? `HTTP ${status} ${note}` : `HTTP ${status}`;
+}
+
+function failureCodeForStatus(status: number) {
+  if (status === 429) return "AI_QUOTA_REACHED";
+  if (status === 413) return "AI_CONTEXT_TOO_LARGE";
+  if (status === 400) return "AI_REQUEST_REJECTED";
+  if (status === 401 || status === 403) return "AI_AUTH_FAILED";
+  if (status === 404) return "AI_MODEL_UNAVAILABLE";
+  return "AI_REQUEST_FAILED";
 }
 
 /** Attaches the per-attempt summary so the route can show why every provider failed. */
@@ -1838,12 +1859,11 @@ export async function askAssistant(
     // tier is ~8k tokens/min in total, Gemini takes far more), so the prompt
     // is built once per distinct context budget rather than once for all.
     const promptByBudget = new Map<number, string>();
-    const promptFor = (candidate: string) => {
-      const budget = contextBudgetFor(candidate);
-      let prompt = promptByBudget.get(budget);
-      if (!prompt) {
-        prompt = systemInstruction(context, budget);
-        promptByBudget.set(budget, prompt);
+    const promptFor = (contextChars: number) => {
+      let prompt = promptByBudget.get(contextChars);
+      if (prompt === undefined) {
+        prompt = systemInstruction(context, contextChars);
+        promptByBudget.set(contextChars, prompt);
       }
       return prompt;
     };
@@ -1855,21 +1875,28 @@ export async function askAssistant(
     // What each attempt answered, so a total failure can say why instead of
     // hiding behind one generic message.
     const attemptLog: string[] = [];
+    const failedStatuses: number[] = [];
     const failure = (code: string) => withAttemptDetail(new Error(code), attemptLog);
     const requestValidatedCandidate = async (candidate: string) => {
-      const prompt = promptFor(candidate);
       const label = candidate.replace("::", "/");
-      let startedAt = Date.now();
+      const startedAt = Date.now();
       let result: Awaited<ReturnType<typeof callOrbitCandidate>>;
       try {
-        result = await callOrbitCandidate(candidate, prompt, chatMessages, controller.signal);
-        // An overloaded provider usually answers 5xx within a second or two
-        // and accepts the very next call.
-        if (TRANSIENT_STATUSES.has(result.response.status) && Date.now() - startedAt < 8_000) {
-          await new Promise((resolve) => setTimeout(resolve, 700));
-          startedAt = Date.now();
-          result = await callOrbitCandidate(candidate, prompt, chatMessages, controller.signal);
-        }
+        result = await sendWithAdaptation(
+          (size) =>
+            callOrbitCandidate(
+              candidate,
+              promptFor(size.contextChars),
+              chatMessages,
+              controller.signal,
+              size.maxOutputTokens
+            ),
+          { maxOutputTokens: maxOutputTokensFor(candidate), contextChars: contextBudgetFor(candidate) },
+          {
+            onShrink: (providerMessage) =>
+              attemptLog.push(`${label}: ${describeAttempt(413, providerMessage, null)}, retrying smaller`),
+          }
+        );
       } catch (error) {
         attemptLog.push(`${label}: ${error instanceof Error ? error.message : "request error"}`);
         throw error;
@@ -1887,6 +1914,7 @@ export async function askAssistant(
           }
         }
       }
+      if (!result.response.ok) failedStatuses.push(result.response.status);
       if (!result.response.ok || validationError) {
         attemptLog.push(
           `${label}: ${describeAttempt(result.response.status, result.normalized.errorMessage, validationError)}`
@@ -1901,7 +1929,7 @@ export async function askAssistant(
             providerStatus: result.normalized.errorStatus,
             providerMessage: result.normalized.errorMessage?.slice(0, 300) || null,
             elapsedMs: Date.now() - startedAt,
-            inputCharacters: prompt.length + chatMessages.reduce((sum, message) => sum + message.content.length, 0),
+            inputCharacters: promptFor(contextBudgetFor(candidate)).length + chatMessages.reduce((sum, message) => sum + message.content.length, 0),
             outputCharacters: result.normalized.text?.length || 0,
           },
         });
@@ -1926,12 +1954,10 @@ export async function askAssistant(
     const { model: candidate, result } = fallback;
     const { response, parsed } = result;
     if (!response.ok) {
-      if (response.status === 429) throw failure("AI_QUOTA_REACHED");
-      if (response.status === 413) throw failure("AI_CONTEXT_TOO_LARGE");
-      if (response.status === 400) throw failure("AI_REQUEST_REJECTED");
-      if (response.status === 401 || response.status === 403) throw failure("AI_AUTH_FAILED");
-      if (response.status === 404) throw failure("AI_MODEL_UNAVAILABLE");
-      throw failure("AI_REQUEST_FAILED");
+      // Judge by every attempt, not just the last: "too large" from the last
+      // provider must not hide that the others were overloaded or out of quota.
+      const codes = new Set(failedStatuses.map(failureCodeForStatus));
+      throw failure(codes.size === 1 ? [...codes][0] : "AI_REQUEST_FAILED");
     }
     if (!parsed) throw failure("AI_INVALID_RESPONSE");
     // Cache only candidates that produced a complete, validated plan.

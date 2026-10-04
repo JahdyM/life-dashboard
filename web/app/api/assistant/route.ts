@@ -69,7 +69,7 @@ function assistantError(error: unknown) {
   }
   if (message === "AI_NOT_CONFIGURED") {
     return aiError(
-      "Orbit is not configured yet. Add GROQ_API_KEY, CEREBRAS_API_KEY, or GEMINI_API_KEY in Vercel.",
+      "Orbit is not configured yet. Add MISTRAL_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or CEREBRAS_API_KEY in Vercel.",
       503
     );
   }
@@ -95,10 +95,10 @@ function assistantError(error: unknown) {
     return aiError("The AI service replied without an answer. No proposed changes were applied. Try again.", 502);
   }
   if (message === "AI_CONTEXT_TOO_LARGE") {
-    return aiError("The AI service could not accept the amount of dashboard data in this request. No proposed changes were applied.", 413);
+    return aiError("No AI provider could take the amount of dashboard data in this request. No proposed changes were applied. Try a narrower request.", 413);
   }
   if (message === "AI_REQUEST_FAILED") {
-    return aiError("Orbit could not reach any of its configured AI providers. Try again.", 502);
+    return aiError("None of Orbit's AI providers could answer right now (overloaded or unavailable). Try again in a moment.", 502);
   }
   if (message === "RESOURCE_NOT_FOUND") {
     return jsonError("One of these tasks no longer exists.", 404);

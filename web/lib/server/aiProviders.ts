@@ -12,10 +12,13 @@ export type NormalizedAiResponse = {
 
 type RawPayload = Record<string, unknown> | null;
 
-type ProviderId = "groq" | "cerebras" | "gemini";
+type ProviderId = "mistral" | "gemini" | "groq" | "cerebras";
 
-/** Providers are tried in this order: fast/generous free tiers first, Gemini last. */
-const PROVIDER_ORDER: ProviderId[] = ["groq", "cerebras", "gemini"];
+/**
+ * Providers are tried in this order: the ones with room for a full request
+ * first, the ones with a tiny per-minute window (Groq, Cerebras) last.
+ */
+const PROVIDER_ORDER: ProviderId[] = ["mistral", "gemini", "groq", "cerebras"];
 
 type ProviderDef = {
   id: ProviderId;
@@ -31,6 +34,8 @@ type ProviderDef = {
   discoveryUrl: string;
   discoveryHeaders(apiKey: string): Record<string, string>;
   parseDiscovery(payload: RawPayload): string[];
+  /** Orders the usable models; default is the discovery order. */
+  pickModels?(available: string[]): string[];
   buildRequest(
     model: string,
     apiKey: string,
@@ -69,14 +74,16 @@ function scoreGeminiModel(name: string) {
 }
 
 function parseOpenAiCompatibleResponse(payload: RawPayload): NormalizedAiResponse {
-  const error = payload?.error as { message?: string; type?: string; code?: string } | undefined;
+  const error = (payload?.error ?? (payload?.object === "error" ? payload : undefined)) as
+    | { message?: string; type?: string; code?: string | number }
+    | undefined;
   const choice = (payload?.choices as Array<Record<string, unknown>> | undefined)?.[0];
   const message = choice?.message as { content?: string } | undefined;
   const text = message?.content?.trim() || null;
   const finishReason = typeof choice?.finish_reason === "string" ? choice.finish_reason : null;
   return {
     text,
-    errorStatus: error?.type || error?.code || null,
+    errorStatus: error?.type || (error?.code != null ? String(error.code) : null),
     errorMessage: error?.message || null,
     truncated: finishReason === "length",
   };
@@ -120,7 +127,33 @@ function parseOpenAiCompatibleDiscovery(payload: RawPayload): string[] {
     .sort((left, right) => scoreOpenAiCompatibleModel(right) - scoreOpenAiCompatibleModel(left));
 }
 
+const MISTRAL_MODEL = /^(mistral-(small|medium|large)|ministral-\d+b)-latest$/;
+const MISTRAL_PREFERENCE = ["mistral-small-latest", "mistral-medium-latest", "mistral-large-latest"];
+
 const PROVIDERS: Record<ProviderId, ProviderDef> = {
+  mistral: {
+    id: "mistral",
+    envKey: "MISTRAL_API_KEY",
+    staticModels: ["mistral-small-latest", "mistral-medium-latest"],
+    contextBudgetChars: 24_000,
+    maxOutputTokens: 4096,
+    requestTimeoutMs: 20_000,
+    discoveryUrl: "https://api.mistral.ai/v1/models",
+    discoveryHeaders: (apiKey) => ({ Authorization: `Bearer ${apiKey}` }),
+    parseDiscovery: (payload) => {
+      const ids = ((payload?.data as Array<{ id?: string }> | undefined) || [])
+        .map((model) => model.id || "")
+        .filter((id) => MISTRAL_MODEL.test(id));
+      const rank = (id: string) => {
+        const index = MISTRAL_PREFERENCE.indexOf(id);
+        return index === -1 ? MISTRAL_PREFERENCE.length : index;
+      };
+      return ids.sort((left, right) => rank(left) - rank(right));
+    },
+    buildRequest: (model, apiKey, systemInstruction, messages, maxTokens) =>
+      buildOpenAiCompatibleRequest("https://api.mistral.ai/v1", model, apiKey, systemInstruction, messages, maxTokens),
+    parseResponse: parseOpenAiCompatibleResponse,
+  },
   groq: {
     id: "groq",
     envKey: "GROQ_API_KEY",
@@ -158,6 +191,14 @@ const PROVIDERS: Record<ProviderId, ProviderDef> = {
     requestTimeoutMs: 22_000,
     discoveryUrl: "https://generativelanguage.googleapis.com/v1beta/models",
     discoveryHeaders: (apiKey) => ({ "x-goog-api-key": apiKey }),
+    // The newest flagship is the one everybody hits at once ("high demand"),
+    // so the second attempt goes to a lite model, which has its own capacity.
+    pickModels: (available) => {
+      const lite = available.find((model) => model.includes("lite"));
+      return Array.from(new Set([available[0], lite, ...available.slice(1)])).filter(
+        (model): model is string => Boolean(model)
+      );
+    },
     parseDiscovery: (payload) => {
       const models = payload?.models as
         | Array<{ name?: string; supportedGenerationMethods?: string[] }>
@@ -255,7 +296,23 @@ export function configuredProviderIds(): ProviderId[] {
   return PROVIDER_ORDER.filter((id) => Boolean(process.env[PROVIDERS[id].envKey]?.trim()));
 }
 
-const MAX_MODELS_PER_PROVIDER = 2;
+// A model that answers 404 (retired, or "no longer available to new users")
+// stays out of the candidate list for a while instead of taking a slot on
+// every request. Memory only: a fresh instance simply learns it again.
+const QUARANTINE_MS = 60 * 60 * 1000;
+const quarantinedCandidates = new Map<string, number>();
+
+function isQuarantined(candidate: string) {
+  const until = quarantinedCandidates.get(candidate);
+  if (until === undefined) return false;
+  if (until > Date.now()) return true;
+  quarantinedCandidates.delete(candidate);
+  return false;
+}
+
+// Three, because a retired model fails in milliseconds and should not cost
+// the request its only fallback.
+const MAX_MODELS_PER_PROVIDER = 3;
 
 /** Discover in parallel, then try each provider before repeating any provider. */
 export async function resolveOrbitCandidates(preferred: string | null): Promise<string[]> {
@@ -274,11 +331,13 @@ export async function resolveOrbitCandidates(preferred: string | null): Promise<
     const preferredModel = activePreferred && preferredProvider?.id === id
       ? decodeCandidate(activePreferred).model : null;
     const available = discovered.length ? discovered : provider.staticModels;
+    const ordered = provider.pickModels ? provider.pickModels(available) : available;
     const models = Array.from(new Set([
       ...(preferredModel ? [preferredModel] : []),
       ...(configuredModel ? [configuredModel] : []),
-      ...available,
-    ])).filter((model) => !discovered.length || discovered.includes(model))
+      ...ordered,
+    ])).filter((model) => (!discovered.length || discovered.includes(model))
+        && !isQuarantined(encodeCandidate(id, model)))
       .slice(0, MAX_MODELS_PER_PROVIDER);
     return models.map((model) => encodeCandidate(id, model));
   }));
@@ -296,20 +355,99 @@ export function contextBudgetFor(candidate: string): number {
   return decodeCandidate(candidate).provider?.contextBudgetChars ?? 5_000;
 }
 
+/** The reply cap the candidate's provider is normally given. */
+export function maxOutputTokensFor(candidate: string): number {
+  return decodeCandidate(candidate).provider?.maxOutputTokens ?? 2048;
+}
+
 export async function callOrbitCandidate(
   candidate: string,
   systemInstruction: string,
   messages: ChatMessage[],
-  signal: AbortSignal
+  signal: AbortSignal,
+  maxOutputTokens?: number
 ) {
   const { provider, model } = decodeCandidate(candidate);
   if (!provider) throw new Error("AI_REQUEST_FAILED");
   const apiKey = process.env[provider.envKey]?.trim() || "";
   const { url, init } = provider.buildRequest(
-    model, apiKey, systemInstruction, messages, provider.maxOutputTokens);
+    model, apiKey, systemInstruction, messages, maxOutputTokens ?? provider.maxOutputTokens);
   const { response, payload } = await requestAssistantModel<RawPayload>(
     url, init, signal, provider.requestTimeoutMs);
-  // A retired model must not remain preferred through the discovery cache TTL.
-  if (response.status === 404) discoveryCache.delete(provider.id);
+  if (response.status === 404) quarantinedCandidates.set(candidate, Date.now() + QUARANTINE_MS);
   return { response, normalized: provider.parseResponse(payload), providerId: provider.id, model };
+}
+
+/** Reads "Limit 8000, Requested 9876" out of a provider's too-large-request message. */
+export function parseTokenLimit(message: string | null): { limit: number; requested: number } | null {
+  const match = message?.match(/Limit (\d+)\D+?Requested (\d+)/i);
+  if (!match) return null;
+  const limit = Number(match[1]);
+  const requested = Number(match[2]);
+  return limit > 0 && requested > limit ? { limit, requested } : null;
+}
+
+const MIN_OUTPUT_TOKENS = 768;
+const SAFETY_MARGIN_TOKENS = 250;
+// Dense JSON (ids, dates, keys) is about this many characters per token.
+const CHARS_PER_TOKEN = 2.2;
+
+/**
+ * How to shrink a request the provider said was too large: give back reply
+ * tokens first (a plan rarely needs the whole cap), then live data. Returns
+ * null when nothing is left to give.
+ */
+export function shrinkToFit(
+  { limit, requested }: { limit: number; requested: number },
+  current: { maxOutputTokens: number; contextChars: number }
+): { maxOutputTokens: number; contextChars: number } | null {
+  const excess = requested - limit + SAFETY_MARGIN_TOKENS;
+  const maxOutputTokens = Math.max(MIN_OUTPUT_TOKENS, current.maxOutputTokens - excess);
+  const stillOver = excess - (current.maxOutputTokens - maxOutputTokens);
+  const contextChars = stillOver > 0
+    ? Math.max(0, current.contextChars - Math.ceil(stillOver * CHARS_PER_TOKEN))
+    : current.contextChars;
+  return maxOutputTokens === current.maxOutputTokens && contextChars === current.contextChars
+    ? null
+    : { maxOutputTokens, contextChars };
+}
+
+export type RequestSize = { maxOutputTokens: number; contextChars: number };
+
+const TRANSIENT_STATUSES = new Set([500, 502, 503, 504]);
+// 5xx from an overloaded provider arrives quickly; a slow one is a real failure.
+const TRANSIENT_RETRY_WINDOW_MS = 8_000;
+
+/**
+ * Sends a request and answers the two failures that are worth a second try on
+ * the same provider: a quick 5xx (overload spikes pass) and "request too large"
+ * (the message says by how much, so the retry is sized to fit). Anything else
+ * is returned as-is for the caller to judge.
+ */
+export async function sendWithAdaptation<
+  R extends { response: Response; normalized: { errorMessage: string | null } }
+>(
+  send: (size: RequestSize) => Promise<R>,
+  initial: RequestSize,
+  options: { onShrink?: (providerMessage: string | null) => void; retryDelayMs?: number } = {}
+): Promise<R> {
+  let size = initial;
+  const startedAt = Date.now();
+  let result = await send(size);
+
+  if (TRANSIENT_STATUSES.has(result.response.status) && Date.now() - startedAt < TRANSIENT_RETRY_WINDOW_MS) {
+    await new Promise((resolve) => setTimeout(resolve, options.retryDelayMs ?? 700));
+    result = await send(size);
+  }
+
+  if (result.response.status === 413) {
+    const overLimit = parseTokenLimit(result.normalized.errorMessage);
+    const smaller = overLimit ? shrinkToFit(overLimit, size) : null;
+    if (smaller) {
+      options.onShrink?.(result.normalized.errorMessage);
+      size = smaller;
+      result = await send(size);
+    }
+  }
+  return result;
 }

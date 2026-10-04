@@ -54,9 +54,14 @@ const ends = api.fitContextToBudget({ recentDone: tasks(40, 'd'), pending: tasks
 assert.equal(ends.recentDone[ends.recentDone.length - 1].id, 'd39');
 assert.equal(ends.pending[0].id, 'p0');
 
-// Floors are respected even if the budget cannot be met.
-const floored = api.fitContextToBudget({ pending: tasks(100, 'p') }, 100, rules);
-assert.equal(floored.pending.length, 10);
+// Floors are a preference: while other lists can absorb the cut they are kept...
+const keptFloor = api.fitContextToBudget(
+  { history: tasks(100, 'h'), pending: tasks(30, 'p') }, 3_300, rules);
+assert.ok(keptFloor.pending.length >= 10, 'pending keeps its floor while history can still shrink');
+// ...but the provider's limit is not negotiable: lists go all the way down to fit.
+const hard = api.fitContextToBudget({ pending: tasks(100, 'p'), history: tasks(100, 'h') }, 600, rules);
+assert.ok(json(hard).length <= 600, 'a hard budget is met even below the floors');
+assert.match(hard.contextTrimmed.pending, /of 100 shown/);
 
 // Non-list and missing keys are left alone.
 const odd = api.fitContextToBudget({ history: 'not-a-list', pending: tasks(2, 'p') }, 10, rules);
