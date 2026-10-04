@@ -22,6 +22,12 @@ type ProviderDef = {
   envKey: string;
   /** Used only if discovery fails or returns nothing — kept short and best-effort. */
   staticModels: string[];
+  /** Characters of live dashboard data the provider can take per request. */
+  contextBudgetChars: number;
+  /** Reply cap. Groq/Cerebras count prompt + this against a per-minute budget. */
+  maxOutputTokens: number;
+  /** Per-attempt deadline: Groq/Cerebras answer fast, Gemini thinks before replying. */
+  requestTimeoutMs: number;
   discoveryUrl: string;
   discoveryHeaders(apiKey: string): Record<string, string>;
   parseDiscovery(payload: RawPayload): string[];
@@ -29,7 +35,8 @@ type ProviderDef = {
     model: string,
     apiKey: string,
     systemInstruction: string,
-    messages: ChatMessage[]
+    messages: ChatMessage[],
+    maxOutputTokens: number
   ): { url: string; init: RequestInit };
   parseResponse(payload: RawPayload): NormalizedAiResponse;
 };
@@ -75,18 +82,13 @@ function parseOpenAiCompatibleResponse(payload: RawPayload): NormalizedAiRespons
   };
 }
 
-// Groq and Cerebras count prompt + max_tokens against a per-minute budget, so
-// asking for 8192 up front rejects requests that would have fit. A plan that
-// really needs more gets cut off (finish_reason "length") and is retried on
-// the next candidate, which has the larger Gemini limit.
-const OPENAI_COMPATIBLE_MAX_OUTPUT_TOKENS = 3072;
-
 function buildOpenAiCompatibleRequest(
   baseUrl: string,
   model: string,
   apiKey: string,
   systemInstruction: string,
-  messages: ChatMessage[]
+  messages: ChatMessage[],
+  maxTokens: number
 ) {
   return {
     url: `${baseUrl}/chat/completions`,
@@ -100,8 +102,11 @@ function buildOpenAiCompatibleRequest(
         model,
         messages: [{ role: "system", content: systemInstruction }, ...messages],
         temperature: 0.3,
-        max_tokens: OPENAI_COMPATIBLE_MAX_OUTPUT_TOKENS,
+        max_tokens: maxTokens,
         response_format: { type: "json_object" },
+        // gpt-oss models reason before answering and the reasoning counts
+        // against max_tokens; at the default effort a plan is often cut off.
+        ...(/gpt-oss/i.test(model) ? { reasoning_effort: "low" } : {}),
       }),
     } satisfies RequestInit,
   };
@@ -119,29 +124,38 @@ const PROVIDERS: Record<ProviderId, ProviderDef> = {
   groq: {
     id: "groq",
     envKey: "GROQ_API_KEY",
-    staticModels: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "gemma2-9b-it"],
+    staticModels: ["openai/gpt-oss-120b", "openai/gpt-oss-20b"],
+    contextBudgetChars: 5_000,
+    maxOutputTokens: 2048,
+    requestTimeoutMs: 10_000,
     discoveryUrl: "https://api.groq.com/openai/v1/models",
     discoveryHeaders: (apiKey) => ({ Authorization: `Bearer ${apiKey}` }),
     parseDiscovery: parseOpenAiCompatibleDiscovery,
-    buildRequest: (model, apiKey, systemInstruction, messages) =>
-      buildOpenAiCompatibleRequest("https://api.groq.com/openai/v1", model, apiKey, systemInstruction, messages),
+    buildRequest: (model, apiKey, systemInstruction, messages, maxTokens) =>
+      buildOpenAiCompatibleRequest("https://api.groq.com/openai/v1", model, apiKey, systemInstruction, messages, maxTokens),
     parseResponse: parseOpenAiCompatibleResponse,
   },
   cerebras: {
     id: "cerebras",
     envKey: "CEREBRAS_API_KEY",
     staticModels: ["llama-3.3-70b", "llama3.1-8b"],
+    contextBudgetChars: 5_000,
+    maxOutputTokens: 2048,
+    requestTimeoutMs: 10_000,
     discoveryUrl: "https://api.cerebras.ai/v1/models",
     discoveryHeaders: (apiKey) => ({ Authorization: `Bearer ${apiKey}` }),
     parseDiscovery: parseOpenAiCompatibleDiscovery,
-    buildRequest: (model, apiKey, systemInstruction, messages) =>
-      buildOpenAiCompatibleRequest("https://api.cerebras.ai/v1", model, apiKey, systemInstruction, messages),
+    buildRequest: (model, apiKey, systemInstruction, messages, maxTokens) =>
+      buildOpenAiCompatibleRequest("https://api.cerebras.ai/v1", model, apiKey, systemInstruction, messages, maxTokens),
     parseResponse: parseOpenAiCompatibleResponse,
   },
   gemini: {
     id: "gemini",
     envKey: "GEMINI_API_KEY",
-    staticModels: ["gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-flash-latest"],
+    staticModels: ["gemini-flash-latest", "gemini-flash-lite-latest"],
+    contextBudgetChars: 24_000,
+    maxOutputTokens: 8192,
+    requestTimeoutMs: 22_000,
     discoveryUrl: "https://generativelanguage.googleapis.com/v1beta/models",
     discoveryHeaders: (apiKey) => ({ "x-goog-api-key": apiKey }),
     parseDiscovery: (payload) => {
@@ -154,7 +168,7 @@ const PROVIDERS: Record<ProviderId, ProviderDef> = {
         .filter((name) => name && scoreGeminiModel(name) > 0)
         .sort((left, right) => scoreGeminiModel(right) - scoreGeminiModel(left));
     },
-    buildRequest: (model, apiKey, systemInstruction, messages) => ({
+    buildRequest: (model, apiKey, systemInstruction, messages, maxTokens) => ({
       url: `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
       init: {
         method: "POST",
@@ -167,7 +181,7 @@ const PROVIDERS: Record<ProviderId, ProviderDef> = {
           })),
           generationConfig: {
             temperature: 0.3,
-            maxOutputTokens: 8192,
+            maxOutputTokens: maxTokens,
             responseMimeType: "application/json",
           },
         }),
@@ -277,6 +291,11 @@ export async function resolveOrbitCandidates(preferred: string | null): Promise<
   return candidates;
 }
 
+/** How much live dashboard data the candidate's provider accepts per request. */
+export function contextBudgetFor(candidate: string): number {
+  return decodeCandidate(candidate).provider?.contextBudgetChars ?? 5_000;
+}
+
 export async function callOrbitCandidate(
   candidate: string,
   systemInstruction: string,
@@ -286,8 +305,10 @@ export async function callOrbitCandidate(
   const { provider, model } = decodeCandidate(candidate);
   if (!provider) throw new Error("AI_REQUEST_FAILED");
   const apiKey = process.env[provider.envKey]?.trim() || "";
-  const { url, init } = provider.buildRequest(model, apiKey, systemInstruction, messages);
-  const { response, payload } = await requestAssistantModel<RawPayload>(url, init, signal);
+  const { url, init } = provider.buildRequest(
+    model, apiKey, systemInstruction, messages, provider.maxOutputTokens);
+  const { response, payload } = await requestAssistantModel<RawPayload>(
+    url, init, signal, provider.requestTimeoutMs);
   // A retired model must not remain preferred through the discovery cache TTL.
   if (response.status === 404) discoveryCache.delete(provider.id);
   return { response, normalized: provider.parseResponse(payload), providerId: provider.id, model };

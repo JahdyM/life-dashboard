@@ -2,7 +2,12 @@ import "server-only";
 
 import { randomUUID } from "crypto";
 import { AssistantFallbackError, withAssistantFallback } from "./assistantTransport";
-import { callOrbitCandidate, configuredProviderIds, resolveOrbitCandidates } from "./aiProviders";
+import {
+  callOrbitCandidate,
+  configuredProviderIds,
+  contextBudgetFor,
+  resolveOrbitCandidates,
+} from "./aiProviders";
 import { fitContextToBudget, type TrimRule } from "./assistantContextBudget";
 import { addDays, subDays } from "date-fns";
 import { z } from "zod";
@@ -1451,23 +1456,19 @@ async function buildAssistantContext(
     assistantPreferences,
     taskReview,
     taskCalibrations,
-    availableServices: [
-      "today",
-      "calendar",
-      "tasks",
-      "habits",
-      "mood",
-      "ministry",
-      "publications",
-      "books",
-      "dissertation",
-      "spiritual goals",
-      "spiritual streaks",
-      "stats",
-      "finances",
-      "couple",
-      "dashboard settings",
-    ],
+    loadedDomains: [
+      taskContext && "tasks",
+      habitContext && "habits",
+      metricContext && "mood",
+      ministryContext && "ministry",
+      dissertationContext && "dissertation",
+      readingContext && "publications",
+      booksContext && "books",
+      spiritualContext && "spiritual",
+      financeContext && "finances",
+      coupleContext && "couple",
+      (scope === "stats" || statsIntent) && "statistics",
+    ].filter((domain): domain is string => Boolean(domain)),
     pendingTasks,
     taskWheel:
       taskWheelRequested
@@ -1678,10 +1679,10 @@ async function buildAssistantContext(
 }
 
 // Free-tier providers cap tokens per request (Groq counts prompt + reply
-// against ~12k/min) and the fixed instructions below already take ~3.5k, so
-// the live dashboard data has to stay small. Tasks are listed soonest-first,
-// so trimming from the end keeps today's tasks.
-const CONTEXT_CHAR_BUDGET = 10_000;
+// against ~8k/min) and the fixed instructions below already take ~2.5-3.5k,
+// so the live dashboard data has to stay small. Each provider declares how
+// much it takes (see aiProviders). Tasks are listed soonest-first, so
+// trimming from the end keeps today's tasks.
 const CONTEXT_TRIM_RULES: TrimRule[] = [
   { key: "completedTaskHistory", keep: "first", floor: 10 },
   { key: "recentCompletedTasks", keep: "last", floor: 5 },
@@ -1689,7 +1690,24 @@ const CONTEXT_TRIM_RULES: TrimRule[] = [
   { key: "pendingTasks", keep: "first", floor: 20 },
 ];
 
-function systemInstruction(context: AssistantContext) {
+const TRANSIENT_STATUSES = new Set([500, 502, 503, 504]);
+
+function describeAttempt(status: number, providerMessage: string | null, validationError: string | null) {
+  if (validationError) return validationError;
+  const note = providerMessage?.replace(/org_\w+/g, "org").replace(/\s+/g, " ").slice(0, 110);
+  return note ? `HTTP ${status} ${note}` : `HTTP ${status}`;
+}
+
+/** Attaches the per-attempt summary so the route can show why every provider failed. */
+function withAttemptDetail<T extends Error>(error: T, attemptLog: string[]): T {
+  return Object.assign(error, { detail: attemptLog.join(" | ") });
+}
+
+function systemInstruction(context: AssistantContext, contextChars: number) {
+  // Rules for a dashboard area only matter when that area's data was loaded;
+  // sending all of them every time costs ~1k tokens of a tight request budget.
+  const ifLoaded = (domains: string | string[], ...rules: string[]) =>
+    [domains].flat().some((domain) => context.loadedDomains.includes(domain)) ? rules : [];
   const scopeRule =
     context.scope === "all"
       ? "You are on the full Orbit page and may coordinate every supplied dashboard area."
@@ -1710,45 +1728,46 @@ function systemInstruction(context: AssistantContext) {
     context.taskReview
       ? `GUIDED TASK REVIEW IS ACTIVE (${context.taskReview.position}/${context.taskReview.total}). The current conversational focus is task ID ${context.taskReview.current.id}, titled “${context.taskReview.current.title}”. Use the user's answer to infer a realistic estimatedMinutes and an exact areaTag from taskReview.availableAreas. If one material detail is still missing, ask one short question and return actions: []. When enough is known, propose update_task for the current task with only the fields the user wants changed. Preserve explicit durations supplied by the user. If the user switches topic or names another task, follow that intent and its exact ID. Bulk changes are allowed when explicitly requested. The server advances after Apply. If the user clearly asks for something unrelated, handle that request normally without changing the review task.`
       : "GUIDED TASK REVIEW IS NOT ACTIVE. Start it when the user explicitly asks to review tasks one by one.",
-    "TASK REVIEW INTENT: understand natural phrasing instead of requiring a command. If the user wants to walk through, calibrate, or discuss pending tasks one at a time and no review is active, propose start_task_review. If they want to end that process, propose stop_task_review. To keep the current values and move on, propose skip_task_review. These conversation controls need no data-edit confirmation; return them alone. To resume an active review, describe its current task. Do not demand special keywords.",
-    "TASK REVIEW SCOPE: start_task_review accepts payload.reviewScope: today, date, backlog, or all; date requires payload.date (YYYY-MM-DD). Default to today in the user timezone. Never use all unless the user explicitly requests all dates and backlog. When the user narrows or changes an existing review (e.g. only today), return start_task_review with the new scope, even when a review is already active. To resume the same scope, describe its current task without restarting. The review count applies only to the selected scope, not to all pendingTasks in context.",
-    "TASK ESTIMATION: first compare the title and meaning with completedTaskHistory. For repeated or similar work, use real actualMinutes. For new work, infer its steps and complexity, then calibrate with the user's averageRatio and area history. Explain the basis briefly.",
-    "TASK LEARNING: taskCalibrations contains time and tag decisions previously taught by the user. Treat them as durable examples, use semantic similarity rather than exact command phrases, and prefer them over generic defaults. Completed actual-time history remains stronger evidence for duration when enough samples exist.",
-    'BULK TASK REVIEWS: use one bulk_update_tasks action with payload.taskUpdates. Each item must contain taskId and only changed fields: scheduledDate, scheduledTime, plannedTime, startTime, endTime, estimatedMinutes, priority, areaTag, focusOrder, effort, notes, scheduleLocked, or completed. Do not emit one update_task action per task. This supports large reviews while keeping JSON compact.',
-    "TASK ORGANIZATION: update existing tasks by ID. Use scheduledTime for real clock scheduling. Use focusOrder for execution order without requiring a time. Avoid overlaps and add realistic breathing room.",
-    "TASK EFFORT: use low for light/quick work, medium for ordinary focused work, and high for cognitively or physically deep work. Keep effort distinct from priority.",
-    "TASK DETAILS: plannedTime is the intended time; startTime and endTime are actual execution facts and must only be changed when the user explicitly gives them. scheduleLocked=true means automatic reordering must preserve that time.",
-    "TASK COMPLETION: only set completed when the user explicitly asks to mark or unmark a task. Never infer completion from planning language.",
-    "TASK DELETION: when the user explicitly asks to remove tasks, use delete_tasks with exact taskIds from context. For 'Done today', use completedTasksToday only, never habits. This is a hard delete, not an uncheck. The UI previews the exact list and requires one Apply confirmation. Ask only if the target is ambiguous.",
-    "TASK TAGS: use an existing taskAreas key. If the requested tag does not exist, propose create_area before assigning it.",
-    "PRIORITY: use Low, Medium, High, or Critical based on consequence and deadline, not anxiety.",
-    "ROULETTES: when taskWheel.selected exists, that is the actual server-side weighted draw. Report that exact task; do not invent or redraw it. If the user asks for a publication draw, use the exact result under reading.wheel for the requested collection. A draw is read-only and needs no action. If the user asks to make the drawn task next, then propose update_task with focusOrder=1. If the requested wheel is ambiguous, ask which wheel.",
-    "NEXT TASK BY FEELING: if the user asks what to do next but has not described current energy or mood in the conversation, ask one short question about how they feel and return no actions. Once answered, use taskWheel.selected and explain the fit in one sentence. Low-energy requests already receive a lighter filtered draw.",
-    "HABITS AND DAY: use set_habit_status with an exact habits.daily key, a date, and completed. This action keeps Habits, Today, Spiritual Streaks, points, and habit tasks synchronized. Use update_day_metrics for sleepHours, anxietyLevel, workHours, or boredomMinutes.",
-    "MOOD: use log_mood with an exact mood.definitions key, date, and loggedTime. A mood is a moment, not a whole-day replacement. Do not add a note unless the user explicitly asks and the action supports it.",
-    "ENERGY: use set_low_energy_mode for the global low-energy view. Task effort belongs in task actions.",
-    "MINISTRY: daily goals are always manual. You may set a monthly goal and specific daily plans, but never auto-distribute the monthly target unless the user explicitly asks you to create a proposed schedule. Preserve logged actual time unless the user explicitly changes it.",
-    "MINISTRY RECURRENCE: when the user explicitly says every/each weekday, use set_ministry_recurrence instead of many update_ministry_day actions. Payload keys are recurrenceLabel, weekday (Sunday=0 through Saturday=6), goalMinutes, startDate, and endDate (null means ongoing). A weekly routine contributes to planned ministry from the beginning of its start month. Reuse recurrenceId from context to edit an existing rule. Use remove_ministry_recurrence with recurrenceId only when explicitly asked to stop one.",
-    "READING: use one update_reading_progress action with payload.readingUpdates. Use only exact IDs/keys supplied in reading candidates. Kinds are despertai_issue, despertai_topic, video, broadcasting, article_series, reading_book, tract, apostila, brochure, watchtower, and bible_chapters. A whole Despertai issue marks every topic; a topic update needs itemId and topicId. Bible updates need bookKey plus a chapters array. read=true marks read; read=false unmarks. If the requested title/topic is ambiguous or absent from candidates, ask a short clarifying question and return no action.",
-    "BOOKS: set_books_goal changes the annual target. create_book adds a personal book. update_book must use an exact books.items ID and may change pagesRead, totalPages, status, rating, title, author, or coverUrl.",
-    "SPIRITUAL STREAKS: use update_spiritual_streak with an exact boardKey, date, and success. true is a positive/clean day, false is a failed day, and null clears the mark.",
-    "SPIRITUAL GOALS: use update_spiritual_goal with an exact category and spiritualOperation. Use exact stepId/taskId from context. Completing the current step uses complete_current; notes and checklist operations must identify the right step.",
-    "DISSERTATION: use front IDs from context when adding a next step or changing a front status.",
-    "COUPLE AND GOALS: use exact goal IDs when updating progress. New couple goals, savings goals, and bucket items use their dedicated actions.",
-    "FINANCES: use the current finances IDs/keys. add_finance_expense adds one expense; update_finance_expense edits an existing expense by expenseId; upsert_finance_debt edits one debt; update_finance_income edits one income field; update_finance_fixed_cost edits one fixed-cost row. Monetary values are numbers, never formatted strings. Ask before guessing an amount.",
-    "FINANCE STRUCTURE: add_finance_fixed_cost creates a recurring cost row. remove_finance_item removes an extra expense, debt, or fixed cost only when explicitly requested, using financeItemType and the exact expenseId, debtKey, or fixedCostId. Use finances.summary for totals, paid, pending, surplus, and debt analysis.",
-    "STATISTICS: statistics contains live dashboard summaries when requested. Analyze only those values, mention weak/missing samples, and never invent precision. Read-only analysis needs no action.",
+    ...ifLoaded("tasks", "TASK REVIEW INTENT: understand natural phrasing instead of requiring a command. If the user wants to walk through, calibrate, or discuss pending tasks one at a time and no review is active, propose start_task_review. If they want to end that process, propose stop_task_review. To keep the current values and move on, propose skip_task_review. These conversation controls need no data-edit confirmation; return them alone. To resume an active review, describe its current task. Do not demand special keywords."),
+    ...ifLoaded("tasks", "TASK REVIEW SCOPE: start_task_review accepts payload.reviewScope: today, date, backlog, or all; date requires payload.date (YYYY-MM-DD). Default to today in the user timezone. Never use all unless the user explicitly requests all dates and backlog. When the user narrows or changes an existing review (e.g. only today), return start_task_review with the new scope, even when a review is already active. To resume the same scope, describe its current task without restarting. The review count applies only to the selected scope, not to all pendingTasks in context."),
+    ...ifLoaded("tasks", "TASK ESTIMATION: first compare the title and meaning with completedTaskHistory. For repeated or similar work, use real actualMinutes. For new work, infer its steps and complexity, then calibrate with the user's averageRatio and area history. Explain the basis briefly."),
+    ...ifLoaded("tasks", "TASK LEARNING: taskCalibrations contains time and tag decisions previously taught by the user. Treat them as durable examples, use semantic similarity rather than exact command phrases, and prefer them over generic defaults. Completed actual-time history remains stronger evidence for duration when enough samples exist."),
+    ...ifLoaded("tasks", 'BULK TASK REVIEWS: use one bulk_update_tasks action with payload.taskUpdates. Each item must contain taskId and only changed fields: scheduledDate, scheduledTime, plannedTime, startTime, endTime, estimatedMinutes, priority, areaTag, focusOrder, effort, notes, scheduleLocked, or completed. Do not emit one update_task action per task. This supports large reviews while keeping JSON compact.'),
+    ...ifLoaded("tasks", "TASK ORGANIZATION: update existing tasks by ID. Use scheduledTime for real clock scheduling. Use focusOrder for execution order without requiring a time. Avoid overlaps and add realistic breathing room."),
+    ...ifLoaded("tasks", "TASK EFFORT: use low for light/quick work, medium for ordinary focused work, and high for cognitively or physically deep work. Keep effort distinct from priority."),
+    ...ifLoaded("tasks", "TASK DETAILS: plannedTime is the intended time; startTime and endTime are actual execution facts and must only be changed when the user explicitly gives them. scheduleLocked=true means automatic reordering must preserve that time."),
+    ...ifLoaded("tasks", "TASK COMPLETION: only set completed when the user explicitly asks to mark or unmark a task. Never infer completion from planning language."),
+    ...ifLoaded("tasks", "TASK DELETION: when the user explicitly asks to remove tasks, use delete_tasks with exact taskIds from context. For 'Done today', use completedTasksToday only, never habits. This is a hard delete, not an uncheck. The UI previews the exact list and requires one Apply confirmation. Ask only if the target is ambiguous."),
+    ...ifLoaded("tasks", "TASK TAGS: use an existing taskAreas key. If the requested tag does not exist, propose create_area before assigning it."),
+    ...ifLoaded("tasks", "PRIORITY: use Low, Medium, High, or Critical based on consequence and deadline, not anxiety."),
+    ...ifLoaded(["tasks", "publications"], "ROULETTES: when taskWheel.selected exists, that is the actual server-side weighted draw. Report that exact task; do not invent or redraw it. If the user asks for a publication draw, use the exact result under reading.wheel for the requested collection. A draw is read-only and needs no action. If the user asks to make the drawn task next, then propose update_task with focusOrder=1. If the requested wheel is ambiguous, ask which wheel."),
+    ...ifLoaded("tasks", "NEXT TASK BY FEELING: if the user asks what to do next but has not described current energy or mood in the conversation, ask one short question about how they feel and return no actions. Once answered, use taskWheel.selected and explain the fit in one sentence. Low-energy requests already receive a lighter filtered draw."),
+    ...ifLoaded(["habits", "mood"], "HABITS AND DAY: use set_habit_status with an exact habits.daily key, a date, and completed. This action keeps Habits, Today, Spiritual Streaks, points, and habit tasks synchronized. Use update_day_metrics for sleepHours, anxietyLevel, workHours, or boredomMinutes."),
+    ...ifLoaded("mood", "MOOD: use log_mood with an exact mood.definitions key, date, and loggedTime. A mood is a moment, not a whole-day replacement. Do not add a note unless the user explicitly asks and the action supports it."),
+    ...ifLoaded("tasks", "ENERGY: use set_low_energy_mode for the global low-energy view. Task effort belongs in task actions."),
+    ...ifLoaded("ministry", "MINISTRY: daily goals are always manual. You may set a monthly goal and specific daily plans, but never auto-distribute the monthly target unless the user explicitly asks you to create a proposed schedule. Preserve logged actual time unless the user explicitly changes it."),
+    ...ifLoaded("ministry", "MINISTRY RECURRENCE: when the user explicitly says every/each weekday, use set_ministry_recurrence instead of many update_ministry_day actions. Payload keys are recurrenceLabel, weekday (Sunday=0 through Saturday=6), goalMinutes, startDate, and endDate (null means ongoing). A weekly routine contributes to planned ministry from the beginning of its start month. Reuse recurrenceId from context to edit an existing rule. Use remove_ministry_recurrence with recurrenceId only when explicitly asked to stop one."),
+    ...ifLoaded("publications", "READING: use one update_reading_progress action with payload.readingUpdates. Use only exact IDs/keys supplied in reading candidates. Kinds are despertai_issue, despertai_topic, video, broadcasting, article_series, reading_book, tract, apostila, brochure, watchtower, and bible_chapters. A whole Despertai issue marks every topic; a topic update needs itemId and topicId. Bible updates need bookKey plus a chapters array. read=true marks read; read=false unmarks. If the requested title/topic is ambiguous or absent from candidates, ask a short clarifying question and return no action."),
+    ...ifLoaded("books", "BOOKS: set_books_goal changes the annual target. create_book adds a personal book. update_book must use an exact books.items ID and may change pagesRead, totalPages, status, rating, title, author, or coverUrl."),
+    ...ifLoaded("spiritual", "SPIRITUAL STREAKS: use update_spiritual_streak with an exact boardKey, date, and success. true is a positive/clean day, false is a failed day, and null clears the mark."),
+    ...ifLoaded("spiritual", "SPIRITUAL GOALS: use update_spiritual_goal with an exact category and spiritualOperation. Use exact stepId/taskId from context. Completing the current step uses complete_current; notes and checklist operations must identify the right step."),
+    ...ifLoaded("dissertation", "DISSERTATION: use front IDs from context when adding a next step or changing a front status."),
+    ...ifLoaded("couple", "COUPLE AND GOALS: use exact goal IDs when updating progress. New couple goals, savings goals, and bucket items use their dedicated actions."),
+    ...ifLoaded("finances", "FINANCES: use the current finances IDs/keys. add_finance_expense adds one expense; update_finance_expense edits an existing expense by expenseId; upsert_finance_debt edits one debt; update_finance_income edits one income field; update_finance_fixed_cost edits one fixed-cost row. Monetary values are numbers, never formatted strings. Ask before guessing an amount."),
+    ...ifLoaded("finances", "FINANCE STRUCTURE: add_finance_fixed_cost creates a recurring cost row. remove_finance_item removes an extra expense, debt, or fixed cost only when explicitly requested, using financeItemType and the exact expenseId, debtKey, or fixedCostId. Use finances.summary for totals, paid, pending, surplus, and debt analysis."),
+    ...ifLoaded("statistics", "STATISTICS: statistics contains live dashboard summaries when requested. Analyze only those values, mention weak/missing samples, and never invent precision. Read-only analysis needs no action."),
     "WORD OF THE DAY: refresh_word_of_day selects another technical science term for today. Use it when the user explicitly asks to change, refresh, or draw another word.",
     "A direct request to change how Orbit asks questions is already persisted before this prompt; acknowledge it without returning a duplicate action.",
     `Allowed actions: ${ASSISTANT_ACTION_TYPES.join(", ")}.`,
     'Return only one JSON object shaped as {"message":"short answer","actions":[{"type":"allowed action","title":"short preview title","reason":"brief reason","payload":{}}]}. Use an empty actions array when no change is needed. Never add keys outside this structure.',
     "The action-level title is only the preview label. Put the actual task, book, goal, expense, debt, or checklist title in payload.title.",
     "Common payload signatures: delete_tasks={taskIds}; set_habit_status={habitKey,date,completed}; log_mood={moodCategory,date,loggedTime}; update_day_metrics={date,sleepHours,anxietyLevel,workHours,boredomMinutes}; update_spiritual_streak={boardKey,date,success}; set_books_goal={year,yearlyGoal}; create_book={title,year,author,totalPages,pagesRead,bookStatus,rating}; update_book={bookId plus changed book fields}; update_spiritual_goal={spiritualCategory,spiritualOperation,stepId,taskId,taskCompleted,notes,title as needed}; add_finance_fixed_cost={month,title,budget,actual,paid}; remove_finance_item={month,financeItemType plus exact expenseId/debtKey/fixedCostId}; refresh_word_of_day={date}.",
-    "For task duration, the payload key is estimatedMinutes (integer minutes). For a fixed task time, use scheduledTime in HH:mm. For task effort, use effort. Never use estimate, duration, energy, or time as payload keys.",
+    ...ifLoaded("tasks", "For task duration, the payload key is estimatedMinutes (integer minutes). For a fixed task time, use scheduledTime in HH:mm. For task effort, use effort. Never use estimate, duration, energy, or time as payload keys."),
     "Do not mark tasks missed unless the user explicitly asks. Do not alter sensitive metrics without an explicit value. If the requested operation has no supported action, explain what is missing instead of pretending.",
+    "loadedDomains lists the dashboard areas whose data and rules are supplied in this request. For any other area, ask the user to name it explicitly instead of guessing ids or values.",
     "contextTrimmed, when present, lists supplied data that was cut for size (e.g. pendingTasks: '40 of 130 shown', soonest first). Never claim to have reviewed items you were not given; say what was left out and suggest a narrower request.",
     `Dashboard context: ${JSON.stringify(
-      fitContextToBudget(context, CONTEXT_CHAR_BUDGET, CONTEXT_TRIM_RULES)
+      fitContextToBudget(context, contextChars, CONTEXT_TRIM_RULES)
     )}`,
   ].join("\n");
 }
@@ -1813,17 +1832,48 @@ export async function askAssistant(
     taskReview
   );
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45_000);
+  const timeout = setTimeout(() => controller.abort(), 50_000);
   try {
-    const systemInstructionText = systemInstruction(context);
+    // Providers differ a lot in how much they accept per request (Groq's free
+    // tier is ~8k tokens/min in total, Gemini takes far more), so the prompt
+    // is built once per distinct context budget rather than once for all.
+    const promptByBudget = new Map<number, string>();
+    const promptFor = (candidate: string) => {
+      const budget = contextBudgetFor(candidate);
+      let prompt = promptByBudget.get(budget);
+      if (!prompt) {
+        prompt = systemInstruction(context, budget);
+        promptByBudget.set(budget, prompt);
+      }
+      return prompt;
+    };
     const chatMessages = messages.slice(-16).map((message) => ({
       role: message.role,
       content: message.content,
     }));
     const candidates = await resolveOrbitCandidates(resolvedFallbackCandidate);
+    // What each attempt answered, so a total failure can say why instead of
+    // hiding behind one generic message.
+    const attemptLog: string[] = [];
+    const failure = (code: string) => withAttemptDetail(new Error(code), attemptLog);
     const requestValidatedCandidate = async (candidate: string) => {
-      const startedAt = Date.now();
-      const result = await callOrbitCandidate(candidate, systemInstructionText, chatMessages, controller.signal);
+      const prompt = promptFor(candidate);
+      const label = candidate.replace("::", "/");
+      let startedAt = Date.now();
+      let result: Awaited<ReturnType<typeof callOrbitCandidate>>;
+      try {
+        result = await callOrbitCandidate(candidate, prompt, chatMessages, controller.signal);
+        // An overloaded provider usually answers 5xx within a second or two
+        // and accepts the very next call.
+        if (TRANSIENT_STATUSES.has(result.response.status) && Date.now() - startedAt < 8_000) {
+          await new Promise((resolve) => setTimeout(resolve, 700));
+          startedAt = Date.now();
+          result = await callOrbitCandidate(candidate, prompt, chatMessages, controller.signal);
+        }
+      } catch (error) {
+        attemptLog.push(`${label}: ${error instanceof Error ? error.message : "request error"}`);
+        throw error;
+      }
       let parsed: z.infer<typeof replySchema> | null = null;
       let validationError: string | null = null;
       if (result.response.ok) {
@@ -1838,6 +1888,9 @@ export async function askAssistant(
         }
       }
       if (!result.response.ok || validationError) {
+        attemptLog.push(
+          `${label}: ${describeAttempt(result.response.status, result.normalized.errorMessage, validationError)}`
+        );
         logServerEvent("warn", {
           endpoint: "AI provider generateContent",
           message: "Orbit candidate did not return a usable plan",
@@ -1846,8 +1899,9 @@ export async function askAssistant(
             status: result.response.status,
             validationError,
             providerStatus: result.normalized.errorStatus,
+            providerMessage: result.normalized.errorMessage?.slice(0, 300) || null,
             elapsedMs: Date.now() - startedAt,
-            inputCharacters: systemInstructionText.length + chatMessages.reduce((sum, message) => sum + message.content.length, 0),
+            inputCharacters: prompt.length + chatMessages.reduce((sum, message) => sum + message.content.length, 0),
             outputCharacters: result.normalized.text?.length || 0,
           },
         });
@@ -1866,19 +1920,20 @@ export async function askAssistant(
           meta: { attemptedModels: error.attemptedModels, attempts: error.attempts },
         });
       }
+      if (error instanceof Error) withAttemptDetail(error, attemptLog);
       throw error;
     }
     const { model: candidate, result } = fallback;
     const { response, parsed } = result;
     if (!response.ok) {
-      if (response.status === 429) throw new Error("AI_QUOTA_REACHED");
-      if (response.status === 413) throw new Error("AI_CONTEXT_TOO_LARGE");
-      if (response.status === 400) throw new Error("AI_REQUEST_REJECTED");
-      if (response.status === 401 || response.status === 403) throw new Error("AI_AUTH_FAILED");
-      if (response.status === 404) throw new Error("AI_MODEL_UNAVAILABLE");
-      throw new Error("AI_REQUEST_FAILED");
+      if (response.status === 429) throw failure("AI_QUOTA_REACHED");
+      if (response.status === 413) throw failure("AI_CONTEXT_TOO_LARGE");
+      if (response.status === 400) throw failure("AI_REQUEST_REJECTED");
+      if (response.status === 401 || response.status === 403) throw failure("AI_AUTH_FAILED");
+      if (response.status === 404) throw failure("AI_MODEL_UNAVAILABLE");
+      throw failure("AI_REQUEST_FAILED");
     }
-    if (!parsed) throw new Error("AI_INVALID_RESPONSE");
+    if (!parsed) throw failure("AI_INVALID_RESPONSE");
     // Cache only candidates that produced a complete, validated plan.
     resolvedFallbackCandidate = candidate;
     const taskTitles = new Map(

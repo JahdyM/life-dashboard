@@ -149,5 +149,34 @@ function assertArrayEqual(actual, expected, message) {
   assert.equal(authFailure.response.status, 401);
   assert.equal(authFailure.normalized.errorMessage, 'invalid api key');
 
-  console.log('PASS: provider cascade ordering, discovery filtering, request/response normalization');
+  // Per-provider limits: Groq/Cerebras get a small context and reply cap, Gemini a large one.
+  assert.ok(providers.contextBudgetFor('groq::x') < providers.contextBudgetFor('gemini::x'),
+    'Groq takes less live data than Gemini');
+  assert.equal(providers.contextBudgetFor('unknown::x') > 0, true);
+
+  const requestBodyFor = async (candidate) => {
+    let body;
+    mockFetch = async (_url, init) => {
+      body = JSON.parse(init.body);
+      return new Response(JSON.stringify({ choices: [{ message: { content: '{}' } }] }));
+    };
+    await providers.callOrbitCandidate(candidate, 'sys', [{ role: 'user', content: 'oi' }],
+      new AbortController().signal);
+    return body;
+  };
+  const gptOss = await requestBodyFor('groq::openai/gpt-oss-120b');
+  assert.equal(gptOss.max_tokens, 2048, 'reply cap must leave room inside the per-minute budget');
+  assert.equal(gptOss.reasoning_effort, 'low', 'gpt-oss reasoning must not eat the reply budget');
+  const qwen = await requestBodyFor('groq::qwen/qwen3.8-27b');
+  assert.equal('reasoning_effort' in qwen, false, 'other models must not receive gpt-oss-only params');
+
+  let geminiBody;
+  mockFetch = async (_url, init) => {
+    geminiBody = JSON.parse(init.body);
+    return new Response(JSON.stringify({ candidates: [] }));
+  };
+  await providers.callOrbitCandidate('gemini::gemini-3.8-flash', 'sys', [], new AbortController().signal);
+  assert.equal(geminiBody.generationConfig.maxOutputTokens, 8192);
+
+  console.log('PASS: provider cascade ordering, discovery filtering, request/response normalization, per-provider limits');
 })().catch((error) => { console.error(error); process.exitCode = 1; });
