@@ -2,6 +2,7 @@ import "server-only";
 
 import { randomUUID } from "crypto";
 import { AssistantFallbackError, withAssistantFallback } from "./assistantTransport";
+import { requestsTodayTaskReview } from "./assistantIntent";
 import {
   callOrbitCandidate,
   configuredProviderIds,
@@ -1840,6 +1841,17 @@ export async function askAssistant(
     };
   }
   const taskReview = await getAssistantTaskReview(userEmail);
+  if (requestsTodayTaskReview(latestUserMessage)) {
+    const review = taskReview || await startAssistantTaskReview(userEmail, {
+      reviewScope: "today",
+    });
+    return {
+      message: review
+        ? `Vamos ajustar uma tarefa por vez. ${taskReviewPrompt(review)}`
+        : "Não há tarefas pendentes para hoje.",
+      actions: [],
+    };
+  }
   if (!configuredProviderIds().length) throw new Error("AI_NOT_CONFIGURED");
   const contextQuery = messages
     .filter((message) => message.role === "user")
