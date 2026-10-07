@@ -11382,7 +11382,7 @@ input.no-spinner[type="number"] {
 .orbit-dock {
   position: fixed;
   z-index: 85;
-  right: max(18px, env(safe-area-inset-right));
+  left: max(18px, env(safe-area-inset-left));
   bottom: max(18px, env(safe-area-inset-bottom));
   width: min(430px, calc(100vw - 32px));
   display: grid;
@@ -11560,7 +11560,7 @@ input.no-spinner[type="number"] {
 
 @media (max-width: 640px) {
   .orbit-dock {
-    right: 10px;
+    left: 10px;
     bottom: max(10px, env(safe-area-inset-bottom));
     width: calc(100vw - 20px);
   }
