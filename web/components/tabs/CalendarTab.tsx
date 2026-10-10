@@ -66,6 +66,7 @@ import interactionPlugin from "@fullcalendar/interaction";
 import { format, addDays, endOfWeek, startOfWeek, subDays } from "date-fns";
 import { FIXED_SHARED_HABITS } from "@/lib/constants";
 import {
+  getHabitAgendaDefaults,
   getHabitDisplayLabel,
   isHabitEntryDone,
   isHabitScheduledForWeekday,
@@ -346,6 +347,8 @@ function areaTagForHabit(habit: Pick<DailyHabitItem, "key" | "label">) {
 }
 
 function defaultDurationForHabit(habit: Pick<DailyHabitItem, "key" | "label">) {
+  const configuredDuration = getHabitAgendaDefaults(habit.key).estimatedMinutes;
+  if (configuredDuration) return configuredDuration;
   const key = String(habit.key || "").trim().toLowerCase();
   const name = normalizedHabitAreaName(habit.label);
 
@@ -2838,11 +2841,13 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
       scheduledTime,
       estimatedMinutes,
       areaTag,
+      scheduleLocked,
     }: {
       title: string;
       scheduledTime?: string | null;
       estimatedMinutes?: number;
       areaTag?: string;
+      scheduleLocked?: boolean;
     }) =>
       fetchJson<{ task: TodoTask; warning?: string | null }>("/api/tasks", {
         method: "POST",
@@ -2854,6 +2859,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
           planned_time: scheduledTime || null,
           estimated_minutes: estimatedMinutes || 30,
           area_tag: areaTag || null,
+          schedule_locked: scheduleLocked || false,
           sync_google: false,
         }),
       }),
@@ -4943,10 +4949,15 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
 
   const handleAddHabitToAgenda = useCallback(
     (habit: DailyHabitItem) => {
-      const scheduledTime = habitTimeDrafts[habit.id] || null;
+      const agendaDefaults = getHabitAgendaDefaults(habit.key);
+      const scheduledTime = habitTimeDrafts[habit.id] || agendaDefaults.scheduledTime || null;
       const estimatedMinutes = Math.max(
         1,
-        Number(habitDurationDrafts[habit.id] || defaultDurationForHabit(habit))
+        Number(
+          habitDurationDrafts[habit.id] ||
+            agendaDefaults.estimatedMinutes ||
+            defaultDurationForHabit(habit)
+        )
       );
       setDismissedHabitsByDay((prev) => {
         const current = prev[selectedDayIso] || [];
@@ -4959,6 +4970,7 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
         scheduledTime,
         estimatedMinutes,
         areaTag: areaTagForHabit(habit),
+        scheduleLocked: agendaDefaults.scheduleLocked || Boolean(scheduledTime),
       });
     },
     [createHabitTask, habitDurationDrafts, habitTimeDrafts, selectedDayIso]
@@ -6145,7 +6157,11 @@ export default function CalendarTab({ userEmail: _userEmail }: { userEmail: stri
                     <DailyHabitRow
                       key={habit.id}
                       habit={habit}
-                      timeValue={habitTimeDrafts[habit.id] || ""}
+                      timeValue={
+                        habitTimeDrafts[habit.id] ??
+                        getHabitAgendaDefaults(habit.key).scheduledTime ??
+                        ""
+                      }
                       durationValue={Math.max(
                         1,
                         Number(habitDurationDrafts[habit.id] || defaultDurationForHabit(habit))

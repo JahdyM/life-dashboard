@@ -36,6 +36,25 @@ export type CustomHabitTemplate = {
 
 export const MERGED_BIBLE_HABIT_KEY = "bible_reading";
 export const MERGED_BIBLE_HABIT_LABEL = "Bible reading & study";
+export const DEFAULT_MEETING_DAYS = [3, 6] as const;
+
+export type HabitAgendaDefaults = {
+  scheduledTime?: string;
+  estimatedMinutes?: number;
+  scheduleLocked?: boolean;
+};
+
+const HABIT_AGENDA_DEFAULTS: Record<string, HabitAgendaDefaults> = {
+  meeting_attended: {
+    scheduledTime: "19:00",
+    estimatedMinutes: 150,
+    scheduleLocked: true,
+  },
+};
+
+export function getHabitAgendaDefaults(habitKey: string): HabitAgendaDefaults {
+  return HABIT_AGENDA_DEFAULTS[habitKey] || {};
+}
 
 const MERGED_BIBLE_HABIT_NAMES = new Set([
   "bible reading",

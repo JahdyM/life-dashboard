@@ -1,5 +1,6 @@
 import { prisma } from "../db/prisma";
 import {
+  DEFAULT_MEETING_DAYS,
   DEFAULT_CUSTOM_HABIT_TEMPLATES,
   isMergedBibleHabitName,
 } from "../config/habits";
@@ -26,11 +27,18 @@ export async function setSetting(
 
 export async function getMeetingDays(userEmail: string): Promise<number[]> {
   const raw = await getSetting(userEmail, "meeting_days");
-  if (!raw) return [1, 3];
-  return raw
+  if (!raw) return [...DEFAULT_MEETING_DAYS];
+  const days = raw
     .split(",")
     .map((value) => parseInt(value.trim(), 10))
     .filter((value) => !Number.isNaN(value));
+  // Move the original Mon/Wed starter schedule to the current Wed/Sat default.
+  // Any other saved selection remains a deliberate user preference.
+  if (days.length === 2 && days.includes(1) && days.includes(3)) {
+    await setMeetingDays(userEmail, [...DEFAULT_MEETING_DAYS]);
+    return [...DEFAULT_MEETING_DAYS];
+  }
+  return days;
 }
 
 export async function setMeetingDays(userEmail: string, days: number[]) {

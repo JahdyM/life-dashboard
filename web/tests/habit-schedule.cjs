@@ -15,4 +15,9 @@ assert.equal(exportsObject.isHabitScheduledForWeekday("workout", 1, [], 6), true
 assert.equal(exportsObject.isHabitScheduledForWeekday("workout", 5, [], 6), true);
 assert.equal(exportsObject.isHabitScheduledForWeekday("workout", 0, [], 6), false);
 assert.equal(exportsObject.isHabitScheduledForWeekday("workout", 6, [], 6), false);
+assert.deepEqual(Array.from(exportsObject.DEFAULT_MEETING_DAYS), [3, 6]);
+const meetingDefaults = exportsObject.getHabitAgendaDefaults("meeting_attended");
+assert.equal(meetingDefaults.scheduledTime, "19:00");
+assert.equal(meetingDefaults.estimatedMinutes, 150);
+assert.equal(meetingDefaults.scheduleLocked, true);
 console.log("PASS: workout is scheduled on weekdays only");
