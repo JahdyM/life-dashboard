@@ -13,7 +13,11 @@ export type HabitFieldName =
   | "scientificWriting"
   | "prayerOnWaking";
 
-export type HabitScheduleRule = "daily" | "meeting_days" | "family_worship_day";
+export type HabitScheduleRule =
+  | "daily"
+  | "weekdays"
+  | "meeting_days"
+  | "family_worship_day";
 
 export type HabitFieldConfig = {
   key: string;
@@ -56,6 +60,8 @@ export function isMergedBibleHabitName(value: string) {
 }
 
 export function getHabitDisplayLabel(key: string, label: string) {
+  // Normalize the former "Workout/Fisioterapia" label stored in older profiles.
+  if (key === "workout") return "Workout";
   if (key === MERGED_BIBLE_HABIT_KEY && isMergedBibleHabitName(label)) {
     return MERGED_BIBLE_HABIT_LABEL;
   }
@@ -104,7 +110,7 @@ export const HABIT_FIELD_CONFIGS: HabitFieldConfig[] = [
     label: "Workout",
     field: "workout",
     scope: "shared",
-    schedule: "daily",
+    schedule: "weekdays",
     defaultEnabled: true,
   },
   {
@@ -237,6 +243,7 @@ export function isHabitScheduledForWeekday(
 ) {
   const config = getHabitConfig(habitKey);
   if (!config || weekday < 0) return false;
+  if (config.schedule === "weekdays") return weekday >= 1 && weekday <= 5;
   if (config.schedule === "meeting_days") return meetingDays.includes(weekday);
   if (config.schedule === "family_worship_day") return weekday === familyWorshipDay;
   return true;
