@@ -10,7 +10,6 @@ import {
   Bot,
   CalendarDays,
   ChartNoAxesCombined,
-  GraduationCap,
   HeartHandshake,
   MoreHorizontal,
   MoonStar,
@@ -48,7 +47,6 @@ const iconMap: Record<DashboardModuleIconKey, JSX.Element> = {
   heart: <HeartHandshake size={15} strokeWidth={1.9} />,
   wallet: <Wallet size={15} strokeWidth={1.9} />,
   target: <Target size={15} strokeWidth={1.9} />,
-  graduation_cap: <GraduationCap size={15} strokeWidth={1.9} />,
 };
 
 function NavLink({ item, active }: { item: DashboardModuleConfig; active: boolean }) {

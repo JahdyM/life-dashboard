@@ -165,14 +165,6 @@ export const HABIT_FIELD_CONFIGS: HabitFieldConfig[] = [
     defaultEnabled: true,
   },
   {
-    key: "dissertation_work",
-    label: "Dissertation work",
-    field: "dissertationWork",
-    scope: "personal",
-    schedule: "daily",
-    defaultEnabled: true,
-  },
-  {
     key: "general_reading",
     label: "General reading",
     field: "generalReading",
@@ -207,7 +199,6 @@ export const PERSONAL_HABIT_KEYS = HABIT_FIELD_CONFIGS
   .map(({ key, label }) => ({ key, label }));
 
 export const DEFAULT_CUSTOM_HABIT_TEMPLATES: CustomHabitTemplate[] = [
-  { id: "default-dissertation-work", name: "Dissertation work", active: true },
   { id: "default-general-reading", name: "General reading (books)", active: true },
   { id: "default-writing", name: "Writing", active: true },
   { id: "default-scientific-writing", name: "Scientific Writing", active: true },

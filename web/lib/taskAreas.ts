@@ -6,7 +6,6 @@ export type TaskAreaTag = {
 
 export const DEFAULT_TASK_AREAS: TaskAreaTag[] = [
   { key: "jw", label: "JW", color: "#D7B56D" },
-  { key: "mestrado", label: "Mestrado", color: "#8FB8D8" },
   { key: "casa", label: "Casa", color: "#C69C7B" },
   { key: "saude", label: "Saúde", color: "#90C9A3" },
   { key: "hobbies", label: "Hobbies", color: "#B9A0D8" },
